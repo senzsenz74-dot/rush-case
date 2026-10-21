@@ -398,10 +398,11 @@ const Snd = {
   },
   // щелчок храповика: speed 0..1 (1 — быстро). Медленнее → тяжелее, ниже, громче
   safeTick(speed = 1, tense = 0) {
-    const slow = 1 - Math.min(1, speed);
-    this.noise(.03 + slow * .03, .38 + slow * .35, 0, 3200 - slow * 1800 - tense * 600, 1.3);
-    this.tone(1400 - slow * 600, .02, 'square', .03 + slow * .02, 0, 700);
-    this.tone(150 - slow * 50, .05 + slow * .05, 'sine', .18 + slow * .3, 0, 60);
+    const slow = 1 - Math.min(1, speed), n = 1 + Math.floor(Math.random() * 3);
+    // щелчок диска сейфа из вашей записи; к остановке — ниже и громче, плюс глухой удар механизма
+    if (this.bufs['safe' + n]) this.play('safe' + n, .7 + slow * .3, (1.06 - slow * .2 - tense * .05) * (.98 + Math.random() * .04));
+    else { this.noise(.03 + slow * .03, .38 + slow * .35, 0, 3200 - slow * 1800, 1.3); this.tone(1400 - slow * 600, .02, 'square', .03, 0, 700); }
+    if (slow > .35) this.tone(120 - slow * 40, .06 + slow * .05, 'sine', slow * .28, 0, 55);
   },
   // напряжение: удар сердца (двойной)
   heart(vol = .5) { this.tone(62, .16, 'sine', vol, 0, 40); this.noise(.08, vol * .25, 0, 180, .7, 'lowpass'); this.tone(55, .2, 'sine', vol * .75, .17, 36); },
@@ -427,6 +428,7 @@ const Snd = {
 
 Snd.preload('lock', 'assets/sounds/lock.wav');
 Snd.preload('tick', 'assets/sounds/tick.wav');
+[1, 2, 3].forEach(n => Snd.preload('safe' + n, 'assets/sounds/safe-tick-' + n + '.wav'));
 
 /* ---------- toast / modal ---------- */
 function toast(msg, type = 'ok') {
