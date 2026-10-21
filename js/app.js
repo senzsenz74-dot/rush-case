@@ -385,6 +385,42 @@ const Snd = {
   },
   win(lvl) { lvl >= 5 ? this.jackpot() : lvl >= 3 ? this.profit() : this.cheap(); },
   lose() { this.tone(330, .25, 'sawtooth', .06, 0, 300); this.tone(196, .5, 'sawtooth', .07, .16, 150); this.noise(.3, .15, .16, 500, 1); },
+  /* ===== апгрейд: «Сейф» ===== */
+  // выбор предмета: on — защёлкнуть, off — отпустить (ниже)
+  safeSel(on = true) { this.noise(.035, .35, 0, on ? 3000 : 1800, 1.6); this.tone(on ? 330 : 220, .07, 'triangle', .12, 0, on ? 250 : 160); },
+  // щелчок шкалы при смене шанса: выше шанс — выше звук
+  safeDial(ch) { const f = 900 + ch * 1400; this.noise(.02, .25, 0, f * 2.2, 2.5); this.tone(f, .03, 'square', .025, 0, f * .7); },
+  // старт: рука берёт рычаг, тяжёлый «клац» и раскрутка механизма
+  safeStart() {
+    this.noise(.05, .5, 0, 2400, 1.8); this.tone(140, .14, 'sine', .45, 0, 60);
+    this.noise(.07, .6, .16, 1500, 1); this.tone(95, .25, 'sine', .55, .16, 40); this.tone(780, .1, 'triangle', .08, .16, 400);
+    this.noise(.4, .12, .2, 600, 3); this.tone(70, .45, 'sawtooth', .05, .2, 140, .1);
+  },
+  // щелчок храповика: speed 0..1 (1 — быстро). Медленнее → тяжелее, ниже, громче
+  safeTick(speed = 1, tense = 0) {
+    const slow = 1 - Math.min(1, speed);
+    this.noise(.03 + slow * .03, .38 + slow * .35, 0, 3200 - slow * 1800 - tense * 600, 1.3);
+    this.tone(1400 - slow * 600, .02, 'square', .03 + slow * .02, 0, 700);
+    this.tone(150 - slow * 50, .05 + slow * .05, 'sine', .18 + slow * .3, 0, 60);
+  },
+  // напряжение: удар сердца (двойной)
+  heart(vol = .5) { this.tone(62, .16, 'sine', vol, 0, 40); this.noise(.08, vol * .25, 0, 180, .7, 'lowpass'); this.tone(55, .2, 'sine', vol * .75, .17, 36); },
+  // «почти попал» — вздох-свист вниз
+  nearMiss() { this.noise(.55, .22, 0, 1200, 3, 'bandpass', .12); this.tone(880, .5, 'sine', .07, 0, 330, .05); },
+  // победа: тяжёлый замок сейфа → дверь со скрипом → звон монет
+  safeWin() {
+    this.tone(60, .6, 'sine', .7, 0, 32); this.noise(.12, .8, 0, 1600, .9); this.tone(1250, .9, 'sine', .07, 0); this.tone(3450, .6, 'sine', .035, 0);
+    this.noise(.08, .6, .22, 4200, 2); this.tone(90, .3, 'sine', .45, .22, 45);
+    { const a = this.a; if (a && st.sound) { const t = a.currentTime + .42, o = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(260, t + .45); o.frequency.exponentialRampToValueAtTime(190, t + .8);
+      f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 4; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.12, t + .1); g.gain.exponentialRampToValueAtTime(.0001, t + .85);
+      o.connect(f); f.connect(g); g.connect(this.out); o.start(t); o.stop(t + .9); } }
+    [523, 659, 784, 1047, 1319].forEach((f, i) => { this.tone(f, .55, 'triangle', .13, .55 + i * .07); this.tone(f * 2, .4, 'sine', .04, .55 + i * .07); });
+    for (let i = 0; i < 16; i++) { const t = .7 + i * .055 + Math.random() * .03, f = 2400 + Math.random() * 2200; this.tone(f, .16, 'square', .03, t); this.tone(f * 1.5, .22, 'sine', .025, t + .02); }
+    this.noise(1, .1, .6, 7000, .6, 'highpass');
+  },
+  // проигрыш: глухой стук «заперто» — без раздражения
+  safeLose() { this.noise(.07, .5, 0, 700, 1); this.tone(110, .25, 'sine', .45, 0, 55); this.noise(.05, .3, .14, 500, 1); this.tone(80, .3, 'sine', .3, .14, 45); },
   /* звук-файл (пополнение) */
   file(src, vol = .9) { if (!st.sound) return; try { const au = new Audio(src); au.volume = vol; au.play().catch(() => {}); } catch (e) { /* ignore */ } },
 };
@@ -1032,7 +1068,7 @@ function mountUpgrade() {
     const best = CATALOG.filter(s => s.p > v * 1.05).sort((a, z) => Math.abs(a.p - want) - Math.abs(z.p - want))[0];
     if (best) { upg.to = best.name; drawUpg(); }
   });
-  $('#upgAll').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.sel = own().map(x => x.id); Snd.click(); drawUpg(); };
+  $('#upgAll').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.sel = own().map(x => x.id); Snd.safeSel(true); drawUpg(); };
   $('#upgClr').onclick = () => { if (upg.busy) return; upg.sel = []; upg.bal = 0; drawUpg(); };
   const pop = $('#upgBalPop');
   $('#upgBalBtn').onclick = e => {
@@ -1086,6 +1122,8 @@ function drawUpg() {
   if (ts) $('#toX').onclick = () => { if (upg.busy) return; upg.to = null; drawUpg(); };
   // колесо
   const ch = upgChance(v, ts);
+  if (upg.lastCh != null && ch && Math.abs(ch - upg.lastCh) > .001) Snd.safeDial(ch);
+  upg.lastCh = ch;
   const arc = $('#wArc');
   arc.setAttribute('d', ch ? arcPath(ch * 360) : 'M0 0');
   arc.style.opacity = ch ? 1 : 0;
@@ -1103,7 +1141,7 @@ function drawUpg() {
   $$('[data-inv]', src).forEach(el => {
     const id = el.dataset.inv;
     if (upg.sel.includes(id)) el.classList.add('sel');
-    el.onclick = () => { if (upg.busy) return; upg.sel = upg.sel.includes(id) ? upg.sel.filter(z => z !== id) : [...upg.sel, id]; Snd.click(); drawUpg(); };
+    el.onclick = () => { if (upg.busy) return; const on = !upg.sel.includes(id); upg.sel = on ? [...upg.sel, id] : upg.sel.filter(z => z !== id); Snd.safeSel(on); drawUpg(); };
   });
   drawBalPop();
   drawTargets();
@@ -1138,7 +1176,7 @@ function drawTargets() {
   let list = CATALOG.filter(s => s.p > v * 1.05 && (!upg.q || s.name.toLowerCase().includes(upg.q)));
   if (upg.sort === 'desc') list = list.slice().reverse();
   box.innerHTML = list.length ? list.map(s => mcard(s, `data-t="${esc(s.name)}"`, v ? `<span class="mc-x">${(upgChance(v, s) * 100).toFixed(1)}%</span>` : '')).join('') : `<div class="empty">${ic.search}Ничего не найдено</div>`;
-  $$('[data-t]', box).forEach(el => { if (el.dataset.t === upg.to) el.classList.add('sel'); el.onclick = () => { if (upg.busy) return; upg.to = el.dataset.t; Snd.click(); drawUpg(); }; });
+  $$('[data-t]', box).forEach(el => { if (el.dataset.t === upg.to) el.classList.add('sel'); el.onclick = () => { if (upg.busy) return; upg.to = el.dataset.t; Snd.safeSel(true); drawUpg(); }; });
 }
 async function runUpgrade() {
   if (upg.busy) return;
@@ -1153,7 +1191,10 @@ async function runUpgrade() {
   if (upg.bal) setBalance(st.balance - upg.bal);
   st.stats.upg++; if (win) { st.stats.upgWin++; giveItem(ts, 'upgrade'); }
   save();
-  upg.busy = true; $('#upgBtn').disabled = true; Snd.click();
+  upg.busy = true; $('#upgBtn').disabled = true;
+  // старт: рычаг сейфа, стрелка трогается после «клаца»
+  Snd.safeStart();
+  await sleep(380);
   // зона выигрыша — дуга ±half градусов от низа кольца
   const half = ch * 180, m = Math.min(3, half / 3);
   const off = win ? rand(-(half - m), half - m) : rand(half + 3, 360 - half - 3);
@@ -1164,16 +1205,27 @@ async function runUpgrade() {
   ptr.style.transition = 'transform 8.6s cubic-bezier(.18,.62,.06,1)';
   ptr.style.transform = `rotate(${upg.rot}deg)`;
   const cEl = $('#wChance'); cEl.textContent = '…'; cEl.style.color = '';
-  let last = null, raf;
-  const loop = () => { const mx = new DOMMatrixReadOnly(getComputedStyle(ptr).transform); const a = Math.atan2(mx.b, mx.a) * 180 / Math.PI; const k = Math.floor((a + 360) / 15); if (last !== null && k !== last) Snd.tick(); last = k; raf = requestAnimationFrame(loop); };
+  // щелчки храповика: тяжелеют при замедлении; последние ~2 с — сердцебиение
+  const DUR = 8600, t0 = performance.now();
+  let last = null, lastA = null, raf, nextBeat = DUR - 2300;
+  const loop = now => {
+    const mx = new DOMMatrixReadOnly(getComputedStyle(ptr).transform), a = (Math.atan2(mx.b, mx.a) * 180 / Math.PI + 360) % 360;
+    const el = now - t0, dA = lastA == null ? 0 : (a - lastA + 360) % 360; lastA = a;
+    const k = Math.floor(a / 15), tense = el > DUR - 2300 ? 1 : 0;
+    if (last !== null && k !== last) Snd.safeTick(Math.min(1, dA / 14), tense);
+    last = k;
+    if (el >= nextBeat && el < DUR - 150) { const p = (el - (DUR - 2300)) / 2300; Snd.heart(.35 + p * .35); nextBeat += 620 - p * 260; }
+    raf = requestAnimationFrame(loop);
+  };
   raf = requestAnimationFrame(loop);
   await sleep(8750); cancelAnimationFrame(raf);
+  const nearMiss = !win && Math.min(Math.abs(off - half), Math.abs(360 - half - off)) < 10;
   const w = $('#wheel'); if (!w) { upg.busy = false; return; }
   w.classList.add(win ? 'win' : 'lose');
   cEl.textContent = win ? 'WIN' : 'LOSE';
   $('#wLabel').textContent = win ? 'скин ваш' : 'не повезло';
-  if (win) { Snd.upgWin(); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
-  else { Snd.lose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); }
+  if (win) { Snd.safeWin(); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
+  else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); }
   await sleep(1900);
   if (!$('#wheel')) { upg.busy = false; return; }
   // плавно возвращаем стрелку наверх
