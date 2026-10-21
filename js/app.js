@@ -340,7 +340,17 @@ const Snd = {
   click() { this.noise(.03, .3, 0, 2600, 1.2); this.tone(420, .06, 'triangle', .1, 0, 260); },
   coin() { this.tone(1320, .09, 'square', .045); this.tone(1980, .22, 'square', .045, .08); this.tone(2640, .25, 'sine', .04, .08); },
   /* отщёлкивание замка кейса: два металлических щелчка + удар защёлки + скрип крышки */
-  lock() {
+  /* звук замка — ваш файл, переработанный (assets/sounds/lock.wav); декодируем заранее, чтобы не было задержки */
+  bufs: {},
+  preload(name, url) { fetch(url).then(r => r.arrayBuffer()).then(ab => { this.bufs[name] = ab; }).catch(() => {}); },
+  async play(name, vol = 1) {
+    if (!st.sound) return false; const a = this.a; if (!a) return false;
+    let b = this.bufs[name]; if (!b) return false;
+    if (b instanceof ArrayBuffer) { try { b = this.bufs[name] = await a.decodeAudioData(b); } catch (e) { return false; } }
+    const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; g.gain.value = vol; s.connect(g); g.connect(a.destination); s.start(); return true;
+  },
+  lock() { this.play('lock').then(ok => { if (!ok && st.sound && !this.bufs.lock) this.lockSynth(); }); },
+  lockSynth() {
     this.noise(.05, .6, 0, 4200, 2); this.tone(180, .08, 'sine', .3, 0, 80);
     this.noise(.04, .45, .14, 5200, 2.5); this.tone(2400, .05, 'square', .04, .14, 1400);
     this.noise(.09, .7, .42, 1800, .8); this.tone(110, .22, 'sine', .45, .42, 45); this.tone(620, .12, 'triangle', .1, .42, 300);
@@ -376,6 +386,8 @@ const Snd = {
   /* звук-файл (пополнение) */
   file(src, vol = .9) { if (!st.sound) return; try { const au = new Audio(src); au.volume = vol; au.play().catch(() => {}); } catch (e) { /* ignore */ } },
 };
+
+Snd.preload('lock', 'assets/sounds/lock.wav');
 
 /* ---------- toast / modal ---------- */
 function toast(msg, type = 'ok') {
