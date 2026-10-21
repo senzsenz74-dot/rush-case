@@ -1404,3 +1404,14 @@ p{margin:0}
 /* без светящейся линии и отсвета под рамкой */
 .rl-floor::before{display:none}
 .rl-floor{background:linear-gradient(180deg,transparent,rgba(6,6,7,.9) 35%,rgba(6,6,7,.97) 60%,transparent)}
+/* новая рамка (чистая вырезка): окно 18.6% / 18.7% / 31.2% / 24.8% */
+@media (min-width:1101px){
+  .rl-framed .rl-wrap{left:18.3%;right:18.4%;top:30.9%;bottom:24.5%}
+  .rl-frame-img{
+    -webkit-mask-image:linear-gradient(#000,#000),linear-gradient(to bottom,#000 74%,transparent 86%);
+    mask-image:linear-gradient(#000,#000),linear-gradient(to bottom,#000 74%,transparent 86%)}
+  .rl-floor{top:79%}
+}
+@media (min-width:1101px){
+  .rl-frame-img{-webkit-mask-size:62% 84%,100% 100%;mask-size:62% 84%,100% 100%;-webkit-mask-position:center top,center;mask-position:center top,center}
+}
