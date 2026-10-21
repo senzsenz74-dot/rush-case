@@ -343,12 +343,14 @@ const Snd = {
   /* звук замка — ваш файл, переработанный (assets/sounds/lock.wav); декодируем заранее, чтобы не было задержки */
   bufs: {},
   preload(name, url) { fetch(url).then(r => r.arrayBuffer()).then(ab => { this.bufs[name] = ab; }).catch(() => {}); },
-  async play(name, vol = 1) {
+  async play(name, vol = 1, rate = 1) {
     if (!st.sound) return false; const a = this.a; if (!a) return false;
     let b = this.bufs[name]; if (!b) return false;
     if (b instanceof ArrayBuffer) { try { b = this.bufs[name] = await a.decodeAudioData(b); } catch (e) { return false; } }
-    const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; g.gain.value = vol; s.connect(g); g.connect(a.destination); s.start(); return true;
+    const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; s.playbackRate.value = rate; g.gain.value = vol; s.connect(g); g.connect(a.destination); s.start(); return true;
   },
+  /* щелчок ленты кейса — звук с записи (assets/sounds/tick.wav), лёгкий разброс высоты */
+  tickCase() { if (this.bufs.tick) this.play('tick', .9, .96 + Math.random() * .08); else this.tick(); },
   lock() { this.play('lock').then(ok => { if (!ok && st.sound && !this.bufs.lock) this.lockSynth(); }); },
   lockSynth() {
     this.noise(.05, .6, 0, 4200, 2); this.tone(180, .08, 'sine', .3, 0, 80);
@@ -388,6 +390,7 @@ const Snd = {
 };
 
 Snd.preload('lock', 'assets/sounds/lock.wav');
+Snd.preload('tick', 'assets/sounds/tick.wav');
 
 /* ---------- toast / modal ---------- */
 function toast(msg, type = 'ok') {
@@ -863,7 +866,7 @@ function spinStrip(strip, dur, withSound) {
       const loop = () => {
         const x = -pos();
         const idx = Math.floor((x + center) / step);
-        if (last !== null && idx !== last) Snd.tick();
+        if (last !== null && idx !== last) Snd.tickCase();
         last = idx; raf = requestAnimationFrame(loop);
       };
       raf = requestAnimationFrame(loop);
@@ -892,7 +895,7 @@ function showReveal(c, wins, given, demo) {
   if (tier === 'jackpot') { burst(110); setTimeout(() => burst(70), 700); }
   const one = wins.length === 1;
   const topR = wins.reduce((a, s) => RAR[s.r].o > RAR[a].o ? s.r : a, wins[0].r);
-  const rays = '<div class="rv-rays"></div><div class="rv-glow"></div>';
+  const rays = ''; // без лучей и свечения за выпавшим предметом
   $('#reveal').innerHTML = `${one ? '' : `<div class="rv-bg r-${topR}">${rays}</div>`}<div class="rv-inner ${one ? 'one' : 'many'}">${wins.map((s, i) => `
     <div class="rv-card r-${s.r}" style="--d:${i * 110}ms" ${given[i] ? `data-id="${given[i].id}"` : ''}>
       <div class="rv-imgw">${one ? rays : ''}<img src="${imgUrl(s, 'l')}" alt=""></div>

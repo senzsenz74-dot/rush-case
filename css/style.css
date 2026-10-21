@@ -1231,3 +1231,32 @@ p{margin:0}
 /* треугольник апгрейда — снаружи кольца, остриём на линию */
 .wheel{margin-top:30px;overflow:visible}
 .wheel .w-tri{top:-9.5%;width:9.5%}
+
+/* окно прокрутки ниже; выпавший предмет крупнее, без эффектов и покачивания */
+.rl{min-height:350px}
+.rl-idle .case-art{width:min(380px,40%)}
+.rl-reveal{background:rgba(7,6,5,.92)}
+.rv-card img{animation:none}
+.rv-inner.one .rv-card{display:grid;grid-template-columns:auto auto;align-items:center;justify-items:start;column-gap:34px;text-align:left}
+.rv-inner.one .rv-imgw{grid-row:1/4}
+.rv-inner.one .rv-card img{width:420px;max-width:52vw}
+.rv-inner.one .rv-rar{align-self:end;margin:0}
+.rv-inner.one .rv-name{font-size:30px;margin-top:4px}
+.rv-inner.one .rv-name span{font-size:16px}
+.rv-inner.one .rv-price{align-self:start;margin-top:14px;height:42px;font-size:19px;padding:0 20px}
+@media (max-width:720px){
+  .rl{min-height:280px}
+  .rv-inner.one .rv-card{grid-template-columns:1fr;justify-items:center;text-align:center}
+  .rv-inner.one .rv-imgw{grid-row:auto}
+  .rv-inner.one .rv-card img{width:250px;max-width:70vw}
+  .rv-inner.one .rv-name{font-size:20px}
+  .rv-inner.one .rv-rar,.rv-inner.one .rv-price{align-self:auto}
+}
+.rl-idle .case-art{width:auto;height:92%;max-width:60%;aspect-ratio:1.18}
+@media (max-width:720px){
+  .rl-idle .case-art{height:86%;max-width:90%}
+  .rv-inner.one .rv-card img{width:180px}
+  .rv-inner.one .rv-name{font-size:17px}
+  .rv-inner.one .rv-name span{font-size:13px}
+  .rv-inner.one .rv-price{margin-top:8px;height:34px;font-size:15px}
+}
