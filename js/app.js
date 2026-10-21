@@ -637,24 +637,14 @@ const HERO_SKIN = 'AK-47 | Золотая арабеска';
 let statOpened = 1284590;
 function pageHome() {
   const embers = Array.from({ length: 22 }, () => `<i style="left:${rand(2, 98)}%;--d:${rand(4, 9)}s;--dl:${rand(0, 8)}s;--x:${rand(-40, 40)}px;--s:${rand(.6, 1.4)}"></i>`).join('');
-  return `<section class="hero2">
-    <div class="h2-bg"><i class="h2-spot"></i><div class="h2-embers">${embers}</div></div>
-    <div class="container h2-in">
-      <div class="h2-text">
-        <h1><span>Открывай.</span><span>Собирай.</span><span class="gold">Побеждай.</span></h1>
-        <p>Твои следующие легендарные скины уже внутри</p>
-        <div class="h2-btns">
-          <a class="btn btn-primary btn-lg" href="#/cases">${ic.box}Открыть кейсы${ic.right}</a>
-          <a class="btn btn-outline btn-lg" href="#/upgrade">${ic.trend}Смотреть апгрейды</a>
-        </div>
-      </div>
-      <div class="h2-art" aria-hidden="true">
-        <i class="h2-ring"></i><i class="h2-ring r2"></i><i class="h2-glow"></i>
-        <img class="h2-case c1" src="assets/case-orange.webp" alt="">
-        <img class="h2-case c3" src="assets/case-alt.webp" alt="">
-        <img class="h2-case c2" src="assets/case-premium.webp" alt="">
-        <img class="h2-skin" src="${imgUrl(SK[HERO_SKIN], 'l')}" alt="">
-        <i class="h2-dust"></i>
+  const dust = Array.from({ length: 34 }, () => `<i style="left:${rand(0, 100)}%;top:${rand(0, 100)}%;--d:${rand(9, 18)}s;--dl:${rand(-18, 0)}s;--x:${rand(-60, 60)}px;--y:${rand(-50, 50)}px;--s:${rand(.4, 1.2)}"></i>`).join('');
+  return `<section class="hero3">
+    <div class="h3-frame">
+      <img class="h3-img" src="assets/hero-banner.webp" alt="Открывай. Собирай. Побеждай. Твои следующие легендарные скины уже внутри">
+      <div class="h3-fx" aria-hidden="true"><div class="h2-embers">${embers}</div><div class="h3-dust">${dust}</div></div>
+      <div class="h3-btns">
+        <a class="btn btn-primary btn-lg" href="#/cases">${ic.box}Открыть кейсы${ic.right}</a>
+        <a class="btn btn-outline btn-lg" href="#/upgrade">${ic.trend}Смотреть апгрейды</a>
       </div>
     </div>
   </section>
@@ -791,7 +781,7 @@ function pageCase(id) {
   return `<section class="container case-page" style="--ca:${c.th.a}">
     <div class="cp-head"><a href="#/cases" class="back">${ic.left}Все кейсы</a>
       <div class="cp-title"><i class="cp-line l"></i><h1>Кейс «${c.name}»</h1><i class="cp-line r"></i></div>
-      <div class="cp-price">${ic.coins}${money(c.price)}</div></div>
+      <i></i></div>
     <div class="rl-framed"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
       <svg class="rl-frame" id="rlFrame" aria-hidden="true"><polygon class="f-glow"/><polygon class="f-line"/></svg>
       <div class="rl-side l"></div><div class="rl-side r"></div>
