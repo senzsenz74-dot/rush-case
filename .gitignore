@@ -1,0 +1,11 @@
+# настройки предпросмотра Claude Code
+.claude/
+
+# сохранённая из браузера копия страницы
+Открытие кейсов CS2 — RUSH CASE.html
+Открытие кейсов CS2 — RUSH CASE_files/
+
+# служебные файлы систем
+Thumbs.db
+desktop.ini
+.DS_Store
