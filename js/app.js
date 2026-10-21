@@ -300,27 +300,81 @@ function sellItem(id, silent) {
 
 /* ---------- sound (WebAudio, без файлов) ---------- */
 const Snd = {
-  ctx: null,
+  ctx: null, out: null, nbuf: null,
   get a() {
-    if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (!this.ctx) {
+      try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+      // общий компрессор — громко, но без перегруза
+      const comp = this.ctx.createDynamicsCompressor();
+      comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 4; comp.attack.value = .003; comp.release.value = .2;
+      this.out = this.ctx.createGain(); this.out.gain.value = .9;
+      this.out.connect(comp); comp.connect(this.ctx.destination);
+      const len = this.ctx.sampleRate; this.nbuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const d = this.nbuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
     if (this.ctx.state === 'suspended') this.ctx.resume();
     return this.ctx;
   },
-  tone(f, dur, type = 'sine', vol = .08, when = 0) {
+  /* тон с огибающей; to — глиссандо к частоте */
+  tone(f, dur, type = 'sine', vol = .08, when = 0, to = 0, attack = .004) {
     if (!st.sound) return; const a = this.a; if (!a) return;
     const t = a.currentTime + when, o = a.createOscillator(), g = a.createGain();
-    o.type = type; o.frequency.setValueAtTime(f, t);
+    o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g); g.connect(this.out); o.start(t); o.stop(t + dur + .05);
+  },
+  /* щелчок шума через фильтр */
+  noise(dur, vol = .2, when = 0, freq = 2000, q = 1, type = 'bandpass') {
+    if (!st.sound) return; const a = this.a; if (!a) return;
+    const t = a.currentTime + when, s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    s.buffer = this.nbuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur + .03);
+    s.connect(f); f.connect(g); g.connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
   },
-  tick() { this.tone(1500 + Math.random() * 300, .03, 'square', .025); },
-  click() { this.tone(520, .07, 'triangle', .07); },
-  coin() { this.tone(1300, .07, 'square', .035); this.tone(1950, .14, 'square', .035, .07); },
-  win(lvl) {
-    [523, 659, 784, 1047].forEach((f, i) => this.tone(f, .32, 'triangle', .07, i * .07));
-    if (lvl >= 5) [1319, 1568, 2093, 2637].forEach((f, i) => this.tone(f, .5, 'sine', .05, .3 + i * .09));
+  /* твёрдый «щелчок храповика» для лент и колеса */
+  tick() {
+    this.noise(.028, .55, 0, 3400, 1.4);
+    this.tone(2100, .02, 'square', .05, 0, 900);
+    this.tone(160, .045, 'sine', .22, 0, 70);
   },
-  lose() { this.tone(330, .25, 'sawtooth', .04); this.tone(196, .4, 'sawtooth', .04, .16); },
+  click() { this.noise(.03, .3, 0, 2600, 1.2); this.tone(420, .06, 'triangle', .1, 0, 260); },
+  coin() { this.tone(1320, .09, 'square', .045); this.tone(1980, .22, 'square', .045, .08); this.tone(2640, .25, 'sine', .04, .08); },
+  /* отщёлкивание замка кейса: два металлических щелчка + удар защёлки + скрип крышки */
+  lock() {
+    this.noise(.05, .6, 0, 4200, 2); this.tone(180, .08, 'sine', .3, 0, 80);
+    this.noise(.04, .45, .14, 5200, 2.5); this.tone(2400, .05, 'square', .04, .14, 1400);
+    this.noise(.09, .7, .42, 1800, .8); this.tone(110, .22, 'sine', .45, .42, 45); this.tone(620, .12, 'triangle', .1, .42, 300);
+    this.noise(.45, .12, .55, 900, 6); this.tone(240, .5, 'sawtooth', .025, .55, 330, .08);
+  },
+  /* дешёвый дроп — короткий мягкий «пум» */
+  cheap() { this.tone(392, .18, 'triangle', .14); this.tone(294, .3, 'triangle', .12, .09); this.noise(.06, .12, 0, 800, 1); },
+  /* окупил кейс — бодрое арпеджио с монетками */
+  profit() {
+    [523, 659, 784, 1047].forEach((f, i) => { this.tone(f, .28, 'triangle', .16, i * .075); this.tone(f * 2, .2, 'sine', .04, i * .075); });
+    this.coin(); setTimeout(() => this.coin(), 260);
+  },
+  /* супер дорогой дроп — торжественные фанфары */
+  jackpot() {
+    const ch = (fs, w, d, v = .1) => fs.forEach(f => { this.tone(f, d, 'sawtooth', v * .45, w, 0, .02); this.tone(f, d, 'triangle', v, w, 0, .02); });
+    this.tone(55, 1.2, 'sine', .5, 0, 40); this.noise(.8, .35, 0, 300, .7, 'lowpass');
+    ch([392, 494, 587], .05, .22); ch([392, 494, 587], .3, .22);
+    ch([523, 659, 784], .55, .5, .12);
+    ch([587, 740, 880], 1.05, .3);
+    ch([523, 659, 784, 1047], 1.38, 1.6, .14);
+    [1568, 2093, 2637, 3136, 2637, 3136, 4186].forEach((f, i) => this.tone(f, .5, 'sine', .05, 1.4 + i * .09));
+    this.noise(1.4, .12, 1.38, 7000, .6, 'highpass');
+  },
+  /* громкая победа в апгрейде */
+  upgWin() {
+    this.tone(70, .7, 'sine', .55, 0, 40); this.noise(.5, .3, 0, 400, .7, 'lowpass');
+    [523, 784, 1047, 1319, 1568].forEach((f, i) => { this.tone(f, .5, 'square', .06, i * .07); this.tone(f, .6, 'triangle', .14, i * .07); });
+    [2093, 2637, 3136].forEach((f, i) => this.tone(f, .9, 'sine', .07, .42 + i * .08));
+    this.noise(1, .12, .4, 6500, .6, 'highpass');
+  },
+  win(lvl) { lvl >= 5 ? this.jackpot() : lvl >= 3 ? this.profit() : this.cheap(); },
+  lose() { this.tone(330, .25, 'sawtooth', .06, 0, 300); this.tone(196, .5, 'sawtooth', .07, .16, 150); this.noise(.3, .15, .16, 500, 1); },
+  /* звук-файл (пополнение) */
+  file(src, vol = .9) { if (!st.sound) return; try { const au = new Audio(src); au.volume = vol; au.play().catch(() => {}); } catch (e) { /* ignore */ } },
 };
 
 /* ---------- toast / modal ---------- */
@@ -752,15 +806,21 @@ async function openCase(c, demo) {
     given = wins.map(s => giveItem(s, c.id));
     st.stats.opened += n; st.stats.spent += cost; save();
   }
-  spinning = true; Snd.click();
+  spinning = true;
   const my = ++spinId;
   const rl = $('#rl'), box = $('#strips');
   rl.dataset.n = n;
   rl.classList.toggle('vert', n > 5);
   const vert = n > 5; // много кейсов — вертикальные барабаны в ряд
   box.innerHTML = wins.map(w => `<div class="strip${vert ? ' v' : ''}"><div class="track">${Array.from({ length: STRIP_LEN }, (_, i) => rcard(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT)).join('')}</div></div>`).join('');
-  rl.classList.add('spinning');
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
+  // 1) отщёлкивание замка — картинка кейса трясётся, лента ещё не крутится
+  rl.classList.add('unlocking'); Snd.lock();
+  await sleep(st.fast ? 700 : 1150);
+  if (my !== spinId || !document.body.contains(rl)) return;
+  rl.classList.remove('unlocking');
+  // 2) прокрутка
+  rl.classList.add('spinning');
   const strips = $$('.strip', box);
   $('#skipBtn').onclick = () => strips.forEach(s => s._skip && s._skip());
   await sleep(60);
@@ -814,9 +874,10 @@ function spinStrip(strip, dur, withSound) {
   });
 }
 function showReveal(c, wins, given, demo) {
-  const top = Math.max(...wins.map(s => RAR[s.r].o));
-  Snd.win(top);
-  if (top >= 5) burst();
+  const best = wins.reduce((a, s) => s.p > a.p ? s : a, wins[0]);
+  const tier = best.r === 'rare' || best.p >= c.price * 8 ? 'jackpot' : best.p > c.price ? 'profit' : 'cheap';
+  Snd[tier]();
+  if (tier === 'jackpot') { burst(110); setTimeout(() => burst(70), 700); }
   const one = wins.length === 1;
   const topR = wins.reduce((a, s) => RAR[s.r].o > RAR[a].o ? s.r : a, wins[0].r);
   const rays = '<div class="rv-rays"></div><div class="rv-glow"></div>';
@@ -1096,7 +1157,7 @@ async function runUpgrade() {
   w.classList.add(win ? 'win' : 'lose');
   cEl.textContent = win ? 'WIN' : 'LOSE';
   $('#wLabel').textContent = win ? 'скин ваш' : 'не повезло';
-  if (win) { Snd.win(RAR[ts.r].o); if (RAR[ts.r].o >= 5) burst(); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
+  if (win) { Snd.upgWin(); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
   else { Snd.lose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); }
   await sleep(1900);
   if (!$('#wheel')) { upg.busy = false; return; }
@@ -1576,7 +1637,7 @@ function openDeposit(need = 0) {
     b.innerHTML = '<span class="spinner"></span>Обработка…'; b.disabled = true;
     await sleep(900);
     st.depBonus = 0; st.stats.dep += amount;
-    setBalance(st.balance + total); Snd.coin(); closeModal();
+    setBalance(st.balance + total); Snd.file('assets/sounds/deposit.wav'); closeModal();
     toast(`Баланс пополнен на <b>+${money(total)}</b>`);
     if (total >= 1000) burst(26);
     route();

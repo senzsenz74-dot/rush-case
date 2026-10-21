@@ -1218,3 +1218,16 @@ p{margin:0}
 .cc-price{font-size:22px}
 .cc-open{height:40px;padding:0 34px}
 @media (max-width:720px){.cases-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 10px}.cc-name{font-size:13px}.cc-price{font-size:17px}.cc-open{padding:0 18px;width:100%}}
+
+/* размытие карточек за кейсом */
+.rl-ghost .gcard{filter:blur(2.6px);opacity:.5}
+/* тряска кейса при отщёлкивании замка */
+.rl.unlocking .rl-idle .ca-img{animation:lockShake 1.15s cubic-bezier(.36,.07,.19,.97) both!important}
+.rl.unlocking .rs-glow{animation:lockFlash 1.15s ease-in both}
+@keyframes lockShake{0%,100%{transform:translate(-50%,-50%)}8%{transform:translate(calc(-50% - 4px),-50%) rotate(-1.5deg)}14%{transform:translate(calc(-50% + 4px),-50%) rotate(1.5deg)}20%{transform:translate(-50%,-50%)}
+  36%{transform:translate(calc(-50% - 7px),calc(-50% + 2px)) rotate(-2.5deg)}42%{transform:translate(calc(-50% + 7px),-50%) rotate(2.5deg)}48%{transform:translate(-50%,-50%)}
+  62%{transform:translate(-50%,-52%) scale(1.04)}80%{transform:translate(-50%,-55%) scale(1.09)}}
+@keyframes lockFlash{60%{opacity:.95}85%{opacity:1;filter:brightness(1.6)}}
+/* треугольник апгрейда — снаружи кольца, остриём на линию */
+.wheel{margin-top:30px;overflow:visible}
+.wheel .w-tri{top:-9.5%;width:9.5%}
