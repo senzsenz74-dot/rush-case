@@ -1260,3 +1260,6 @@ p{margin:0}
   .rv-inner.one .rv-name span{font-size:13px}
   .rv-inner.one .rv-price{margin-top:8px;height:34px;font-size:15px}
 }
+/* картинка кейса в окне прокрутки вписывается по высоте (у квадратных кейсов тоже) */
+.rl-idle .case-art{height:86%}
+.rl-idle .case-art.has-img .ca-img{width:auto!important;height:100%;max-width:100%;object-fit:contain}
