@@ -429,6 +429,7 @@ const Snd = {
 Snd.preload('lock', 'assets/sounds/lock.wav');
 Snd.preload('tick', 'assets/sounds/tick.wav');
 [1, 2, 3].forEach(n => Snd.preload('safe' + n, 'assets/sounds/safe-tick-' + n + '.wav'));
+Snd.preload('upgWin', 'assets/sounds/upgrade-win.wav');
 
 /* ---------- toast / modal ---------- */
 function toast(msg, type = 'ok') {
@@ -1226,7 +1227,7 @@ async function runUpgrade() {
   w.classList.add(win ? 'win' : 'lose');
   cEl.textContent = win ? 'WIN' : 'LOSE';
   $('#wLabel').textContent = win ? 'скин ваш' : 'не повезло';
-  if (win) { Snd.safeWin(); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
+  if (win) { Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
   else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); }
   await sleep(1900);
   if (!$('#wheel')) { upg.busy = false; return; }
