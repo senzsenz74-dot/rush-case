@@ -1755,7 +1755,7 @@ function jpBotJoin() {
   const used = new Set(jp.players.map(p => p.name));
   const name = NICKS.filter(n => !used.has(n) && (!st.user || n !== st.user.name)).sort(() => Math.random() - .5)[0];
   if (!name) return;
-  const pool = CATALOG.filter(s => s.p >= 15 && s.p <= 6000);
+  const pool = CATALOG.filter(s => s.p >= 4 && s.p <= 239000); // ставки ботов: от 4 до 239 000 ₽
   const n = randi(1, 4), items = [];
   for (let i = 0; i < n; i++) items.push(pool[Math.floor(Math.pow(Math.random(), 1.8) * pool.length)]);
   jpAdd(name, items, false);
