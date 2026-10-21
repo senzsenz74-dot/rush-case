@@ -1401,3 +1401,6 @@ p{margin:0}
   .rl-framed .rv-inner.many img{width:100%;max-width:110px}
   .rl-framed .rv-inner.many .rv-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 }
+/* без светящейся линии и отсвета под рамкой */
+.rl-floor::before{display:none}
+.rl-floor{background:linear-gradient(180deg,transparent,rgba(6,6,7,.9) 35%,rgba(6,6,7,.97) 60%,transparent)}
