@@ -1023,20 +1023,12 @@ function pageUpgrade() {
                 <stop offset=".93" stop-color="#000" stop-opacity=".15"/><stop offset=".97" stop-color="#000" stop-opacity=".7"/><stop offset="1" stop-color="#000" stop-opacity=".95"/>
               </radialGradient>
               <linearGradient id="depthTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".5" stop-color="#000" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
-              <!-- плоская полоса с внутренней тенью со всех сторон (без смещения) -->
-              <filter id="inset" x="-10%" y="-10%" width="120%" height="120%">
-                <feComponentTransfer in="SourceAlpha" result="inv"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>
-                <feGaussianBlur in="inv" stdDeviation="3.2" result="bl"/>
-                <feFlood flood-color="#000" flood-opacity=".78"/><feComposite in2="bl" operator="in"/>
-                <feComposite in2="SourceAlpha" operator="in" result="sh"/>
-                <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="sh"/></feMerge>
-              </filter>
               <filter id="soft"><feGaussianBlur stdDeviation="1.2"/></filter>
             </defs>
             <circle cx="160" cy="160" r="156" class="w-ticks"/>
             <circle cx="160" cy="160" r="${ARC_R + 13}" class="w-rim-o"/>
-            <circle cx="160" cy="160" r="${ARC_R}" class="w-track" filter="url(#inset)"/>
-            <g filter="url(#inset)"><path class="w-arc" id="wArc" d="M0 0"/></g>
+            <circle cx="160" cy="160" r="${ARC_R}" class="w-track" filter="url(#groove)"/>
+            <g filter="url(#groove)"><path class="w-arc" id="wArc" d="M0 0"/></g>
             <path class="w-arc-gloss" id="wArcGloss" d="M0 0" filter="url(#soft)"/>
             <circle cx="160" cy="160" r="${ARC_R}" class="w-depth"/><circle cx="160" cy="160" r="${ARC_R}" class="w-depth2"/>
             <circle cx="160" cy="160" r="${ARC_R - 13}" class="w-rim-i"/>

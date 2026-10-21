@@ -1288,7 +1288,3 @@ p{margin:0}
 .w-depth2{fill:none;stroke:url(#depthTop);stroke-width:24;pointer-events:none;opacity:.8}
 .w-arc-gloss{stroke:rgba(255,255,255,.18);stroke-width:2.5;transform:translateY(4px)}
 .w-arc{stroke-width:22}
-/* полоса шанса — плоская, с плавным градиентом и внутренней тенью со всех сторон */
-.w-depth,.w-depth2,.w-arc-gloss{display:none}
-.w-arc{stroke-width:22}
-.w-track{stroke:#141311}
