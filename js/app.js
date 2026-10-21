@@ -672,7 +672,7 @@ const caseCard = c => `<a class="case-card" href="#/case/${c.id}" style="--ca:${
   <div class="cc-art">${caseArt(c)}</div>
   <div class="cc-body">
     <div class="cc-name">${c.name}</div>
-    <div class="cc-foot"><span class="cc-price">${money(c.price)}</span><span class="btn btn-outline btn-sm cc-open">Открыть</span></div>
+    <div class="cc-foot"><span class="cc-price">${money(c.price)}</span></div>
   </div>
 </a>`;
 function mountHome() {
