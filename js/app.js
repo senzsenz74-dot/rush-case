@@ -792,7 +792,7 @@ function pageCase(id) {
     <div class="cp-head"><a href="#/cases" class="back">${ic.left}Все кейсы</a>
       <div class="cp-title"><i class="cp-line l"></i><h1>Кейс «${c.name}»</h1><i class="cp-line r"></i></div>
       <div class="cp-price">${ic.coins}${money(c.price)}</div></div>
-    <div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
+    <div class="rl-framed"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
       <svg class="rl-frame" id="rlFrame" aria-hidden="true"><polygon class="f-glow"/><polygon class="f-line"/></svg>
       <div class="rl-side l"></div><div class="rl-side r"></div>
       <div class="rl-stage"><i class="rs-burst"></i><i class="rs-glow"></i><div class="rs-embers">${embers}</div><i class="rs-ground"></i></div>
@@ -800,7 +800,7 @@ function pageCase(id) {
       <div class="rl-strips" id="strips"></div>
       <div class="rl-marker"></div>
       <div class="rl-reveal" id="reveal"></div>
-    </div></div>
+    </div></div><img class="rl-frame-img" src="assets/frame-case.png" alt="" draggable="false"></div>
     <div class="cc" id="cc"></div>
     ${secTitle('Содержимое кейса')}
     <div class="items-grid">${c.items.map(s => itemCard(s)).join('')}</div>

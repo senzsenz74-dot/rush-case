@@ -1348,3 +1348,56 @@ p{margin:0}
 .jp-wheel .w-center b.jp-big{font-size:40px}
 @media (max-width:720px){.jp-wheel .w-center b.jp-big{font-size:30px}.jp-center b.jp-wname{font-size:16px}}
 .bal b{white-space:nowrap}
+
+/* =========================================================
+   РАМКА С ПЕРСОНАЖАМИ ВОКРУГ ПРОКРУТКИ (десктоп)
+   окно рамки в картинке 1983×793: слева/справа 18.86%, сверху 34.55%, снизу 23.71%
+   ========================================================= */
+.rl-framed{position:relative;width:min(100vw - 24px,1560px);left:50%;transform:translateX(-50%);aspect-ratio:1983/793;margin:-30px 0 -10px}
+.rl-frame-img{position:absolute;inset:0;width:100%;height:100%;z-index:8;pointer-events:none;user-select:none;
+  /* тела персонажей растворяются снизу — стоят «за стойкой», а не висят в воздухе */
+  -webkit-mask-image:linear-gradient(#000,#000),linear-gradient(to bottom,#000 70%,transparent 81.5%);
+  -webkit-mask-size:62% 100%,100% 100%;-webkit-mask-position:center,center;-webkit-mask-repeat:no-repeat;
+  mask-image:linear-gradient(#000,#000),linear-gradient(to bottom,#000 70%,transparent 81.5%);
+  mask-size:62% 100%,100% 100%;mask-position:center,center;mask-repeat:no-repeat;mask-composite:add;
+  filter:drop-shadow(0 18px 24px rgba(0,0,0,.6))}
+/* «стойка»: тёмная полоса с золотым отсветом, на которую опираются персонажи */
+.rl-floor{position:absolute;left:0;right:0;top:76%;height:16%;z-index:7;pointer-events:none;
+  background:radial-gradient(50% 120% at 50% 0%,rgba(255,190,90,.22),transparent 70%),linear-gradient(180deg,transparent,rgba(6,6,7,.92) 35%,rgba(6,6,7,.98) 60%,transparent);}
+.rl-floor::before{content:"";position:absolute;left:4%;right:4%;top:22%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,200,110,.6) 20%,rgba(255,220,150,.9) 50%,rgba(255,200,110,.6) 80%,transparent);box-shadow:0 0 12px rgba(255,180,70,.6)}
+@media (min-width:1101px){
+.rl-framed .rl-wrap{position:absolute;left:18.6%;right:18.6%;top:34.2%;bottom:23.4%;z-index:6}
+.rl-framed .rl-halo,.rl-framed .rl-frame,.rl-framed .rl-side{display:none}
+.rl-framed .rl{height:100%;min-height:0!important;padding:10px 24px;clip-path:none;background:#070605!important}
+.rl-framed .rl-idle .case-art{height:90%}
+.rl-framed .rcard{--cw:150px;--ch:150px}
+.rl-framed .rl[data-n="2"] .rcard{--ch:100px;--cw:118px}
+.rl-framed .rl[data-n="3"] .rcard,.rl-framed .rl[data-n="4"] .rcard,.rl-framed .rl[data-n="5"] .rcard{--ch:64px;--cw:84px}
+.rl-framed .rl[data-n="3"] .rc-f,.rl-framed .rl[data-n="4"] .rc-f,.rl-framed .rl[data-n="5"] .rc-f,.rl-framed .rl[data-n="2"] .rc-w{display:none}
+.rl-framed .rl-strips{gap:4px}
+.rl-framed .rl.vert .rl-strips{height:100%}
+.rl-framed .strip.v .rcard{height:62px}
+.rl-framed .strip.v .rc-f{display:none}
+.rl-framed .rv-inner.one .rv-card img{width:270px}
+.rl-framed .rv-inner.one .rv-name{font-size:24px}
+.rl-framed .rv-inner.many .rv-card{width:118px;padding:6px 6px}
+.rl-framed .rv-inner.many img{width:90px}
+.rl-framed .rv-inner.many .rv-rar,.rl-framed .rv-inner.many .rv-name span{display:none}
+.rl-framed .rv-inner.many .rv-name{font-size:10.5px}
+.rl-framed .rv-inner.many .rv-price{height:22px;font-size:10.5px;margin-top:4px}
+.rl-framed .rv-inner.many .btn{height:24px;padding:0 8px;font-size:9px;margin-top:4px}
+.rl-framed .rl-ghost .gcard{flex-basis:140px;height:140px}
+}
+/* на узких экранах рамка с персонажами не помещается — прежний вид */
+@media (max-width:1100px){
+  .rl-framed{width:auto;left:0;transform:none;aspect-ratio:auto;margin:0}
+  .rl-frame-img,.rl-floor{display:none}
+}
+.rl-floor{-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+@media (min-width:1101px){
+  .rl-framed .rl-reveal{padding:10px 18px}
+  .rl-framed .rv-inner.many{flex-wrap:nowrap;gap:8px}
+  .rl-framed .rv-inner.many .rv-card{flex:1 1 0;width:auto;min-width:0;max-width:150px}
+  .rl-framed .rv-inner.many img{width:100%;max-width:110px}
+  .rl-framed .rv-inner.many .rv-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+}
