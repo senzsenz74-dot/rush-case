@@ -1271,3 +1271,9 @@ p{margin:0}
 .cc-foot{gap:8px;margin-top:6px}
 .cc-open{height:34px;padding:0 26px;font-size:12.5px}
 @media (max-width:720px){.cases-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* кейсы чуть крупнее */
+.cases-grid{grid-template-columns:repeat(auto-fill,236px);gap:28px 24px}
+.cc-name{font-size:15.5px}
+.cc-price{font-size:20px}
+.cc-open{height:37px;padding:0 30px;font-size:13px}
+@media (max-width:720px){.cases-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
