@@ -557,9 +557,8 @@ function pageHome() {
     </div>
     <div class="sec-row">
       <h2 class="sec-h">Популярные кейсы</h2><i class="st-line"></i>
-      <div class="sec-arrows"><button class="sa-btn" id="popPrev" aria-label="Назад">${ic.left}</button><button class="sa-btn" id="popNext" aria-label="Вперёд">${ic.right}</button></div>
     </div>
-    <div class="cc-row" id="popRow">${CASES.map(caseCard).join('')}</div>
+    <div class="cases-grid" id="popRow">${CASES.map(caseCard).join('')}</div>
     <div class="promo-row">
       <div class="promo promo-dep"><div><h3>Бонус к пополнению <em>+35%</em></h3><div class="code">RUSH35</div><br><button class="btn btn-light btn-sm" data-act="copy" data-copy="RUSH35">${ic.copy}Скопировать</button></div><div class="promo-pct">%</div></div>
       <div class="promo promo-daily"><div><h3>Ежедневный бонус</h3><p id="dailyHome">${dailyLeft() ? 'Следующий через ' + dailyText() : 'Уже доступен! До 250 ₽ на баланс'}</p><a class="btn btn-outline btn-sm" href="#/bonus">${ic.gift}Получить</a></div><img src="assets/soldier.png" alt=""></div>
@@ -571,22 +570,13 @@ function pageHome() {
   </section>`;
 }
 const caseCard = c => `<a class="case-card" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
-  ${c.tag ? `<span class="cc-tag">${c.tag}</span>` : ''}
   <div class="cc-art">${caseArt(c)}</div>
   <div class="cc-body">
     <div class="cc-name">${c.name}</div>
-    <div class="cc-desc">${CASE_DESC[c.id] || ''}</div>
     <div class="cc-foot"><span class="cc-price">${money(c.price)}</span><span class="btn btn-outline btn-sm cc-open">Открыть</span></div>
   </div>
 </a>`;
 function mountHome() {
-  // карусель «Популярные кейсы»
-  const row = $('#popRow'), prev = $('#popPrev'), next = $('#popNext');
-  const step = () => { const c = $('.case-card', row); return c ? c.offsetWidth + parseFloat(getComputedStyle(row).columnGap || 18) : 300; };
-  const upd = () => { prev.disabled = row.scrollLeft < 4; next.disabled = row.scrollLeft + row.clientWidth >= row.scrollWidth - 4; };
-  prev.onclick = () => row.scrollBy({ left: -step(), behavior: 'smooth' });
-  next.onclick = () => row.scrollBy({ left: step(), behavior: 'smooth' });
-  row.addEventListener('scroll', upd, { passive: true }); upd();
   // живой счётчик открытых кейсов
   every(() => { statOpened += randi(1, 4); const b = $('#sbOpened'); if (b) b.textContent = fmt(statOpened); }, 2200);
 }
