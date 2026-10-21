@@ -1263,3 +1263,11 @@ p{margin:0}
 /* картинка кейса в окне прокрутки вписывается по высоте (у квадратных кейсов тоже) */
 .rl-idle .case-art{height:86%}
 .rl-idle .case-art.has-img .ca-img{width:auto!important;height:100%;max-width:100%;object-fit:contain}
+/* кейсы компактнее: фиксированная ширина колонки, кейс вписан в свою зону (не вылезает) */
+.cases-grid{grid-template-columns:repeat(auto-fill,200px);justify-content:start;gap:26px 22px}
+.case-card .case-art.has-img .ca-img{width:auto;height:100%;max-width:100%;object-fit:contain}
+.cc-name{font-size:14px}
+.cc-price{font-size:18px}
+.cc-foot{gap:8px;margin-top:6px}
+.cc-open{height:34px;padding:0 26px;font-size:12.5px}
+@media (max-width:720px){.cases-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
