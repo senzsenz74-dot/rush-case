@@ -1283,3 +1283,8 @@ p{margin:0}
 /* треугольник: верхняя половина снаружи, нижняя — в линии */
 .wheel{margin-top:16px}
 .wheel .w-tri{top:-3.6%;width:11%}
+/* цветная линия утоплена: внутренняя тень по краям и сверху, без выпуклого блика */
+.w-depth{fill:none;stroke:url(#depthGrad);stroke-width:24;pointer-events:none}
+.w-depth2{fill:none;stroke:url(#depthTop);stroke-width:24;pointer-events:none;opacity:.8}
+.w-arc-gloss{stroke:rgba(255,255,255,.18);stroke-width:2.5;transform:translateY(4px)}
+.w-arc{stroke-width:22}

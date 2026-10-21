@@ -1012,11 +1012,17 @@ function pageUpgrade() {
               <!-- внутренняя тень: канава утоплена, свет сверху -->
               <filter id="groove" x="-10%" y="-10%" width="120%" height="120%">
                 <feComponentTransfer in="SourceAlpha" result="inv"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>
-                <feGaussianBlur in="inv" stdDeviation="2.6"/><feOffset dy="3.5" result="off"/>
+                <feGaussianBlur in="inv" stdDeviation="4"/><feOffset dy="5" result="off"/>
                 <feFlood flood-color="#000" flood-opacity=".95"/><feComposite in2="off" operator="in"/>
                 <feComposite in2="SourceAlpha" operator="in" result="sh"/>
                 <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="sh"/></feMerge>
               </filter>
+              <!-- внутренняя тень канавы: темнее у краёв, глубже у внешнего борта -->
+              <radialGradient id="depthGrad" gradientUnits="userSpaceOnUse" cx="160" cy="160" r="151">
+                <stop offset=".835" stop-color="#000" stop-opacity=".85"/><stop offset=".87" stop-color="#000" stop-opacity=".35"/><stop offset=".905" stop-color="#000" stop-opacity="0"/>
+                <stop offset=".93" stop-color="#000" stop-opacity=".15"/><stop offset=".97" stop-color="#000" stop-opacity=".7"/><stop offset="1" stop-color="#000" stop-opacity=".95"/>
+              </radialGradient>
+              <linearGradient id="depthTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".5" stop-color="#000" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
               <filter id="soft"><feGaussianBlur stdDeviation="1.2"/></filter>
             </defs>
             <circle cx="160" cy="160" r="156" class="w-ticks"/>
@@ -1024,6 +1030,7 @@ function pageUpgrade() {
             <circle cx="160" cy="160" r="${ARC_R}" class="w-track" filter="url(#groove)"/>
             <g filter="url(#groove)"><path class="w-arc" id="wArc" d="M0 0"/></g>
             <path class="w-arc-gloss" id="wArcGloss" d="M0 0" filter="url(#soft)"/>
+            <circle cx="160" cy="160" r="${ARC_R}" class="w-depth"/><circle cx="160" cy="160" r="${ARC_R}" class="w-depth2"/>
             <circle cx="160" cy="160" r="${ARC_R - 13}" class="w-rim-i"/>
             <circle cx="160" cy="160" r="116" class="w-inner"/>
             <circle cx="160" cy="160" r="104" class="w-dash"/>
