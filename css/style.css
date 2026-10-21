@@ -1280,3 +1280,6 @@ p{margin:0}
 /* треугольник апгрейда снова внутри линии */
 .wheel{margin-top:0}
 .wheel .w-tri{top:2.2%;width:11%}
+/* треугольник: верхняя половина снаружи, нижняя — в линии */
+.wheel{margin-top:16px}
+.wheel .w-tri{top:-3.6%;width:11%}
