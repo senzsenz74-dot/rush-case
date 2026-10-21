@@ -1759,7 +1759,7 @@ function jpBotJoin() {
   const n = randi(1, 4), items = [];
   for (let i = 0; i < n; i++) items.push(pool[Math.floor(Math.pow(Math.random(), 1.8) * pool.length)]);
   jpAdd(name, items, false);
-  if (jp.phase === 'open') Snd.tone(1200 + Math.random() * 400, .06, 'triangle', .05);
+  if (jp.phase === 'open' && $('#jp')) Snd.tone(1200 + Math.random() * 400, .06, 'triangle', .05);
 }
 function jpBotLoop() {
   if (jp.phase !== 'open') return;
@@ -1799,8 +1799,8 @@ function jpFinish() {
     pot.forEach(s => giveItem(s, 'jackpot')); save();
     Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(140); setTimeout(() => burst(70), 700);
     toast(`Вы забрали банк: <b>${money(total)}</b> — ${pot.length} предм.`);
-  } else if (meIn) { Snd.safeLose(); toast(`Банк забрал ${esc(w.name)}. Повезёт в следующем раунде!`, 'err'); }
-  else Snd.coin();
+  } else if (meIn) { if ($('#jp')) Snd.safeLose(); toast(`Банк забрал ${esc(w.name)}. Повезёт в следующем раунде!`, 'err'); }
+  else if ($('#jp')) Snd.coin();
   jpRender();
   jpAfter(jpNewRound, 7000);
 }
