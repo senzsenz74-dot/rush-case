@@ -339,6 +339,11 @@ const CASES = [
     sub: 'Особый кейс: только топовый дроп от 65 000 ₽ — «История о драконе», «Вой», Gungnir, керамбиты и перчатки',
     th: { a: '#f3c14f' }, img: 'assets/case-gold.webp', win: .12,
     strict: true, setX: 'gold', minDrop: 65000, more: [80000, 12], // +12 позиций дороже 80 000 ₽, в т.ч. другие износы тех же скинов
+    // ультра-дорогой дроп: всё дороже 800 000 ₽ — только эти позиции, шанс 1 из 1 000 000 каждая
+    ultraMin: 800000, ultraCh: .000001,
+    ultra: ['AK-47 | Дикий лотос (Немного поношенное)', 'AK-47 | Дикий лотос (Прямо с завода)', 'AWP | История о драконе (Прямо с завода)',
+      'AWP | История о драконе (Немного поношенное)', 'AWP | Gungnir (Factory New)', 'AWP | Gungnir (Minimal Wear)',
+      '★ Перчатки спецназа | Кровавое кимоно (Прямо с завода)', '★ Sport Gloves | Pandora\'s Box (Factory New)'],
     ar: 1225 / 1108, overlay: 'gold', // цепь, фары и дым поверх картинки (качаются вместе с кейсом)
     frame: { src: 'assets/frame-gold.png', cls: 'f-gold' }, // своя рамка рулетки
     show: [],
@@ -441,8 +446,9 @@ const CASES = [
       big.forEach((n, i) => { c.fix[n] = .05 * bw[i] / sbw; });
       return;
     }
-    const ub = new Set([...(c.ultra || []), ...(c.rare || [])].filter(n => SK[n]).map(n => baseOf(SK[n])));
-    const pool = c.items.map(n => SK[n]).filter(x => x && !ub.has(baseOf(x)) && x.p >= (c.minDrop || 0));
+    // ультра/редкие не идут в обычный дроп другими износами; при ultraMin — наоборот, убираем только всё дороже ultraMin
+    const ub = c.ultraMin ? new Set() : new Set([...(c.ultra || []), ...(c.rare || [])].filter(n => SK[n]).map(n => baseOf(SK[n])));
+    const pool = c.items.map(n => SK[n]).filter(x => x && !ub.has(baseOf(x)) && x.p >= (c.minDrop || 0) && x.p < (c.ultraMin || Infinity));
     (ADD[c.id] || []).forEach(([cat, lo, hi, n]) => pool.push(...pickX(cat, lo, hi, n, c.id)));
     c.items = buildSet(c, pool, SET_X[c.setX] || SET_X.def);
     // дополнительные позиции дороже more[0] ₽ — любые износы (повтор скина в другом износе допустим), равномерно по цене
@@ -458,7 +464,7 @@ const CASES = [
     const big = c.items.filter(n => SK[n].p >= c.price * 1.5), bw = big.map(n => SK[n].p ** -1.5), sbw = bw.reduce((x, y) => x + y, 0);
     // если есть ультра-предметы — обычный крупный дроп не реже 1 из 50 000, чтобы ультра оставались самыми редкими
     big.forEach((n, i) => { c.fix[n] = Math.max(c.ultra ? .00002 : 0, BIG_MASS * bw[i] / sbw); });
-    (c.ultra || []).filter(n => SK[n]).forEach(n => { c.items.push(n); c.fix[n] = Math.min(.00001, c.price * .01 / SK[n].p); });
+    (c.ultra || []).filter(n => SK[n]).forEach(n => { c.items.push(n); c.fix[n] = c.ultraCh || Math.min(.00001, c.price * .01 / SK[n].p); });
   });
 }
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
