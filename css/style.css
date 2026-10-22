@@ -1544,3 +1544,28 @@ p{margin:0}
 /* блоки «Популярные» / «Остальные» */
 .sec-row.sec-more{margin-top:40px}
 .filterbar+.sec-row{margin-top:26px}
+
+/* апгрейд: карточка выигрыша поверх апгрейда */
+.upg-main{position:relative}
+.uw-ov{position:absolute;inset:-8px;z-index:30;display:flex;align-items:center;justify-content:center;border-radius:18px;background:radial-gradient(circle at 50% 45%,rgba(20,16,8,.55),rgba(0,0,0,.82));backdrop-filter:blur(7px);overflow:hidden;opacity:0;transition:opacity .25s}
+.uw-ov.on{opacity:1}.uw-ov.off{opacity:0}
+.uw-card{position:relative;z-index:2;width:min(360px,92%);padding:20px 20px 18px;border-radius:18px;text-align:center;background:linear-gradient(180deg,rgba(255,255,255,.1),transparent 45%),linear-gradient(180deg,var(--rc-a) 0%,var(--rc-b) 100%);border:1.5px solid color-mix(in srgb,var(--rc) 80%,#fff);box-shadow:0 0 0 1px rgba(0,0,0,.4),0 30px 70px -20px rgba(0,0,0,.9),0 0 60px -10px var(--rc);transform:scale(.7) translateY(20px);transition:transform .45s cubic-bezier(.2,1.5,.4,1)}
+.uw-ov.on .uw-card{transform:none}
+.uw-h{font:800 15px var(--ff-h);text-transform:uppercase;letter-spacing:.08em;color:var(--gold-hi,#ffd88a);text-shadow:0 0 18px rgba(245,199,107,.6)}
+.uw-imgw{position:relative;height:170px;margin:6px 0 4px;display:flex;align-items:center;justify-content:center}
+.uw-imgw img{position:relative;z-index:1;max-width:88%;max-height:100%;filter:drop-shadow(0 14px 18px rgba(0,0,0,.6));animation:uwFloat 3s ease-in-out infinite}
+.uw-rays{position:absolute;left:50%;top:50%;width:300px;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--rc) 55%,#fff) 0deg 5deg,transparent 5deg 20deg);-webkit-mask:radial-gradient(circle,#000 0%,transparent 65%);mask:radial-gradient(circle,#000 0%,transparent 65%);opacity:.45;animation:tfxSpin 16s linear infinite}
+.uw-rar{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:color-mix(in srgb,var(--rc) 60%,#fff)}
+.uw-name{margin-top:4px;font:800 19px/1.2 var(--ff-h);color:#fff}
+.uw-name span{display:block;font:700 12px var(--ff-b,inherit);color:rgba(255,255,255,.7);margin-bottom:2px}
+.uw-price{margin-top:8px;font:800 22px var(--ff-h);color:var(--gold-hi,#ffd88a)}
+.uw-btns{display:flex;gap:10px;margin-top:16px}
+.uw-btns .btn{flex:1;height:46px;padding:0 12px;font-size:12.5px;justify-content:center}
+.uw-conf{position:absolute;inset:0;pointer-events:none;z-index:1}
+.uw-conf i{position:absolute;left:var(--x);top:-20px;width:var(--w);height:calc(var(--w) * 1.6);background:var(--c);border-radius:2px;opacity:0;animation:uwConf var(--d) linear var(--dl) infinite}
+@keyframes uwConf{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:.9;transform:translate(var(--dx),110vh) rotate(var(--r))}}
+@keyframes uwFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@media (max-width:720px){.uw-btns{flex-direction:column}.uw-imgw{height:140px}}
+@media (prefers-reduced-motion:reduce){.uw-conf{display:none}.uw-imgw img,.uw-rays{animation:none}}
+.uw-card{width:min(430px,94%)}
+.uw-btns .btn{white-space:normal;line-height:1.15;text-align:center;font-size:12px;padding:0 10px}

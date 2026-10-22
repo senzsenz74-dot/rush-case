@@ -1421,7 +1421,8 @@ async function runUpgrade() {
   // ставка списывается сразу (как на сервере)
   items.forEach(x => { x.st = 'upg'; });
   if (upg.bal) setBalance(st.balance - upg.bal);
-  st.stats.upg++; if (win) { st.stats.upgWin++; giveItem(ts, 'upgrade'); }
+  let won = null;
+  st.stats.upg++; if (win) { st.stats.upgWin++; won = giveItem(ts, 'upgrade'); }
   save();
   upg.busy = true; $('#upgBtn').disabled = true;
   // старт: рычаг сейфа, стрелка трогается после «клаца»
@@ -1458,7 +1459,10 @@ async function runUpgrade() {
   $('#wLabel').textContent = win ? 'скин ваш' : 'не повезло';
   if (win) { Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
   else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); }
-  await sleep(1900);
+  // победа — карточка выигрыша поверх апгрейда, ждём выбор игрока
+  let act = null;
+  if (win) { await sleep(650); if (!$('#wheel')) { upg.busy = false; return; } act = await upgWinCard(ts); }
+  else await sleep(1900);
   if (!$('#wheel')) { upg.busy = false; return; }
   // плавно возвращаем стрелку наверх
   ptr.style.transition = 'transform .9s cubic-bezier(.3,.7,.25,1)';
@@ -1469,7 +1473,38 @@ async function runUpgrade() {
   upg.busy = false; $('#upgBtn').disabled = false;
   upg.sel = []; upg.bal = 0;
   upg.to = win ? null : upg.to;
+  // «Апгрейднуть»: выигранный предмет сразу в ставку, по умолчанию — x2
+  if (act === 'again' && won && won.st === 'own') { upg.sel = [won.id]; drawUpg(); $('.mults [data-m="2"]')?.click(); return; }
   drawUpg();
+}
+/* карточка выигрыша поверх апгрейда: конфетти, «Забрать в инвентарь» / «Апгрейднуть». Возвращает 'take' | 'again' */
+function upgWinCard(s) {
+  return new Promise(res => {
+    const host = $('.upg-main'); if (!host) return res('take');
+    const cols = ['#f5c76b', '#ffe7a3', '#ffffff', '#ff6fb5', '#7dd3fc', '#a3e635'];
+    const conf = Array.from({ length: 70 }, () => `<i style="--x:${rand(0, 100)}%;--dx:${rand(-80, 80)}px;--r:${rand(-720, 720)}deg;--d:${rand(1.8, 3.4)}s;--dl:${rand(0, 1.2)}s;--c:${pick(cols)};--w:${rand(5, 9)}px"></i>`).join('');
+    const ov = document.createElement('div');
+    ov.className = 'uw-ov';
+    ov.innerHTML = `<div class="uw-conf" aria-hidden="true">${conf}</div>
+      <div class="uw-card r-${s.r}" role="dialog" aria-label="Апгрейд успешен">
+        <div class="uw-h">Апгрейд успешен!</div>
+        <div class="uw-imgw"><i class="uw-rays"></i><img src="${imgUrl(s, 'l')}" alt=""></div>
+        <div class="uw-rar">${RAR[s.r] ? RAR[s.r].n : ''}</div>
+        <div class="uw-name"><span>${esc(s.w)}</span>${esc(s.f)}</div>
+        <div class="uw-price">${money(s.p)}</div>
+        <div class="uw-btns">
+          <button class="btn btn-take" data-uw="take">${ic.box}Забрать в инвентарь</button>
+          <button class="btn btn-primary" data-uw="again">${ic.trend}Апгрейднуть</button>
+        </div>
+      </div>`;
+    host.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add('on'));
+    $$('[data-uw]', ov).forEach(b => b.onclick = () => {
+      ov.classList.remove('on'); ov.classList.add('off');
+      setTimeout(() => ov.remove(), 260);
+      res(b.dataset.uw);
+    });
+  });
 }
 
 /* =========================================================
