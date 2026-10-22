@@ -335,6 +335,26 @@ const CASES = [
     ],
   },
   {
+    id: 'gold', name: 'GOLD RUSH', price: 89999, tag: 'Эксклюзив', tagIc: 'crown', rtp: .8,
+    sub: 'Особый кейс: только топовый дроп от 65 000 ₽ — «История о драконе», «Вой», Gungnir, керамбиты и перчатки',
+    th: { a: '#f3c14f' }, img: 'assets/case-gold.webp', win: .12,
+    strict: true, setX: 'gold', minDrop: 65000,
+    ar: 1224 / 1116, overlay: 'gold', // цепь, фары и дым поверх картинки (качаются вместе с кейсом)
+    frame: { src: 'assets/frame-gold.png', cls: 'f-gold' }, // своя рамка рулетки
+    show: [],
+    items: [
+      'AWP | История о драконе', 'AK-47 | Золотая арабеска', 'M4A4 | Вой',
+      'AWP | Gungnir', 'AWP | Медуза', 'AK-47 | Огненный змей',
+      'Desert Eagle | Пламя', 'M4A1-S | Hot Rod', 'M4A1-S | Knight',
+      'AK-47 | Дикий лотос', 'AK-47 | Рентген', 'M4A1-S | Добро пожаловать в джунгли',
+      '★ Karambit | Crimson Web', '★ Karambit | Fade', '★ Karambit | Lore',
+      '★ Karambit | Tiger Tooth', '★ Karambit | Case Hardened', '★ Нож-бабочка | Градиент',
+      '★ Butterfly Knife | Lore', '★ Butterfly Knife | Crimson Web', '★ Штык-нож M9 | Легенды',
+      '★ M9 Bayonet | Crimson Web', '★ Talon Knife | Fade', '★ Перчатки спецназа | Кровавое кимоно',
+      '★ Driver Gloves | King Snake', '★ Перчатки спецназа | Градиент', '★ Sport Gloves | Superconductor',
+    ],
+  },
+  {
     id: 'orange', name: 'Оранж', price: 140, tag: 'Новинка', tagIc: 'fire', rtp: .9,
     sub: 'Оранжевые скины от 50 ₽ и редкие джекпоты',
     th: { a: '#ff7a1a' }, img: 'assets/case-orange.webp', win: .45,
@@ -376,6 +396,7 @@ const CASES = [
     // 46 ступеней: минимальный дроп, средний (около цены), крупный, джекпоты
     def: [...band(.03, .45, 14), ...band(.5, 1.45, 16), ...band(1.6, 6, 10), ...band(8, 40, 6)],
     zont: [...band(65 / 169, 230 / 169, 10), ...band(1.45, 10, 18)],
+    gold: [...band(65000 / 89999, .98, 8), ...band(1.03, 1.6, 6), ...band(2, 6, 4)],
     s1: [...band(95 / 322, 320 / 322, 10), ...band(1.02, 1.45, 8), ...band(1.6, 6, 8), ...band(8, 40, 5)],
   };
   const BIG_MASS = .01; // крупный дроп ≈ 1 из 100 открытий
@@ -669,12 +690,48 @@ async function copyText(t) {
 
 /* ---------- decorative ---------- */
 const RINGS = '<div class="ab-rings"><i></i><i></i><i></i></div>';
+/* особые анимации поверх картинки кейса (координаты — % от картинки) */
+const OVERLAYS = {
+  // GOLD RUSH: цепь с замком (видео, чёрный фон убирается режимом «экран»), фары машины, дым из ствола AWP
+  gold: () => { queueMicrotask(() => ChainFx.start()); return `<canvas class="gx-chain" width="600" height="333" aria-hidden="true"></canvas>
+    <i class="gx-light gx-hl" style="left:75.2%;top:36.4%;width:4.6%"></i><i class="gx-light gx-hl" style="left:94.3%;top:40.1%;width:3.4%"></i>
+    <i class="gx-light gx-drl" style="left:76%;top:44.1%;width:4.6%;height:4.4%"></i><i class="gx-light gx-drl" style="left:95.4%;top:47.5%;width:3.2%;height:4.2%"></i>
+    <span class="gx-smoke" style="left:7.8%;top:23.8%" aria-hidden="true">${Array.from({ length: 7 }, (_, i) => `<i style="--dl:${(i * .55).toFixed(2)}s;--dx:${(-14 - i * 3)}px;--sc:${(1.6 + (i % 3) * .5).toFixed(1)}"></i>`).join('')}</span>`; },
+};
+/* цепь GOLD RUSH: одно скрытое видео рисуется во все canvas.gx-chain, чёрный фон кадра → прозрачность по яркости.
+   Когда на странице нет ни одной цепи — видео на паузе */
+const ChainFx = {
+  v: null, raf: 0,
+  start() {
+    if (this.raf) return;
+    if (!this.v) { const v = this.v = document.createElement('video'); v.src = 'assets/case-gold-chain.webm'; v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; }
+    const tick = () => {
+      const cs = $$('canvas.gx-chain');
+      if (!cs.length) { this.raf = 0; this.v.pause(); return; }
+      if (this.v.paused) this.v.play().catch(() => {});
+      if (this.v.readyState >= 2) cs.forEach(c => this.draw(c));
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  },
+  draw(c) {
+    const w = c.width, h = c.height, x = c.getContext('2d', { willReadFrequently: true });
+    x.clearRect(0, 0, w, h); x.drawImage(this.v, 0, 0, w, h);
+    const d = x.getImageData(0, 0, w, h), p = d.data;
+    for (let i = 0; i < p.length; i += 4) {
+      const m = Math.max(p[i], p[i + 1], p[i + 2]), a = m < 12 ? 0 : Math.min(255, (m - 12) * 3);
+      if (a > 0 && a < 255) { const k = 255 / a; p[i] = Math.min(255, p[i] * k); p[i + 1] = Math.min(255, p[i + 1] * k); p[i + 2] = Math.min(255, p[i + 2] * k); }
+      p[i + 3] = a;
+    }
+    x.putImageData(d, 0, 0);
+  },
+};
 /* сияние статуэтки: пульсирующий свет, вращающиеся лучи и искры (координаты — % от картинки кейса) */
 const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%" aria-hidden="true"><i class="tfx-rays"></i><i class="tfx-glow"></i>${
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 function caseArt(c, cls = '') {
-  if (c.img && c.fx) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.fx.ar}"><img src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${trophyFx(c.fx)}</div></div>`;
+  if (c.img && (c.fx || c.overlay)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || c.fx.ar}"><img src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay]() : ''}</div></div>`;
   if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
   const [m, a, b] = c.show.map(n => SK[n]);
   const sparks = [[14, 20, 0], [84, 16, .9], [90, 60, 1.7], [8, 64, 2.4], [52, 6, 1.2]]
@@ -1001,7 +1058,7 @@ function pageCase(id) {
     <div class="cp-head"><a href="#/cases" class="back">${ic.left}Все кейсы</a>
       <div class="cp-title"><i class="cp-line l"></i><h1>${c.name}</h1><i class="cp-line r"></i></div>
       <i></i></div>
-    <div class="rl-framed"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
+    <div class="rl-framed ${c.frame ? c.frame.cls : ''}"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
       <svg class="rl-frame" id="rlFrame" aria-hidden="true"><polygon class="f-glow"/><polygon class="f-line"/></svg>
       <div class="rl-side l"></div><div class="rl-side r"></div>
       <div class="rl-stage"><i class="rs-burst"></i><i class="rs-glow"></i><div class="rs-embers">${embers}</div><i class="rs-ground"></i></div>
@@ -1009,7 +1066,7 @@ function pageCase(id) {
       <div class="rl-strips" id="strips"></div>
       <div class="rl-marker"></div>
       <div class="rl-reveal" id="reveal"></div>
-    </div></div><img class="rl-frame-img" src="assets/frame-case.png" alt="" draggable="false"><i class="rl-spark s1"></i><i class="rl-spark s2"></i><i class="rl-spark s3"></i><i class="rl-spark s4"></i></div>
+    </div></div><img class="rl-frame-img" src="${c.frame ? c.frame.src : 'assets/frame-case.png'}" alt="" draggable="false"><i class="rl-spark s1"></i><i class="rl-spark s2"></i><i class="rl-spark s3"></i><i class="rl-spark s4"></i></div>
     <div class="cc" id="cc"></div>
     ${secTitle('Содержимое кейса')}
     <div class="items-grid">${c.items.map(s => itemCard(s)).join('')}</div>
