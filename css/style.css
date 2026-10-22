@@ -1712,3 +1712,6 @@ img.rc-ic{background:none;box-shadow:none;object-fit:contain;filter:drop-shadow(
 .rc img.rc-ic{width:30px;height:30px}
 img.rc-ic.big{width:72px;height:72px;filter:drop-shadow(0 0 16px rgba(246,198,80,.45))}
 @media (max-width:720px){.rc img.rc-ic{width:26px;height:26px}}
+/* «БАБА ЧАЙ»: цена на золотом фоне */
+.cc-price.cc-price-gold{background:linear-gradient(180deg,#ffeaa6 0%,#f6c650 45%,#d18a18 100%);border:1px solid #ffe9ab;color:#2a1a02;text-shadow:0 1px 0 rgba(255,255,255,.35);box-shadow:0 0 0 1px rgba(120,70,10,.5),0 6px 22px -6px rgba(246,198,80,.85),inset 0 1px 0 rgba(255,255,255,.6);-webkit-backdrop-filter:none;backdrop-filter:none}
+.case-card:hover .cc-price.cc-price-gold{background:linear-gradient(180deg,#fff3cf 0%,#ffd76a 45%,#e09a22 100%);border-color:#fff3cf;box-shadow:0 0 0 1px rgba(120,70,10,.5),0 8px 28px -4px rgba(255,215,106,1),inset 0 1px 0 rgba(255,255,255,.7)}

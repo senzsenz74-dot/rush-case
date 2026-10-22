@@ -335,7 +335,7 @@ const CASES = [
     ],
   },
   {
-    id: 'gold', name: 'GOLD RUSH', price: 89999, tag: 'Эксклюзив', tagIc: 'crown', rtp: .8,
+    id: 'gold', name: 'БАБА ЧАЙ', goldPrice: true, price: 89999, tag: 'Эксклюзив', tagIc: 'crown', rtp: .8,
     sub: 'Особый кейс: только топовый дроп от 65 000 ₽ — «История о драконе», «Вой», Gungnir, керамбиты и перчатки',
     th: { a: '#f3c14f' }, img: 'assets/case-gold.webp', win: .12,
     strict: true, setX: 'gold', minDrop: 65000, more: [80000, 12], // +12 позиций дороже 80 000 ₽, в т.ч. другие износы тех же скинов
@@ -704,13 +704,13 @@ async function copyText(t) {
 const RINGS = '<div class="ab-rings"><i></i><i></i><i></i></div>';
 /* особые анимации поверх картинки кейса (координаты — % от картинки) */
 const OVERLAYS = {
-  // GOLD RUSH: цепь с замком (видео, чёрный фон убирается режимом «экран»), фары машины, дым из ствола AWP
+  // «БАБА ЧАЙ»: цепь с замком (видео, чёрный фон убирается режимом «экран»), фары машины, дым из ствола AWP
   gold: () => { queueMicrotask(() => ChainFx.start()); return `<canvas class="gx-chain" width="600" height="333" aria-hidden="true"></canvas>
     <i class="gx-light gx-hl" style="left:75.3%;top:36.5%;width:4.6%"></i><i class="gx-light gx-hl" style="left:94.3%;top:40.1%;width:3.4%"></i>
     <i class="gx-light gx-drl" style="left:76.1%;top:43.8%;width:4.6%;height:4.4%"></i><i class="gx-light gx-drl" style="left:95.2%;top:47.4%;width:3.2%;height:4.2%"></i>
     <span class="gx-smoke" style="left:8%;top:23.6%" aria-hidden="true">${Array.from({ length: 7 }, (_, i) => `<i style="--dl:${(i * .55).toFixed(2)}s;--dx:${(-14 - i * 3)}px;--sc:${(1.6 + (i % 3) * .5).toFixed(1)}"></i>`).join('')}</span>`; },
 };
-/* цепь GOLD RUSH: одно скрытое видео рисуется во все canvas.gx-chain, чёрный фон кадра → прозрачность по яркости.
+/* цепь «БАБА ЧАЙ»: одно скрытое видео рисуется во все canvas.gx-chain, чёрный фон кадра → прозрачность по яркости.
    Когда на странице нет ни одной цепи — видео на паузе */
 const ChainFx = {
   v: null, raf: 0,
@@ -969,7 +969,7 @@ const caseCard = c => `<a class="case-card" href="#/case/${c.id}" style="--ca:${
   <div class="cc-art">${caseArt(c)}</div>
   <div class="cc-body">
     <div class="cc-name">${c.name}</div>
-    <div class="cc-foot"><span class="cc-price">${money(c.price)}</span></div>
+    <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}">${money(c.price)}</span></div>
   </div>
 </a>`;
 function mountHome() {
