@@ -1745,3 +1745,26 @@ canvas.it-fx{-webkit-mask:none;mask:none;mix-blend-mode:screen}
 .sec-sub{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font:700 13px var(--ff-h);color:var(--gold);white-space:nowrap}
 .sec-sub img.rc-ic{width:22px;height:22px}
 .rc-log>div i.neg{color:#ff8a8a}
+
+/* ===== блоки кейсов: каждая группа — своя панель со своим цветом ===== */
+.cs-blocks{display:flex;flex-direction:column;gap:30px;margin-top:34px}
+.cs-block{position:relative;padding:22px 22px 26px;border-radius:22px;isolation:isolate;
+  background:radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,var(--bc) 16%,transparent),transparent 55%),linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01));
+  border:1px solid color-mix(in srgb,var(--bc) 32%,transparent);box-shadow:0 24px 50px -30px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.06)}
+.cs-block::before{content:"";position:absolute;left:22px;right:22px;top:-1px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--bc) 20%,color-mix(in srgb,var(--bc) 60%,#fff) 50%,var(--bc) 80%,transparent);box-shadow:0 0 18px 1px color-mix(in srgb,var(--bc) 70%,transparent)}
+.cs-head{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.07)}
+.cs-ic{flex:none;display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;color:var(--bc);
+  background:linear-gradient(145deg,color-mix(in srgb,var(--bc) 26%,transparent),color-mix(in srgb,var(--bc) 8%,transparent));border:1px solid color-mix(in srgb,var(--bc) 45%,transparent);box-shadow:0 0 24px -6px var(--bc)}
+.cs-ic svg{width:26px;height:26px}
+.cs-ic img.rc-ic{width:38px;height:38px}
+.cs-tt{min-width:0}
+.cs-tt h2{margin:0;font:800 clamp(20px,2.2vw,28px)/1.1 var(--ff-h);text-transform:uppercase;letter-spacing:.02em;color:#f6f1e7;text-shadow:0 0 24px color-mix(in srgb,var(--bc) 40%,transparent)}
+.cs-tt p{margin:5px 0 0;color:var(--txt2);font-size:14px}
+.cs-cnt{margin-left:auto;flex:none;padding:6px 12px;border-radius:999px;font:700 12px var(--ff-h);color:var(--bc);background:color-mix(in srgb,var(--bc) 12%,transparent);border:1px solid color-mix(in srgb,var(--bc) 35%,transparent);white-space:nowrap}
+.cs-block .cases-grid{margin-top:0}
+/* «Всё или ничего» — тлеющая красно-золотая подсветка */
+.cs-allin{background:radial-gradient(90% 120% at 100% 0%,rgba(243,193,79,.12),transparent 50%),radial-gradient(120% 140% at 0% 0%,rgba(255,77,77,.16),transparent 55%),linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01))}
+.cs-allin .cs-ic{animation:csPulse 2.4s ease-in-out infinite}
+@keyframes csPulse{50%{box-shadow:0 0 34px 2px var(--bc)}}
+@media (max-width:720px){.cs-block{padding:16px 12px 18px;border-radius:16px}.cs-head{gap:12px;margin-bottom:14px;padding-bottom:12px}.cs-ic{width:42px;height:42px;border-radius:12px}.cs-tt p{font-size:12.5px}.cs-cnt{display:none}}
+@media (prefers-reduced-motion:reduce){.cs-allin .cs-ic{animation:none}}

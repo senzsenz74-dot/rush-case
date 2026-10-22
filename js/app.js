@@ -985,18 +985,7 @@ function pageHome() {
       <div class="sb-i"><span class="sb-ic">${ic.users}</span><div><b>24 816</b><span>Игроков</span></div></div>
       <div class="sb-i"><span class="sb-ic">${ic.shield}</span><div><b>98.7%</b><span>Выплат</span></div></div>
     </div>
-    <div class="sec-row">
-      <h2 class="sec-h">Популярные кейсы</h2><i class="st-line"></i>
-    </div>
-    <div class="cases-grid" id="popRow">${casesPop().map(caseCard).join('')}</div>
-    <div class="sec-row sec-more">
-      <h2 class="sec-h">Остальные кейсы</h2><i class="st-line"></i>
-    </div>
-    <div class="cases-grid" id="moreRow">${casesRest().map(caseCard).join('')}</div>
-    <div class="sec-row sec-more">
-      <h2 class="sec-h">Бонусные кейсы</h2><i class="st-line"></i><span class="sec-sub">${RC_IMG}за R-COIN</span>
-    </div>
-    <div class="cases-grid" id="bonusRow">${casesBonus().map(caseCard).join('')}</div>
+    <div class="cs-blocks">${CASE_BLOCKS.map(b => caseBlock(b)).join('')}</div>
     <div class="promo-row">
       <div class="promo promo-dep"><div><h3>Бонус к пополнению <em>+35%</em></h3><div class="code">RUSH35</div><br><button class="btn btn-light btn-sm" data-act="copy" data-copy="RUSH35">${ic.copy}Скопировать</button></div><div class="promo-pct">%</div></div>
       <div class="promo promo-daily"><div><h3>Ежедневный бонус</h3><p id="dailyHome">${dailyLeft() ? 'Следующий через ' + dailyText() : 'Уже доступен! До 250 ₽ на баланс'}</p><a class="btn btn-outline btn-sm" href="#/bonus">${ic.gift}Получить</a></div><img src="assets/soldier.png" alt=""></div>
@@ -1011,10 +1000,29 @@ function pageHome() {
 const RC_IMG = '<img class="rc-ic" src="assets/rcoin.webp" alt="" aria-hidden="true">';
 const casePrice = (c, v) => c.rc ? `${RC_IMG}${rc(v)} R-COIN` : money(v);
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
-const POPULAR = ['sifon', 'alt', 'frog', 's1mple', 'cotton'];
-const casesPop = () => POPULAR.map(caseById).filter(Boolean);
-const casesRest = () => CASES.filter(c => !POPULAR.includes(c.id) && !c.rc);
-const casesBonus = () => CASES.filter(c => c.rc);
+/* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
+const CASE_BLOCKS = [
+  { id: 'pop', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
+  { id: 'pro', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['s1mple', 'zont', 'frog'] },
+  { id: 'allin', t: 'Всё или ничего', sub: 'Ультра дорогие кейсы — максимальный риск, максимальный дроп', ic: 'crown', a: '#ff4d4d', ids: ['gold', 'premium'] },
+  { id: 'farm', t: 'Фарм кейсы', sub: 'Открываются за R-COIN, которые копятся с каждого открытия', ic: 'gift', a: '#8be04e', rc: true, ids: ['bonus'] },
+];
+const blockCases = b => {
+  const listed = new Set(CASE_BLOCKS.flatMap(x => x.ids));
+  const extra = b.id === 'pop' ? CASES.filter(c => !listed.has(c.id) && !c.rc) : b.rc ? CASES.filter(c => c.rc && !listed.has(c.id)) : [];
+  return [...b.ids.map(caseById).filter(Boolean), ...extra];
+};
+const caseBlock = (b, grp) => {
+  const list = blockCases(b); if (!list.length) return '';
+  return `<section class="cs-block cs-${b.id}" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>
+    <header class="cs-head">
+      <span class="cs-ic">${b.rc ? RC_IMG : ic[b.ic]}</span>
+      <div class="cs-tt"><h2>${b.t}</h2><p>${b.sub}</p></div>
+      <span class="cs-cnt">${list.length} ${plural(list.length, 'кейс', 'кейса', 'кейсов')}</span>
+    </header>
+    <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${list.map(caseCard).join('')}</div>
+  </section>`;
+};
 const caseCard = c => `<a class="case-card" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
   <div class="cc-art">${caseArt(c)}</div>
   <div class="cc-body">
@@ -1038,12 +1046,7 @@ function pageCases() {
       <div class="chips" id="chips"><button class="chip on" data-f="all">Все</button><button class="chip" data-f="0-100">до 100 ₽</button><button class="chip" data-f="100-500">100–500 ₽</button><button class="chip" data-f="500-1e9">500+ ₽</button></div>
       <label class="switch"><input type="checkbox" id="availChk"><i></i>Доступные</label>
     </div>
-    <div class="sec-row" data-grp="pop"><h2 class="sec-h">Популярные</h2><i class="st-line"></i></div>
-    <div class="cases-grid cases-grp" id="casesGrid" data-grp="pop">${casesPop().map(caseCard).join('')}</div>
-    <div class="sec-row sec-more" data-grp="more"><h2 class="sec-h">Остальные</h2><i class="st-line"></i></div>
-    <div class="cases-grid cases-grp" data-grp="more">${casesRest().map(caseCard).join('')}</div>
-    <div class="sec-row sec-more" data-grp="bonus"><h2 class="sec-h">Бонусные</h2><i class="st-line"></i><span class="sec-sub">${RC_IMG}за R-COIN</span></div>
-    <div class="cases-grid cases-grp" data-grp="bonus">${casesBonus().map(caseCard).join('')}</div>
+    <div class="cs-blocks">${CASE_BLOCKS.map(b => caseBlock(b, true)).join('')}</div>
     <div class="empty hidden" id="casesEmpty">${ic.search}Ничего не найдено — попробуйте другой фильтр</div>
   </section>`;
 }
@@ -1061,7 +1064,7 @@ function mountCases() {
     });
     $('#casesEmpty').classList.toggle('hidden', shown > 0);
     // заголовок группы прячем, если в ней ничего не осталось
-    $$('.cases-grp').forEach(g => { const any = $$('.case-card:not(.hidden)', g).length > 0; $$(`.sec-row[data-grp="${g.dataset.grp}"]`).forEach(h => h.classList.toggle('hidden', !any)); });
+    $$('.cases-grp').forEach(g => { const any = $$('.case-card:not(.hidden)', g).length > 0; const bl = g.closest('.cs-block'); if (bl) bl.classList.toggle('hidden', !any); });
   };
   $('#caseQ').oninput = apply; $('#availChk').onchange = apply;
   $$('#chips .chip').forEach(b => b.onclick = () => { f = b.dataset.f; $$('#chips .chip').forEach(x => x.classList.toggle('on', x === b)); apply(); });
