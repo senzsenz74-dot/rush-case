@@ -343,6 +343,8 @@ const CASES = [
     strict: true, setX: 'gold', minDrop: 65000, more: [80000, 12], // +12 позиций дороже 80 000 ₽, в т.ч. другие износы тех же скинов
     // ультра-дорогой дроп: всё дороже 800 000 ₽ — только эти позиции, шанс 1 из 1 000 000 каждая
     ultraMin: 800000, ultraCh: .000001,
+    // ВРЕМЕННО: кейс чаще окупается на 1–6 тыс. (выше доля «в плюс» и окупаемость, добавлены позиции 90–95 тыс.). Удалить строку — вернётся обычный режим
+    promo: { rtp: .9, win: .4, add: ['★ Karambit | Crimson Web (Minimal Wear)', '★ Штык-нож M9 | Легенды (Прямо с завода)'] },
     ultra: ['AK-47 | Дикий лотос (Немного поношенное)', 'AK-47 | Дикий лотос (Прямо с завода)', 'AWP | История о драконе (Прямо с завода)',
       'AWP | История о драконе (Немного поношенное)', 'AWP | Gungnir (Factory New)', 'AWP | Gungnir (Minimal Wear)',
       '★ Перчатки спецназа | Кровавое кимоно (Прямо с завода)', '★ Sport Gloves | Pandora\'s Box (Factory New)'],
@@ -459,6 +461,8 @@ const CASES = [
       const take = new Set(); for (let i = 0; i < n && cand.length; i++) take.add(cand[Math.round(i * (cand.length - 1) / Math.max(1, n - 1))].name);
       c.items.push(...take);
     }
+    // временный «щедрый» режим кейса
+    if (c.promo) { Object.assign(c, { rtp: c.promo.rtp, win: c.promo.win }); (c.promo.add || []).filter(n => SK[n] && !c.items.includes(n)).forEach(n => c.items.push(n)); }
     (c.rare || []).filter(n => SK[n]).forEach(n => c.items.push(n));
     addBand(c, pool);
     // крупный дроп (дороже кейса в 1,5+ раза) — очень редкий: все вместе BIG_MASS открытий, чем дороже — тем реже (~p^-1.5)
