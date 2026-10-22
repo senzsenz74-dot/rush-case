@@ -10,7 +10,8 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const fmt = n => Math.round(n).toLocaleString('ru-RU');
-const money = n => `${fmt(n)} ₽`;
+/* деньги с копейками: целые — без дробной части, иначе до 2 знаков (0,45 ₽) */
+const money = n => { const r = Math.round(n * 100) / 100; return (Number.isInteger(r) ? fmt(r) : r.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + ' ₽'; };
 const rand = (a, b) => a + Math.random() * (b - a);
 const randi = (a, b) => Math.floor(rand(a, b + 1));
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -176,7 +177,7 @@ const CASES = [
   {
     id: 'sifon', name: 'Сифон и Борода', price: 29, tag: 'Бюджет', tagIc: 'coin', rtp: .75,
     sub: '71 бюджетный скин: каждое третье открытие в плюс до +10 ₽ и нож с минимальным шансом',
-    th: { a: '#a3e635' }, img: 'assets/case-sifon.webp', win: 1 / 3, kh: 1, // каждое 3-е открытие в плюс, но не больше +10 ₽ (кроме ножа)
+    th: { a: '#a3e635' }, img: 'assets/case-sifon.webp', win: 1 / 3, kh: 1, maxWin: 39, // каждое 3-е открытие в плюс, но не больше +10 ₽ (кроме ножа)
     fix: { '★ Тычковые ножи | Пиксельный камуфляж «Лес»': .0002 },
     show: ['★ Тычковые ножи | Пиксельный камуфляж «Лес»', 'AWP | Чёрный Нил', 'M4A4 | Магний'],
     items: [
@@ -249,6 +250,26 @@ const CASES = [
       '★ Штык-нож M9 | Зуб тигра', '★ Нож-бабочка | Зуб тигра'],
   },
 ];
+/* новые предметы с market.csgo.com в кейсах: агенты, ножи, перчатки, ширп. Выбор детерминированный (по хэшу названия) */
+{
+  const hsh = t => { let h = 2166136261; for (const ch of t) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
+  const pickX = (cat, lo, hi, n, seed) => Object.values(SK).filter(x => x.c === cat && x.p >= lo && x.p <= hi).sort((x, y) => hsh(seed + x.name) - hsh(seed + y.name)).slice(0, n);
+  const ADD = {
+    sifon: [['junk', .3, 20, 40], ['junk', 29.5, 39, 14]],
+    orange: [['agent', 60, 1500, 6], ['junk', 8, 40, 10], ['knife', 3000, 15000, 3]],
+    alt: [['agent', 150, 4000, 8], ['knife', 5000, 30000, 4], ['junk', 20, 40, 6]],
+    cotton: [['agent', 300, 8000, 6], ['knife', 8000, 60000, 6], ['gloves', 8000, 60000, 3]],
+    premium: [['knife', 20000, 260000, 16], ['gloves', 20000, 200000, 6], ['agent', 1500, 20000, 6]],
+  };
+  CASES.forEach(c => {
+    const add = []; (ADD[c.id] || []).forEach(([cat, lo, hi, n]) => add.push(...pickX(cat, lo, hi, n, c.id)));
+    add.forEach(x => { if (!c.items.includes(x.name)) c.items.push(x.name); });
+    // в недорогих кейсах новые ножи и перчатки — с минимальным шансом
+    if (c.id !== 'premium') add.filter(x => x.c === 'knife' || x.c === 'gloves').forEach(x => { c.fix = c.fix || {}; c.fix[x.name] = .00004; });
+    // «Сифон»: выигрыш не больше +10 ₽ (кроме зафиксированного ножа)
+    if (c.maxWin) c.items = c.items.filter(n => (c.fix && c.fix[n] != null) || SK[n].p <= c.maxWin);
+  });
+}
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
 CASES.forEach(c => {
   const items = c.items.map(n => { if (!SK[n]) throw new Error('Нет скина: ' + n); return SK[n]; });
@@ -553,7 +574,7 @@ function renderUser() {
 let balAnim;
 function setBalance(v) {
   const from = shownBal == null ? st.balance : shownBal;
-  st.balance = Math.max(0, Math.round(v)); save();
+  st.balance = Math.max(0, Math.round(v * 100) / 100); save();
   const el = $('#balance'); if (!el) return;
   cancelAnimationFrame(balAnim);
   const t0 = performance.now(), to = st.balance;
@@ -1080,8 +1101,12 @@ function mountUpgrade() {
     if (upg.busy) return;
     const v = upgValue(); if (!v) return toast('Сначала соберите ставку', 'err');
     const want = v * +b.dataset.m;
-    const best = UPG_CAT.filter(s => s.p > v * 1.05 && (upg.cat === 'all' || s.c === upg.cat)).sort((a, z) => Math.abs(a.p - want) - Math.abs(z.p - want))[0];
-    if (best) { upg.to = best.name; drawUpg(); }
+    // случайный предмет из ВСЕХ категорий с ценой около нужного множителя (±12%), независимо от выбранной вкладки
+    const pool = UPG_CAT.filter(s => s.p > v * 1.05);
+    let near = pool.filter(s => s.p >= want * .88 && s.p <= want * 1.12);
+    if (near.length < 3) near = pool.slice().sort((a, z) => Math.abs(Math.log(a.p / want)) - Math.abs(Math.log(z.p / want))).slice(0, 12);
+    const best = near[Math.floor(Math.random() * near.length)];
+    if (best) { upg.to = best.name; upg.cat = best.c; upg.focus = true; upg.q = ''; const q = $('#upgQ'); if (q) q.value = ''; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x.dataset.cat === upg.cat)); Snd.safeSel(true); drawUpg(); }
   });
   $('#upgAll').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.sel = own().map(x => x.id); Snd.safeSel(true); drawUpg(); };
   $('#upgClr').onclick = () => { if (upg.busy) return; upg.sel = []; upg.bal = 0; drawUpg(); };
@@ -1191,10 +1216,12 @@ function drawTargets() {
   let list = UPG_CAT.filter(s => s.p > v * 1.05 && (upg.cat === 'all' || s.c === upg.cat) && (!upg.q || s.name.toLowerCase().includes(upg.q)));
   if (upg.sort === 'desc') list = list.slice().reverse();
   const total = list.length, LIMIT = 240;
-  if (total > LIMIT) list = list.slice(0, LIMIT);
+  if (total > LIMIT) { const k = upg.to ? list.findIndex(s => s.name === upg.to) : -1; const st0 = k >= LIMIT ? Math.max(0, k - Math.floor(LIMIT / 2)) : 0; list = list.slice(st0, st0 + LIMIT); }
   $('#upgCnt') && ($('#upgCnt').textContent = total > LIMIT ? `показано ${LIMIT} из ${fmt(total)} — уточните поиск` : `${fmt(total)} предм.`);
   box.innerHTML = list.length ? list.map(s => mcard(s, `data-t="${esc(s.name)}"`, v ? `<span class="mc-x">${(upgChance(v, s) * 100).toFixed(1)}%</span>` : '')).join('') : `<div class="empty">${ic.search}Ничего не найдено</div>`;
   $$('[data-t]', box).forEach(el => { if (el.dataset.t === upg.to) el.classList.add('sel'); el.onclick = () => { if (upg.busy) return; upg.to = el.dataset.t; Snd.safeSel(true); drawUpg(); }; });
+  // после выбора множителем — прокручиваем список к выбранному предмету
+  if (upg.focus) { upg.focus = false; const el = $('[data-t].sel', box); if (el) box.scrollTop = el.offsetTop - box.clientHeight / 2 + el.offsetHeight / 2; }
 }
 async function runUpgrade() {
   if (upg.busy) return;
