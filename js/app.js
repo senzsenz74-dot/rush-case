@@ -502,7 +502,7 @@ function rankIcon(r, i) {
 
 /* ---------- state ---------- */
 const KEY = 'rushcase.v1';
-const freshProfile = () => ({ balance: 0, inv: [], stats: { opened: 0, spent: 0, upg: 0, upgWin: 0, con: 0, best: null, dep: 0 }, daily: 0, promos: [], depBonus: 0, socials: [], trade: '' });
+const freshProfile = () => ({ balance: 0, rcoin: 0, rlog: [], inv: [], stats: { opened: 0, spent: 0, upg: 0, upgWin: 0, con: 0, best: null, dep: 0 }, daily: 0, promos: [], depBonus: 0, socials: [], trade: '' });
 const DEF = () => ({ user: null, ...freshProfile(), sound: true, fast: false, accounts: {} });
 let st;
 try {
@@ -797,7 +797,8 @@ function renderUser() {
     $('#sndBtn').onclick = toggleSound;
     shownBal = null; return;
   }
-  ua.innerHTML = `<div class="bal" data-act="deposit" title="Пополнить баланс"><span class="bal-ic">${ic.coin}</span><b id="balance">${money(st.balance)}</b></div>
+  ua.innerHTML = `<a class="rc" href="#/profile" title="R-COIN — бонусы за открытия кейсов. 1 R = 1 ₽"><span class="rc-ic" aria-hidden="true">R</span><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
+    <div class="bal" data-act="deposit" title="Пополнить баланс"><span class="bal-ic">${ic.coin}</span><b id="balance">${money(st.balance)}</b></div>
     <button class="btn btn-outline hd-dep" data-act="deposit">Пополнить</button>
     <div class="ubox">
       <button class="ubtn" id="ubtn" aria-haspopup="true" aria-label="Меню профиля">${ava(st.user)}${ic.chev}</button>
@@ -815,6 +816,19 @@ function renderUser() {
   shownBal = st.balance;
 }
 let balAnim;
+/* ---------- R-COIN: бонусы за открытия, 1 R = 1 ₽ (тратятся в бонусных кейсах) ---------- */
+const RCOIN_RATE = c => c.id === 'sifon' ? .005 : .02; // 2% от цены кейса, у «Сифона» (окупаемость 96%) — 0,5%
+const rc = v => money(v).replace(' ₽', '');
+function addRcoin(v, note) {
+  v = Math.round(v * 100 + 1e-6) / 100; if (!(v > 0)) return;
+  st.rcoin = Math.round(((st.rcoin || 0) + v) * 100) / 100;
+  (st.rlog = st.rlog || []).unshift({ v, note, ts: Date.now() }); if (st.rlog.length > 60) st.rlog.length = 60;
+  save();
+  const el = $('#rcoin'); if (!el) return;
+  el.textContent = rc(st.rcoin);
+  const box = el.closest('.rc'); box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump');
+  const pop = document.createElement('span'); pop.className = 'rc-pop'; pop.textContent = '+' + rc(v); box.appendChild(pop); setTimeout(() => pop.remove(), 1600);
+}
 function setBalance(v) {
   const from = shownBal == null ? st.balance : shownBal;
   st.balance = Math.max(0, Math.round(v * 100) / 100); save();
@@ -1138,6 +1152,7 @@ async function openCase(c, demo) {
     setBalance(st.balance - cost);
     given = wins.map(s => giveItem(s, c.id));
     st.stats.opened += n; st.stats.spent += cost; save();
+    addRcoin(cost * RCOIN_RATE(c), `Кейс «${c.name}»${n > 1 ? ' ×' + n : ''}`);
   }
   spinning = true;
   const my = ++spinId;
@@ -1824,6 +1839,12 @@ function pageProfile() {
       <div class="pstat"><span class="pi">${ic.swap}</span><div><b>${fmt(st.stats.con)}</b><span>Контрактов</span></div></div>
       <div class="pstat best r-${best ? best.r : 'milspec'}">${best ? `<img src="${imgUrl(best, 's')}" alt=""><div><b>${esc(best.name)}</b><span style="color:var(--lime)">${money(best.p)}</span></div>` : `<span class="pi">${ic.trophy}</span><div><b>—</b><span>Лучший дроп</span></div>`}</div>
     </div>
+    <div class="pf-rc" id="rcoins">
+      <div class="rc-head"><span class="rc-ic big" aria-hidden="true">R</span><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах (скоро)</small></div></div>
+      <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый.</p>
+        <div class="rc-ex">${CASES.slice().sort((a, b) => a.price - b.price).map(c => `<span>${esc(c.name)} <i>+${rc(Math.round(c.price * RCOIN_RATE(c) * 100 + 1e-6) / 100)}</i></span>`).join('')}</div></div>
+      <div class="rc-log"><b>История</b>${(st.rlog || []).length ? (st.rlog || []).slice(0, 20).map(x => `<div><span>${esc(x.note)}</span><small>${new Date(x.ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small><i>+${rc(x.v)}</i></div>`).join('') : '<p class="muted">Откройте кейс — здесь появятся начисления.</p>'}</div>
+    </div>
     <div class="pf-trade">
       <div class="t">Трейд-ссылка Steam<small>Нужна для вывода скинов. <a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></small></div>
       <div class="inp-row"><input class="inp" id="tradeInp" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade)}"><button class="btn btn-accent" id="tradeSave">Сохранить</button></div>
@@ -2009,7 +2030,7 @@ function login(key, user, isNew) {
 function snapshot() {
   if (!st.user) return;
   const { balance, inv, stats, daily, promos, depBonus, socials, trade } = st;
-  st.accounts[st.user.key] = { user: st.user, data: { balance, inv, stats, daily, promos, depBonus, socials, trade } };
+  st.accounts[st.user.key] = { user: st.user, data: { balance, rcoin: st.rcoin, rlog: st.rlog, inv, stats, daily, promos, depBonus, socials, trade } };
 }
 function logout() {
   snapshot();
