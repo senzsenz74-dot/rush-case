@@ -194,7 +194,7 @@ const CASES = [
   {
     id: 'sifon', name: 'Сифон и Борода', price: 29, tag: 'Бюджет', tagIc: 'coin', rtp: .96,
     sub: '71 бюджетный скин: каждое третье открытие в плюс до +10 ₽ и нож с минимальным шансом',
-    th: { a: '#a3e635' }, img: 'assets/case-sifon.webp', win: 1 / 3, kh: 1, maxWin: 39, // каждое 3-е открытие в плюс, но не больше +10 ₽ (кроме ножа)
+    th: { a: '#a3e635' }, img: 'assets/case-sifon.webp', win: 1 / 3, kh: 1, maxWin: 200, // каждое 3-е открытие в плюс; оружие до 200 ₽ — редко (кроме ножа)
     fix: { '★ Тычковые ножи | Пиксельный камуфляж «Лес»': .0002 },
     show: ['★ Тычковые ножи | Пиксельный камуфляж «Лес»', 'AWP | Чёрный Нил', 'M4A4 | Магний'],
     items: [
@@ -286,7 +286,7 @@ const CASES = [
   };
   // сет: по одному предмету на каждую цель (доля от цены кейса), без повторов одного скина в разных износах
   const SET_X = {
-    sifon: [.03, .06, .1, .15, .2, .27, .35, .45, .55, .65, .75, .85, .95, 1.05, 1.12, 1.2, 1.28, 1.34],
+    sifon: [.03, .06, .1, .15, .2, .27, .35, .45, .55, .65, .75, .85, .95, 1.05, 1.12, 1.2, 1.28, 1.34, 1.6, 2.1, 2.8, 3.6, 4.6, 5.7, 6.9],
     def: [.03, .07, .12, .2, .3, .4, .5, .62, .75, .9, 1.15, 1.45, 1.9, 2.6, 4, 7, 15, 40],
   };
   const BIG_MASS = .01; // крупный дроп ≈ 1 из 100 открытий
@@ -311,10 +311,13 @@ const CASES = [
     c.items = [...new Set(c.items.flatMap(n => VARIANTS[n] || [n]))];
     if (c.fix) for (const [n, v] of Object.entries(c.fix)) if (VARIANTS[n]) { delete c.fix[n]; VARIANTS[n].forEach(x => { c.fix[x] = v / VARIANTS[n].length; }); }
     if (c.maxWin) {
-      // «Сифон»: выигрыш не больше +10 ₽; зафиксированный нож остаётся
+      // «Сифон»: оружие до maxWin ₽; зафиксированный нож остаётся
       const fixed = c.items.filter(n => c.fix && c.fix[n] != null);
       const pool = c.items.filter(n => !fixed.includes(n) && SK[n].p <= c.maxWin).map(n => SK[n]);
-      c.items = [...buildSet(c, pool, SET_X.sifon), ...fixed];
+      c.items = [...buildSet(c, pool.length ? pool : ITEMS.filter(i => i.p <= c.maxWin), SET_X.sifon).filter(n => SK[n].p <= c.maxWin), ...fixed];
+      // дороже кейса в 1,5+ раза (≈ 45–200 ₽) — вместе ~3% открытий, чем дороже — тем реже
+      const big = c.items.filter(n => !fixed.includes(n) && SK[n].p >= c.price * 1.5), bw = big.map(n => SK[n].p ** -1.5), sbw = bw.reduce((x, y) => x + y, 0);
+      big.forEach((n, i) => { c.fix[n] = .03 * bw[i] / sbw; });
       return;
     }
     const pool = c.items.map(n => SK[n]);
