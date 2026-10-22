@@ -333,6 +333,10 @@ try {
 } catch (e) { st = DEF(); }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ } };
 st.inv.forEach(x => { if (x.st === 'pend') x.st = 'out'; if (x.st === 'bet') x.st = 'own'; });
+// износ пропал из каталога (отсеянная цена) — меняем на основной износ того же скина
+const fixName = n => SK[n] ? n : (SK[n.replace(/ \([^()]*\)$/, '')] || {}).name || n;
+st.inv.forEach(x => { x.n = fixName(x.n); });
+if (st.stats.best) st.stats.best = fixName(st.stats.best);
 
 const own = () => st.inv.filter(x => x.st === 'own' && SK[x.n]);
 function giveItem(s, from) {
