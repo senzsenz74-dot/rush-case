@@ -1707,3 +1707,8 @@ p{margin:0}
 .rc-log>div span{color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rc-log>div small{color:var(--txt3);font-size:11.5px}.rc-log>div i{font-style:normal;color:var(--gold);font-weight:800}
 .rc-log .muted{color:var(--txt3);font-size:13px;margin:0}
 @media (max-width:1000px){.pf-rc{grid-template-columns:1fr}}
+/* R-COIN: фирменная монета вместо буквы */
+img.rc-ic{background:none;box-shadow:none;object-fit:contain;filter:drop-shadow(0 0 6px rgba(246,198,80,.5))}
+.rc img.rc-ic{width:30px;height:30px}
+img.rc-ic.big{width:72px;height:72px;filter:drop-shadow(0 0 16px rgba(246,198,80,.45))}
+@media (max-width:720px){.rc img.rc-ic{width:26px;height:26px}}

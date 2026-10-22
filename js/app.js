@@ -797,7 +797,7 @@ function renderUser() {
     $('#sndBtn').onclick = toggleSound;
     shownBal = null; return;
   }
-  ua.innerHTML = `<a class="rc" href="#/profile" title="R-COIN — бонусы за открытия кейсов. 1 R = 1 ₽"><span class="rc-ic" aria-hidden="true">R</span><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
+  ua.innerHTML = `<a class="rc" href="#/profile" title="R-COIN — бонусы за открытия кейсов. 1 R = 1 ₽"><img class="rc-ic" src="assets/rcoin.webp" alt="" aria-hidden="true"><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
     <div class="bal" data-act="deposit" title="Пополнить баланс"><span class="bal-ic">${ic.coin}</span><b id="balance">${money(st.balance)}</b></div>
     <button class="btn btn-outline hd-dep" data-act="deposit">Пополнить</button>
     <div class="ubox">
@@ -1840,7 +1840,7 @@ function pageProfile() {
       <div class="pstat best r-${best ? best.r : 'milspec'}">${best ? `<img src="${imgUrl(best, 's')}" alt=""><div><b>${esc(best.name)}</b><span style="color:var(--lime)">${money(best.p)}</span></div>` : `<span class="pi">${ic.trophy}</span><div><b>—</b><span>Лучший дроп</span></div>`}</div>
     </div>
     <div class="pf-rc" id="rcoins">
-      <div class="rc-head"><span class="rc-ic big" aria-hidden="true">R</span><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах (скоро)</small></div></div>
+      <div class="rc-head"><img class="rc-ic big" src="assets/rcoin.webp" alt="" aria-hidden="true"><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах (скоро)</small></div></div>
       <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый.</p>
         <div class="rc-ex">${CASES.slice().sort((a, b) => a.price - b.price).map(c => `<span>${esc(c.name)} <i>+${rc(Math.round(c.price * RCOIN_RATE(c) * 100 + 1e-6) / 100)}</i></span>`).join('')}</div></div>
       <div class="rc-log"><b>История</b>${(st.rlog || []).length ? (st.rlog || []).slice(0, 20).map(x => `<div><span>${esc(x.note)}</span><small>${new Date(x.ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small><i>+${rc(x.v)}</i></div>`).join('') : '<p class="muted">Откройте кейс — здесь появятся начисления.</p>'}</div>
