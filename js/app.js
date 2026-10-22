@@ -1247,15 +1247,52 @@ function itemTilt(root) {
     const img = $('img', w); if (!img) return;
     // один предмет — крутится от курсора в любом месте окна результата; несколько — каждый от своей карточки
     const zone = w.closest('.rv-inner.one') ? (root.closest('.rl-framed') || root.closest('.rl') || root) : (w.closest('.rv-card') || w), t0 = performance.now() + i * 900;
-    let tx = 0, ty = 0, rx = 0, ry = 0, hover = false;
+    let tx = 0, ty = 0, rx = 0, ry = 0, hover = false, energy = 0;
     zone.addEventListener('pointermove', e => { const q = w.getBoundingClientRect(); tx = (clamp((e.clientX - q.left) / q.width, 0, 1) - .5) * 56; ty = -(clamp((e.clientY - q.top) / q.height, 0, 1) - .5) * 40; hover = true; });
     zone.addEventListener('pointerleave', () => { hover = false; });
+    // блики: canvas поверх предмета, повёрнутый вместе с ним; полоса света и искорки обрезаются по силуэту
+    // (картинки Steam без CORS нельзя взять в CSS-маску, а нарисовать на canvas и обрезать режимом destination-in — можно)
+    const fx = document.createElement('canvas'); fx.className = 'it-fx'; fx.setAttribute('aria-hidden', 'true');
+    const ctx = fx.getContext('2d'), sparks = Array.from({ length: 9 }, () => ({ x: rand(.12, .88), y: rand(.22, .78), ph: rand(0, 6.3), sp: rand(2, 3.4), s: rand(.6, 1.15) }));
+    w.appendChild(fx);
+    const place = () => {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      fx.style.left = img.offsetLeft + 'px'; fx.style.top = img.offsetTop + 'px'; fx.style.width = img.offsetWidth + 'px'; fx.style.height = img.offsetHeight + 'px';
+      fx.width = Math.max(1, Math.round(img.offsetWidth * dpr)); fx.height = Math.max(1, Math.round(img.offsetHeight * dpr));
+    };
+    const glint = (now, e) => {
+      const W = fx.width, H = fx.height; if (!img.complete || W < 2) return;
+      ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H);
+      // полоса света — её положение следует за поворотом
+      const pos = clamp((50 - ry * 2.4 + rx * .8) / 100, -.2, 1.2), g = ctx.createLinearGradient(W * (pos - .32), 0, W * (pos + .32), H * .45);
+      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.42, 'rgba(255,255,255,0)'); g.addColorStop(.5, `rgba(255,255,255,${(.85 * e).toFixed(3)})`);
+      g.addColorStop(.56, `rgba(255,244,210,${(.45 * e).toFixed(3)})`); g.addColorStop(.66, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      // искорки-звёздочки
+      const t = now / 1000, k = H / 230;
+      ctx.lineCap = 'round';
+      sparks.forEach(p => {
+        const a = Math.max(0, Math.sin(t * p.sp + p.ph)) ** 3 * e; if (a < .02) return;
+        const r = 9 * p.s * k * (.4 + .6 * a), cx = p.x * W, cy = p.y * H;
+        ctx.strokeStyle = `rgba(255,255,255,${a.toFixed(3)})`; ctx.lineWidth = 1.6 * k;
+        ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
+        ctx.fillStyle = `rgba(255,250,230,${a.toFixed(3)})`; ctx.beginPath(); ctx.arc(cx, cy, 2.2 * k, 0, 6.3); ctx.fill();
+      });
+      // обрезка по силуэту предмета
+      ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(img, 0, 0, W, H);
+    };
+    if (img.complete) place(); img.addEventListener('load', place); window.addEventListener('resize', place);
     const tick = now => {
-      if (!img.isConnected) return;
+      if (!img.isConnected) { window.removeEventListener('resize', place); return; }
       if (!hover) { const t = (now - t0) / 1000; tx = Math.sin(t * .8) * 12; ty = Math.cos(t * .6) * 7; }
+      const prx = rx, pry = ry;
       rx += (ty - rx) * .1; ry += (tx - ry) * .1;
-      img.style.transform = `perspective(800px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) translateZ(40px) scale(1.02)`;
+      const tf = `perspective(800px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) translateZ(40px) scale(1.02)`;
+      img.style.transform = fx.style.transform = tf;
       img.style.filter = `drop-shadow(${(-ry * .7).toFixed(1)}px ${(22 + rx * .5).toFixed(1)}px 22px rgba(0,0,0,.65))`;
+      // чем быстрее крутится — тем ярче блики; полоса света бежит по предмету вслед за поворотом
+      energy = clamp(energy * .93 + Math.hypot(rx - prx, ry - pry) * .22, 0, 1);
+      glint(now, .22 + energy * .78);
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
