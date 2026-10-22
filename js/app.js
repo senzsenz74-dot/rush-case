@@ -790,7 +790,7 @@ function pageCase(id) {
       <div class="rl-strips" id="strips"></div>
       <div class="rl-marker"></div>
       <div class="rl-reveal" id="reveal"></div>
-    </div></div><img class="rl-frame-img" src="assets/frame-case.png" alt="" draggable="false"></div>
+    </div></div><img class="rl-frame-img" src="assets/frame-case.png" alt="" draggable="false"><i class="rl-spark s1"></i><i class="rl-spark s2"></i><i class="rl-spark s3"></i><i class="rl-spark s4"></i></div>
     <div class="cc" id="cc"></div>
     ${secTitle('Содержимое кейса')}
     <div class="items-grid">${c.items.map(s => itemCard(s)).join('')}</div>

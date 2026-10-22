@@ -1459,3 +1459,41 @@ p{margin:0}
 .h3-fx{inset:0;border-radius:0}
 .h3-btns{left:9.2%;bottom:8%}
 @media (max-width:720px){.h3-frame{padding:0}.h3-fx{inset:0}.h3-btns{padding:0 16px}}
+
+/* ===== рамка v3: окно 19.2% / 19.6% / 32.4% / 26.1%; ленты подгоняются под окно ===== */
+@media (min-width:1101px){
+  .rl-framed .rl-wrap{left:19.0%;right:19.4%;top:32.2%;bottom:25.9%}
+  .rl-frame-img{
+    -webkit-mask-image:linear-gradient(#000,#000),linear-gradient(to bottom,#000 70%,transparent 82%);
+    mask-image:linear-gradient(#000,#000),linear-gradient(to bottom,#000 70%,transparent 82%);
+    -webkit-mask-size:62% 79%,100% 100%;mask-size:62% 79%,100% 100%}
+  .rl-floor{top:74%;height:14%}
+  .rl-framed .rl{padding:0}
+  .rl-framed .rl-strips{position:absolute;inset:4px 10px;height:auto!important;gap:0;display:flex;flex-direction:column}
+  .rl-framed .rl:not(.spinning) .rl-strips{display:none}
+  /* горизонтальные ленты x1–x5: делят высоту окна поровну, между ними золотые линии */
+  .rl-framed .strip{flex:1 1 0;min-height:0;container-type:size}
+  .rl-framed .strip+.strip{border-top:1px solid rgba(243,193,79,.55);box-shadow:0 -1px 8px -2px rgba(243,193,79,.4)}
+  .rl-framed .track{height:100%;padding:4px 0;box-sizing:border-box;align-items:stretch;gap:6px}
+  .rl-framed .rl .rcard{--cw:auto;--ch:auto;height:100%;width:auto;flex:0 0 auto;aspect-ratio:1.12;padding:0 6% 5%;border-radius:10px}
+  .rl-framed .rl .rcard img{top:7%;width:74%}
+  .rl-framed .rl .rc-w{display:block;font-size:clamp(8px,7.5cqh,11px)}
+  .rl-framed .rl .rc-f{display:block;font-size:clamp(9px,9cqh,14px)}
+  @container (max-height:110px){.rl-framed .rl .rc-w{display:none}}
+  @container (max-height:62px){.rl-framed .rl .rc-f{display:none}.rl-framed .rl .rcard img{top:4%;width:80%}}
+  /* вертикальные барабаны x6–x7: делят ширину окна, между ними вертикальные линии */
+  .rl-framed .rl.vert .rl-strips{flex-direction:row}
+  .rl-framed .strip.v{height:auto;flex:1 1 0;min-width:0;container-type:size}
+  .rl-framed .strip.v+.strip.v{border-top:0;box-shadow:none;border-left:1px solid rgba(243,193,79,.55)}
+  .rl-framed .strip.v .track{height:auto;width:100%;flex-direction:column;padding:0 4px;gap:5px}
+  .rl-framed .rl .strip.v .rcard{height:auto;width:100%;aspect-ratio:1.25;padding:0 6px 5px}
+  .rl-framed .strip.v::after{height:2px}
+  /* четыре точки свечения в углах окна */
+  .rl-spark{position:absolute;z-index:9;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,#fff 0%,#ffe7a3 30%,rgba(255,190,70,.55) 55%,transparent 72%);
+    box-shadow:0 0 14px 5px rgba(255,190,70,.75),0 0 40px 12px rgba(255,160,40,.35);animation:sparkPulse 2.6s ease-in-out infinite}
+  .rl-spark.s1{left:19.6%;top:33.4%}.rl-spark.s2{left:80.1%;top:33.4%;animation-delay:-.65s}
+  .rl-spark.s3{left:19.6%;top:72.8%;animation-delay:-1.3s}.rl-spark.s4{left:80.1%;top:72.8%;animation-delay:-1.95s}
+  @keyframes sparkPulse{0%,100%{transform:scale(.7);opacity:.65}50%{transform:scale(1.25);opacity:1}}
+}
+@media (max-width:1100px){.rl-spark{display:none}}
