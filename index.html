@@ -14,7 +14,75 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="preloader"><img class="brand-logo" src="assets/logo.webp" alt="RUSH CASE"><div class="pl-bar"><i></i></div></div>
+<div id="preloader" role="progressbar" aria-label="Загрузка RUSH CASE" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+  <div class="pl-curtain pl-top"></div><div class="pl-curtain pl-bot"></div>
+  <div class="pl-fx" aria-hidden="true"><i class="pl-glow"></i><i class="pl-beam pl-b1"></i><i class="pl-beam pl-b2"></i><i class="pl-beam pl-b3"></i><div class="pl-dust" id="plDust"></div><i class="pl-grain"></i><i class="pl-vig"></i></div>
+  <div class="pl-stage">
+    <div class="pl-core">
+      <svg class="pl-ring" viewBox="0 0 200 200" aria-hidden="true">
+        <defs>
+          <linearGradient id="plG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3cf"/><stop offset=".45" stop-color="#f6c650"/><stop offset="1" stop-color="#c47a12"/></linearGradient>
+          <filter id="plBlur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.4"/></filter>
+        </defs>
+        <g class="pl-r-ticks"><circle cx="100" cy="100" r="97" fill="none" stroke="rgba(243,193,79,.35)" stroke-width="2.2" stroke-dasharray=".8 4.28"/></g>
+        <g class="pl-r-arcs"><circle cx="100" cy="100" r="86" fill="none" stroke="rgba(255,233,171,.5)" stroke-width=".8" stroke-dasharray="40 30 8 30 70 92" stroke-linecap="round"/></g>
+        <circle cx="100" cy="100" r="91" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3"/>
+        <circle class="pl-prog-glow" cx="100" cy="100" r="91" fill="none" stroke="url(#plG)" stroke-width="5" stroke-linecap="round" filter="url(#plBlur)" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90 100 100)"/>
+        <circle class="pl-prog" cx="100" cy="100" r="91" fill="none" stroke="url(#plG)" stroke-width="3" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90 100 100)"/>
+        <circle class="pl-head" cx="100" cy="9" r="3.2" fill="#fff6dc"/>
+      </svg>
+      <div class="pl-logo"><img src="assets/logo.webp" alt="RUSH CASE" decoding="async"><i class="pl-shine"></i></div>
+    </div>
+    <div class="pl-pct"><b id="plPct">0</b><span>%</span></div>
+    <div class="pl-tag"><span style="--i:0">О</span><span style="--i:1">Т</span><span style="--i:2">К</span><span style="--i:3">Р</span><span style="--i:4">Ы</span><span style="--i:5">В</span><span style="--i:6">А</span><span style="--i:7">Й</span><span style="--i:8">&nbsp;</span><span style="--i:9">·</span><span style="--i:10">&nbsp;</span><span style="--i:11">С</span><span style="--i:12">О</span><span style="--i:13">Б</span><span style="--i:14">И</span><span style="--i:15">Р</span><span style="--i:16">А</span><span style="--i:17">Й</span><span style="--i:18">&nbsp;</span><span style="--i:19">·</span><span style="--i:20">&nbsp;</span><span style="--i:21">П</span><span style="--i:22">О</span><span style="--i:23">Б</span><span style="--i:24">Е</span><span style="--i:25">Ж</span><span style="--i:26">Д</span><span style="--i:27">А</span><span style="--i:28">Й</span></div>
+  </div>
+</div>
+<script>
+/* экран загрузки: прогресс по реальной загрузке (шрифты, логотип, баннер, кейсы, window.load), минимум ~1.4 с, максимум 7 с */
+(function () {
+  var pre = document.getElementById('preloader'); if (!pre) return;
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // искры и пыль
+  var dust = document.getElementById('plDust'), html = '';
+  for (var i = 0; i < (reduce ? 0 : 46); i++) {
+    var big = Math.random() < .3;
+    html += '<i class="' + (big ? 'e' : 'd') + '" style="left:' + (Math.random() * 100).toFixed(1) + '%;--d:' + (big ? 5 + Math.random() * 5 : 8 + Math.random() * 8).toFixed(1) + 's;--dl:-' + (Math.random() * 12).toFixed(1) + 's;--x:' + (Math.random() * 120 - 60).toFixed(0) + 'px;--s:' + (.4 + Math.random() * .9).toFixed(2) + '"></i>';
+  }
+  dust.innerHTML = html;
+  var prog = pre.querySelector('.pl-prog'), glow = pre.querySelector('.pl-prog-glow'), head = pre.querySelector('.pl-head'), pctEl = document.getElementById('plPct');
+  var assets = ['assets/logo.webp', 'assets/hero-banner.webp', 'assets/case-sifon.webp', 'assets/case-alt.webp', 'assets/case-frog.webp', 'assets/case-s1mple.webp', 'assets/case-cotton.webp', 'assets/case-zont.webp', 'assets/case-orange.webp', 'assets/case-premium.webp'];
+  var total = assets.length + 2, got = 0, loaded = false, finished = false, shown = 0, t0 = performance.now();
+  var bump = function () { got++; };
+  assets.forEach(function (u) { var im = new Image(); im.onload = im.onerror = bump; im.src = u; });
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(bump, bump);
+  window.addEventListener('load', function () { loaded = true; bump(); });
+  function set(p) {
+    var v = Math.max(0, Math.min(100, p));
+    prog.setAttribute('stroke-dasharray', v.toFixed(2) + ' 100'); glow.setAttribute('stroke-dasharray', v.toFixed(2) + ' 100');
+    var a = (v / 100 * 360 - 90) * Math.PI / 180; head.setAttribute('cx', (100 + 91 * Math.cos(a)).toFixed(2)); head.setAttribute('cy', (100 + 91 * Math.sin(a)).toFixed(2));
+    pctEl.textContent = Math.floor(v); pre.setAttribute('aria-valuenow', Math.floor(v));
+  }
+  function finish() {
+    if (finished) return; finished = true; set(100);
+    pre.classList.add('done');
+    setTimeout(function () { pre.classList.add('out'); }, reduce ? 50 : 520);
+    setTimeout(function () { pre.classList.add('gone'); }, reduce ? 400 : 1700);
+  }
+  window.plFinish = finish;
+  (function tick(now) {
+    if (finished) return;
+    var el = now - t0, target = got / total * 100;
+    if (!loaded) target = Math.min(target, 94);
+    // догоняем цель плавно, но не быстрее, чем за ~1.4 с от 0 до 100
+    var cap = Math.min(100, el / 1400 * 100);
+    shown += (Math.min(target, cap) - shown) * .12;
+    if (shown < Math.min(target, cap) && Math.min(target, cap) - shown < .4) shown = Math.min(target, cap);
+    set(shown);
+    if ((loaded && shown >= 99.6) || el > 7000) return finish();
+    requestAnimationFrame(tick);
+  })(t0);
+})();
+</script>
 <div class="fx" id="fx"></div>
 
 <div class="live" id="live">

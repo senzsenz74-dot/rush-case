@@ -2309,7 +2309,5 @@ document.addEventListener('error', e => {
 /* ---------- init ---------- */
 renderHeader(); renderFooter(); initFx(); initLive(); route();
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
-const hidePre = () => $('#preloader').classList.add('out');
-window.addEventListener('load', () => setTimeout(hidePre, 300));
-setTimeout(hidePre, 2500);
+// экран загрузки закрывается сам (index.html: window.plFinish) — по окончании загрузки или через 7 с
 })();
