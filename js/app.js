@@ -1455,13 +1455,14 @@ async function runUpgrade() {
   const nearMiss = !win && Math.min(Math.abs(off - half), Math.abs(360 - half - off)) < 10;
   const w = $('#wheel'); if (!w) { upg.busy = false; return; }
   w.classList.add(win ? 'win' : 'lose');
-  cEl.textContent = win ? 'WIN' : 'LOSE';
-  $('#wLabel').textContent = win ? 'скин ваш' : 'не повезло';
+  // победа — без надписи на колесе, сразу 3D-карточка; проигрыш — LOSE
+  cEl.textContent = win ? '' : 'LOSE';
+  $('#wLabel').textContent = win ? '' : 'не повезло';
   if (win) { Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
   else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); }
   // победа — карточка выигрыша поверх апгрейда, ждём выбор игрока
   let act = null;
-  if (win) { await sleep(650); if (!$('#wheel')) { upg.busy = false; return; } act = await upgWinCard(ts); }
+  if (win) act = await upgWinCard(ts);
   else await sleep(1900);
   if (!$('#wheel')) { upg.busy = false; return; }
   // плавно возвращаем стрелку наверх
