@@ -181,7 +181,7 @@ function roll(items, key = 'ch') {
 const CASES = [
   {
     id: 'cotton', name: 'Сладкая вата', price: 990, tag: 'Новинка', tagIc: 'star', rtp: .9,
-    sub: 'Розовые, неоновые и радужные скины. Джекпот — ★ Спортивные перчатки | Порок',
+    sub: 'Розовые, неоновые и радужные скины от 200 ₽ и редкие джекпоты',
     th: { a: '#ff6fb5' }, img: 'assets/case-cotton.webp', win: .45,
     show: ['★ Спортивные перчатки | Порок', 'M4A1-S | Вейпорвейв', 'P90 | Смертоносные кошечки'],
     items: ['G3SG1 | Фиолетовое Мурано', 'SG 553 | Ультрафиолет', 'MAC-10 | Ультрафиолет', 'USP-S | Пиксельный камуфляж «Фиолетовый»', 'MAC-10 | Градиент',
@@ -193,7 +193,7 @@ const CASES = [
   },
   {
     id: 'sifon', name: 'Сифон и Борода', price: 29, tag: 'Бюджет', tagIc: 'coin', rtp: .96,
-    sub: '71 бюджетный скин: каждое третье открытие в плюс до +10 ₽ и нож с минимальным шансом',
+    sub: 'Бюджетные скины от 9 ₽: каждое третье открытие в плюс, скины до 200 ₽ и нож с минимальным шансом',
     th: { a: '#a3e635' }, img: 'assets/case-sifon.webp', win: 1 / 3, kh: 1, maxWin: 200, // каждое 3-е открытие в плюс; оружие до 200 ₽ — редко (кроме ножа)
     fix: { '★ Тычковые ножи | Пиксельный камуфляж «Лес»': .0002 },
     show: ['★ Тычковые ножи | Пиксельный камуфляж «Лес»', 'AWP | Чёрный Нил', 'M4A4 | Магний'],
@@ -220,7 +220,7 @@ const CASES = [
   },
   {
     id: 'premium', name: 'Premium', price: 4500, tag: 'Премиум', tagIc: 'crown', rtp: .85,
-    sub: 'Только дорогой дроп: тайные скины, ножи и перчатки. Джекпот — AWP | История о драконе',
+    sub: 'Дорогой дроп от 600 ₽: тайные скины, ножи и перчатки',
     th: { a: '#e8b04a' }, img: 'assets/case-premium.webp', win: .25,
     show: ['AWP | История о драконе', '★ Нож-бабочка | Волны', 'AK-47 | Дикий лотос'],
     items: ['AWP | Ледяной уголь', 'AK-47 | Ледяной уголь', 'M4A1-S | Mecha Industries', 'USP-S | Неонуар', 'Desert Eagle | Код красный',
@@ -237,7 +237,7 @@ const CASES = [
   },
   {
     id: 'alt', name: 'Альтушка', price: 450, tag: 'Новинка', tagIc: 'star', rtp: .9,
-    sub: 'Аниме, котики и розовый неон. Джекпот — ★ Нож-бабочка | Мраморный градиент',
+    sub: 'Аниме, котики и розовый неон',
     th: { a: '#ff3fa4' }, img: 'assets/case-alt.webp', win: .55,
     fix: { '★ Нож-бабочка | Мраморный градиент': .0001, '★ Штык-нож M9 | Мраморный градиент': .0002 },
     show: ['★ Нож-бабочка | Мраморный градиент', 'AWP | ЛАПКИ', 'XM1014 | Целую-обнимаю'],
@@ -250,8 +250,30 @@ const CASES = [
       '★ Штык-нож M9 | Мраморный градиент', '★ Нож-бабочка | Мраморный градиент'],
   },
   {
+    id: 'frog', name: 'Жаб Жабыч', price: 245, tag: 'Новинка', tagIc: 'star', rtp: .8,
+    sub: 'Только зелёные скины от 70 ₽. Ультра-редкие: ★ Karambit | Gamma Doppler и зелёные перчатки',
+    th: { a: '#9be22d' }, img: 'assets/case-frog.webp', win: .18,
+    strict: true, // только зелёные — без подстановки из общего каталога
+    // ультра-дорогие — шанс 1 из 100 000 каждый
+    ultra: ['★ Sport Gloves | Hedge Maze (Field-Tested)', '★ Karambit | Gamma Doppler (Factory New)', '★ Specialist Gloves | Emerald Web (Minimal Wear)'],
+    show: [],
+    items: [
+      'AK-47 | Изумрудные завитки', 'AK-47 | Зелёный глянец', 'AK-47 | Цвет джунглей', 'AWP | Гадюка',
+      'AWP | Древесная гадюка', 'M4A1-S | Basilisk', 'M4A1-S | Emphorosaur-S', 'M4A4 | Jungle Tiger',
+      'Glock-18 | Ядерный сад', 'Glock-18 | Groundwater', 'Glock-18 | Gamma Doppler', 'MAC-10 | Ядерный сад',
+      'MP9 | Hydra', 'MP9 | Смертельный яд', 'P90 | Virus', 'P90 | Emerald Dragon',
+      'P250 | Ядерная угроза', 'P250 | Contamination', 'Tec-9 | Токсичность', 'CZ75-Auto | Изумруд',
+      'CZ75-Auto | Green Plaid', 'Galil AR | Eco', 'Nova | Green Apple', 'Sawed-Off | Limelight',
+      'MP5-SD | Phosphor', 'MP5-SD | Acid Wash', 'P2000 | Turf', 'SCAR-20 | Изумруд',
+      'MAG-7 | Monster Call', 'USP-S | Overgrowth', 'USP-S | Monster Mashup', 'MP7 | Akoben',
+      'Dual Berettas | Emerald', 'MP7 | Неоновые жилки', 'MP9 | Goo', 'Tec-9 | Bamboozle',
+      'Nova | Toy Soldier', 'M249 | Aztec', 'P250 | See Ya Later', 'AWP | Containment Breach',
+      'Desert Eagle | Изумрудный Ёрмунганд', '★ Driver Gloves | Racing Green', '★ Hydra Gloves | Emerald', '★ Moto Gloves | Turtle',
+    ],
+  },
+  {
     id: 'orange', name: 'Оранж', price: 140, tag: 'Новинка', tagIc: 'fire', rtp: .9,
-    sub: 'Оранжевые скины, Азимовы и «Зуб тигра». Ножи и перчатки — с минимальным шансом',
+    sub: 'Оранжевые скины от 50 ₽ и редкие джекпоты',
     th: { a: '#ff7a1a' }, img: 'assets/case-orange.webp', win: .45,
     // ножи, перчатки и самый дорогой скин — минимальный шанс
     fix: { '★ Нож-бабочка | Зуб тигра': .00003, '★ Штык-нож M9 | Зуб тигра': .00006, '★ Штык-нож | Зуб тигра': .0001,
@@ -300,7 +322,7 @@ const CASES = [
       const t = c.price * x;
       let it = near(pool, t);
       // в тематике нет ничего близкого по цене — берём из общего каталога (дорогие цели — ножи и перчатки)
-      if (!it || dist(it, t) > .5) {
+      if (!c.strict && (!it || dist(it, t) > .5)) {
         const alt = near(ITEMS.filter(i => i.p >= min).filter(i => x >= 6 ? i.c === 'knife' || i.c === 'gloves' : i.c === 'skin' || i.c === 'junk'), t);
         if (alt && (!it || dist(alt, t) < dist(it, t))) it = alt;
       }
@@ -309,7 +331,7 @@ const CASES = [
     return out;
   }
   // минимальный дроп не дешевле floor ₽ + n дополнительных позиций в диапазоне lo–hi ₽
-  const EXTRA_SET = { sifon: [9, 9, 15, 10], orange: [50, 50, 300, 20], cotton: [200, 200, 800, 25], premium: [600, 600, 3500, 25] };
+  const EXTRA_SET = { sifon: [9, 9, 15, 10], frog: [70, 70, 240, 12], orange: [50, 50, 300, 20], cotton: [200, 200, 800, 25], premium: [600, 600, 3500, 25] };
   function addBand(c, pool) {
     const e = EXTRA_SET[c.id]; if (!e) return;
     const [floor, lo, hi, n] = e;
@@ -340,7 +362,9 @@ const CASES = [
     // крупный дроп (дороже кейса в 1,5+ раза) — очень редкий: все вместе BIG_MASS открытий, чем дороже — тем реже (~p^-1.5)
     c.fix = {};
     const big = c.items.filter(n => SK[n].p >= c.price * 1.5), bw = big.map(n => SK[n].p ** -1.5), sbw = bw.reduce((x, y) => x + y, 0);
-    big.forEach((n, i) => { c.fix[n] = BIG_MASS * bw[i] / sbw; });
+    // если есть ультра-предметы — обычный крупный дроп не реже 1 из 50 000, чтобы ультра оставались самыми редкими
+    big.forEach((n, i) => { c.fix[n] = Math.max(c.ultra ? .00002 : 0, BIG_MASS * bw[i] / sbw); });
+    (c.ultra || []).filter(n => SK[n]).forEach(n => { c.items.push(n); c.fix[n] = .00001; });
   });
 }
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
@@ -350,6 +374,7 @@ CASES.forEach(c => {
   const fwRaw = ch.map(x => Math.sqrt(x)), fs = fwRaw.reduce((a, b) => a + b, 0);
   c.items = items.map((s, i) => ({ ...s, ch: ch[i], fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p);
   c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
+  c.show = c.items.slice(0, 3).map(s => s.name);
 });
 CASES.sort((a, b) => a.price - b.price);
 const caseById = id => CASES.find(c => c.id === id);
