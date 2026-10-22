@@ -1511,3 +1511,8 @@ p{margin:0}
 .upg-cats .chip{height:32px;padding:0 12px;font-size:12px}
 .upg-cnt{font-size:12px;color:var(--txt3);font-weight:700;margin-bottom:8px}
 .mini-grid{position:relative}
+/* мини-карточки апгрейда: шанс под ценой, чтобы длинная цена с копейками не наезжала */
+.mcard .mc-p{max-width:calc(100% - 12px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+.mcard .mc-x{top:29px;left:6px;right:auto;color:var(--gold-hi,#ffd88a)}
+.mcard .mc-p,.mcard .mc-x{z-index:3}
+.mcard .mc-p,.mcard .mc-x{background:rgba(0,0,0,.6)}.mcard .mc-x{color:#fff}
