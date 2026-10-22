@@ -1158,7 +1158,7 @@ async function openCase(c, demo) {
     if (st.balance < cost) return openDeposit(cost - st.balance);
   }
   resetRoulette();
-  if (c.snd) Snd.play(c.snd.donate, .32); // донат — тихо, на фоне
+  if (c.snd) Snd.play(c.snd.donate, 1); // донат (файл сам по себе тихий: RMS −20 дБ)
   const wins = Array.from({ length: n }, () => roll(c.items));
   wins.forEach(s => { new Image().src = imgUrl(s, 'l'); }); // большие картинки грузим, пока крутится рулетка
   let given = [];
@@ -1177,7 +1177,7 @@ async function openCase(c, demo) {
   box.innerHTML = wins.map(w => `<div class="strip${vert ? ' v' : ''}"><div class="track">${Array.from({ length: STRIP_LEN }, (_, i) => rcard(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT)).join('')}</div></div>`).join('');
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   // 1) отщёлкивание замка — картинка кейса трясётся, лента ещё не крутится
-  rl.classList.add('unlocking'); if (c.snd) Snd.play(c.snd.go, 1); else Snd.lock();
+  rl.classList.add('unlocking'); if (c.snd) Snd.play(c.snd.go, .35); else Snd.lock(); // «поехали» — тише, чтобы был слышен донат
   await sleep(st.fast ? 700 : 1150);
   if (my !== spinId || !document.body.contains(rl)) return;
   rl.classList.remove('unlocking');
