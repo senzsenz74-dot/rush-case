@@ -1662,3 +1662,13 @@ p{margin:0}
   .rl-framed.f-gold .rl-frame-img{-webkit-mask-size:64% 87%,100% 100%;mask-size:64% 87%,100% 100%;-webkit-mask-position:42.5% top,center;mask-position:42.5% top,center}
 }
 .gx-smoke i{width:clamp(10px,3vw,30px);background:radial-gradient(circle,rgba(245,240,230,.75),rgba(210,205,200,.32) 45%,transparent 70%);filter:blur(2.5px)}
+/* GOLD RUSH: новая рамка 1870×841 — окно 24.0% / 25.9% / 36.9% / 34.8%, рамка снаружи ≈ 21.4%–77% × 30.4%–72.4% */
+@media (min-width:1101px){
+  .rl-framed.f-gold{aspect-ratio:1870/841}
+  .rl-framed.f-gold .rl-wrap{left:22.8%;right:24.7%;top:35.7%;bottom:33.6%}
+  .rl-framed.f-gold .rl-frame-img{-webkit-mask-size:57% 75%,100% 100%;mask-size:57% 75%,100% 100%;-webkit-mask-position:48.6% top,center;mask-position:48.6% top,center}
+  .rl-framed.f-gold .rl-floor{top:70%}
+  /* огоньки — точно в углах окна, на самой рамке */
+  .rl-framed.f-gold .rl-spark.s1{left:23.6%;top:36.4%}.rl-framed.f-gold .rl-spark.s2{left:74.5%;top:36.4%}
+  .rl-framed.f-gold .rl-spark.s3{left:23.6%;top:65.6%}.rl-framed.f-gold .rl-spark.s4{left:74.5%;top:65.6%}
+}
