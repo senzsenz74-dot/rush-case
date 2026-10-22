@@ -336,8 +336,8 @@ const CASES = [
   },
   {
     id: 'gold', name: 'БАБА ЧАЙ', goldPrice: true, liveGold: true,
-    // персональные звуки: donate — при нажатии (тихо), go — вместо ключа, song — во время прокрутки, win/lose — окупил / не окупил
-    snd: { donate: 'assets/sounds/baba-donate.mp3', go: 'assets/sounds/baba-go.mp3', song: 'assets/sounds/baba-song.mp3', win: 'assets/sounds/baba-win.mp3', lose: 'assets/sounds/baba-lose.mp3' }, price: 89999, tag: 'Эксклюзив', tagIc: 'crown', rtp: .8,
+    // персональные звуки: go — вместо ключа, song — во время прокрутки, win/lose — окупил / не окупил
+    snd: { go: 'assets/sounds/baba-go.mp3', song: 'assets/sounds/baba-song.mp3', win: 'assets/sounds/baba-win.mp3', lose: 'assets/sounds/baba-lose.mp3' }, price: 89999, tag: 'Эксклюзив', tagIc: 'crown', rtp: .8,
     sub: 'Особый кейс: только топовый дроп от 65 000 ₽ — «История о драконе», «Вой», Gungnir, керамбиты и перчатки',
     th: { a: '#f3c14f' }, img: 'assets/case-gold.webp', win: .12,
     strict: true, setX: 'gold', minDrop: 65000, more: [80000, 12], // +12 позиций дороже 80 000 ₽, в т.ч. другие износы тех же скинов
@@ -1158,7 +1158,6 @@ async function openCase(c, demo) {
     if (st.balance < cost) return openDeposit(cost - st.balance);
   }
   resetRoulette();
-  if (c.snd) Snd.play(c.snd.donate, 1); // донат (файл сам по себе тихий: RMS −20 дБ)
   const wins = Array.from({ length: n }, () => roll(c.items));
   wins.forEach(s => { new Image().src = imgUrl(s, 'l'); }); // большие картинки грузим, пока крутится рулетка
   let given = [];
