@@ -300,6 +300,41 @@ const CASES = [
     ],
   },
   {
+    id: 'zont', name: 'Zont1x ❤', price: 169, tag: 'Новинка', tagIc: 'star', rtp: .8,
+    sub: 'Чёрно-белые скины от 65 ₽. Ультра-редкие: ★ Нож-бабочка | Зуб тигра, AK-47 | Hydroponic, наклейка s1mple (Gold)',
+    th: { a: '#e8e8e8' }, img: 'assets/case-zont.webp', win: .18,
+    strict: true, setX: 'zont', minDrop: 65,
+    // редкие — обычный крупный дроп (≈1% открытий на весь крупный дроп)
+    rare: [
+      'Five-SeveN | Fairy Tale (Field-Tested)', 'AWP | Crakow! (Field-Tested)', 'P2000 | Corticera (Field-Tested)',
+      'USP-S | Road Rash (Field-Tested)',
+    ],
+    ultra: [
+      '★ Нож-бабочка | Зуб тигра (Прямо с завода)', 'AK-47 | Hydroponic (Field-Tested)', 'Desert Eagle | Пламя (Прямо с завода)',
+      'Sticker | LGB eSports (Holo) | Katowice 2015', 'Sticker | s1mple (Gold) | Katowice 2019', '★ Спортивные перчатки | Порок (После полевых испытаний)',
+      '★ Sport Gloves | Amphibious (Field-Tested)', 'Desert Eagle | Золотой карп (Прямо с завода)',
+    ],
+    show: [],
+    items: [
+      'AK-47 | Slate', 'AK-47 | Black Laminate', 'AWP | Graphite',
+      'AWP | Exoskeleton', 'AWP | Acheron', 'M4A1-S | Dark Water',
+      'M4A1-S | Night Terror', 'M4A1-S | Black Lotus', 'M4A1-S | Поток информации',
+      'Glock-18 | Catacombs', 'Glock-18 | Night', 'USP-S | Black Lotus',
+      'USP-S | Torque', 'USP-S | Guardian', 'Desert Eagle | Механо-пушка',
+      'Desert Eagle | Midnight Storm', 'Desert Eagle | Printstream', 'Desert Eagle | Light Rail',
+      'MAC-10 | Whitefish', 'MP7 | Skulls', 'UMP-45 | Arctic Wolf',
+      'AUG | Arctic Wolf', 'XM1014 | Black Tie', 'Nova | Graphite',
+      'SSG 08 | Dark Water', 'SSG 08 | Ghost Crusader', 'P250 | Cartel',
+      'Tec-9 | Snek-9', 'SG 553 | Darkwing', 'FAMAS | Mecha Industries',
+      'M4A4 | Dark Blossom', 'AK-47 | Phantom Disruptor', 'USP-S | Printstream',
+      'M4A4 | Desolate Space', 'MP9 | Dark Age', 'Galil AR | Black Sand',
+      'P90 | Shapewood', 'Glock-18 | Ironwork', 'AWP | Чёрный Нил',
+      'Five-SeveN | Fairy Tale', 'AWP | Crakow!', 'P2000 | Corticera',
+      'USP-S | Road Rash', 'AK-47 | Hydroponic', 'Desert Eagle | Пламя',
+      'Desert Eagle | Золотой карп',
+    ],
+  },
+  {
     id: 'orange', name: 'Оранж', price: 140, tag: 'Новинка', tagIc: 'fire', rtp: .9,
     sub: 'Оранжевые скины от 50 ₽ и редкие джекпоты',
     th: { a: '#ff7a1a' }, img: 'assets/case-orange.webp', win: .45,
@@ -340,6 +375,7 @@ const CASES = [
     sifon: [.03, .06, .1, .15, .2, .27, .35, .45, .55, .65, .75, .85, .95, 1.05, 1.12, 1.2, 1.28, 1.34, 1.6, 2.1, 2.8, 3.6, 4.6, 5.7, 6.9],
     // 46 ступеней: минимальный дроп, средний (около цены), крупный, джекпоты
     def: [...band(.03, .45, 14), ...band(.5, 1.45, 16), ...band(1.6, 6, 10), ...band(8, 40, 6)],
+    zont: [...band(65 / 169, 230 / 169, 10), ...band(1.45, 10, 18)],
     s1: [...band(95 / 322, 320 / 322, 10), ...band(1.02, 1.45, 8), ...band(1.6, 6, 8), ...band(8, 40, 5)],
   };
   const BIG_MASS = .01; // крупный дроп ≈ 1 из 100 открытий
@@ -384,10 +420,11 @@ const CASES = [
       big.forEach((n, i) => { c.fix[n] = .05 * bw[i] / sbw; });
       return;
     }
-    const ub = new Set((c.ultra || []).filter(n => SK[n]).map(n => baseOf(SK[n])));
+    const ub = new Set([...(c.ultra || []), ...(c.rare || [])].filter(n => SK[n]).map(n => baseOf(SK[n])));
     const pool = c.items.map(n => SK[n]).filter(x => x && !ub.has(baseOf(x)) && x.p >= (c.minDrop || 0));
     (ADD[c.id] || []).forEach(([cat, lo, hi, n]) => pool.push(...pickX(cat, lo, hi, n, c.id)));
     c.items = buildSet(c, pool, SET_X[c.setX] || SET_X.def);
+    (c.rare || []).filter(n => SK[n]).forEach(n => c.items.push(n));
     addBand(c, pool);
     // крупный дроп (дороже кейса в 1,5+ раза) — очень редкий: все вместе BIG_MASS открытий, чем дороже — тем реже (~p^-1.5)
     c.fix = {};
