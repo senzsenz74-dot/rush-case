@@ -293,20 +293,29 @@ const CASES = [
   };
   const BIG_MASS = .01; // крупный дроп ≈ 1 из 100 открытий
   const baseOf = s => s.base || s.name, dist = (s, t) => Math.abs(Math.log(s.p / t));
-  function buildSet(c, pool, xs) {
-    const used = new Set(), out = [];
+  function buildSet(c, pool, xs, used = new Set(), min = 0) {
+    const out = [];
     const near = (arr, t) => arr.reduce((b, s) => used.has(baseOf(s)) ? b : !b || dist(s, t) < dist(b, t) ? s : b, null);
     for (const x of xs) {
       const t = c.price * x;
       let it = near(pool, t);
       // в тематике нет ничего близкого по цене — берём из общего каталога (дорогие цели — ножи и перчатки)
       if (!it || dist(it, t) > .5) {
-        const alt = near(ITEMS.filter(i => x >= 6 ? i.c === 'knife' || i.c === 'gloves' : i.c === 'skin' || i.c === 'junk'), t);
+        const alt = near(ITEMS.filter(i => i.p >= min).filter(i => x >= 6 ? i.c === 'knife' || i.c === 'gloves' : i.c === 'skin' || i.c === 'junk'), t);
         if (alt && (!it || dist(alt, t) < dist(it, t))) it = alt;
       }
       if (it) { used.add(baseOf(it)); out.push(it.name); }
     }
     return out;
+  }
+  // минимальный дроп не дешевле floor ₽ + n дополнительных позиций в диапазоне lo–hi ₽
+  const EXTRA_SET = { sifon: [9, 9, 15, 10], orange: [50, 50, 300, 20], cotton: [200, 200, 800, 25], premium: [600, 600, 3500, 25] };
+  function addBand(c, pool) {
+    const e = EXTRA_SET[c.id]; if (!e) return;
+    const [floor, lo, hi, n] = e;
+    c.items = c.items.filter(nm => SK[nm].p >= floor);
+    const used = new Set(c.items.map(nm => baseOf(SK[nm])));
+    c.items.push(...buildSet(c, pool.filter(x => x.p >= floor), band(lo, hi, n).map(t => t / c.price), used, floor));
   }
   CASES.forEach(c => {
     Object.assign(c, SETUP[c.id] || {});
@@ -316,7 +325,9 @@ const CASES = [
       // «Сифон»: оружие до maxWin ₽; зафиксированный нож остаётся
       const fixed = c.items.filter(n => c.fix && c.fix[n] != null);
       const pool = c.items.filter(n => !fixed.includes(n) && SK[n].p <= c.maxWin).map(n => SK[n]);
-      c.items = [...buildSet(c, pool.length ? pool : ITEMS.filter(i => i.p <= c.maxWin), SET_X.sifon).filter(n => SK[n].p <= c.maxWin), ...fixed];
+      c.items = [...buildSet(c, pool.length ? pool : ITEMS.filter(i => i.p <= c.maxWin), SET_X.sifon).filter(n => SK[n].p <= c.maxWin)];
+      addBand(c, pool);
+      c.items.push(...fixed);
       // дороже кейса в 1,5+ раза (≈ 45–200 ₽) — вместе ~5% открытий, чем дороже — тем реже
       const big = c.items.filter(n => !fixed.includes(n) && SK[n].p >= c.price * 1.5), bw = big.map(n => SK[n].p ** -1.5), sbw = bw.reduce((x, y) => x + y, 0);
       big.forEach((n, i) => { c.fix[n] = .05 * bw[i] / sbw; });
@@ -325,6 +336,7 @@ const CASES = [
     const pool = c.items.map(n => SK[n]);
     (ADD[c.id] || []).forEach(([cat, lo, hi, n]) => pool.push(...pickX(cat, lo, hi, n, c.id)));
     c.items = buildSet(c, pool, SET_X.def);
+    addBand(c, pool);
     // крупный дроп (дороже кейса в 1,5+ раза) — очень редкий: все вместе BIG_MASS открытий, чем дороже — тем реже (~p^-1.5)
     c.fix = {};
     const big = c.items.filter(n => SK[n].p >= c.price * 1.5), bw = big.map(n => SK[n].p ** -1.5), sbw = bw.reduce((x, y) => x + y, 0);
