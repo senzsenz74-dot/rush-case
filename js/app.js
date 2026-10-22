@@ -272,6 +272,34 @@ const CASES = [
     ],
   },
   {
+    id: 's1mple', name: 'S1MPLE PRIME', price: 322, tag: 'Новинка', tagIc: 'crown', rtp: .8,
+    sub: 'Красно-чёрные скины от 95 ₽. Ультра-редкие: ★ Sport Gloves | Pandora\'s Box, ★ Flip Knife | Fade, AK-47 | Огненный змей',
+    th: { a: '#ff2d3d' }, img: 'assets/case-s1mple.webp', win: .18,
+    strict: true, setX: 's1', minDrop: 95,
+    fx: { x: 66, y: 0, w: 23, h: 40, ar: 1228 / 1131 }, // сияние статуэтки на картинке кейса (% от картинки), ar — пропорции картинки
+    ultra: [
+      '★ Skeleton Knife | Case Hardened (Field-Tested)', '★ Flip Knife | Fade (Factory New)', '★ Specialist Gloves | Marble Fade (Factory New)',
+      '★ Sport Gloves | Pandora\'s Box (Factory New)', 'M4A4 | Bullet Rain (Factory New)', 'M4A1-S | Hot Rod (Factory New)',
+      'Zeus x27 | Olympus (Factory New)', 'AK-47 | Огненный змей (Прямо с завода)',
+    ],
+    show: [],
+    items: [
+      'AK-47 | Красная линия', 'AK-47 | Red Laminate', 'AK-47 | Point Disarray',
+      'AK-47 | Кровавый спорт', 'AWP | Красная линия', 'AWP | Скоростной зверь',
+      'M4A4 | Evil Daimyo', 'M4A4 | Hellfire', 'M4A1-S | Blood Tiger',
+      'M4A1-S | Player Two', 'M4A1-S | Chantico\'s Fire', 'Glock-18 | Water Elemental',
+      'Glock-18 | Vogue', 'Glock-18 | Red Tire', 'USP-S | Cortex',
+      'USP-S | The Traitor', 'USP-S | Blood Tiger', 'Desert Eagle | Crimson Web',
+      'Desert Eagle | Kumicho Dragon', 'P2000 | Red FragCam', 'CZ75-Auto | Red Astor',
+      'CZ75-Auto | Crimson Web', 'Galil AR | Crimson Tsunami', 'MP7 | Bloodsport',
+      'MP9 | Ruby Poison Dart', 'SSG 08 | Blood in the Water', 'MAC-10 | Heat',
+      'XM1014 | Incinegator', 'Nova | Bloomstick', 'UMP-45 | Crime Scene',
+      'SG 553 | Integrale', 'Sawed-Off | Devourer', 'Galil AR | Firefight',
+      'SCAR-20 | Bloodsport', 'AUG | Akihabara Accept', 'Zeus x27 | Olympus',
+      'M4A4 | Bullet Rain', 'M4A1-S | Hot Rod', 'AK-47 | Огненный змей',
+    ],
+  },
+  {
     id: 'orange', name: 'Оранж', price: 140, tag: 'Новинка', tagIc: 'fire', rtp: .9,
     sub: 'Оранжевые скины от 50 ₽ и редкие джекпоты',
     th: { a: '#ff7a1a' }, img: 'assets/case-orange.webp', win: .45,
@@ -312,6 +340,7 @@ const CASES = [
     sifon: [.03, .06, .1, .15, .2, .27, .35, .45, .55, .65, .75, .85, .95, 1.05, 1.12, 1.2, 1.28, 1.34, 1.6, 2.1, 2.8, 3.6, 4.6, 5.7, 6.9],
     // 46 ступеней: минимальный дроп, средний (около цены), крупный, джекпоты
     def: [...band(.03, .45, 14), ...band(.5, 1.45, 16), ...band(1.6, 6, 10), ...band(8, 40, 6)],
+    s1: [...band(95 / 322, 320 / 322, 10), ...band(1.02, 1.45, 8), ...band(1.6, 6, 8), ...band(8, 40, 5)],
   };
   const BIG_MASS = .01; // крупный дроп ≈ 1 из 100 открытий
   const baseOf = s => s.base || s.name, dist = (s, t) => Math.abs(Math.log(s.p / t));
@@ -319,11 +348,11 @@ const CASES = [
     const out = [];
     const near = (arr, t) => arr.reduce((b, s) => used.has(baseOf(s)) ? b : !b || dist(s, t) < dist(b, t) ? s : b, null);
     for (const x of xs) {
-      const t = c.price * x;
-      let it = near(pool, t);
+      const t = c.price * x, side = i => x > 1 ? i.p > c.price : i.p <= c.price; // ступень выше цены кейса — только дороже кейса, и наоборот
+      let it = near(pool.filter(side), t);
       // в тематике нет ничего близкого по цене — берём из общего каталога (дорогие цели — ножи и перчатки)
       if (!c.strict && (!it || dist(it, t) > .5)) {
-        const alt = near(ITEMS.filter(i => i.p >= min).filter(i => x >= 6 ? i.c === 'knife' || i.c === 'gloves' : i.c === 'skin' || i.c === 'junk'), t);
+        const alt = near(ITEMS.filter(i => i.p >= min && side(i)).filter(i => x >= 6 ? i.c === 'knife' || i.c === 'gloves' : i.c === 'skin' || i.c === 'junk'), t);
         if (alt && (!it || dist(alt, t) < dist(it, t))) it = alt;
       }
       if (it) { used.add(baseOf(it)); out.push(it.name); }
@@ -355,16 +384,17 @@ const CASES = [
       big.forEach((n, i) => { c.fix[n] = .05 * bw[i] / sbw; });
       return;
     }
-    const pool = c.items.map(n => SK[n]);
+    const ub = new Set((c.ultra || []).filter(n => SK[n]).map(n => baseOf(SK[n])));
+    const pool = c.items.map(n => SK[n]).filter(x => x && !ub.has(baseOf(x)) && x.p >= (c.minDrop || 0));
     (ADD[c.id] || []).forEach(([cat, lo, hi, n]) => pool.push(...pickX(cat, lo, hi, n, c.id)));
-    c.items = buildSet(c, pool, SET_X.def);
+    c.items = buildSet(c, pool, SET_X[c.setX] || SET_X.def);
     addBand(c, pool);
     // крупный дроп (дороже кейса в 1,5+ раза) — очень редкий: все вместе BIG_MASS открытий, чем дороже — тем реже (~p^-1.5)
     c.fix = {};
     const big = c.items.filter(n => SK[n].p >= c.price * 1.5), bw = big.map(n => SK[n].p ** -1.5), sbw = bw.reduce((x, y) => x + y, 0);
     // если есть ультра-предметы — обычный крупный дроп не реже 1 из 50 000, чтобы ультра оставались самыми редкими
     big.forEach((n, i) => { c.fix[n] = Math.max(c.ultra ? .00002 : 0, BIG_MASS * bw[i] / sbw); });
-    (c.ultra || []).filter(n => SK[n]).forEach(n => { c.items.push(n); c.fix[n] = .00001; });
+    (c.ultra || []).filter(n => SK[n]).forEach(n => { c.items.push(n); c.fix[n] = Math.min(.00001, c.price * .01 / SK[n].p); });
   });
 }
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
@@ -602,8 +632,12 @@ async function copyText(t) {
 
 /* ---------- decorative ---------- */
 const RINGS = '<div class="ab-rings"><i></i><i></i><i></i></div>';
+/* сияние статуэтки: пульсирующий свет, вращающиеся лучи и искры (координаты — % от картинки кейса) */
+const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%" aria-hidden="true"><i class="tfx-rays"></i><i class="tfx-glow"></i>${
+  [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 function caseArt(c, cls = '') {
+  if (c.img && c.fx) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.fx.ar}"><img src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${trophyFx(c.fx)}</div></div>`;
   if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
   const [m, a, b] = c.show.map(n => SK[n]);
   const sparks = [[14, 20, 0], [84, 16, .9], [90, 60, 1.7], [8, 64, 2.4], [52, 6, 1.2]]
