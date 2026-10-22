@@ -89,12 +89,26 @@ const RAR = {
 };
 
 /* ---------- skins ---------- */
-const SK = {};
+// износ: каждый вариант — отдельный предмет со своей ценой (market.csgo.com)
+const WEAR = { FN: ['Прямо с завода', 'Factory New'], MW: ['Немного поношенное', 'Minimal Wear'], FT: ['После полевых испытаний', 'Field-Tested'], WW: ['Поношенное', 'Well-Worn'], BS: ['Закалённое в боях', 'Battle-Scarred'] };
+const WEAR_MAIN = ['FT', 'MW', 'WW', 'FN', 'BS']; // какой износ стоит за названием без износа (старые предметы в инвентаре, списки кейсов)
+const SK = {}, ITEMS = [], VARIANTS = {};
+const addItem = s => { SK[s.name] = s; ITEMS.push(s); };
+function addWears(base, wears, en) {
+  const qs = Object.keys(WEAR).filter(q => wears[q]);
+  VARIANTS[base.name] = qs.map(q => {
+    const s = { ...base, name: `${base.name} (${WEAR[q][en ? 1 : 0]})`, base: base.name, q, f: `${base.f} (${q})`, p: wears[q] };
+    addItem(s); return s.name;
+  });
+  SK[base.name] = SK[`${base.name} (${WEAR[WEAR_MAIN.find(q => wears[q])][en ? 1 : 0]})`];
+}
 for (const [name, d] of Object.entries(window.SKINS)) {
   const [w, f] = name.split(' | ');
-  SK[name] = { name, w, f, r: d.r, p: d.p, i: d.i, k: d.k };
+  const s = { name, w, f, r: d.r, p: d.p, i: d.i, k: d.k };
+  const wr = window.WEARS && window.WEARS[name];
+  if (wr) addWears(s, wr, false); else addItem(s);
 }
-const CATALOG = Object.values(SK).sort((a, b) => a.p - b.p);
+const CATALOG = ITEMS.slice().sort((a, b) => a.p - b.p);
 /* предметы с market.csgo.com: ножи, перчатки, наклейки, граффити, значки, агенты, ширп — участвуют только в апгрейде */
 const STEAM_IMG = 'https://community.steamstatic.com/economy/image/';
 const CAT_SKIN = 'skin';
@@ -102,9 +116,10 @@ CATALOG.forEach(s => { s.c = CAT_SKIN; });
 (window.EXTRA || []).forEach(([name, r, p, i, c]) => {
   if (SK[name]) return;
   const parts = name.split(' | ');
-  SK[name] = { name, w: parts[0], f: parts.slice(1).join(' | ') || parts[0], r, p, u: i, c };
+  const s = { name, w: parts[0], f: parts.slice(1).join(' | ') || parts[0], r, p, u: i, c };
+  if (typeof p === 'object') addWears(s, p, true); else addItem(s);
 });
-const UPG_CAT = Object.values(SK).sort((a, b) => a.p - b.p);
+const UPG_CAT = ITEMS.slice().sort((a, b) => a.p - b.p);
 const UPG_TABS = [['all', 'Все'], ['skin', 'Скины'], ['knife', 'Ножи'], ['gloves', 'Перчатки'], ['agent', 'Агенты'], ['sticker', 'Наклейки'], ['graffiti', 'Граффити'], ['pin', 'Значки'], ['junk', 'Ширп']];
 
 /* шансы: веса ~ price^-k, k подбирается так, чтобы матожидание = цена * RTP */
@@ -253,7 +268,7 @@ const CASES = [
 /* новые предметы с market.csgo.com в кейсах: агенты, ножи, перчатки, ширп. Выбор детерминированный (по хэшу названия) */
 {
   const hsh = t => { let h = 2166136261; for (const ch of t) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
-  const pickX = (cat, lo, hi, n, seed) => Object.values(SK).filter(x => x.c === cat && x.p >= lo && x.p <= hi).sort((x, y) => hsh(seed + x.name) - hsh(seed + y.name)).slice(0, n);
+  const pickX = (cat, lo, hi, n, seed) => ITEMS.filter(x => x.c === cat && x.p >= lo && x.p <= hi).sort((x, y) => hsh(seed + x.name) - hsh(seed + y.name)).slice(0, n);
   const ADD = {
     sifon: [['junk', .3, 20, 40], ['junk', 29.5, 39, 14]],
     orange: [['agent', 60, 1500, 6], ['junk', 8, 40, 10], ['knife', 3000, 15000, 3]],
@@ -262,12 +277,17 @@ const CASES = [
     premium: [['knife', 20000, 260000, 16], ['gloves', 20000, 200000, 6], ['agent', 1500, 20000, 6]],
   };
   CASES.forEach(c => {
+    c.items = [...new Set(c.items.flatMap(n => VARIANTS[n] || [n]))];
+    if (c.fix) for (const [n, v] of Object.entries(c.fix)) if (VARIANTS[n]) { delete c.fix[n]; VARIANTS[n].forEach(x => { c.fix[x] = v / VARIANTS[n].length; }); }
     const add = []; (ADD[c.id] || []).forEach(([cat, lo, hi, n]) => add.push(...pickX(cat, lo, hi, n, c.id)));
     add.forEach(x => { if (!c.items.includes(x.name)) c.items.push(x.name); });
     // в недорогих кейсах новые ножи и перчатки — с минимальным шансом
     if (c.id !== 'premium') add.filter(x => x.c === 'knife' || x.c === 'gloves').forEach(x => { c.fix = c.fix || {}; c.fix[x.name] = .00004; });
     // «Сифон»: выигрыш не больше +10 ₽ (кроме зафиксированного ножа)
     if (c.maxWin) c.items = c.items.filter(n => (c.fix && c.fix[n] != null) || SK[n].p <= c.maxWin);
+    // джекпот: предметы дороже кейса в 25+ раз — с крошечным шансом, все вместе дают ~5% окупаемости
+    const jack = c.items.filter(n => !(c.fix && c.fix[n] != null) && SK[n].p > c.price * 25);
+    jack.forEach(n => { c.fix = c.fix || {}; c.fix[n] = c.price * .05 / (jack.length * SK[n].p); });
   });
 }
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
