@@ -1540,3 +1540,7 @@ p{margin:0}
 .rl-idle .case-art.has-img .ca-imgbox{height:100%}
 .case-card .case-art.has-img .ca-imgbox{height:100%}
 .ca-imgbox>img{width:100%;height:100%;object-fit:contain}
+
+/* блоки «Популярные» / «Остальные» */
+.sec-row.sec-more{margin-top:40px}
+.filterbar+.sec-row{margin-top:26px}

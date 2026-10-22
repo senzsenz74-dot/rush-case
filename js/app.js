@@ -826,7 +826,11 @@ function pageHome() {
     <div class="sec-row">
       <h2 class="sec-h">Популярные кейсы</h2><i class="st-line"></i>
     </div>
-    <div class="cases-grid" id="popRow">${CASES.map(caseCard).join('')}</div>
+    <div class="cases-grid" id="popRow">${casesPop().map(caseCard).join('')}</div>
+    <div class="sec-row sec-more">
+      <h2 class="sec-h">Остальные кейсы</h2><i class="st-line"></i>
+    </div>
+    <div class="cases-grid" id="moreRow">${casesRest().map(caseCard).join('')}</div>
     <div class="promo-row">
       <div class="promo promo-dep"><div><h3>Бонус к пополнению <em>+35%</em></h3><div class="code">RUSH35</div><br><button class="btn btn-light btn-sm" data-act="copy" data-copy="RUSH35">${ic.copy}Скопировать</button></div><div class="promo-pct">%</div></div>
       <div class="promo promo-daily"><div><h3>Ежедневный бонус</h3><p id="dailyHome">${dailyLeft() ? 'Следующий через ' + dailyText() : 'Уже доступен! До 250 ₽ на баланс'}</p><a class="btn btn-outline btn-sm" href="#/bonus">${ic.gift}Получить</a></div><img src="assets/soldier.png" alt=""></div>
@@ -837,6 +841,10 @@ function pageHome() {
     </div>
   </section>`;
 }
+/* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
+const POPULAR = ['sifon', 'alt', 'frog', 's1mple', 'cotton'];
+const casesPop = () => POPULAR.map(caseById).filter(Boolean);
+const casesRest = () => CASES.filter(c => !POPULAR.includes(c.id));
 const caseCard = c => `<a class="case-card" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
   <div class="cc-art">${caseArt(c)}</div>
   <div class="cc-body">
@@ -860,7 +868,10 @@ function pageCases() {
       <div class="chips" id="chips"><button class="chip on" data-f="all">Все</button><button class="chip" data-f="0-100">до 100 ₽</button><button class="chip" data-f="100-500">100–500 ₽</button><button class="chip" data-f="500-1e9">500+ ₽</button></div>
       <label class="switch"><input type="checkbox" id="availChk"><i></i>Доступные</label>
     </div>
-    <div class="cases-grid" id="casesGrid">${CASES.map(caseCard).join('')}</div>
+    <div class="sec-row" data-grp="pop"><h2 class="sec-h">Популярные</h2><i class="st-line"></i></div>
+    <div class="cases-grid cases-grp" id="casesGrid" data-grp="pop">${casesPop().map(caseCard).join('')}</div>
+    <div class="sec-row sec-more" data-grp="more"><h2 class="sec-h">Остальные</h2><i class="st-line"></i></div>
+    <div class="cases-grid cases-grp" data-grp="more">${casesRest().map(caseCard).join('')}</div>
     <div class="empty hidden" id="casesEmpty">${ic.search}Ничего не найдено — попробуйте другой фильтр</div>
   </section>`;
 }
@@ -869,7 +880,7 @@ function mountCases() {
   const apply = () => {
     const q = $('#caseQ').value.trim().toLowerCase(), avail = $('#availChk').checked;
     let shown = 0;
-    $$('#casesGrid .case-card').forEach(card => {
+    $$('.cases-grp .case-card').forEach(card => {
       const p = +card.dataset.price; let ok = true;
       if (f !== 'all') { const [a, b] = f.split('-').map(Number); ok = p >= a && p < b; }
       if (q && !card.dataset.q.includes(q)) ok = false;
@@ -877,6 +888,8 @@ function mountCases() {
       card.classList.toggle('hidden', !ok); if (ok) shown++;
     });
     $('#casesEmpty').classList.toggle('hidden', shown > 0);
+    // заголовок группы прячем, если в ней ничего не осталось
+    $$('.cases-grp').forEach(g => { const any = $$('.case-card:not(.hidden)', g).length > 0; $$(`.sec-row[data-grp="${g.dataset.grp}"]`).forEach(h => h.classList.toggle('hidden', !any)); });
   };
   $('#caseQ').oninput = apply; $('#availChk').onchange = apply;
   $$('#chips .chip').forEach(b => b.onclick = () => { f = b.dataset.f; $$('#chips .chip').forEach(x => x.classList.toggle('on', x === b)); apply(); });
