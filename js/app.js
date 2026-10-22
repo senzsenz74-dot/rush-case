@@ -1477,7 +1477,8 @@ async function runUpgrade() {
   if (act === 'again' && won && won.st === 'own') { upg.sel = [won.id]; drawUpg(); $('.mults [data-m="2"]')?.click(); return; }
   drawUpg();
 }
-/* карточка выигрыша поверх апгрейда: конфетти, «Забрать в инвентарь» / «Апгрейднуть». Возвращает 'take' | 'again' */
+/* 3D-карточка выигрыша поверх апгрейда: наклон за курсором (без курсора — плавное покачивание),
+   толщина пластины, слои на разной глубине, блик и голографическая рамка. Возвращает 'take' | 'again' */
 function upgWinCard(s) {
   return new Promise(res => {
     const host = $('.upg-main'); if (!host) return res('take');
@@ -1486,22 +1487,46 @@ function upgWinCard(s) {
     const ov = document.createElement('div');
     ov.className = 'uw-ov';
     ov.innerHTML = `<div class="uw-conf" aria-hidden="true">${conf}</div>
-      <div class="uw-card r-${s.r}" role="dialog" aria-label="Апгрейд успешен">
-        <div class="uw-h">Апгрейд успешен!</div>
-        <div class="uw-imgw"><i class="uw-rays"></i><img src="${imgUrl(s, 'l')}" alt=""></div>
-        <div class="uw-rar">${RAR[s.r] ? RAR[s.r].n : ''}</div>
-        <div class="uw-name"><span>${esc(s.w)}</span>${esc(s.f)}</div>
-        <div class="uw-price">${money(s.p)}</div>
-        <div class="uw-btns">
-          <button class="btn btn-take" data-uw="take">${ic.box}Забрать в инвентарь</button>
-          <button class="btn btn-primary" data-uw="again">${ic.trend}Апгрейднуть</button>
+      <div class="uw3-stage">
+        <div class="uw3 r-${s.r}" role="dialog" aria-label="Апгрейд успешен">
+          ${Array.from({ length: 8 }, (_, i) => `<i class="uw3-slab" style="--z:${-(i + 1) * 1.5}px"></i>`).join('')}
+          <div class="uw3-face">
+            <i class="uw3-holo"></i><i class="uw3-grid"></i>
+            <div class="uw3-h">Апгрейд успешен</div>
+            <div class="uw3-stagev">
+              <i class="uw3-rays"></i><i class="uw3-pad"></i><i class="uw3-shadow"></i>
+              <img class="uw3-img" src="${imgUrl(s, 'l')}" alt="">
+            </div>
+            <div class="uw3-rar">${RAR[s.r] ? RAR[s.r].n : ''}</div>
+            <div class="uw3-name"><span>${esc(s.w)}</span>${esc(s.f)}</div>
+            <div class="uw3-price">${money(s.p)}</div>
+            <div class="uw3-btns">
+              <button class="btn btn-take" data-uw="take">${ic.box}Забрать</button>
+              <button class="btn btn-primary" data-uw="again">${ic.trend}Апгрейднуть</button>
+            </div>
+            <i class="uw3-shine"></i>
+          </div>
         </div>
       </div>`;
     host.appendChild(ov);
+    const card = $('.uw3', ov);
+    // наклон: курсор задаёт цель, rAF плавно догоняет; без курсора — покачивание
+    let tx = 0, ty = 0, rx = 0, ry = 0, mx = 50, my = 30, hover = false, raf, t0 = performance.now();
+    const onMove = e => { const r = card.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height; tx = (px - .5) * 26; ty = -(py - .5) * 20; mx = px * 100; my = py * 100; hover = true; };
+    ov.addEventListener('pointermove', onMove);
+    ov.addEventListener('pointerleave', () => { hover = false; });
+    const tick = now => {
+      if (!hover) { const t = (now - t0) / 1000; tx = Math.sin(t * .9) * 9; ty = Math.cos(t * .7) * 6; mx = 50 + Math.sin(t * .9) * 30; my = 35 + Math.cos(t * .7) * 20; }
+      rx += (ty - rx) * .09; ry += (tx - ry) * .09;
+      card.style.setProperty('--rx', rx.toFixed(2) + 'deg'); card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+      card.style.setProperty('--mx', mx.toFixed(1) + '%'); card.style.setProperty('--my', my.toFixed(1) + '%');
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
     requestAnimationFrame(() => ov.classList.add('on'));
     $$('[data-uw]', ov).forEach(b => b.onclick = () => {
       ov.classList.remove('on'); ov.classList.add('off');
-      setTimeout(() => ov.remove(), 260);
+      setTimeout(() => { cancelAnimationFrame(raf); ov.remove(); }, 320);
       res(b.dataset.uw);
     });
   });
