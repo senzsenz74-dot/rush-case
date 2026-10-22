@@ -335,7 +335,9 @@ const CASES = [
     ],
   },
   {
-    id: 'gold', name: 'БАБА ЧАЙ', goldPrice: true, price: 89999, tag: 'Эксклюзив', tagIc: 'crown', rtp: .8,
+    id: 'gold', name: 'БАБА ЧАЙ', goldPrice: true, liveGold: true,
+    // персональные звуки: donate — при нажатии (тихо), go — вместо ключа, song — во время прокрутки, win/lose — окупил / не окупил
+    snd: { donate: 'assets/sounds/baba-donate.mp3', go: 'assets/sounds/baba-go.mp3', song: 'assets/sounds/baba-song.mp3', win: 'assets/sounds/baba-win.mp3', lose: 'assets/sounds/baba-lose.mp3' }, price: 89999, tag: 'Эксклюзив', tagIc: 'crown', rtp: .8,
     sub: 'Особый кейс: только топовый дроп от 65 000 ₽ — «История о драконе», «Вой», Gungnir, керамбиты и перчатки',
     th: { a: '#f3c14f' }, img: 'assets/case-gold.webp', win: .12,
     strict: true, setX: 'gold', minDrop: 65000, more: [80000, 12], // +12 позиций дороже 80 000 ₽, в т.ч. другие износы тех же скинов
@@ -583,6 +585,16 @@ const Snd = {
     let b = this.bufs[name]; if (!b) return false;
     if (b instanceof ArrayBuffer) { try { b = this.bufs[name] = await a.decodeAudioData(b); } catch (e) { return false; } }
     const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; s.playbackRate.value = rate; g.gain.value = vol; s.connect(g); g.connect(a.destination); s.start(); return true;
+  },
+  /* персональные звуки кейса: грузятся при заходе на его страницу; ключ буфера — url */
+  preloadSet(set) { Object.values(set || {}).forEach(u => { if (!this.bufs[u]) this.preload(u, u); }); },
+  /* как play, но возвращает управление: stop(fadeSec) — плавно остановить */
+  async playCtl(name, vol = 1) {
+    if (!st.sound) return null; const a = this.a; if (!a) return null;
+    let b = this.bufs[name]; if (!b) return null;
+    if (b instanceof ArrayBuffer) { try { b = this.bufs[name] = await a.decodeAudioData(b); } catch (e) { return null; } }
+    const src = a.createBufferSource(), g = a.createGain(); src.buffer = b; g.gain.value = vol; src.connect(g); g.connect(a.destination); src.start();
+    return { stop(fade = .25) { const t = a.currentTime; try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + fade); src.stop(t + fade + .02); } catch (e) {} } };
   },
   /* щелчок ленты кейса — звук с записи (assets/sounds/tick.wav), лёгкий разброс высоты */
   tickCase() { if (this.bufs.tick) this.play('tick', .9, .96 + Math.random() * .08); else this.tick(); },
@@ -859,7 +871,7 @@ const liveBuf = [];
 let liveFilter = 'all';
 const liveHtml = d => {
   const s = SK[d.n], c = caseById(d.c);
-  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}" href="#/case/${d.c}" title="${esc(s.name)}"><img src="${imgUrl(s, 's')}" alt="" loading="lazy"><span class="ld-f">${esc(s.f)}</span><span class="ld-w">${esc(s.w)}</span><span class="ld-u"><small>${c ? 'Кейс «' + c.name + '»' : d.c}</small>${esc(d.u)}</span></a>`;
+  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}" href="#/case/${d.c}" title="${esc(s.name)}"><img src="${imgUrl(s, 's')}" alt="" loading="lazy"><span class="ld-f">${esc(s.f)}</span><span class="ld-w">${esc(s.w)}</span><span class="ld-u"><small>${c ? 'Кейс «' + c.name + '»' : d.c}</small>${esc(d.u)}</span></a>`;
 };
 const liveOk = d => liveFilter === 'all' || SK[d.n].p >= 1000;
 function renderLive() { $('#liveTrack').innerHTML = liveBuf.filter(liveOk).slice(0, 40).map(liveHtml).join(''); }
@@ -1110,6 +1122,7 @@ function drawFrame() {
 }
 function mountCase(id) {
   const c = caseById(id); if (!c) return;
+  if (c.snd) Snd.preloadSet(c.snd);
   spinning = false;
   ccIdle(c);
   if (rlRO) rlRO.disconnect();
@@ -1145,6 +1158,7 @@ async function openCase(c, demo) {
     if (st.balance < cost) return openDeposit(cost - st.balance);
   }
   resetRoulette();
+  if (c.snd) Snd.play(c.snd.donate, .32); // донат — тихо, на фоне
   const wins = Array.from({ length: n }, () => roll(c.items));
   wins.forEach(s => { new Image().src = imgUrl(s, 'l'); }); // большие картинки грузим, пока крутится рулетка
   let given = [];
@@ -1163,7 +1177,7 @@ async function openCase(c, demo) {
   box.innerHTML = wins.map(w => `<div class="strip${vert ? ' v' : ''}"><div class="track">${Array.from({ length: STRIP_LEN }, (_, i) => rcard(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT)).join('')}</div></div>`).join('');
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   // 1) отщёлкивание замка — картинка кейса трясётся, лента ещё не крутится
-  rl.classList.add('unlocking'); Snd.lock();
+  rl.classList.add('unlocking'); if (c.snd) Snd.play(c.snd.go, 1); else Snd.lock();
   await sleep(st.fast ? 700 : 1150);
   if (my !== spinId || !document.body.contains(rl)) return;
   rl.classList.remove('unlocking');
@@ -1173,7 +1187,9 @@ async function openCase(c, demo) {
   $('#skipBtn').onclick = () => strips.forEach(s => s._skip && s._skip());
   await sleep(60);
   const dur = st.fast ? 3000 : 11000;
+  const song = c.snd ? Snd.playCtl(c.snd.song, .6) : null; // песня — пока крутится рулетка
   await Promise.all(strips.map((s, i) => spinStrip(s, dur + i * (vert ? 110 : 260), i === 0)));
+  if (song) song.then(h => h && h.stop(.25));
   await sleep(550);
   if (my !== spinId || !document.body.contains(rl)) return;
   showReveal(c, wins, given, demo);
@@ -1224,7 +1240,7 @@ function spinStrip(strip, dur, withSound) {
 function showReveal(c, wins, given, demo) {
   const best = wins.reduce((a, s) => s.p > a.p ? s : a, wins[0]);
   const tier = best.r === 'rare' || best.p >= c.price * 8 ? 'jackpot' : best.p > c.price ? 'profit' : 'cheap';
-  Snd[tier]();
+  if (c.snd) Snd.play(best.p >= c.price ? c.snd.win : c.snd.lose, 1); else Snd[tier]();
   if (tier === 'jackpot') { burst(110); setTimeout(() => burst(70), 700); }
   const one = wins.length === 1;
   const topR = wins.reduce((a, s) => RAR[s.r].o > RAR[a].o ? s.r : a, wins[0].r);
