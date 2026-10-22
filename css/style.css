@@ -1444,3 +1444,18 @@ p{margin:0}
   font:800 17px var(--ff-h);-webkit-text-fill-color:initial;color:#f6e6b8;background-clip:padding-box;transition:background .25s,border-color .25s}
 .case-card:hover .cc-price{background:rgba(243,193,79,.16);border-color:rgba(243,193,79,.5)}
 @media (max-width:720px){.cc-price{height:32px;padding:0 14px;font-size:15px}}
+/* баннер во всю ширину экрана, мягкое затухание снизу в фон страницы */
+.hero3{padding-top:0}
+.h3-frame{max-width:none;padding:0}
+.h3-img{border-radius:0;box-shadow:none;width:100%;
+  -webkit-mask-image:linear-gradient(to bottom,#000 82%,transparent);mask-image:linear-gradient(to bottom,#000 82%,transparent)}
+.h3-fx{inset:0;border-radius:0}
+.h3-btns{left:9.5%;bottom:9%}
+@media (max-width:720px){.h3-frame{padding:0}.h3-fx{inset:0}.h3-btns{padding:0 16px}}
+/* баннер во всю ширину экрана, снизу мягко уходит в фон страницы */
+.hero3{padding-top:0}
+.h3-frame{max-width:none;padding:0}
+.h3-img{border-radius:0;box-shadow:none;-webkit-mask-image:linear-gradient(to bottom,#000 85%,transparent);mask-image:linear-gradient(to bottom,#000 85%,transparent)}
+.h3-fx{inset:0;border-radius:0}
+.h3-btns{left:9.2%;bottom:8%}
+@media (max-width:720px){.h3-frame{padding:0}.h3-fx{inset:0}.h3-btns{padding:0 16px}}
