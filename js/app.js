@@ -21,7 +21,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const pct = v => { const x = v * 100; return (x >= 1 ? x.toFixed(2) : x >= .01 ? x.toFixed(3) : x.toFixed(4)).replace('.', ',') + '%'; };
 const CDN = 'https://community.cloudflare.steamstatic.com/economy/image/';
 /* картинки скинов лежат локально: assets/skins/<k>-m.webp (256×192) и -l.webp (512×384); Steam — запасной вариант */
-const imgUrl = (s, size = 'm') => `assets/skins/${s.k}-${size === 'l' ? 'l' : 'm'}.webp`;
+const imgUrl = (s, size = 'm') => s.u ? `https://community.steamstatic.com/economy/image/${s.u}/${size === 'l' ? '512fx384f' : '256fx192f'}` : `assets/skins/${s.k}-${size === 'l' ? 'l' : 'm'}.webp`;
 const pad = n => String(n).padStart(2, '0');
 
 /* ---------- icons ---------- */
@@ -94,6 +94,17 @@ for (const [name, d] of Object.entries(window.SKINS)) {
   SK[name] = { name, w, f, r: d.r, p: d.p, i: d.i, k: d.k };
 }
 const CATALOG = Object.values(SK).sort((a, b) => a.p - b.p);
+/* предметы с market.csgo.com: ножи, перчатки, наклейки, граффити, значки, агенты, ширп — участвуют только в апгрейде */
+const STEAM_IMG = 'https://community.steamstatic.com/economy/image/';
+const CAT_SKIN = 'skin';
+CATALOG.forEach(s => { s.c = CAT_SKIN; });
+(window.EXTRA || []).forEach(([name, r, p, i, c]) => {
+  if (SK[name]) return;
+  const parts = name.split(' | ');
+  SK[name] = { name, w: parts[0], f: parts.slice(1).join(' | ') || parts[0], r, p, u: i, c };
+});
+const UPG_CAT = Object.values(SK).sort((a, b) => a.p - b.p);
+const UPG_TABS = [['all', 'Все'], ['skin', 'Скины'], ['knife', 'Ножи'], ['gloves', 'Перчатки'], ['agent', 'Агенты'], ['sticker', 'Наклейки'], ['graffiti', 'Граффити'], ['pin', 'Значки'], ['junk', 'Ширп']];
 
 /* шансы: веса ~ price^-k, k подбирается так, чтобы матожидание = цена * RTP */
 function solveChances(items, target) {
@@ -780,7 +791,7 @@ function pageCase(id) {
   const embers = Array.from({ length: 44 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 7)}s;--x:${rand(-60, 60)}px;--s:${rand(.5, 1.3)}"></i>`).join('');
   return `<section class="container case-page" style="--ca:${c.th.a}">
     <div class="cp-head"><a href="#/cases" class="back">${ic.left}Все кейсы</a>
-      <div class="cp-title"><i class="cp-line l"></i><h1>Кейс «${c.name}»</h1><i class="cp-line r"></i></div>
+      <div class="cp-title"><i class="cp-line l"></i><h1>${c.name}</h1><i class="cp-line r"></i></div>
       <i></i></div>
     <div class="rl-framed"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
       <svg class="rl-frame" id="rlFrame" aria-hidden="true"><polygon class="f-glow"/><polygon class="f-line"/></svg>
@@ -953,10 +964,10 @@ function ccDone(c, wins, given, demo) {
     const draw = () => {
       const left = live().length;
       cc.innerHTML = `<div class="cc-btns">
-          ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="sellAll">${ic.coin}Продать${wins.length > 1 ? ' всё' : ''} за ${money(sum())}</button>` : ''}
           <button class="btn btn-primary btn-xl btn-cham" id="againBtn">Открыть ещё за ${money(c.price * caseN)}</button>
+          ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="sellAll">${ic.coin}Продать${wins.length > 1 ? ' всё' : ''} за ${money(sum())}</button>` : ''}
         </div>
-        <button class="btn btn-ghost" id="backBtn">${left ? ic.check + 'Забрать в инвентарь' : ic.left + 'К кейсу'}</button>
+        <button class="btn ${left ? 'btn-take' : 'btn-ghost'}" id="backBtn">${left ? ic.box + 'Забрать в инвентарь' : ic.left + 'К кейсу'}</button>
         ${left ? '<div class="cc-note">Предметы уже в вашем <b>профиле</b> — их можно продать или вывести в Steam позже.</div>' : ''}`;
       const sa = $('#sellAll');
       if (sa) sa.onclick = () => { let t = 0; live().forEach(g => { t += sellItem(g.id, true); }); Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); markSold(); draw(); };
@@ -973,7 +984,7 @@ function ccDone(c, wins, given, demo) {
 /* =========================================================
    UPGRADE
    ========================================================= */
-const upg = { sel: [], bal: 0, to: null, q: '', sort: 'asc', rot: 0, busy: false };
+const upg = { cat: 'all', sel: [], bal: 0, to: null, q: '', sort: 'asc', rot: 0, busy: false };
 const ARC_R = 138;
 const upgItems = () => upg.sel.map(id => st.inv.find(x => x.id === id && x.st === 'own')).filter(Boolean);
 function upgValue() { return upgItems().reduce((a, x) => a + SK[x.n].p, 0) + upg.bal; }
@@ -1051,7 +1062,9 @@ function pageUpgrade() {
         <div class="mini-grid" id="upgSrc"></div>
       </div>
       <div class="panel">
-        <div class="panel-h"><h3>Желаемый скин</h3><input class="inp" id="upgQ" placeholder="Поиск" autocomplete="off"><div class="seg" id="upgSort"><button data-s="asc">₽ ↑</button><button data-s="desc">₽ ↓</button></div></div>
+        <div class="panel-h"><h3>Желаемый предмет</h3><input class="inp" id="upgQ" placeholder="Поиск" autocomplete="off"><div class="seg" id="upgSort"><button data-s="asc">₽ ↑</button><button data-s="desc">₽ ↓</button></div></div>
+        <div class="chips upg-cats" id="upgCats">${UPG_TABS.map(([k, t]) => `<button class="chip${k === 'all' ? ' on' : ''}" data-cat="${k}">${t}</button>`).join('')}</div>
+        <div class="upg-cnt" id="upgCnt"></div>
         <div class="mini-grid" id="upgTargets"></div>
       </div>
     </div>
@@ -1062,11 +1075,12 @@ function mountUpgrade() {
   upg.busy = false;
   $$('#upgSort button').forEach(b => b.onclick = () => { upg.sort = b.dataset.s; drawTargets(); });
   $('#upgQ').oninput = e => { upg.q = e.target.value.trim().toLowerCase(); drawTargets(); };
+  $$('#upgCats [data-cat]').forEach(b => { b.classList.toggle('on', b.dataset.cat === upg.cat); b.onclick = () => { upg.cat = b.dataset.cat; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x === b)); drawTargets(); }; });
   $$('.mults button').forEach(b => b.onclick = () => {
     if (upg.busy) return;
     const v = upgValue(); if (!v) return toast('Сначала соберите ставку', 'err');
     const want = v * +b.dataset.m;
-    const best = CATALOG.filter(s => s.p > v * 1.05).sort((a, z) => Math.abs(a.p - want) - Math.abs(z.p - want))[0];
+    const best = UPG_CAT.filter(s => s.p > v * 1.05 && (upg.cat === 'all' || s.c === upg.cat)).sort((a, z) => Math.abs(a.p - want) - Math.abs(z.p - want))[0];
     if (best) { upg.to = best.name; drawUpg(); }
   });
   $('#upgAll').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.sel = own().map(x => x.id); Snd.safeSel(true); drawUpg(); };
@@ -1174,8 +1188,11 @@ function drawBalPop() {
 }
 function drawTargets() {
   const v = upgValue(), box = $('#upgTargets'); if (!box) return;
-  let list = CATALOG.filter(s => s.p > v * 1.05 && (!upg.q || s.name.toLowerCase().includes(upg.q)));
+  let list = UPG_CAT.filter(s => s.p > v * 1.05 && (upg.cat === 'all' || s.c === upg.cat) && (!upg.q || s.name.toLowerCase().includes(upg.q)));
   if (upg.sort === 'desc') list = list.slice().reverse();
+  const total = list.length, LIMIT = 240;
+  if (total > LIMIT) list = list.slice(0, LIMIT);
+  $('#upgCnt') && ($('#upgCnt').textContent = total > LIMIT ? `показано ${LIMIT} из ${fmt(total)} — уточните поиск` : `${fmt(total)} предм.`);
   box.innerHTML = list.length ? list.map(s => mcard(s, `data-t="${esc(s.name)}"`, v ? `<span class="mc-x">${(upgChance(v, s) * 100).toFixed(1)}%</span>` : '')).join('') : `<div class="empty">${ic.search}Ничего не найдено</div>`;
   $$('[data-t]', box).forEach(el => { if (el.dataset.t === upg.to) el.classList.add('sel'); el.onclick = () => { if (upg.busy) return; upg.to = el.dataset.t; Snd.safeSel(true); drawUpg(); }; });
 }
@@ -1494,7 +1511,13 @@ function drawPf() {
         <div class="ic-acts"><button class="btn btn-accent" data-sell="${x.id}">Продать</button><button class="btn btn-dark" data-wd="${x.id}">${ic.send}Вывести</button></div></div>`;
     }).join('') : `<div class="empty">${ic.box}Инвентарь пуст — самое время открыть кейс!<a class="btn btn-primary btn-sm" href="#/">К кейсам</a></div>`}</div>`;
     const sa = $('#sellAllInv');
-    if (sa) sa.onclick = () => { let t = 0; own().forEach(x => { t += sellItem(x.id, true); }); Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); drawPf(); };
+    if (sa) sa.onclick = () => {
+      const items = own(), total = items.reduce((a, x) => a + SK[x.n].p, 0);
+      const m = modal(`<div class="wd confirm"><h2>Продать всё?</h2><p>${items.length} ${plural(items.length, 'предмет', 'предмета', 'предметов')} на сумму <b>${money(total)}</b> будут проданы, деньги придут на баланс. Отменить это действие нельзя.</p>
+        <div class="cc-btns"><button class="btn btn-dark btn-lg" id="cfNo">Отмена</button><button class="btn btn-primary btn-lg" id="cfYes">${ic.coin}Подтвердить</button></div></div>`, 'm-wd');
+      $('#cfNo', m).onclick = closeModal;
+      $('#cfYes', m).onclick = () => { let t = 0; own().forEach(x => { t += sellItem(x.id, true); }); Snd.coin(); closeModal(); toast(`Продано на <b>+${money(t)}</b>`); drawPf(); };
+    };
     $$('[data-sell]', body).forEach(b => b.onclick = () => { sellItem(b.dataset.sell); drawPf(); });
     $$('[data-wd]', body).forEach(b => b.onclick = () => withdraw(b.dataset.wd));
   } else {

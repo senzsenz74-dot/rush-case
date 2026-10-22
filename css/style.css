@@ -1497,3 +1497,16 @@ p{margin:0}
   @keyframes sparkPulse{0%,100%{transform:scale(.7);opacity:.65}50%{transform:scale(1.25);opacity:1}}
 }
 @media (max-width:1100px){.rl-spark{display:none}}
+
+/* «Забрать в инвентарь» — заметная кнопка */
+.btn-take{height:46px;padding:0 26px;border-radius:999px;font-size:13px;color:#fff;background:rgba(255,255,255,.08);border:1.5px solid rgba(243,193,79,.75);box-shadow:0 0 18px -6px rgba(243,193,79,.7),inset 0 0 14px rgba(243,193,79,.08);backdrop-filter:blur(6px)}
+.btn-take:hover{background:rgba(243,193,79,.18);color:var(--gold-hi);box-shadow:0 0 26px -4px rgba(243,193,79,.9)}
+.btn-take svg{color:var(--gold)}
+/* подтверждение */
+.wd.confirm h2{margin-top:0}
+.wd.confirm p b{color:var(--gold)}
+.wd.confirm .cc-btns{justify-content:center}
+/* категории апгрейда */
+.upg-cats{margin:0 0 10px;gap:6px}
+.upg-cats .chip{height:32px;padding:0 12px;font-size:12px}
+.upg-cnt{font-size:12px;color:var(--txt3);font-weight:700;margin-bottom:8px}
