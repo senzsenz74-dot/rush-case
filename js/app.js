@@ -338,7 +338,7 @@ const CASES = [
     id: 'gold', name: 'GOLD RUSH', price: 89999, tag: 'Эксклюзив', tagIc: 'crown', rtp: .8,
     sub: 'Особый кейс: только топовый дроп от 65 000 ₽ — «История о драконе», «Вой», Gungnir, керамбиты и перчатки',
     th: { a: '#f3c14f' }, img: 'assets/case-gold.webp', win: .12,
-    strict: true, setX: 'gold', minDrop: 65000,
+    strict: true, setX: 'gold', minDrop: 65000, more: [80000, 12], // +12 позиций дороже 80 000 ₽, в т.ч. другие износы тех же скинов
     ar: 1225 / 1108, overlay: 'gold', // цепь, фары и дым поверх картинки (качаются вместе с кейсом)
     frame: { src: 'assets/frame-gold.png', cls: 'f-gold' }, // своя рамка рулетки
     show: [],
@@ -445,6 +445,12 @@ const CASES = [
     const pool = c.items.map(n => SK[n]).filter(x => x && !ub.has(baseOf(x)) && x.p >= (c.minDrop || 0));
     (ADD[c.id] || []).forEach(([cat, lo, hi, n]) => pool.push(...pickX(cat, lo, hi, n, c.id)));
     c.items = buildSet(c, pool, SET_X[c.setX] || SET_X.def);
+    // дополнительные позиции дороже more[0] ₽ — любые износы (повтор скина в другом износе допустим), равномерно по цене
+    if (c.more) {
+      const [lo, n] = c.more, cand = pool.filter(x => x.p >= lo && !c.items.includes(x.name)).sort((a, b) => a.p - b.p);
+      const take = new Set(); for (let i = 0; i < n && cand.length; i++) take.add(cand[Math.round(i * (cand.length - 1) / Math.max(1, n - 1))].name);
+      c.items.push(...take);
+    }
     (c.rare || []).filter(n => SK[n]).forEach(n => c.items.push(n));
     addBand(c, pool);
     // крупный дроп (дороже кейса в 1,5+ раза) — очень редкий: все вместе BIG_MASS открытий, чем дороже — тем реже (~p^-1.5)
