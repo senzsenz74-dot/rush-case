@@ -270,13 +270,14 @@ const CASES = [
   const hsh = t => { let h = 2166136261; for (const ch of t) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
   const pickX = (cat, lo, hi, n, seed) => ITEMS.filter(x => x.c === cat && x.p >= lo && x.p <= hi).sort((x, y) => hsh(seed + x.name) - hsh(seed + y.name)).slice(0, n);
   const ADD = {
-    sifon: [['junk', .3, 20, 40], ['junk', 29.5, 39, 14]],
-    orange: [['agent', 60, 1500, 6], ['junk', 8, 40, 10], ['knife', 3000, 15000, 3]],
-    alt: [['agent', 150, 4000, 8], ['knife', 5000, 30000, 4], ['junk', 20, 40, 6]],
-    cotton: [['agent', 300, 8000, 6], ['knife', 8000, 60000, 6], ['gloves', 8000, 60000, 3]],
-    premium: [['knife', 20000, 260000, 16], ['gloves', 20000, 200000, 6], ['agent', 1500, 20000, 6]],
+    sifon: [['junk', .3, 20, 100], ['junk', 29.5, 39, 30]],
+    orange: [['agent', 60, 1500, 6], ['junk', .4, 40, 120], ['knife', 3000, 15000, 3]],
+    alt: [['agent', 150, 4000, 8], ['knife', 5000, 30000, 4], ['junk', .4, 40, 120]],
+    cotton: [['agent', 300, 8000, 6], ['knife', 8000, 60000, 6], ['gloves', 8000, 60000, 3], ['junk', .4, 40, 120]],
+    premium: [['knife', 20000, 260000, 16], ['gloves', 20000, 200000, 6], ['agent', 1500, 20000, 6], ['junk', .4, 40, 120]],
   };
   CASES.forEach(c => {
+    if (c.id !== 'sifon') Object.assign(c, { auto: true, junk: .5, k: 1, jx: 4, jev: .4 });
     c.items = [...new Set(c.items.flatMap(n => VARIANTS[n] || [n]))];
     if (c.fix) for (const [n, v] of Object.entries(c.fix)) if (VARIANTS[n]) { delete c.fix[n]; VARIANTS[n].forEach(x => { c.fix[x] = v / VARIANTS[n].length; }); }
     const add = []; (ADD[c.id] || []).forEach(([cat, lo, hi, n]) => add.push(...pickX(cat, lo, hi, n, c.id)));
@@ -286,18 +287,45 @@ const CASES = [
     // «Сифон»: выигрыш не больше +10 ₽ (кроме зафиксированного ножа)
     if (c.maxWin) c.items = c.items.filter(n => (c.fix && c.fix[n] != null) || SK[n].p <= c.maxWin);
     // джекпот: предметы дороже кейса в 25+ раз — с крошечным шансом, все вместе дают ~5% окупаемости
-    const jack = c.items.filter(n => !(c.fix && c.fix[n] != null) && SK[n].p > c.price * 25);
+    const jack = c.auto ? [] : c.items.filter(n => !(c.fix && c.fix[n] != null) && SK[n].p > c.price * 25);
     jack.forEach(n => { c.fix = c.fix || {}; c.fix[n] = c.price * .05 / (jack.length * SK[n].p); });
   });
+}
+/* цена кейса из содержимого: ширп (≤ 40 ₽) выпадает в доле c.junk открытий, остальное — веса ~ p^-k,
+   предметы дороже кейса в 25+ раз — джекпот с крошечным шансом (вместе ~5% окупаемости).
+   Цена = матожидание дропа / RTP, округляется до «красивой», затем k подгоняется под точный RTP. */
+const JUNK_MAX = 40;
+const nicePrice = p => p < 100 ? Math.round(p) : p < 1000 ? Math.round(p / 10) * 10 - 1 : Math.round(p / 50) * 50 - 1;
+function solvePriced(c, items) {
+  const fix = c.fix || {}, isF = s => fix[s.name] != null;
+  const jk = items.filter(s => !isF(s) && s.p <= JUNK_MAX), nj = items.filter(s => !isF(s) && s.p > JUNK_MAX);
+  const wj = jk.map(s => s.p ** -.3), swj = wj.reduce((a, b) => a + b, 0);
+  const jEv = jk.reduce((a, s, i) => a + c.junk * wj[i] / swj * s.p, 0);
+  const evOf = (arr, k) => { let sw = 0, sv = 0; for (const it of arr) { const w = it.p ** -k; sw += w; sv += w * it.p; } return sv / sw; };
+  let fMass = 0, fEv = 0; items.filter(isF).forEach(s => { fMass += fix[s.name]; fEv += fix[s.name] * s.p; });
+  // 1) примерная цена при заданном k (все предметы, кроме ширпа, — одной группой)
+  const price = nicePrice((jEv + fEv + (1 - c.junk - fMass) * evOf(nj, c.k)) / c.rtp);
+  // 2) джекпот от этой цены
+  const jack = nj.filter(s => s.p > price * c.jx), body = nj.filter(s => s.p <= price * c.jx);
+  const jf = new Map(jack.map(s => [s, price * c.jev / (jack.length * s.p)]));
+  let jMass = 0, jEvSum = 0; jf.forEach((v, s) => { jMass += v; jEvSum += v * s.p; });
+  // 3) k для основной части — под точный RTP
+  const mB = 1 - c.junk - fMass - jMass, need = (price * c.rtp - jEv - fEv - jEvSum) / mB;
+  let a = -3, b = 12;
+  for (let i = 0; i < 80; i++) { const m = (a + b) / 2; if (evOf(body, m) > need) a = m; else b = m; }
+  const k = (a + b) / 2, wb = new Map(body.map(s => [s, s.p ** -k])), swb = [...wb.values()].reduce((x, y) => x + y, 0);
+  c.price = price;
+  return items.map(s => isF(s) ? fix[s.name] : jf.has(s) ? jf.get(s) : wb.has(s) ? mB * wb.get(s) / swb : c.junk * wj[jk.indexOf(s)] / swj);
 }
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
 CASES.forEach(c => {
   const items = c.items.map(n => { if (!SK[n]) throw new Error('Нет скина: ' + n); return SK[n]; });
-  const ch = c.kh ? solveWinKh(items, c.price * c.rtp, c.price, c.win, c.kh, c.fix) : c.win ? solveWin(items, c.price * c.rtp, c.price, c.win, c.fix) : solveChances(items, c.price * c.rtp);
+  const ch = c.auto ? solvePriced(c, items) : c.kh ? solveWinKh(items, c.price * c.rtp, c.price, c.win, c.kh, c.fix) : c.win ? solveWin(items, c.price * c.rtp, c.price, c.win, c.fix) : solveChances(items, c.price * c.rtp);
   const fwRaw = ch.map(x => Math.sqrt(x)), fs = fwRaw.reduce((a, b) => a + b, 0);
   c.items = items.map((s, i) => ({ ...s, ch: ch[i], fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p);
   c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
 });
+CASES.sort((a, b) => a.price - b.price);
 const caseById = id => CASES.find(c => c.id === id);
 
 /* ---------- ranks ---------- */
