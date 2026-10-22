@@ -1736,3 +1736,12 @@ img.rc-ic.big{width:72px;height:72px;filter:drop-shadow(0 0 16px rgba(246,198,80
 @media (prefers-reduced-motion:reduce){.it-fx{display:none}}
 /* блики на выпавшем предмете — canvas (маска не нужна) */
 canvas.it-fx{-webkit-mask:none;mask:none;mix-blend-mode:screen}
+
+/* ===== бонусный кейс (за R-COIN) ===== */
+.cc-price.cc-price-rc{gap:6px;padding-left:8px}
+.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic{width:22px;height:22px;filter:drop-shadow(0 0 4px rgba(246,198,80,.6))}
+.btn-rc{gap:8px}
+.btn-rc img.rc-ic{width:26px;height:26px}
+.sec-sub{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font:700 13px var(--ff-h);color:var(--gold);white-space:nowrap}
+.sec-sub img.rc-ic{width:22px;height:22px}
+.rc-log>div i.neg{color:#ff8a8a}

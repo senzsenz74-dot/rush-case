@@ -22,7 +22,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const pct = v => { const x = v * 100; return (x >= 1 ? x.toFixed(2) : x >= .01 ? x.toFixed(3) : x.toFixed(4)).replace('.', ',') + '%'; };
 const CDN = 'https://community.cloudflare.steamstatic.com/economy/image/';
 /* картинки скинов лежат локально: assets/skins/<k>-m.webp (256×192) и -l.webp (512×384); Steam — запасной вариант */
-const imgUrl = (s, size = 'm') => s.u ? `https://community.steamstatic.com/economy/image/${s.u}/${size === 'l' ? '512fx384f' : '256fx192f'}` : `assets/skins/${s.k}-${size === 'l' ? 'l' : 'm'}.webp`;
+const imgUrl = (s, size = 'm') => s.img ? s.img : s.u ? `https://community.steamstatic.com/economy/image/${s.u}/${size === 'l' ? '512fx384f' : '256fx192f'}` : `assets/skins/${s.k}-${size === 'l' ? 'l' : 'm'}.webp`;
 const pad = n => String(n).padStart(2, '0');
 
 /* ---------- icons ---------- */
@@ -109,6 +109,8 @@ for (const [name, d] of Object.entries(window.SKINS)) {
   if (wr) addWears(s, wr, false); else addItem(s);
 }
 const CATALOG = ITEMS.slice().sort((a, b) => a.p - b.p);
+/* денежный дроп бонусных кейсов: сразу зачисляется на рублёвый баланс, в инвентарь не попадает */
+[100, 200].forEach(v => { SK[`${v} ₽ на баланс`] = { name: `${v} ₽ на баланс`, w: 'На баланс', f: `+${v} ₽`, r: v >= 200 ? 'covert' : 'classified', p: v, c: 'cash', cash: v, img: `assets/cash-${v}.webp` }; });
 /* предметы с market.csgo.com: ножи, перчатки, наклейки, граффити, значки, агенты, ширп — участвуют только в апгрейде */
 const STEAM_IMG = 'https://community.steamstatic.com/economy/image/';
 const CAT_SKIN = 'skin';
@@ -364,6 +366,14 @@ const CASES = [
     ],
   },
   {
+    id: 'bonus', name: 'Бонусный кейс', price: 50, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .8, win: .12,
+    sub: 'Открывается за R-COIN: ширп от 10 до 55 ₽, деньги на баланс +100 и +200 ₽ и ультра-редкий скин',
+    th: { a: '#f3c14f' }, img: 'assets/case-bonus.webp',
+    // состав собирается в buildBonus: 14 скинов 10–55 ₽ + ультра ~300 ₽ (1 из 2 000) + 100 ₽ (3%) и 200 ₽ (1%) на баланс
+    bonusSet: { lo: 10, hi: 55, n: 14, ultra: 300, ultraCh: .0005, cash: { 100: .03, 200: .01 } },
+    show: [], items: [],
+  },
+  {
     id: 'orange', name: 'Оранж', price: 140, tag: 'Новинка', tagIc: 'fire', rtp: .9,
     sub: 'Оранжевые скины от 50 ₽ и редкие джекпоты',
     th: { a: '#ff7a1a' }, img: 'assets/case-orange.webp', win: .45,
@@ -434,7 +444,18 @@ const CASES = [
     const used = new Set(c.items.map(nm => baseOf(SK[nm])));
     c.items.push(...buildSet(c, pool.filter(x => x.p >= floor), band(lo, hi, n).map(t => t / c.price), used, floor));
   }
+  function buildBonus(c) {
+    const b = c.bonusSet, pool = ITEMS.filter(x => (x.c === 'skin' || x.c === 'junk') && x.p >= b.lo && x.p <= b.hi);
+    c.strict = true;
+    c.items = buildSet(c, pool, band(b.lo / c.price, b.hi / c.price, b.n), new Set(), b.lo);
+    const usedB = new Set(c.items.map(n => baseOf(SK[n])));
+    const ul = ITEMS.filter(x => x.c === 'skin' && !usedB.has(baseOf(x))).reduce((a, x) => !a || Math.abs(x.p - b.ultra) < Math.abs(a.p - b.ultra) ? x : a, null);
+    c.fix = {};
+    if (ul) { c.items.push(ul.name); c.fix[ul.name] = b.ultraCh; }
+    Object.entries(b.cash).forEach(([v, ch]) => { const n = `${v} ₽ на баланс`; c.items.push(n); c.fix[n] = ch; });
+  }
   CASES.forEach(c => {
+    if (c.bonusSet) return buildBonus(c);
     Object.assign(c, SETUP[c.id] || {});
     c.items = [...new Set(c.items.flatMap(n => VARIANTS[n] || [n]))];
     if (c.fix) for (const [n, v] of Object.entries(c.fix)) if (VARIANTS[n]) { delete c.fix[n]; VARIANTS[n].forEach(x => { c.fix[x] = v / VARIANTS[n].length; }); }
@@ -845,6 +866,11 @@ function addRcoin(v, note) {
   const box = el.closest('.rc'); box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump');
   const pop = document.createElement('span'); pop.className = 'rc-pop'; pop.textContent = '+' + rc(v); box.appendChild(pop); setTimeout(() => pop.remove(), 1600);
 }
+function spendRcoin(v, note) {
+  st.rcoin = Math.max(0, Math.round(((st.rcoin || 0) - v) * 100) / 100);
+  (st.rlog = st.rlog || []).unshift({ v: -v, note, ts: Date.now() }); if (st.rlog.length > 60) st.rlog.length = 60;
+  save(); const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin);
+}
 function setBalance(v) {
   const from = shownBal == null ? st.balance : shownBal;
   st.balance = Math.max(0, Math.round(v * 100) / 100); save();
@@ -967,6 +993,10 @@ function pageHome() {
       <h2 class="sec-h">Остальные кейсы</h2><i class="st-line"></i>
     </div>
     <div class="cases-grid" id="moreRow">${casesRest().map(caseCard).join('')}</div>
+    <div class="sec-row sec-more">
+      <h2 class="sec-h">Бонусные кейсы</h2><i class="st-line"></i><span class="sec-sub">${RC_IMG}за R-COIN</span>
+    </div>
+    <div class="cases-grid" id="bonusRow">${casesBonus().map(caseCard).join('')}</div>
     <div class="promo-row">
       <div class="promo promo-dep"><div><h3>Бонус к пополнению <em>+35%</em></h3><div class="code">RUSH35</div><br><button class="btn btn-light btn-sm" data-act="copy" data-copy="RUSH35">${ic.copy}Скопировать</button></div><div class="promo-pct">%</div></div>
       <div class="promo promo-daily"><div><h3>Ежедневный бонус</h3><p id="dailyHome">${dailyLeft() ? 'Следующий через ' + dailyText() : 'Уже доступен! До 250 ₽ на баланс'}</p><a class="btn btn-outline btn-sm" href="#/bonus">${ic.gift}Получить</a></div><img src="assets/soldier.png" alt=""></div>
@@ -977,15 +1007,19 @@ function pageHome() {
     </div>
   </section>`;
 }
+/* цена кейса: в R-COIN (бонусные) или в рублях */
+const RC_IMG = '<img class="rc-ic" src="assets/rcoin.webp" alt="" aria-hidden="true">';
+const casePrice = (c, v) => c.rc ? `${RC_IMG}${rc(v)} R-COIN` : money(v);
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 const POPULAR = ['sifon', 'alt', 'frog', 's1mple', 'cotton'];
 const casesPop = () => POPULAR.map(caseById).filter(Boolean);
-const casesRest = () => CASES.filter(c => !POPULAR.includes(c.id));
+const casesRest = () => CASES.filter(c => !POPULAR.includes(c.id) && !c.rc);
+const casesBonus = () => CASES.filter(c => c.rc);
 const caseCard = c => `<a class="case-card" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
   <div class="cc-art">${caseArt(c)}</div>
   <div class="cc-body">
     <div class="cc-name">${c.name}</div>
-    <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}">${money(c.price)}</span></div>
+    <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}${c.rc ? ' cc-price-rc' : ''}">${casePrice(c, c.price)}</span></div>
   </div>
 </a>`;
 function mountHome() {
@@ -1008,6 +1042,8 @@ function pageCases() {
     <div class="cases-grid cases-grp" id="casesGrid" data-grp="pop">${casesPop().map(caseCard).join('')}</div>
     <div class="sec-row sec-more" data-grp="more"><h2 class="sec-h">Остальные</h2><i class="st-line"></i></div>
     <div class="cases-grid cases-grp" data-grp="more">${casesRest().map(caseCard).join('')}</div>
+    <div class="sec-row sec-more" data-grp="bonus"><h2 class="sec-h">Бонусные</h2><i class="st-line"></i><span class="sec-sub">${RC_IMG}за R-COIN</span></div>
+    <div class="cases-grid cases-grp" data-grp="bonus">${casesBonus().map(caseCard).join('')}</div>
     <div class="empty hidden" id="casesEmpty">${ic.search}Ничего не найдено — попробуйте другой фильтр</div>
   </section>`;
 }
@@ -1143,6 +1179,7 @@ function ccIdle(c) {
   const cost = c.price * caseN;
   let main;
   if (!st.user) main = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`;
+  else if (c.rc) main = (st.rcoin || 0) >= cost ? `<button class="btn btn-primary btn-xl btn-cham btn-rc" id="openBtn">Открыть за ${casePrice(c, cost)}</button>` : `<a class="btn btn-primary btn-xl btn-cham btn-rc" href="#/profile">Не хватает ${casePrice(c, cost - (st.rcoin || 0))}</a>`;
   else if (st.balance >= cost) main = `<button class="btn btn-primary btn-xl btn-cham" id="openBtn">${ic.coins}Открыть за ${money(cost)}</button>`;
   else main = `<button class="btn btn-primary btn-xl btn-cham" data-act="deposit" data-need="${cost - st.balance}">${ic.wallet}Пополнить на ${money(cost - st.balance)}</button>`;
   cc.innerHTML = `<div class="mult" role="group" aria-label="Количество кейсов">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button class="${n === caseN ? 'on' : ''}" data-n="${n}">x${n}</button>`).join('')}</div>
@@ -1159,17 +1196,20 @@ async function openCase(c, demo) {
   const n = caseN, cost = c.price * n;
   if (!demo) {
     if (!st.user) return openAuth('login');
-    if (st.balance < cost) return openDeposit(cost - st.balance);
+    if (c.rc) { if ((st.rcoin || 0) < cost) return toast(`Не хватает ${rc(cost - (st.rcoin || 0))} R-COIN — они начисляются за открытия кейсов`, 'err'); }
+    else if (st.balance < cost) return openDeposit(cost - st.balance);
   }
   resetRoulette();
   const wins = Array.from({ length: n }, () => roll(c.items));
   wins.forEach(s => { new Image().src = imgUrl(s, 'l'); }); // большие картинки грузим, пока крутится рулетка
   let given = [];
   if (!demo) {
-    setBalance(st.balance - cost);
-    given = wins.map(s => giveItem(s, c.id));
-    st.stats.opened += n; st.stats.spent += cost; save();
-    addRcoin(cost * RCOIN_RATE(c), `Кейс «${c.name}»${n > 1 ? ' ×' + n : ''}`);
+    if (c.rc) spendRcoin(cost, `Кейс «${c.name}»${n > 1 ? ' ×' + n : ''}`); else setBalance(st.balance - cost);
+    // денежный дроп — сразу на баланс (в инвентарь не попадает)
+    given = wins.map(s => s.cash ? { id: uid(), n: s.name, st: 'cash' } : giveItem(s, c.id));
+    const cash = wins.reduce((a, s) => a + (s.cash || 0), 0); if (cash) setBalance(st.balance + cash);
+    st.stats.opened += n; if (!c.rc) st.stats.spent += cost; save();
+    if (!c.rc) addRcoin(cost * RCOIN_RATE(c), `Кейс «${c.name}»${n > 1 ? ' ×' + n : ''}`);
   }
   spinning = true;
   const my = ++spinId;
@@ -1309,10 +1349,10 @@ function showReveal(c, wins, given, demo) {
   $('#reveal').innerHTML = `${one ? '' : `<div class="rv-bg r-${topR}">${rays}</div>`}<div class="rv-inner ${one ? 'one' : 'many'}">${wins.map((s, i) => `
     <div class="rv-card r-${s.r}" style="--d:${i * 110}ms" ${given[i] ? `data-id="${given[i].id}"` : ''}>
       <div class="rv-imgw">${one ? rays : ''}<img src="${imgUrl(s, 'l')}" alt=""></div>
-      <div class="rv-rar">${RAR[s.r].n}</div>
+      <div class="rv-rar">${s.cash ? 'Зачислено на баланс' : RAR[s.r].n}</div>
       <div class="rv-name"><span>${esc(s.w)}</span>${esc(s.f)}</div>
       <div class="rv-price">${money(s.p)}</div>
-      ${!demo && !one ? `<button class="btn btn-sm btn-dark" data-sellone="${given[i].id}">Продать</button>` : ''}
+      ${!demo && !one && given[i].st === 'own' ? `<button class="btn btn-sm btn-dark" data-sellone="${given[i].id}">Продать</button>` : ''}
     </div>`).join('')}</div>`;
   $('#rl').classList.add('revealed');
   itemTilt($('#reveal'));
@@ -1325,7 +1365,7 @@ function ccDone(c, wins, given, demo) {
   const back = () => { resetRoulette(); ccIdle(c); };
   if (demo) {
     cc.innerHTML = `<div class="cc-note">Это было <b>демо-открытие</b> — предмет не сохранён.</div>
-      <div class="cc-btns">${st.user ? `<button class="btn btn-primary btn-xl btn-cham" id="realBtn">Открыть за ${money(c.price * caseN)}</button>` : `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`}<button class="btn btn-xl btn-cham btn-gline" id="againBtn">Ещё демо</button></div>
+      <div class="cc-btns">${st.user ? `<button class="btn btn-primary btn-xl btn-cham" id="realBtn">Открыть за ${casePrice(c, c.price * caseN)}</button>` : `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`}<button class="btn btn-xl btn-cham btn-gline" id="againBtn">Ещё демо</button></div>
       <button class="btn btn-ghost" id="backBtn">${ic.left}К кейсу</button>`;
     const rb = $('#realBtn'); if (rb) rb.onclick = () => openCase(c, false);
   } else {
@@ -1334,7 +1374,7 @@ function ccDone(c, wins, given, demo) {
     const draw = () => {
       const left = live().length;
       cc.innerHTML = `<div class="cc-btns">
-          <button class="btn btn-primary btn-xl btn-cham" id="againBtn">Открыть ещё за ${money(c.price * caseN)}</button>
+          <button class="btn btn-primary btn-xl btn-cham" id="againBtn">Открыть ещё за ${casePrice(c, c.price * caseN)}</button>
           ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="sellAll">${ic.coin}Продать${wins.length > 1 ? ' всё' : ''} за ${money(sum())}</button>` : ''}
         </div>
         <button class="btn ${left ? 'btn-take' : 'btn-ghost'}" id="backBtn">${left ? ic.box + 'Забрать в инвентарь' : ic.left + 'К кейсу'}</button>
@@ -1921,7 +1961,7 @@ function pageProfile() {
       <div class="rc-head"><img class="rc-ic big" src="assets/rcoin.webp" alt="" aria-hidden="true"><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах (скоро)</small></div></div>
       <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый.</p>
         <div class="rc-ex">${CASES.slice().sort((a, b) => a.price - b.price).map(c => `<span>${esc(c.name)} <i>+${rc(Math.round(c.price * RCOIN_RATE(c) * 100 + 1e-6) / 100)}</i></span>`).join('')}</div></div>
-      <div class="rc-log"><b>История</b>${(st.rlog || []).length ? (st.rlog || []).slice(0, 20).map(x => `<div><span>${esc(x.note)}</span><small>${new Date(x.ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small><i>+${rc(x.v)}</i></div>`).join('') : '<p class="muted">Откройте кейс — здесь появятся начисления.</p>'}</div>
+      <div class="rc-log"><b>История</b>${(st.rlog || []).length ? (st.rlog || []).slice(0, 20).map(x => `<div><span>${esc(x.note)}</span><small>${new Date(x.ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small><i class="${x.v < 0 ? 'neg' : ''}">${x.v < 0 ? '−' + rc(-x.v) : '+' + rc(x.v)}</i></div>`).join('') : '<p class="muted">Откройте кейс — здесь появятся начисления.</p>'}</div>
     </div>
     <div class="pf-trade">
       <div class="t">Трейд-ссылка Steam<small>Нужна для вывода скинов. <a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></small></div>
