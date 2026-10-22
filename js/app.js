@@ -285,9 +285,11 @@ const CASES = [
     premium: { price: 3549, rtp: .75, win: .15 },
   };
   // сет: по одному предмету на каждую цель (доля от цены кейса), без повторов одного скина в разных износах
+  const band = (a, b, n) => Array.from({ length: n }, (_, i) => a * (b / a) ** (i / (n - 1)));
   const SET_X = {
     sifon: [.03, .06, .1, .15, .2, .27, .35, .45, .55, .65, .75, .85, .95, 1.05, 1.12, 1.2, 1.28, 1.34, 1.6, 2.1, 2.8, 3.6, 4.6, 5.7, 6.9],
-    def: [.03, .07, .12, .2, .3, .4, .5, .62, .75, .9, 1.15, 1.45, 1.9, 2.6, 4, 7, 15, 40],
+    // 46 ступеней: минимальный дроп, средний (около цены), крупный, джекпоты
+    def: [...band(.03, .45, 14), ...band(.5, 1.45, 16), ...band(1.6, 6, 10), ...band(8, 40, 6)],
   };
   const BIG_MASS = .01; // крупный дроп ≈ 1 из 100 открытий
   const baseOf = s => s.base || s.name, dist = (s, t) => Math.abs(Math.log(s.p / t));
@@ -315,9 +317,9 @@ const CASES = [
       const fixed = c.items.filter(n => c.fix && c.fix[n] != null);
       const pool = c.items.filter(n => !fixed.includes(n) && SK[n].p <= c.maxWin).map(n => SK[n]);
       c.items = [...buildSet(c, pool.length ? pool : ITEMS.filter(i => i.p <= c.maxWin), SET_X.sifon).filter(n => SK[n].p <= c.maxWin), ...fixed];
-      // дороже кейса в 1,5+ раза (≈ 45–200 ₽) — вместе ~3% открытий, чем дороже — тем реже
+      // дороже кейса в 1,5+ раза (≈ 45–200 ₽) — вместе ~5% открытий, чем дороже — тем реже
       const big = c.items.filter(n => !fixed.includes(n) && SK[n].p >= c.price * 1.5), bw = big.map(n => SK[n].p ** -1.5), sbw = bw.reduce((x, y) => x + y, 0);
-      big.forEach((n, i) => { c.fix[n] = .03 * bw[i] / sbw; });
+      big.forEach((n, i) => { c.fix[n] = .05 * bw[i] / sbw; });
       return;
     }
     const pool = c.items.map(n => SK[n]);
