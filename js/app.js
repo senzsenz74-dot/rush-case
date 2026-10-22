@@ -141,9 +141,11 @@ function solveWin(items, target, price, win, fix = {}, floor = Math.max(0, ...Ob
   const rest = items.filter(it => fix[it.name] == null);
   const hi = rest.filter(it => it.p > price), lo = rest.filter(it => it.p <= price);
   const wH = win - fHi, wL = 1 - win - (fMass - fHi), T = target - fEv;
-  let kl = 0, need = 0;
-  for (; kl <= 30; kl += .1) { need = (T - wL * ev(lo, kl)) / wH; if (need >= ev(hi, 30)) break; }
-  let a = -2, b = 30;
+  // kl — от 0: если дорогим не хватает окупаемости, смещаем вес дешёвой части к цене кейса (kl < 0), если перебор — к дешёвым
+  let kl = 0, need = (T - wL * ev(lo, kl)) / wH;
+  while (need > ev(hi, -4) && kl > -8) { kl -= .1; need = (T - wL * ev(lo, kl)) / wH; }
+  while (need < ev(hi, 30) && kl < 30) { kl += .1; need = (T - wL * ev(lo, kl)) / wH; }
+  let a = -4, b = 30;
   for (let i = 0; i < 80; i++) { const m = (a + b) / 2; if (ev(hi, m) > need) a = m; else b = m; }
   const kh = (a + b) / 2;
   const norm = (arr, mass, k) => { const sw = arr.reduce((t, it) => t + it.p ** -k, 0); return new Map(arr.map(it => [it, mass * it.p ** -k / sw])); };
@@ -287,6 +289,7 @@ const CASES = [
     sifon: [.03, .06, .1, .15, .2, .27, .35, .45, .55, .65, .75, .85, .95, 1.05, 1.12, 1.2, 1.28, 1.34],
     def: [.03, .07, .12, .2, .3, .4, .5, .62, .75, .9, 1.15, 1.45, 1.9, 2.6, 4, 7, 15, 40],
   };
+  const BIG_MASS = .01; // крупный дроп ≈ 1 из 100 открытий
   const baseOf = s => s.base || s.name, dist = (s, t) => Math.abs(Math.log(s.p / t));
   function buildSet(c, pool, xs) {
     const used = new Set(), out = [];
@@ -317,10 +320,10 @@ const CASES = [
     const pool = c.items.map(n => SK[n]);
     (ADD[c.id] || []).forEach(([cat, lo, hi, n]) => pool.push(...pickX(cat, lo, hi, n, c.id)));
     c.items = buildSet(c, pool, SET_X.def);
-    // джекпот: дороже кейса в 10+ раз — фиксированный маленький шанс, вместе ~6% окупаемости
+    // крупный дроп (дороже кейса в 1,5+ раза) — очень редкий: все вместе BIG_MASS открытий, чем дороже — тем реже (~p^-1.5)
     c.fix = {};
-    const jack = c.items.filter(n => SK[n].p >= c.price * 10);
-    jack.forEach(n => { c.fix[n] = c.price * .06 / (jack.length * SK[n].p); });
+    const big = c.items.filter(n => SK[n].p >= c.price * 1.5), bw = big.map(n => SK[n].p ** -1.5), sbw = bw.reduce((x, y) => x + y, 0);
+    big.forEach((n, i) => { c.fix[n] = BIG_MASS * bw[i] / sbw; });
   });
 }
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
