@@ -1756,3 +1756,23 @@ canvas.it-fx{-webkit-mask:none;mask:none;mix-blend-mode:screen}
 /* метка «НОВОЕ» */
 .case-card{position:relative}
 .cc-new{position:absolute;top:6px;left:8px;z-index:5;padding:4px 9px;border-radius:6px;font:800 10.5px var(--ff-h);letter-spacing:.12em;text-transform:uppercase;color:#1a1204;background:linear-gradient(180deg,#ffeaa6,#f6c650 50%,#d6941f);box-shadow:0 4px 14px -4px rgba(246,198,80,.8)}
+
+/* ===== заголовки разделов ===== */
+.home-secs{display:flex;flex-direction:column}
+.home-secs .sh{margin-top:54px}
+.sh{display:flex;align-items:center;gap:16px;margin-bottom:22px}
+.sh-tag{flex:none;display:flex;align-items:center;justify-content:center;width:48px;height:40px;transform:skewX(-14deg);border-radius:8px;color:#120c02;
+  background:linear-gradient(160deg,color-mix(in srgb,var(--bc) 55%,#fff),var(--bc) 55%,color-mix(in srgb,var(--bc) 65%,#000));box-shadow:0 0 22px -4px var(--bc),inset 0 1px 0 rgba(255,255,255,.5)}
+.sh-tag>*{transform:skewX(14deg)}
+.sh-tag svg{width:22px;height:22px}
+.sh-tag img.rc-ic{width:30px;height:30px;filter:none}
+.sh-tt h2{margin:0;font:900 clamp(20px,2.4vw,28px)/1.05 var(--ff-h);text-transform:uppercase;letter-spacing:.02em;
+  background:linear-gradient(180deg,#fff 0%,#fff3d6 45%,color-mix(in srgb,var(--bc) 75%,#fff) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 18px color-mix(in srgb,var(--bc) 30%,transparent))}
+.sh-tt p{margin:4px 0 0;font-size:13px;color:var(--txt3)}
+.sh-line{position:relative;flex:1;height:1px;min-width:40px;overflow:hidden;background:linear-gradient(90deg,color-mix(in srgb,var(--bc) 60%,transparent),rgba(255,255,255,.06) 70%,transparent)}
+.sh-line>i{position:absolute;top:-1px;left:-20%;width:18%;height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--bc) 70%,#fff),transparent);filter:blur(.5px);animation:shRun 4.5s ease-in-out infinite}
+@keyframes shRun{0%{left:-20%}70%,100%{left:105%}}
+.sh-n{flex:none;padding:6px 12px;border-radius:999px;font:700 12px var(--ff-h);color:var(--bc);background:color-mix(in srgb,var(--bc) 10%,transparent);border:1px solid color-mix(in srgb,var(--bc) 35%,transparent)}
+@media (max-width:720px){.sh{gap:12px}.sh-tag{width:40px;height:34px}.sh-n,.sh-tt p{display:none}.home-secs .sh{margin-top:38px}}
+@media (prefers-reduced-motion:reduce){.sh-line>i{animation:none;display:none}}

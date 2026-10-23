@@ -985,10 +985,14 @@ function pageHome() {
       <div class="sb-i"><span class="sb-ic">${ic.users}</span><div><b>24 816</b><span>Игроков</span></div></div>
       <div class="sb-i"><span class="sb-ic">${ic.shield}</span><div><b>98.7%</b><span>Выплат</span></div></div>
     </div>
-    <div class="sec-row"><h2 class="sec-h">Популярные кейсы</h2><i class="st-line"></i></div>
-    <div class="cases-grid" id="popRow">${HOME_POP.map(caseById).filter(Boolean).map(caseCard).join('')}</div>
-    <div class="sec-row sec-more"><h2 class="sec-h">Новые кейсы</h2><i class="st-line"></i></div>
-    <div class="cases-grid" id="newRow">${NEW_CASES.map(caseById).filter(Boolean).map(caseCard).join('')}</div>
+    <div class="home-secs">
+      ${secHead('Популярные кейсы', 'Открывают чаще всего', ic.fire, '#f3c14f', HOME_POP.length)}
+      <div class="cases-grid" id="popRow">${HOME_POP.map(caseById).filter(Boolean).map(caseCard).join('')}</div>
+      ${secHead('Новые кейсы', 'Свежие поступления', ic.star, '#ff6fb5', NEW_CASES.length)}
+      <div class="cases-grid" id="newRow">${NEW_CASES.map(caseById).filter(Boolean).map(caseCard).join('')}</div>
+      ${secHead('Бонусные кейсы', 'Открываются за R-COIN', RC_IMG, '#8be04e', casesRc().length)}
+      <div class="cases-grid" id="bonusRow">${casesRc().map(caseCard).join('')}</div>
+    </div>
     <div class="promo-row">
       <div class="promo promo-dep"><div><h3>Бонус к пополнению <em>+35%</em></h3><div class="code">RUSH35</div><br><button class="btn btn-light btn-sm" data-act="copy" data-copy="RUSH35">${ic.copy}Скопировать</button></div><div class="promo-pct">%</div></div>
       <div class="promo promo-daily"><div><h3>Ежедневный бонус</h3><p id="dailyHome">${dailyLeft() ? 'Следующий через ' + dailyText() : 'Уже доступен! До 250 ₽ на баланс'}</p><a class="btn btn-outline btn-sm" href="#/bonus">${ic.gift}Получить</a></div><img src="assets/soldier.png" alt=""></div>
@@ -1016,13 +1020,21 @@ const blockCases = b => {
   return [...b.ids.map(caseById).filter(Boolean), ...extra];
 };
 /* главная: популярные + новые (с меткой «НОВОЕ») */
+const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['gold', 'zont', 's1mple', 'frog', 'bonus'];
+const NEW_CASES = ['gold', 'zont', 's1mple', 'frog'];
+/* заголовок раздела: наклонная метка со значком, название с переливом, подпись, линия с бегущим огоньком, счётчик */
+const secHead = (t, sub, icon, a, n) => `<div class="sh" style="--bc:${a}">
+  <span class="sh-tag">${icon}</span>
+  <div class="sh-tt"><h2>${t}</h2>${sub ? `<p>${sub}</p>` : ''}</div>
+  <i class="sh-line"><i></i></i>
+  ${n != null ? `<span class="sh-n">${n} ${plural(n, 'кейс', 'кейса', 'кейсов')}</span>` : ''}
+</div>`;
 /* страница «Кейсы»: группы с тонким заголовком */
 const caseBlock = (b, grp) => {
   const list = blockCases(b); if (!list.length) return '';
   return `<section class="cs-block" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>
-    <div class="cs-h"><i class="cs-dot"></i><h2>${b.t}</h2><span class="cs-n">${list.length}</span><i class="cs-line"></i></div>
+    ${secHead(b.t, b.sub, b.rc ? RC_IMG : ic[b.ic], b.a, list.length)}
     <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${list.map(caseCard).join('')}</div>
   </section>`;
 };
