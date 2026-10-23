@@ -1812,3 +1812,42 @@ canvas.it-fx{-webkit-mask:none;mask:none;mix-blend-mode:screen}
 .soc-ic svg{width:20px;height:20px}
 /* апгрейд: выбранный множитель */
 .mults button.on{color:#1a1204;border-color:transparent;background:linear-gradient(180deg,#ffeaa6,#f6c650 50%,#d6941f);box-shadow:0 0 16px -4px rgba(246,198,80,.9)}
+
+/* ===== шапка: единый кошелёк ===== */
+.wal{display:flex;align-items:center;height:50px;padding:4px 4px 4px 6px;border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),#0d0c0a;border:1px solid rgba(243,193,79,.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 24px -14px rgba(0,0,0,.9)}
+.wal .wal-it{display:flex;align-items:center;gap:9px;height:100%;padding:0 12px 0 6px;border:0;border-radius:12px;background:none;box-shadow:none;cursor:pointer;color:inherit;text-decoration:none;transition:background .2s}
+.wal .wal-it:hover{background:rgba(243,193,79,.08)}
+.wal .rc img.rc-ic{width:30px;height:30px}
+.wal .bal-ic{width:28px;height:28px;display:grid}
+.wal-tx{display:flex;flex-direction:column;line-height:1.05}
+.wal-tx small{font:700 9.5px var(--ff-h);letter-spacing:.14em;text-transform:uppercase;color:var(--txt3)}
+.wal-tx b{font:800 15px var(--ff-h);color:#fff6e0;font-variant-numeric:tabular-nums;min-width:0}
+.wal .rc .wal-tx b{color:var(--gold-hi,#ffe9ab)}
+.wal-sep{width:1px;height:26px;background:linear-gradient(180deg,transparent,rgba(243,193,79,.4),transparent)}
+.wal-plus{display:grid;place-items:center;width:40px;height:40px;margin-left:4px;border-radius:12px;border:0;cursor:pointer;color:#1a1204;
+  background:linear-gradient(180deg,#ffeaa6,#f6c650 50%,#d6941f);box-shadow:0 6px 16px -6px rgba(246,198,80,.9),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .15s,filter .2s}
+.wal-plus:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.wal-plus svg{width:20px;height:20px;stroke-width:2.6}
+.wal .rc.bump .rc-ic{animation:rcBump .6s cubic-bezier(.2,1.6,.4,1)}
+.wal .rc-pop{top:-8px}
+/* аватар: золотое кольцо */
+.ubtn{gap:6px}
+.ubtn .ava{width:46px;height:46px;box-shadow:0 0 0 2px #0b0a08,0 0 0 4px rgba(243,193,79,.85),0 0 18px -2px rgba(243,193,79,.6)}
+.ubtn svg{width:16px;height:16px;opacity:.7}
+@media (max-width:720px){
+  .wal{height:42px;padding:3px}
+  .wal .wal-it{padding:0 8px 0 4px;gap:6px}
+  .wal-tx small{display:none}
+  .wal-tx b{font-size:12.5px}
+  .wal .rc img.rc-ic{width:24px;height:24px}.wal .bal-ic{width:22px;height:22px}
+  .wal-plus{width:34px;height:34px;border-radius:10px}
+  .ubtn .ava{width:38px;height:38px}
+}
+@media (max-width:520px){
+  .wal .rc,.wal-sep{display:none}
+  .wal .bal{padding:0 6px 0 4px}
+  .user-area{gap:8px}
+}
+@media (max-width:520px){.ubtn>svg{display:none}.ubtn .ava{width:34px;height:34px}.wal-plus{width:32px;height:32px}}
