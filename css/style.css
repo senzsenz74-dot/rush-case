@@ -2034,17 +2034,3 @@ button.pfh-chip{cursor:pointer}button.pfh-chip:hover{color:var(--gold);border-co
   .rl-framed:not(.f-gold){margin-top:-70px}
   #cc{margin-top:12px}
 }
-/* ===== лента LIVE — вертикальная колонка слева (десктоп) ===== */
-@media (min-width:1101px){
-  :root{--lv:132px}
-  body{padding-left:var(--lv)}
-  .live{position:fixed;left:0;top:0;bottom:0;z-index:60;width:var(--lv);height:auto;flex-direction:column;border-bottom:0;border-right:1px solid var(--stroke);background:#070708}
-  .live-head{width:auto;height:auto;padding:16px 0 12px;border-right:0;border-bottom:1px solid var(--stroke);gap:9px}
-  .live-tabs{flex-direction:row;width:auto;gap:4px}
-  .live-tabs button{height:24px;padding:0 9px}
-  .live-track{flex-direction:column;flex:1;min-height:0;-webkit-mask-image:linear-gradient(180deg,#000 88%,transparent);mask-image:linear-gradient(180deg,#000 88%,transparent)}
-  .live-track .ld{width:100%;height:98px;flex:none;border-right:0;border-bottom:2px solid #070708}
-  .live-track .ld img{width:74px;top:6px}
-  .live-track .ld.enter{animation:ldInV .55s cubic-bezier(.2,.9,.3,1)}
-  @keyframes ldInV{from{height:0;opacity:0;padding-top:0;padding-bottom:0}to{height:98px;opacity:1}}
-}
