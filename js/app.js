@@ -1220,13 +1220,13 @@ const FRAME_FX = `<span class="fr-fx" aria-hidden="true">
   <i class="fr-eye" style="left:7.97%;top:26.1%"></i><i class="fr-eye fr-eye2" style="left:11.14%;top:27%"></i>
   <svg class="fr-cig" style="left:88.1%;top:29.2%" viewBox="0 0 60 16"><defs><linearGradient id="cigP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#cfc9bf"/></linearGradient></defs>
     <g transform="rotate(14 30 8)"><rect x="4" y="5" width="40" height="6" rx="1.2" fill="url(#cigP)"/><rect x="40" y="5" width="14" height="6" rx="1.2" fill="#c98a3c"/><rect x="2" y="5" width="4" height="6" rx="1" fill="#5a5450"/><circle class="fr-ember" cx="2.5" cy="8" r="3.2" fill="#ff6a1a"/></g></svg>
-  <canvas class="fr-smoke" style="left:86.5%;top:5%" width="160" height="300"></canvas>
+  <canvas class="fr-smoke" width="160" height="300"></canvas>
 </span>`;
 /* дым сигареты: тонкая струйка у кончика, выше — завивается и расползается */
 function frameSmoke() {
   const cv = $('.fr-smoke'); if (!cv || cv._on) return; cv._on = 1;
   const x = cv.getContext('2d'), W = cv.width, H = cv.height, P = [];
-  const sx = W * .52, sy = H - 6;
+  const sx = W * .5, sy = H - 4;
   const sprite = document.createElement('canvas'); sprite.width = sprite.height = 64;
   { const g = sprite.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(230,230,235,.55)'); gr.addColorStop(.45, 'rgba(210,210,218,.22)'); gr.addColorStop(1, 'rgba(200,200,210,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
   let last = performance.now(), acc = 0;
@@ -1236,6 +1236,9 @@ function frameSmoke() {
     const fast = !!document.querySelector('.rl.spinning');
     acc += dt * (fast ? 1.4 : .9);
     while (acc >= 1) { acc--; P.push({ x: sx + (Math.random() - .5), y: sy, age: 0, life: 150 + Math.random() * 90, ph: Math.random() * 6.28, sp: .55 + Math.random() * .25, r0: 2 + Math.random() * 1.5 }); }
+    // привязка: точка (sx, sy) канваса = центр огонька сигареты
+    const em = cv.parentElement.querySelector('.fr-ember'), host = cv.parentElement.getBoundingClientRect();
+    if (em && host.width) { const e = em.getBoundingClientRect(), k = cv.clientWidth / W; cv.style.left = (e.left + e.width / 2 - host.left - sx * k) + 'px'; cv.style.top = (e.top + e.height / 2 - host.top - sy * k) + 'px'; }
     x.clearRect(0, 0, W, H);
     const t = now / 1000;
     for (let i = P.length - 1; i >= 0; i--) {
