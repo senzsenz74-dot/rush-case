@@ -2034,3 +2034,7 @@ button.pfh-chip{cursor:pointer}button.pfh-chip:hover{color:var(--gold);border-co
   .rl-framed:not(.f-gold){margin-top:-70px}
   #cc{margin-top:12px}
 }
+/* монета R-COIN: плоская (2D), без торца и тени — ровно по центру */
+img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.sec-sub img.rc-ic,.sh-tag img.rc-ic,.cs-hex-in img.rc-ic,.pfw-rc img.rc-ic,.pf-seg img.rc-ic,img.rc-ic.big{filter:none!important;display:block;align-self:center}
+.wal .rc{align-items:center}
+.wal .rc img.rc-ic{width:28px;height:28px}
