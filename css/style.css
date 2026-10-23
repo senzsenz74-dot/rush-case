@@ -2059,3 +2059,9 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .rl-framed:has(.rl.spinning) .fr-eye,.rl-framed:has(.rl.unlocking) .fr-eye{opacity:.72}
 @keyframes frEye{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.72}20%{transform:translate(-50%,-50%) scale(.9);opacity:.55}40%{transform:translate(-50%,-50%) scale(1.04);opacity:.78}
   70%{transform:translate(-50%,-50%) scaleY(1)}73%{transform:translate(-50%,-50%) scaleY(.08)}77%{transform:translate(-50%,-50%) scaleY(1)}}
+
+/* ===== DONK666: молнии из глаз ===== */
+.dk-bolt{position:absolute;left:-35%;top:-45%;width:170%;height:150%;pointer-events:none;z-index:5}
+.dk-eye{position:absolute;width:4.5%;aspect-ratio:1.5;transform:translate(-50%,-50%);border-radius:50%;opacity:0;pointer-events:none;z-index:6;mix-blend-mode:screen;
+  background:radial-gradient(closest-side,#fff 0 15%,rgba(150,210,255,.95) 35%,rgba(60,140,255,.45) 65%,transparent 100%);filter:blur(.4px) drop-shadow(0 0 6px #4aa3ff)}
+@media (prefers-reduced-motion:reduce){.dk-bolt,.dk-eye{display:none}}
