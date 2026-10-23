@@ -1002,10 +1002,10 @@ const casePrice = (c, v) => c.rc ? `${RC_IMG}${rc(v)} R-COIN` : money(v);
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
-  { id: 'pop', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
-  { id: 'pro', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['s1mple', 'zont', 'frog'] },
-  { id: 'allin', t: 'Всё или ничего', sub: 'Ультра дорогие кейсы — максимальный риск, максимальный дроп', ic: 'crown', a: '#ff4d4d', ids: ['gold', 'premium'] },
-  { id: 'farm', t: 'Фарм кейсы', sub: 'Открываются за R-COIN, которые копятся с каждого открытия', ic: 'gift', a: '#8be04e', rc: true, ids: ['bonus'] },
+  { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
+  { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['s1mple', 'zont', 'frog'] },
+  { id: 'allin', wm: 'ALL IN', t: 'Всё или ничего', sub: 'Ультра дорогие кейсы — максимальный риск, максимальный дроп', ic: 'crown', a: '#ff4d4d', ids: ['gold', 'premium'] },
+  { id: 'farm', wm: 'FARM', t: 'Фарм кейсы', sub: 'Открываются за R-COIN, которые копятся с каждого открытия', ic: 'gift', a: '#8be04e', rc: true, ids: ['bonus'] },
 ];
 const blockCases = b => {
   const listed = new Set(CASE_BLOCKS.flatMap(x => x.ids));
@@ -1014,12 +1014,15 @@ const blockCases = b => {
 };
 const caseBlock = (b, grp) => {
   const list = blockCases(b); if (!list.length) return '';
+  const n = CASE_BLOCKS.indexOf(b) + 1;
   return `<section class="cs-block cs-${b.id}" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>
-    <header class="cs-head">
-      <span class="cs-ic">${b.rc ? RC_IMG : ic[b.ic]}</span>
-      <div class="cs-tt"><h2>${b.t}</h2><p>${b.sub}</p></div>
-      <span class="cs-cnt">${list.length} ${plural(list.length, 'кейс', 'кейса', 'кейсов')}</span>
-    </header>
+    <header class="cs-plate"><div class="cs-plate-in">
+      <span class="cs-wm" aria-hidden="true">${b.wm}</span>
+      <span class="cs-emb" aria-hidden="true"><span class="cs-hex"><span class="cs-hex-in">${b.rc ? RC_IMG : ic[b.ic]}</span></span></span>
+      <div class="cs-tt"><span class="cs-kick">Блок ${String(n).padStart(2, '0')}</span><h2>${b.t}</h2><p>${b.sub}</p></div>
+      <div class="cs-side"><span class="cs-stripes" aria-hidden="true"></span><span class="cs-cnt"><b>${list.length}</b>${plural(list.length, 'кейс', 'кейса', 'кейсов')}</span></div>
+      <i class="cs-sweep" aria-hidden="true"></i>
+    </div></header>
     <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${list.map(caseCard).join('')}</div>
   </section>`;
 };
