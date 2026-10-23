@@ -1996,48 +1996,43 @@ function pageProfile() {
       </div>
       <div class="pf-bal"><span>Баланс</span><b>${money(st.balance)}</b><div class="btns"><button class="btn btn-primary" data-act="deposit">${ic.plus}Пополнить</button><button class="btn btn-dark" data-act="logout" title="Выйти">${ic.logout}</button></div></div>
     </div>
-    <div class="pf-stats">
-      <div class="pstat"><span class="pi">${ic.box}</span><div><b>${fmt(st.stats.opened)}</b><span>Кейсов открыто</span></div></div>
-      <div class="pstat"><span class="pi">${ic.up}</span><div><b>${st.stats.upgWin} / ${st.stats.upg}</b><span>Апгрейдов: побед / всего</span></div></div>
-      <div class="pstat"><span class="pi">${ic.swap}</span><div><b>${fmt(st.stats.con)}</b><span>Контрактов</span></div></div>
-      <div class="pstat best r-${best ? best.r : 'milspec'}">${best ? `<img src="${imgUrl(best, 's')}" alt=""><div><b>${esc(best.name)}</b><span style="color:var(--lime)">${money(best.p)}</span></div>` : `<span class="pi">${ic.trophy}</span><div><b>—</b><span>Лучший дроп</span></div>`}</div>
-    </div>
-    <div class="pf-rc" id="rcoins">
-      <div class="rc-head"><img class="rc-ic big" src="assets/rcoin.webp" alt="" aria-hidden="true"><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах (скоро)</small></div></div>
-      <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый. А ещё <em>0,5% от пополнения</em> и <em>0,5% от ставки</em> при проигрыше в апгрейде.</p>
-        <div class="rc-ex">${CASES.slice().sort((a, b) => a.price - b.price).map(c => `<span>${esc(c.name)} <i>+${rc(Math.round(c.price * RCOIN_RATE(c) * 100 + 1e-6) / 100)}</i></span>`).join('')}</div></div>
-      <div class="rc-log"><b>История</b>${(st.rlog || []).length ? (st.rlog || []).slice(0, 20).map(x => `<div><span>${esc(x.note)}</span><small>${new Date(x.ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small><i class="${x.v < 0 ? 'neg' : ''}">${x.v < 0 ? '−' + rc(-x.v) : '+' + rc(x.v)}</i></div>`).join('') : '<p class="muted">Откройте кейс — здесь появятся начисления.</p>'}</div>
-    </div>
-    <div class="pf-trade">
-      <div class="t">Трейд-ссылка Steam<small>Нужна для вывода скинов. <a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></small></div>
-      <div class="inp-row"><input class="inp" id="tradeInp" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade)}"><button class="btn btn-accent" id="tradeSave">Сохранить</button></div>
-    </div>
-    <div class="tabs-row"><div class="seg" id="pfTabs"><button data-tab="inv">Инвентарь<b id="invCnt"></b></button><button data-tab="hist">История</button></div><div class="sum" id="invSum"></div></div>
+    <div class="tabs-row"><div class="seg pf-seg" id="pfTabs"><button data-tab="inv">${ic.box}Инвентарь<b id="invCnt"></b></button><button data-tab="stats">${ic.trend}Статистика</button><button data-tab="rc"><img class="rc-ic" src="assets/rcoin.webp" alt="">R-COIN</button><button data-tab="hist">${ic.history}История</button></div><div class="sum" id="invSum"></div></div>
     <div id="pfBody"></div>
   </section>`;
 }
 function mountProfile() {
   if (!st.user) return;
   $$('#pfTabs button').forEach(b => b.onclick = () => { pfTab = b.dataset.tab; drawPf(); });
-  $('#tradeSave').onclick = () => {
-    const v = $('#tradeInp').value.trim();
-    if (!/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/.test(v)) { $('#tradeInp').classList.add('err'); return toast('Неверный формат трейд-ссылки', 'err'); }
-    $('#tradeInp').classList.remove('err'); st.trade = v; save(); toast('Трейд-ссылка сохранена');
-  };
   drawPf();
 }
+const INV_COLS = 12; // слоты дорисовываются до кратного 12 (ровные ряды при 6/4/3/2 колонках)
+const dstr = ts => new Date(ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 function drawPf() {
   const body = $('#pfBody'); if (!body) return;
   $$('#pfTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === pfTab));
   const list = own(), sum = list.reduce((a, x) => a + SK[x.n].p, 0);
   $('#invCnt').textContent = list.length;
+  $('#invSum').innerHTML = '';
   if (pfTab === 'inv') {
     $('#invSum').innerHTML = list.length ? `Стоимость: <b>${money(sum)}</b> &nbsp;<button class="btn btn-accent btn-sm" id="sellAllInv">${ic.coin}Продать всё</button>` : '';
-    body.innerHTML = `<div class="items-grid">${list.length ? list.map(x => {
-      const s = SK[x.n];
-      return `<div class="icard r-${s.r}"><span class="ic-st">${fromName(x.from)}</span><img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="ic-w">${esc(s.w)}</div><div class="ic-f">${esc(s.f)}</div><div class="ic-p">${money(s.p)}</div>
-        <div class="ic-acts"><button class="btn btn-accent" data-sell="${x.id}">Продать</button><button class="btn btn-dark" data-wd="${x.id}">${ic.send}Вывести</button></div></div>`;
-    }).join('') : `<div class="empty">${ic.box}Инвентарь пуст — самое время открыть кейс!<a class="btn btn-primary btn-sm" href="#/">К кейсам</a></div>`}</div>`;
+    const sorted = list.slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
+    const slots = Math.max(INV_COLS * 2, Math.ceil(sorted.length / INV_COLS) * INV_COLS);
+    body.innerHTML = `<div class="pf-trade inv-trade">
+        <div class="t">Трейд-ссылка Steam<small>Нужна для вывода скинов. <a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></small></div>
+        <div class="inp-row"><input class="inp" id="tradeInp" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade)}"><button class="btn btn-accent" id="tradeSave">Сохранить</button></div>
+      </div>
+      <div class="inv-slots">${Array.from({ length: slots }, (_, i) => {
+        const x = sorted[i]; if (!x) return '<div class="slot empty"></div>';
+        const s = SK[x.n];
+        return `<div class="slot r-${s.r}"><span class="sl-src">${fromName(x.from)}</span><img src="${imgUrl(s, 'm')}" alt="" loading="lazy">
+          <div class="sl-n"><span>${esc(s.w)}</span>${esc(s.f)}</div><div class="sl-p">${money(s.p)}</div>
+          <div class="sl-acts"><button class="btn btn-accent" data-sell="${x.id}">Продать</button><button class="btn btn-dark" data-wd="${x.id}" title="Вывести в Steam">${ic.send}</button></div></div>`;
+      }).join('')}</div>${list.length ? '' : `<div class="empty inv-empty">${ic.box}Инвентарь пуст — самое время открыть кейс!<a class="btn btn-primary btn-sm" href="#/cases">К кейсам</a></div>`}`;
+    $('#tradeSave').onclick = () => {
+      const v = $('#tradeInp').value.trim();
+      if (!/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/.test(v)) { $('#tradeInp').classList.add('err'); return toast('Неверный формат трейд-ссылки', 'err'); }
+      $('#tradeInp').classList.remove('err'); st.trade = v; save(); toast('Трейд-ссылка сохранена');
+    };
     const sa = $('#sellAllInv');
     if (sa) sa.onclick = () => {
       const items = own(), total = items.reduce((a, x) => a + SK[x.n].p, 0);
@@ -2048,18 +2043,56 @@ function drawPf() {
     };
     $$('[data-sell]', body).forEach(b => b.onclick = () => { sellItem(b.dataset.sell); drawPf(); });
     $$('[data-wd]', body).forEach(b => b.onclick = () => withdraw(b.dataset.wd));
+  } else if (pfTab === 'stats') {
+    const S = st.stats, all = st.inv.filter(x => SK[x.n]), val = x => SK[x.n].p;
+    const by = k => all.filter(x => x.st === k), sumOf = a => a.reduce((t, x) => t + val(x), 0);
+    const fromCases = all.filter(x => caseById(x.from)), dropSum = sumOf(fromCases);
+    const best = S.best && SK[S.best], rk = rankOf(S.spent);
+    const perCase = {}; fromCases.forEach(x => { const c = perCase[x.from] = perCase[x.from] || { n: 0, v: 0 }; c.n++; c.v += val(x); });
+    const topCases = Object.entries(perCase).sort((a, b) => b[1].n - a[1].n).slice(0, 5);
+    const rcIn = (st.rlog || []).filter(x => x.v > 0).reduce((t, x) => t + x.v, 0), rcOut = Math.abs((st.rlog || []).filter(x => x.v < 0).reduce((t, x) => t + x.v, 0));
+    const upgWr = S.upg ? S.upgWin / S.upg * 100 : 0, roi = S.spent ? dropSum / S.spent * 100 : 0;
+    const tile = (icn, v, t, sub = '', cls = '') => `<div class="st-tile ${cls}"><span class="st-ic">${icn}</span><div><b>${v}</b><span>${t}</span>${sub ? `<small>${sub}</small>` : ''}</div></div>`;
+    body.innerHTML = `<div class="st-grid">
+        ${tile(ic.box, fmt(S.opened), 'Кейсов открыто', `потрачено ${money(S.spent)}`)}
+        ${tile(ic.gem, money(dropSum), 'Выпало из кейсов', `средний дроп ${fromCases.length ? money(dropSum / fromCases.length) : '—'}`)}
+        ${tile(ic.trend, roi ? roi.toFixed(0) + '%' : '—', 'Окупаемость', 'стоимость дропа / потрачено', roi >= 100 ? 'good' : roi ? 'bad' : '')}
+        ${tile(ic.wallet, money(S.dep || 0), 'Пополнено', `баланс сейчас ${money(st.balance)}`)}
+        ${tile(ic.up, `${S.upgWin} / ${S.upg}`, 'Апгрейдов: побед / всего', S.upg ? `успешных ${upgWr.toFixed(1)}%` : 'ещё не было')}
+        ${tile(ic.swap, fmt(S.con), 'Контрактов', '')}
+        ${tile(ic.coin, money(sumOf(by('sold'))), 'Продано предметов', `${by('sold').length} шт.`)}
+        ${tile(ic.send, fmt(by('out').length), 'Выведено в Steam', by('out').length ? money(sumOf(by('out'))) : '')}
+      </div>
+      <div class="st-row">
+        <div class="st-card st-best r-${best ? best.r : 'milspec'}"><h3>Лучший дроп</h3>${best ? `<img src="${imgUrl(best, 'l')}" alt=""><div class="sb-n"><span>${esc(best.w)}</span>${esc(best.f)}</div><div class="sb-p">${money(best.p)}</div>` : `<div class="muted">Пока нет</div>`}</div>
+        <div class="st-card"><h3>Любимые кейсы</h3>${topCases.length ? topCases.map(([id, d]) => { const c = caseById(id); const mx = topCases[0][1].n; return `<div class="st-bar"><span>${esc(c.name)}</span><i><b style="width:${(d.n / mx * 100).toFixed(0)}%;background:${c.th.a}"></b></i><em>${d.n}</em></div>`; }).join('') : '<div class="muted">Откройте пару кейсов</div>'}</div>
+        <div class="st-card"><h3>Аккаунт</h3>
+          <div class="st-kv"><span>Ранг</span><b>${rk.cur.n}</b></div>
+          <div class="st-kv"><span>До следующего</span><b>${rk.next ? money(rk.left) : 'максимум'}</b></div>
+          <div class="st-kv"><span>Предметов сейчас</span><b>${list.length} · ${money(sum)}</b></div>
+          <div class="st-kv"><span>R-COIN получено / потрачено</span><b>${rc(rcIn)} / ${rc(rcOut)}</b></div>
+          <div class="st-kv"><span>Сгорело в апгрейде</span><b>${money(sumOf(by('upg')))}</b></div>
+          <div class="st-kv"><span>На сайте с</span><b>${new Date(st.user.reg).toLocaleDateString('ru-RU')}</b></div>
+        </div>
+      </div>`;
+  } else if (pfTab === 'rc') {
+    body.innerHTML = `<div class="pf-rc" id="rcoins">
+      <div class="rc-head"><img class="rc-ic big" src="assets/rcoin.webp" alt="" aria-hidden="true"><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах</small></div></div>
+      <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый. А ещё <em>0,5% от пополнения</em> и <em>0,5% от ставки</em> при проигрыше в апгрейде.</p>
+        <div class="rc-ex">${CASES.filter(c => !c.rc).sort((a, b) => a.price - b.price).map(c => `<span>${esc(c.name)} <i>+${rc(Math.round(c.price * RCOIN_RATE(c) * 100 + 1e-6) / 100)}</i></span>`).join('')}</div></div>
+      <div class="rc-log"><b>История</b>${(st.rlog || []).length ? (st.rlog || []).slice(0, 30).map(x => `<div><span>${esc(x.note)}</span><small>${dstr(x.ts)}</small><i class="${x.v < 0 ? 'neg' : ''}">${x.v < 0 ? '−' + rc(-x.v) : '+' + rc(x.v)}</i></div>`).join('') : '<p class="muted">Откройте кейс — здесь появятся начисления.</p>'}</div>
+    </div>`;
   } else {
-    $('#invSum').innerHTML = '';
     const all = st.inv.filter(x => SK[x.n]);
     body.innerHTML = all.length ? `<div class="hist">${all.map(x => {
       const s = SK[x.n], [t, cls] = STATUS[x.st] || ['—', ''];
-      return `<div class="hrow r-${s.r}"><img src="${imgUrl(s, 's')}" alt=""><div class="n">${esc(s.name)}<small>${fromName(x.from)}</small></div><div class="s ${cls}">${t}</div><div class="d">${new Date(x.ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div><div class="p">${money(s.p)}</div></div>`;
+      return `<div class="hrow r-${s.r}"><img src="${imgUrl(s, 's')}" alt=""><div class="n">${esc(s.name)}<small>${fromName(x.from)}</small></div><div class="s ${cls}">${t}</div><div class="d">${dstr(x.ts)}</div><div class="p">${money(s.p)}</div></div>`;
     }).join('')}</div>` : `<div class="empty">${ic.history}История пока пуста</div>`;
   }
 }
 function withdraw(id) {
   const it = st.inv.find(x => x.id === id); if (!it || it.st !== 'own') return;
-  if (!st.trade) { $('#tradeInp').classList.add('err'); $('#tradeInp').focus(); return toast('Сначала укажите трейд-ссылку Steam', 'err'); }
+  if (!st.trade) { const ti = $('#tradeInp'); if (ti) { ti.classList.add('err'); ti.focus(); } return toast('Сначала укажите трейд-ссылку Steam', 'err'); }
   const s = SK[it.n];
   const m = modal(`<div class="wd r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><h2>Вывод предмета</h2><p>${esc(s.name)} · ${money(s.p)}<br>Бот отправит обмен на вашу трейд-ссылку. Примите его в течение 10 минут.</p><button class="btn btn-primary btn-lg btn-block" id="wdGo">${ic.send}Вывести в Steam</button></div>`, 'm-wd');
   $('#wdGo', m).onclick = () => {
