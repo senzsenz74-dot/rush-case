@@ -374,10 +374,10 @@ const CASES = [
     show: [], items: [],
   },
   {
-    id: 'donk', name: 'DONK666', price: 666, tag: 'Новинка', tagIc: 'star', rtp: .9, win: .1,
-    sub: 'Сине-чёрный дроп от 560 ₽. Ультра-редкие: ★ Stiletto и ★ Talon Doppler, перчатки King Snake и Hedge Maze',
+    id: 'donk', name: 'DONK666', price: 666, tag: 'Новинка', tagIc: 'star', rtp: .82, win: .16,
+    sub: 'Сине-чёрный дроп от 400 ₽. Ультра-редкие: ★ Stiletto и ★ Talon Doppler, перчатки King Snake и Hedge Maze',
     th: { a: '#3b82f6' }, img: 'assets/case-donk.webp',
-    strict: true, setX: 'donk', minDrop: 560,
+    strict: true, setX: 'donk', minDrop: 400,
     ultra: [
       '★ Stiletto Knife | Doppler (Factory New)', '★ Talon Knife | Doppler (Factory New)', '★ Driver Gloves | King Snake (Minimal Wear)',
       '★ Спортивные перчатки | Живая изгородь (Немного поношенное)',
@@ -395,8 +395,11 @@ const CASES = [
       'SSG 08 | Blood in the Water', 'AWP | Chromatic Aberration', 'AWP | Containment Breach',
       'AWP | Wildfire', 'AK-47 | Frontside Misty', 'AK-47 | Азимов',
       'AK-47 | Вулкан', 'M4A1-S | Blue Phosphor', 'FAMAS | Commemoration',
-      'Galil AR | Chromatic Aberration', '★ Gut Knife | Doppler', '★ Navaja Knife | Doppler',
-      '★ Shadow Daggers | Doppler', '★ Hand Wraps | Overprint', '★ Driver Gloves | Overtake',
+      'Galil AR | Chromatic Aberration', 'AK-47 | Slate', 'Glock-18 | Vogue',
+      'AWP | Exoskeleton', 'AWP | Fever Dream', 'AWP | Duality',
+      'MAC-10 | Неоновый гонщик', 'AK-47 | Неоновый гонщик', '★ Gut Knife | Doppler',
+      '★ Navaja Knife | Doppler', '★ Shadow Daggers | Doppler', '★ Hand Wraps | Overprint',
+      '★ Driver Gloves | Overtake',
     ],
   },
   {
@@ -440,7 +443,7 @@ const CASES = [
     sifon: [.03, .06, .1, .15, .2, .27, .35, .45, .55, .65, .75, .85, .95, 1.05, 1.12, 1.2, 1.28, 1.34, 1.6, 2.1, 2.8, 3.6, 4.6, 5.7, 6.9],
     // 46 ступеней: минимальный дроп, средний (около цены), крупный, джекпоты
     def: [...band(.03, .45, 14), ...band(.5, 1.45, 16), ...band(1.6, 6, 10), ...band(8, 40, 6)],
-    donk: [...band(560 / 666, .97, 5), ...band(1.04, 1.6, 6), ...band(1.75, 6, 7), ...band(7, 25, 5)],
+    donk: [...band(400 / 666, .97, 10), ...band(1.04, 1.6, 8), ...band(1.75, 6, 9), ...band(7, 25, 6)],
     zont: [...band(65 / 169, 230 / 169, 10), ...band(1.45, 10, 18)],
     gold: [...band(65000 / 89999, .98, 8), ...band(1.03, 1.6, 6), ...band(2, 6, 4)],
     s1: [...band(95 / 322, 320 / 322, 10), ...band(1.02, 1.45, 8), ...band(1.6, 6, 8), ...band(8, 40, 5)],
