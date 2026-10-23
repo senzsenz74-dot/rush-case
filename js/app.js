@@ -2255,8 +2255,24 @@ function openDeposit(need = 0) {
 const JP_TIME = 30, JP_MAX = 20, JP_SPIN = 10000;
 const JP_COLORS = ['#f3c14f', '#4ade80', '#60a5fa', '#f472b6', '#a78bfa', '#fb923c', '#22d3ee', '#ef4444', '#a3e635', '#e879f9',
   '#facc15', '#2dd4bf', '#818cf8', '#fb7185', '#c084fc', '#34d399', '#f97316', '#38bdf8', '#eab308', '#94a3b8'];
-const jp = { id: 1, phase: 'wait', players: [], endsAt: 0, winner: null, rot: 0, history: [], tmr: [], spinStart: 0 };
-const jpAfter = (fn, ms) => { const t = setTimeout(fn, ms); jp.tmr.push(t); return t; };
+/* сессии (комнаты): у каждой свои игроки, диапазон ставок ботов и таймер; все идут параллельно */
+const JP_ROOMS = [
+  { id: 'low', t: 'Новички', sub: 'ставки 4–500 ₽', lo: 4, hi: 500, time: 30, a: '#4ade80' },
+  { id: 'mid', t: 'Средняя', sub: 'ставки 300–8 000 ₽', lo: 300, hi: 8000, time: 30, a: '#60a5fa' },
+  { id: 'fast', t: 'Турбо', sub: '15 секунд на раунд', lo: 50, hi: 3000, time: 15, a: '#fb923c' },
+  { id: 'high', t: 'Хайроллеры', sub: 'ставки от 5 000 ₽', lo: 5000, hi: 239000, time: 30, a: '#f3c14f' },
+];
+// ники ботов: у каждой сессии — свои (не пересекаются)
+(() => {
+  const A = ['Dark', 'Ice', 'Toxic', 'Mad', 'Lucky', 'Silent', 'Red', 'Ghost', 'Neo', 'Wild', 'Crazy', 'Cold', 'Gold', 'Night', 'Storm', 'Hyper', 'Iron', 'Fast', 'Sly', 'King'];
+  const B = ['Fox', 'Wolf', 'Sniper', 'Rush', 'Viper', 'Hawk', 'Tiger', 'Shark', 'Ninja', 'Bear', 'Raven', 'Cobra', 'Lynx', 'Eagle', 'Panda', 'Joker'];
+  const all = [...NICKS]; for (let i = 0; all.length < 120; i++) { const n = A[(i * 7) % A.length] + B[(i * 5 + (i / A.length | 0)) % B.length] + (i % 3 ? '' : '_' + (10 + (i * 37) % 90)); if (!all.includes(n)) all.push(n); }
+  JP_ROOMS.forEach((r, k) => { r.nicks = all.filter((_, i) => i % JP_ROOMS.length === k); });
+})();
+const JP = Object.fromEntries(JP_ROOMS.map(cfg => [cfg.id, { cfg, id: 1, phase: 'wait', players: [], endsAt: 0, winner: null, rot: 0, history: [], tmr: [], spinStart: 0 }]));
+let jpView = 'mid', jp = JP[jpView]; // jp — текущая сессия (в таймерах временно подменяется на свою)
+const jpViewing = () => jp === JP[jpView] && !!$('#jp');
+const jpAfter = (fn, ms) => { const R = jp; const t = setTimeout(() => { const prev = jp; jp = R; try { fn(); } finally { jp = prev; } }, ms); R.tmr.push(t); return t; };
 const jpTotal = () => jp.players.reduce((a, p) => a + p.sum, 0);
 const jpFind = name => jp.players.find(p => p.name === name);
 function jpNewRound() {
@@ -2270,20 +2286,20 @@ function jpAdd(name, items, isMe, ava) {
   let p = jpFind(name);
   if (!p) { if (jp.players.length >= JP_MAX) return false; p = { name, items: [], sum: 0, me: isMe, ava, color: JP_COLORS[jp.players.length % JP_COLORS.length] }; jp.players.push(p); }
   p.items.push(...items); p.sum += items.reduce((a, s) => a + s.p, 0);
-  if (jp.phase === 'wait') { jp.phase = 'open'; jp.endsAt = Date.now() + JP_TIME * 1000; jpAfter(jpClose, JP_TIME * 1000); jpBotLoop(); }
+  if (jp.phase === 'wait') { jp.phase = 'open'; jp.endsAt = Date.now() + jp.cfg.time * 1000; jpAfter(jpClose, jp.cfg.time * 1000); jpBotLoop(); }
   if (jp.players.length >= JP_MAX) jpClose();
   jpRender(name);
   return true;
 }
 function jpBotJoin() {
   const used = new Set(jp.players.map(p => p.name));
-  const name = NICKS.filter(n => !used.has(n) && (!st.user || n !== st.user.name)).sort(() => Math.random() - .5)[0];
+  const name = jp.cfg.nicks.filter(n => !used.has(n) && (!st.user || n !== st.user.name)).sort(() => Math.random() - .5)[0];
   if (!name) return;
-  const pool = CATALOG.filter(s => s.p >= 4 && s.p <= 239000); // ставки ботов: от 4 до 239 000 ₽
+  const pool = CATALOG.filter(s => s.p >= jp.cfg.lo && s.p <= jp.cfg.hi); // ставки ботов — в диапазоне сессии
   const n = randi(1, 4), items = [];
   for (let i = 0; i < n; i++) items.push(pool[Math.floor(Math.pow(Math.random(), 1.8) * pool.length)]);
   jpAdd(name, items, false);
-  if (jp.phase === 'open' && $('#jp')) Snd.tone(1200 + Math.random() * 400, .06, 'triangle', .05);
+  if (jp.phase === 'open' && jpViewing()) Snd.tone(1200 + Math.random() * 400, .06, 'triangle', .05);
 }
 function jpBotLoop() {
   if (jp.phase !== 'open') return;
@@ -2318,23 +2334,23 @@ function jpFinish() {
   jp.history.unshift({ id: jp.id, name: w.name, me: w.me, ava: w.ava, sum: total, chance: w.sum / total, color: w.color, best: pot.reduce((a, s) => s.p > a.p ? s : a, pot[0]) });
   jp.history = jp.history.slice(0, 8);
   const meIn = jp.players.find(p => p.me);
-  st.inv.forEach(x => { if (x.st === 'bet') x.st = 'jp'; }); save();
+  st.inv.forEach(x => { if (x.st === 'bet' && x.room === jp.cfg.id) x.st = 'jp'; }); save();
   if (w.me) {
     pot.forEach(s => giveItem(s, 'jackpot')); save();
-    Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(140); setTimeout(() => burst(70), 700);
-    toast(`Вы забрали банк: <b>${money(total)}</b> — ${pot.length} предм.`);
-  } else if (meIn) { if ($('#jp')) Snd.safeLose(); toast(`Банк забрал ${esc(w.name)}. Повезёт в следующем раунде!`, 'err'); }
-  else if ($('#jp')) Snd.coin();
+    if (jpViewing()) { Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(140); setTimeout(() => burst(70), 700); }
+    toast(`Сессия «${jp.cfg.t}»: вы забрали банк <b>${money(total)}</b> — ${pot.length} предм.`);
+  } else if (meIn) { if (jpViewing()) Snd.safeLose(); toast(`Сессия «${jp.cfg.t}»: банк забрал ${esc(w.name)}. Повезёт в следующем раунде!`, 'err'); }
+  else if (jpViewing()) Snd.coin();
   jpRender();
   jpAfter(jpNewRound, 7000);
 }
 /* звук прокрутки — как в апгрейде: храповик сейфа + сердцебиение в конце */
 function jpSpinFx() {
-  const t0 = performance.now(); let last = null, lastA = null, nextBeat = JP_SPIN - 2300;
+  const R = jp, t0 = performance.now(); let last = null, lastA = null, nextBeat = JP_SPIN - 2300;
   const loop = now => {
-    if (jp.phase !== 'spin') return;
+    if (R.phase !== 'spin') return;
     const el = now - t0, rot = $('#jpRot');
-    if (rot) {
+    if (rot && R === JP[jpView]) {
       const mx = new DOMMatrixReadOnly(getComputedStyle(rot).transform), a = (Math.atan2(mx.b, mx.a) * 180 / Math.PI + 360) % 360;
       const dA = lastA == null ? 0 : (a - lastA + 360) % 360; lastA = a;
       const k = Math.floor(a / 12), tense = el > JP_SPIN - 2300 ? 1 : 0;
@@ -2362,7 +2378,8 @@ function jpSegments() {
 
 function pageJackpot() {
   return `<section class="container jp" id="jp">
-    <div class="page-head top-head"><div><h1>Ставки <em>на банк</em></h1><p>Поставьте скины — у каждого игрока свой цвет на рулетке, доля пропорциональна ставке. Через 30 секунд после первой ставки рулетка выберет победителя, и он заберёт весь банк.</p></div></div>
+    <div class="page-head top-head"><div><h1>Ставки <em>на банк</em></h1><p>Поставьте скины — у каждого игрока свой цвет на рулетке, доля пропорциональна ставке. Через 15–30 секунд после первой ставки рулетка выберет победителя, и он заберёт весь банк. Сессии идут параллельно — заходите в любую.</p></div></div>
+    <div class="jp-rooms" id="jpRooms"></div>
     <div class="jp-main">
       <div class="jp-left">
         <div class="jp-stats">
@@ -2408,9 +2425,25 @@ function pageJackpot() {
 }
 let jpTick = 0;
 function mountJackpot() {
+  jp = JP[jpView];
   jpRender();
   clearInterval(jpTick);
-  jpTick = setInterval(() => { if (!$('#jp')) return clearInterval(jpTick); jpRenderCenter(); }, 250);
+  jpTick = setInterval(() => { if (!$('#jp')) return clearInterval(jpTick); jp = JP[jpView]; jpRenderCenter(); jpRoomsRender(); }, 250);
+}
+/* вкладки сессий: живой статус каждой */
+function jpRoomsRender() {
+  const box = $('#jpRooms'); if (!box) return;
+  const me = st.user && st.user.name;
+  box.innerHTML = JP_ROOMS.map(cfg => {
+    const R = JP[cfg.id], tot = R.players.reduce((a, p) => a + p.sum, 0), mine = me && R.players.some(p => p.me);
+    const stt = R.phase === 'open' ? `0:${pad(Math.max(0, Math.ceil((R.endsAt - Date.now()) / 1000)))}` : R.phase === 'spin' ? 'розыгрыш' : R.phase === 'done' ? 'итоги' : 'ожидание';
+    return `<button class="jp-room${cfg.id === jpView ? ' on' : ''}${mine ? ' mine' : ''}" data-room="${cfg.id}" style="--rc:${cfg.a}">
+      <span class="jr-h"><i class="jr-dot ${R.phase}"></i><b>${cfg.t}</b>${mine ? '<em>вы в игре</em>' : ''}</span>
+      <span class="jr-sub">${cfg.sub}</span>
+      <span class="jr-st"><span>${ic.users}${R.players.length}/${JP_MAX}</span><span>${money(tot)}</span><span class="jr-t">${stt}</span></span>
+    </button>`;
+  }).join('');
+  $$('[data-room]', box).forEach(b => b.onclick = () => { if (b.dataset.room === jpView) return; jpView = b.dataset.room; jp = JP[jpView]; Snd.click(); const r = $('#jpRot'); if (r) delete r.dataset.spun; jpRender(); });
 }
 function jpRenderCenter() {
   const c = $('#jpCenter'); if (!c) return;
@@ -2420,7 +2453,8 @@ function jpRenderCenter() {
   else if (jp.winner) c.innerHTML = `<span class="jp-wava">${ava({ name: jp.winner.name, ava: jp.winner.ava })}</span><b class="jp-wname" style="color:${jp.winner.color}">${esc(jp.winner.name)}</b><span>забирает ${money(jpTotal())} · шанс ${(jp.winner.sum / jpTotal() * 100).toFixed(1)}%</span>`;
 }
 function jpRender(flash) {
-  if (!$('#jp')) return;
+  if (!jpViewing()) return;
+  jpRoomsRender();
   const total = jpTotal(), me = jp.players.find(p => p.me);
   $('#jpPot').textContent = money(total);
   $('#jpCnt').textContent = `${jp.players.length} / ${JP_MAX}`;
@@ -2430,8 +2464,8 @@ function jpRender(flash) {
   if (jp.phase === 'spin' || jp.phase === 'done') {
     const passed = Date.now() - jp.spinStart;
     if (jp.phase === 'done' || passed > JP_SPIN) { rot.style.transition = 'none'; rot.style.transform = `rotate(${jp.rot}deg)`; }
-    else if (!rot.dataset.spun || rot.dataset.spun != jp.id) {
-      rot.dataset.spun = jp.id; rot.style.transition = 'none'; rot.style.transform = 'rotate(0deg)'; void rot.offsetWidth;
+    else if (!rot.dataset.spun || rot.dataset.spun != jp.cfg.id + jp.id) {
+      rot.dataset.spun = jp.cfg.id + jp.id; rot.style.transition = 'none'; rot.style.transform = 'rotate(0deg)'; void rot.offsetWidth;
       rot.style.transition = `transform ${JP_SPIN - passed}ms cubic-bezier(.12,.6,.06,1)`; rot.style.transform = `rotate(${jp.rot}deg)`;
     }
   } else { rot.style.transition = 'none'; rot.style.transform = 'rotate(0deg)'; delete rot.dataset.spun; }
@@ -2451,7 +2485,7 @@ function jpRender(flash) {
       <div class="jp-n"><b>${esc(p.name)}${p.me ? ' (вы)' : ''}</b><span>${money(p.sum)} · ${p.items.length} предм.</span></div>
       <div class="jp-items">${p.items.slice(0, 4).map(s => `<img class="r-${s.r}" src="${imgUrl(s, 'm')}" alt="" title="${esc(s.name)} — ${money(s.p)}">`).join('')}${p.items.length > 4 ? `<em>+${p.items.length - 4}</em>` : ''}</div>
       <b class="jp-pct">${(p.sum / total * 100).toFixed(1)}%</b>
-    </div>`).join('') : `<div class="empty">${ic.users}Пока никто не поставил. Сделайте первую ставку — запустится таймер на 30 секунд.</div>`;
+    </div>`).join('') : `<div class="empty">${ic.users}Пока никто не поставил. Сделайте первую ставку — запустится таймер на ${jp.cfg.time} секунд.</div>`;
   // история
   $('#jpHist').innerHTML = jp.history.length ? jp.history.map(h => `
     <div class="jp-h" style="--pc:${h.color}">${ava({ name: h.name, ava: h.ava }, 'xs')}<div><b>${esc(h.name)}${h.me ? ' (вы)' : ''}</b><span>Раунд #${h.id} · шанс ${(h.chance * 100).toFixed(1)}%</span></div>
@@ -2478,19 +2512,21 @@ function jpOpenBet() {
     const items = sel.map(id => st.inv.find(x => x.id === id)).filter(x => x && x.st === 'own');
     if (!items.length) return;
     if (!jpAdd(st.user.name, items.map(x => SK[x.n]), true, st.user.ava)) { closeModal(); return toast('Лобби заполнено', 'err'); }
-    items.forEach(x => { x.st = 'bet'; }); save();
+    items.forEach(x => { x.st = 'bet'; x.room = jp.cfg.id; }); save();
     Snd.safeSel(true); Snd.coin(); closeModal();
     toast(`Ставка принята: <b>${money(items.reduce((a, x) => a + SK[x.n].p, 0))}</b>`);
   };
 }
 /* немного истории для живости */
 (function jpSeed() {
-  for (let i = 0; i < 6; i++) {
-    const pool = CATALOG.filter(s => s.p >= 200 && s.p <= 20000), best = pool[randi(0, pool.length - 1)];
-    jp.history.push({ id: 100 - i, name: pick(NICKS), sum: Math.round(best.p * rand(1.6, 5)), chance: rand(.03, .6), color: pick(JP_COLORS), best });
-  }
-  jp.id = 101;
-  jpAfter(() => { if (jp.phase === 'wait') jpBotJoin(); }, rand(3000, 7000));
+  JP_ROOMS.forEach(cfg => {
+    jp = JP[cfg.id];
+    const pool = CATALOG.filter(s => s.p >= cfg.lo && s.p <= cfg.hi * 3);
+    for (let i = 0; i < 6; i++) { const best = pool[randi(0, pool.length - 1)]; jp.history.push({ id: 100 - i, name: pick(cfg.nicks), sum: Math.round(best.p * rand(1.6, 5)), chance: rand(.03, .6), color: pick(JP_COLORS), best }); }
+    jp.id = 101;
+    jpAfter(() => { if (jp.phase === 'wait') jpBotJoin(); }, rand(1500, 7000));
+  });
+  jp = JP[jpView];
 })();
 
 /* =========================================================

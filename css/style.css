@@ -1778,3 +1778,25 @@ canvas.it-fx{-webkit-mask:none;mask:none;mix-blend-mode:screen}
 @media (prefers-reduced-motion:reduce){.sh-line>i{animation:none;display:none}}
 /* метка «НОВОЕ» — внутри картинки кейса: качается и увеличивается вместе с ним */
 .ca-imgbox .cc-new{position:absolute;top:4%;left:2%;z-index:6;font-size:10px;padding:3px 8px}
+
+/* ===== сессии ставок ===== */
+.jp-rooms{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 22px}
+.jp-room{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:14px 16px;border-radius:14px;text-align:left;cursor:pointer;color:inherit;
+  background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.08);transition:border-color .2s,background .2s,transform .2s}
+.jp-room:hover{border-color:color-mix(in srgb,var(--rc) 55%,transparent);transform:translateY(-2px)}
+.jp-room.on{border-color:var(--rc);background:linear-gradient(180deg,color-mix(in srgb,var(--rc) 16%,transparent),rgba(255,255,255,.015));box-shadow:0 0 0 1px color-mix(in srgb,var(--rc) 40%,transparent),0 12px 30px -16px var(--rc)}
+.jr-h{display:flex;align-items:center;gap:8px;width:100%}
+.jr-h b{font:800 15px var(--ff-h);text-transform:uppercase;letter-spacing:.03em;color:#f3eee4}
+.jr-h em{margin-left:auto;font-style:normal;font:700 10px var(--ff-h);text-transform:uppercase;letter-spacing:.08em;padding:3px 7px;border-radius:999px;color:#120c02;background:var(--rc)}
+.jr-dot{width:8px;height:8px;border-radius:50%;background:#6b6b6b}
+.jr-dot.open{background:var(--rc);box-shadow:0 0 8px var(--rc);animation:jrBlink 1s ease-in-out infinite}
+.jr-dot.spin{background:#ff4d4d;box-shadow:0 0 8px #ff4d4d}
+.jr-dot.done{background:#f3c14f}
+@keyframes jrBlink{50%{opacity:.35}}
+.jr-sub{font-size:12px;color:var(--txt3)}
+.jr-st{display:flex;gap:12px;align-items:center;margin-top:4px;font:700 12.5px var(--ff-h);color:#d9d2c4}
+.jr-st span{display:inline-flex;align-items:center;gap:5px}
+.jr-st svg{width:14px;height:14px;opacity:.7}
+.jr-t{margin-left:auto;color:var(--rc)}
+@media (max-width:1000px){.jp-rooms{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.jp-rooms{gap:8px}.jp-room{padding:11px 12px}.jr-st{gap:8px;font-size:11px}}
