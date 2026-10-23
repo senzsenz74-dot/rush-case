@@ -374,6 +374,32 @@ const CASES = [
     show: [], items: [],
   },
   {
+    id: 'donk', name: 'DONK666', price: 666, tag: 'Новинка', tagIc: 'star', rtp: .9, win: .1,
+    sub: 'Сине-чёрный дроп от 560 ₽. Ультра-редкие: ★ Stiletto и ★ Talon Doppler, перчатки King Snake и Hedge Maze',
+    th: { a: '#3b82f6' }, img: 'assets/case-donk.webp',
+    strict: true, setX: 'donk', minDrop: 560,
+    ultra: [
+      '★ Stiletto Knife | Doppler (Factory New)', '★ Talon Knife | Doppler (Factory New)', '★ Driver Gloves | King Snake (Minimal Wear)',
+      '★ Спортивные перчатки | Живая изгородь (Немного поношенное)',
+    ],
+    show: [],
+    items: [
+      'AK-47 | Ледяной уголь', 'M4A1-S | Nightmare', 'AWP | Древесная гадюка',
+      'Desert Eagle | Механо-пушка', 'AK-47 | Phantom Disruptor', 'AK-47 | Синий ламинат',
+      'M4A1-S | Black Lotus', 'M4A1-S | Decimator', 'M4A1-S | Guardian',
+      'M4A4 | Desolate Space', 'M4A4 | Neo-Noir', 'M4A4 | Император',
+      'USP-S | Cortex', 'USP-S | Убийство подтверждено', 'USP-S | Неонуар',
+      'USP-S | The Traitor', 'USP-S | Printstream', 'Glock-18 | Water Elemental',
+      'Glock-18 | Королева пуль', 'Desert Eagle | Printstream', 'Desert Eagle | Ocean Drive',
+      'Five-SeveN | Monkey Business', 'MP9 | Hydra', 'P90 | Азимов',
+      'SSG 08 | Blood in the Water', 'AWP | Chromatic Aberration', 'AWP | Containment Breach',
+      'AWP | Wildfire', 'AK-47 | Frontside Misty', 'AK-47 | Азимов',
+      'AK-47 | Вулкан', 'M4A1-S | Blue Phosphor', 'FAMAS | Commemoration',
+      'Galil AR | Chromatic Aberration', '★ Gut Knife | Doppler', '★ Navaja Knife | Doppler',
+      '★ Shadow Daggers | Doppler', '★ Hand Wraps | Overprint', '★ Driver Gloves | Overtake',
+    ],
+  },
+  {
     id: 'orange', name: 'Оранж', price: 140, tag: 'Новинка', tagIc: 'fire', rtp: .9,
     sub: 'Оранжевые скины от 50 ₽ и редкие джекпоты',
     th: { a: '#ff7a1a' }, img: 'assets/case-orange.webp', win: .45,
@@ -414,6 +440,7 @@ const CASES = [
     sifon: [.03, .06, .1, .15, .2, .27, .35, .45, .55, .65, .75, .85, .95, 1.05, 1.12, 1.2, 1.28, 1.34, 1.6, 2.1, 2.8, 3.6, 4.6, 5.7, 6.9],
     // 46 ступеней: минимальный дроп, средний (около цены), крупный, джекпоты
     def: [...band(.03, .45, 14), ...band(.5, 1.45, 16), ...band(1.6, 6, 10), ...band(8, 40, 6)],
+    donk: [...band(560 / 666, .97, 5), ...band(1.04, 1.6, 6), ...band(1.75, 6, 7), ...band(7, 25, 5)],
     zont: [...band(65 / 169, 230 / 169, 10), ...band(1.45, 10, 18)],
     gold: [...band(65000 / 89999, .98, 8), ...band(1.03, 1.6, 6), ...band(2, 6, 4)],
     s1: [...band(95 / 322, 320 / 322, 10), ...band(1.02, 1.45, 8), ...band(1.6, 6, 8), ...band(8, 40, 5)],
@@ -781,7 +808,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329};
+const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135};
 function caseArt(c, cls = '', badge = '') {
   if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay]() : ''}</div></div>`;
   if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
@@ -1032,7 +1059,7 @@ const casePrice = (c, v) => c.rc ? `${RC_IMG}${rc(v)} R-COIN` : money(v);
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
-  { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['s1mple', 'zont', 'frog'] },
+  { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
   { id: 'allin', wm: 'ALL IN', t: 'Всё или ничего', sub: 'Ультра дорогие кейсы — максимальный риск, максимальный дроп', ic: 'crown', a: '#ff4d4d', ids: ['gold', 'premium'] },
   { id: 'farm', wm: 'FARM', t: 'Фарм кейсы', sub: 'Открываются за R-COIN, которые копятся с каждого открытия', ic: 'gift', a: '#8be04e', rc: true, ids: ['bonus'] },
 ];
@@ -1044,7 +1071,7 @@ const blockCases = b => {
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['gold', 'zont', 's1mple', 'frog'];
+const NEW_CASES = ['donk', 'gold', 'zont', 's1mple', 'frog'];
 /* заголовок раздела: наклонная метка со значком, название с переливом, подпись, линия с бегущим огоньком, счётчик */
 const secHead = (t, sub, icon, a, n) => `<div class="sh" style="--bc:${a}">
   <span class="sh-tag">${icon}</span>
