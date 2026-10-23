@@ -2079,3 +2079,11 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 @keyframes tuPulse{50%{box-shadow:0 0 0 1px rgba(255,255,255,.18) inset,0 10px 34px -4px rgba(236,72,153,1)}}
 @keyframes tuArrow{50%{transform:translateY(-3px)}}
 @media (prefers-reduced-motion:reduce){.btn-upg,.btn-upg svg,.tu-sh{animation:none}}
+
+/* блики по форме кейса: широкая полоса + тонкая вторая, маска — силуэт кейса */
+.ca-shine{position:absolute;inset:0;z-index:4;pointer-events:none;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;mix-blend-mode:screen;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.0) 38%,rgba(255,235,235,.55) 44%,rgba(255,255,255,.85) 46%,rgba(255,220,220,.4) 49%,transparent 56%,transparent 62%,rgba(255,255,255,.35) 64%,transparent 67%) no-repeat;
+  background-size:320% 100%;animation:caShine 3.8s ease-in-out infinite}
+@keyframes caShine{0%,35%{background-position:130% 0}85%,100%{background-position:-50% 0}}
+.case-card:hover .ca-shine{animation-duration:1.8s}
+@media (prefers-reduced-motion:reduce){.ca-shine{display:none}}

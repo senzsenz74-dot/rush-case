@@ -426,6 +426,14 @@ const CASES = [
     ],
   },
   {
+    id: 'karambit', name: 'KARAMBIT', price: 39999, tag: 'Ножевой', tagIc: 'knife', rtp: .85, win: .2,
+    sub: 'Только керамбиты: от 32 000 ₽ до Crimson Web FN — 30 позиций',
+    th: { a: '#e11d48' }, img: 'assets/case-karambit.webp', overlay: 'shine',
+    // состав собирается в buildKnife: керамбиты от min ₽ — n позиций (часть дешевле цены, остальное дороже); дороже ×5 — ультра
+    knifeSet: { re: 'Karambit', min: 31900, below: 10, n: 30 },
+    show: [], items: [],
+  },
+  {
     id: 'orange', name: 'Оранж', price: 140, tag: 'Новинка', tagIc: 'fire', rtp: .9,
     sub: 'Оранжевые скины от 50 ₽ и редкие джекпоты',
     th: { a: '#ff7a1a' }, img: 'assets/case-orange.webp', win: .45,
@@ -507,8 +515,16 @@ const CASES = [
     if (ul) { c.items.push(ul.name); c.fix[ul.name] = b.ultraCh; }
     Object.entries(b.cash).forEach(([v, ch]) => { const n = `${v} ₽ на баланс`; c.items.push(n); c.fix[n] = ch; });
   }
+  function buildKnife(c) {
+    const k = c.knifeSet, all = ITEMS.filter(x => x.name.includes(k.re) && x.p >= k.min).sort((a, b) => a.p - b.p);
+    const lo = all.filter(x => x.p < c.price), hi = all.filter(x => x.p >= c.price);
+    const spread = (arr, n) => Array.from({ length: Math.min(n, arr.length) }, (_, i) => arr[Math.round(i * (arr.length - 1) / Math.max(1, n - 1))]);
+    c.items = [...new Set([...spread(lo, k.below), ...spread(hi, k.n - k.below)].map(x => x.name))];
+    c.fix = {}; c.items.filter(n => SK[n].p >= c.price * 10).forEach(n => { c.fix[n] = .000005; }); // ультра — 1 из 200 000
+  }
   CASES.forEach(c => {
     if (c.bonusSet) return buildBonus(c);
+    if (c.knifeSet) return buildKnife(c);
     Object.assign(c, SETUP[c.id] || {});
     c.items = [...new Set(c.items.flatMap(n => VARIANTS[n] || [n]))];
     if (c.fix) for (const [n, v] of Object.entries(c.fix)) if (VARIANTS[n]) { delete c.fix[n]; VARIANTS[n].forEach(x => { c.fix[x] = v / VARIANTS[n].length; }); }
@@ -796,6 +812,8 @@ const RINGS = '<div class="ab-rings"><i></i><i></i><i></i></div>';
 /* особые анимации поверх картинки кейса (координаты — % от картинки) */
 const OVERLAYS = {
   // «БАБА ЧАЙ»: цепь с замком (видео, чёрный фон убирается режимом «экран»), фары машины, дым из ствола AWP
+  // блики, пробегающие по форме кейса
+  shine: c => `<span class="ca-shine" aria-hidden="true" style="-webkit-mask-image:url(${c.img});mask-image:url(${c.img})"></span>`,
   // DONK666: молнии из глаз (координаты глаз — % от картинки кейса 900×888)
   donk: () => { queueMicrotask(() => BoltFx.start()); return `<canvas class="dk-bolt" aria-hidden="true"></canvas><i class="dk-eye" style="left:50.4%;top:11.1%"></i><i class="dk-eye" style="left:55.1%;top:9.6%"></i>`; },
   gold: () => { queueMicrotask(() => ChainFx.start()); return `<canvas class="gx-chain" width="600" height="333" aria-hidden="true"></canvas>
@@ -902,9 +920,9 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135};
+const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208};
 function caseArt(c, cls = '', badge = '') {
-  if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay]() : ''}</div></div>`;
+  if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay](c) : ''}</div></div>`;
   if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
   const [m, a, b] = c.show.map(n => SK[n]);
   const sparks = [[14, 20, 0], [84, 16, .9], [90, 60, 1.7], [8, 64, 2.4], [52, 6, 1.2]]
@@ -1154,7 +1172,7 @@ const casePrice = (c, v) => c.rc ? `${RC_IMG}${rc(v)} R-COIN` : money(v);
 const CASE_BLOCKS = [
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
-  { id: 'allin', wm: 'ALL IN', t: 'Всё или ничего', sub: 'Ультра дорогие кейсы — максимальный риск, максимальный дроп', ic: 'crown', a: '#ff4d4d', ids: ['gold', 'premium'] },
+  { id: 'allin', wm: 'ALL IN', t: 'Всё или ничего', sub: 'Ультра дорогие кейсы — максимальный риск, максимальный дроп', ic: 'crown', a: '#ff4d4d', ids: ['gold', 'karambit', 'premium'] },
   { id: 'farm', wm: 'FARM', t: 'Фарм кейсы', sub: 'Открываются за R-COIN, которые копятся с каждого открытия', ic: 'gift', a: '#8be04e', rc: true, ids: ['bonus'] },
 ];
 const blockCases = b => {
@@ -1165,7 +1183,7 @@ const blockCases = b => {
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['donk', 'gold', 'zont', 's1mple', 'frog'];
+const NEW_CASES = ['karambit', 'donk', 'gold', 'zont', 's1mple', 'frog'];
 /* заголовок раздела: наклонная метка со значком, название с переливом, подпись, линия с бегущим огоньком, счётчик */
 const secHead = (t, sub, icon, a, n) => `<div class="sh" style="--bc:${a}">
   <span class="sh-tag">${icon}</span>
