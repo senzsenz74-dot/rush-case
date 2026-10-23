@@ -1424,7 +1424,7 @@ async function openCase(c, demo) {
   box.innerHTML = wins.map(w => `<div class="strip${vert ? ' v' : ''}"><div class="track">${Array.from({ length: STRIP_LEN }, (_, i) => rcard(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT)).join('')}</div></div>`).join('');
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   // 1) отщёлкивание замка — картинка кейса трясётся, лента ещё не крутится
-  rl.classList.add('unlocking'); if (c.snd) Snd.play(c.snd.go, .35); else Snd.lock(); // «поехали» — тише, чтобы был слышен донат
+  rl.classList.add('unlocking'); if (c.snd) Snd.play(c.snd.go, .2); else Snd.lock(); // звуки «БАБА ЧАЙ» — потише
   await sleep(st.fast ? 700 : 1150);
   if (my !== spinId || !document.body.contains(rl)) return;
   rl.classList.remove('unlocking');
@@ -1434,7 +1434,7 @@ async function openCase(c, demo) {
   $('#skipBtn').onclick = () => strips.forEach(s => s._skip && s._skip());
   await sleep(60);
   const dur = st.fast ? 3000 : 11000;
-  const song = c.snd ? Snd.playCtl(c.snd.song, .6) : null; // песня — пока крутится рулетка
+  const song = c.snd ? Snd.playCtl(c.snd.song, .35) : null; // песня — пока крутится рулетка
   await Promise.all(strips.map((s, i) => spinStrip(s, dur + i * (vert ? 110 : 260), i === 0)));
   if (song) song.then(h => h && h.stop(.25));
   await sleep(550);
@@ -1545,7 +1545,7 @@ function itemTilt(root) {
 function showReveal(c, wins, given, demo) {
   const best = wins.reduce((a, s) => s.p > a.p ? s : a, wins[0]);
   const tier = best.r === 'rare' || best.p >= c.price * 8 ? 'jackpot' : best.p > c.price ? 'profit' : 'cheap';
-  if (c.snd) Snd.play(best.p >= c.price ? c.snd.win : c.snd.lose, 1); else Snd[tier]();
+  if (c.snd) Snd.play(best.p >= c.price ? c.snd.win : c.snd.lose, .55); else Snd[tier]();
   if (tier === 'jackpot') { burst(110); setTimeout(() => burst(70), 700); }
   const one = wins.length === 1;
   const topR = wins.reduce((a, s) => RAR[s.r].o > RAR[a].o ? s.r : a, wins[0].r);
@@ -1579,12 +1579,14 @@ function ccDone(c, wins, given, demo) {
       const left = live().length;
       cc.innerHTML = `<div class="cc-btns">
           <button class="btn btn-primary btn-xl btn-cham" id="againBtn">Открыть ещё за ${casePrice(c, c.price * caseN)}</button>
+          ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="toUpg">${ic.up}В апгрейд</button>` : ''}
           ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="sellAll">${ic.coin}Продать${wins.length > 1 ? ' всё' : ''} за ${money(sum())}</button>` : ''}
         </div>
         <button class="btn ${left ? 'btn-take' : 'btn-ghost'}" id="backBtn">${left ? ic.box + 'Забрать в инвентарь' : ic.left + 'К кейсу'}</button>
         ${left ? '<div class="cc-note">Предметы уже в вашем <b>профиле</b> — их можно продать или вывести в Steam позже.</div>' : ''}`;
       const sa = $('#sellAll');
       if (sa) sa.onclick = () => { let t = 0; live().forEach(g => { t += sellItem(g.id, true); }); Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); markSold(); draw(); };
+      const tu = $('#toUpg'); if (tu) tu.onclick = () => { upg.sel = live().map(g => g.id); upg.bal = 0; upg.to = null; upg.mult = 0; location.hash = '#/upgrade'; };
       $('#againBtn').onclick = again; $('#backBtn').onclick = () => { if (live().length) toast('Предметы сохранены в профиле'); back(); };
     };
     const markSold = () => given.forEach(g => { if (g.st !== 'own') { const el = $(`.rv-card[data-id="${g.id}"]`); if (el) { el.classList.add('rv-sold'); const b = $('[data-sellone]', el); if (b) b.outerHTML = '<div class="rv-rar" style="color:var(--txt3)">Продано</div>'; } } });
@@ -1859,7 +1861,7 @@ async function runUpgrade() {
   const loop = now => {
     const mx = new DOMMatrixReadOnly(getComputedStyle(ptr).transform), a = (Math.atan2(mx.b, mx.a) * 180 / Math.PI + 360) % 360;
     const el = now - t0, dA = lastA == null ? 0 : (a - lastA + 360) % 360; lastA = a;
-    const k = Math.floor(a / 15), tense = el > DUR - 2300 ? 1 : 0;
+    const k = Math.floor(a / 40), tense = el > DUR - 2300 ? 1 : 0; // щелчок реже — раз в 40°
     if (last !== null && k !== last) Snd.safeTick(Math.min(1, dA / 14), tense);
     last = k;
     if (el >= nextBeat && el < DUR - 150) { const p = (el - (DUR - 2300)) / 2300; Snd.heart(.35 + p * .35); nextBeat += 620 - p * 260; }
