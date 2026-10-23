@@ -976,13 +976,28 @@ function pageHome() {
   const embers = Array.from({ length: 22 }, () => `<i style="left:${rand(2, 98)}%;--d:${rand(4, 9)}s;--dl:${rand(0, 8)}s;--x:${rand(-40, 40)}px;--s:${rand(.6, 1.4)}"></i>`).join('');
   const dust = Array.from({ length: 34 }, () => `<i style="left:${rand(0, 100)}%;top:${rand(0, 100)}%;--d:${rand(9, 18)}s;--dl:${rand(-18, 0)}s;--x:${rand(-60, 60)}px;--y:${rand(-50, 50)}px;--s:${rand(.4, 1.2)}"></i>`).join('');
   return `<section class="hero3">
-    <div class="h3-frame">
-      <img class="h3-img" src="assets/hero-banner.webp" alt="Открывай. Собирай. Побеждай. Твои следующие легендарные скины уже внутри">
-      <div class="h3-fx" aria-hidden="true"><div class="h2-embers">${embers}</div><div class="h3-dust">${dust}</div></div>
-      <div class="h3-btns">
-        <a class="btn btn-primary btn-lg" href="#/cases">${ic.box}Открыть кейсы${ic.right}</a>
-        <a class="btn btn-outline btn-lg" href="#/upgrade">${ic.trend}Смотреть апгрейды</a>
+    <div class="h3-frame hs" id="heroSlider">
+      <div class="hs-track">
+        <div class="hs-slide on" data-i="0">
+          <img class="h3-img" src="assets/hero-banner.webp" alt="Открывай. Собирай. Побеждай. Твои следующие легендарные скины уже внутри">
+          <div class="h3-fx" aria-hidden="true"><div class="h2-embers">${embers}</div><div class="h3-dust">${dust}</div></div>
+          <div class="h3-btns">
+            <a class="btn btn-primary btn-lg" href="#/cases">${ic.box}Открыть кейсы${ic.right}</a>
+            <a class="btn btn-outline btn-lg" href="#/upgrade">${ic.trend}Смотреть апгрейды</a>
+          </div>
+        </div>
+        <div class="hs-slide" data-i="1">
+          <img class="h3-img hs-cover" src="assets/hero-bonus.webp" alt="Получи бонус за участие: подпишись на наши соцсети" loading="lazy">
+          <!-- кликабельные зоны поверх нарисованных значков и шагов (координаты — % от слайда) -->
+          ${[['Telegram', 22.11], ['ВКонтакте', 28.4], ['YouTube', 35.01], ['TikTok', 41.63]].map(([t, x]) => `<a class="hs-hot hs-soc" href="#/bonus" title="${t} — бонус за подписку" aria-label="${t}" style="left:${x}%;top:64.8%"></a>`).join('')}
+          <a class="hs-hot hs-step" href="#/profile" title="Открыть профиль" style="left:7.97%;top:72.96%;width:12.59%;height:15.52%"></a>
+          <a class="hs-hot hs-step" href="#/bonus" title="Бонусы" style="left:24.24%;top:72.96%;width:14.56%;height:15.52%"></a>
+          <a class="hs-hot hs-step" href="#/bonus" title="Выполнить условия" style="left:42.48%;top:72.96%;width:12.91%;height:15.52%"></a>
+        </div>
       </div>
+      <button class="hs-arr hs-prev" aria-label="Предыдущий баннер">${ic.left}</button>
+      <button class="hs-arr hs-next" aria-label="Следующий баннер">${ic.right}</button>
+      <div class="hs-dots"><button class="on" data-go="0" aria-label="Баннер 1"></button><button data-go="1" aria-label="Баннер 2"></button></div>
     </div>
   </section>
   <section class="container">
@@ -1052,7 +1067,22 @@ const caseCard = c => `<a class="case-card" href="#/case/${c.id}" style="--ca:${
     <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}${c.rc ? ' cc-price-rc' : ''}">${casePrice(c, c.price)}</span></div>
   </div>
 </a>`;
+/* слайдер баннеров: автолистание 7 с (пауза при наведении), стрелки, точки, свайп */
+function heroSlider() {
+  const root = $('#heroSlider'); if (!root) return;
+  const slides = $$('.hs-slide', root), dots = $$('.hs-dots button', root); let i = 0, t;
+  const go = n => { i = (n + slides.length) % slides.length; slides.forEach((x, k) => x.classList.toggle('on', k === i)); dots.forEach((x, k) => x.classList.toggle('on', k === i)); };
+  const auto = () => { clearInterval(t); t = setInterval(() => { if (!document.body.contains(root)) return clearInterval(t); go(i + 1); }, 7000); };
+  $('.hs-prev', root).onclick = () => { go(i - 1); auto(); }; $('.hs-next', root).onclick = () => { go(i + 1); auto(); };
+  dots.forEach(d => d.onclick = () => { go(+d.dataset.go); auto(); });
+  root.addEventListener('mouseenter', () => clearInterval(t)); root.addEventListener('mouseleave', auto);
+  let x0 = null;
+  root.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
+  root.addEventListener('touchend', e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) { go(i + (dx < 0 ? 1 : -1)); auto(); } x0 = null; });
+  auto();
+}
 function mountHome() {
+  heroSlider();
   // живой счётчик открытых кейсов
   every(() => { statOpened += randi(1, 4); const b = $('#sbOpened'); if (b) b.textContent = fmt(statOpened); }, 2200);
 }

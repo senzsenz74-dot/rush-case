@@ -1999,3 +1999,26 @@ button.pfh-chip{cursor:pointer}button.pfh-chip:hover{color:var(--gold);border-co
 .pfh-wm{top:auto;bottom:86px;right:285px;font-size:clamp(46px,5.6vw,84px);-webkit-text-stroke-color:color-mix(in srgb,var(--rk1) 14%,transparent);-webkit-mask:linear-gradient(90deg,transparent,#000 40%,#000 80%,transparent);mask:linear-gradient(90deg,transparent,#000 40%,#000 80%,transparent)}
 @media (max-width:1100px){.pfh-wm{display:none}}
 .pfh-wm{display:none!important}
+
+/* ===== слайдер баннеров ===== */
+.hs{overflow:hidden}
+.hs-track{position:relative;aspect-ratio:2000/667}
+.hs-slide{position:absolute;inset:0;opacity:0;visibility:hidden;transform:scale(1.02);transition:opacity .7s ease,transform 1.2s ease,visibility 0s .7s}
+.hs-slide.on{opacity:1;visibility:visible;transform:none;transition:opacity .7s ease,transform 1.2s ease}
+.hs-slide .h3-img{width:100%;height:100%}
+.hs-cover{object-fit:cover;object-position:center}
+.hs-slide .h3-fx{inset:0}
+.hs-hot{position:absolute;z-index:3;border-radius:14px;transition:background .2s,box-shadow .2s}
+.hs-soc{width:3.4%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%}
+.hs-hot:hover{background:rgba(255,80,170,.14);box-shadow:0 0 0 2px rgba(255,120,190,.8),0 0 24px rgba(255,80,170,.6)}
+.hs-arr{position:absolute;top:50%;z-index:5;display:grid;place-items:center;width:46px;height:46px;margin-top:-23px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.45);backdrop-filter:blur(6px);color:#fff;cursor:pointer;opacity:0;transition:opacity .25s,background .2s}
+.hs:hover .hs-arr{opacity:1}
+.hs-arr:hover{background:rgba(243,193,79,.25);border-color:var(--gold)}
+.hs-arr svg{width:20px;height:20px}
+.hs-prev{left:22px}.hs-next{right:22px}
+.hs-dots{position:absolute;left:50%;bottom:4%;z-index:5;display:flex;gap:8px;transform:translateX(-50%)}
+.hs-dots button{width:10px;height:10px;padding:0;border-radius:999px;border:0;background:rgba(255,255,255,.35);cursor:pointer;transition:width .3s,background .3s}
+.hs-dots button.on{width:30px;background:var(--g-gold)}
+@media (max-width:1024px){.hs-arr{display:none}.hs-dots{bottom:auto;top:calc(100% - 26px)}}
+@media (max-width:1024px){.hs-track{aspect-ratio:auto}.hs-slide{position:relative;display:none}.hs-slide.on{display:block}.hs-slide .h3-img{height:auto}.hs-cover{aspect-ratio:2000/667}}
+@media (max-width:1024px){.hs-dots{position:static;transform:none;justify-content:center;margin:12px auto 0}}
