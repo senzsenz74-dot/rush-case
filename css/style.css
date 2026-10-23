@@ -1924,3 +1924,4 @@ img.rc-ic.big{filter:drop-shadow(0 3px 0 #6b4306) drop-shadow(0 6px 0 #3a2403) d
 .sh-tag img.rc-ic{display:block;width:30px;height:30px;margin:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
 .sh-tag{overflow:visible}
 .inv-card .ic-st{display:none}
+.inv-grid .inv-empty-card{justify-content:center;align-items:center}.inv-empty-card span{display:flex;align-items:center;justify-content:center}
