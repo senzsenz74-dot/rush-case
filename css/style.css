@@ -2066,3 +2066,16 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
   background:radial-gradient(closest-side,#fff 0 15%,rgba(150,210,255,.95) 35%,rgba(60,140,255,.45) 65%,transparent 100%);filter:blur(.4px) drop-shadow(0 0 6px #4aa3ff)}
 @media (prefers-reduced-motion:reduce){.dk-bolt,.dk-eye{display:none}}
 .dk-eye{width:2.4%;filter:blur(.3px) drop-shadow(0 0 3px #4aa3ff)}
+/* кнопка «В апгрейд» — заманчивая: фиолетово-неоновый градиент, бегущий блик, пульс */
+.btn-upg{position:relative;overflow:hidden;color:#fff;border:0;
+  background:linear-gradient(135deg,#7c3aed 0%,#c026d3 55%,#f472b6 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.18) inset,0 10px 26px -8px rgba(192,38,211,.85);animation:tuPulse 2.2s ease-in-out infinite}
+.btn-upg:hover{filter:brightness(1.12);transform:translateY(-2px)}
+.btn-upg svg{width:20px;height:20px;animation:tuArrow 1.1s ease-in-out infinite}
+.btn-upg .tu-t{display:flex;flex-direction:column;align-items:flex-start;line-height:1.05}
+.btn-upg .tu-t small{font:700 9.5px var(--ff-b,inherit);letter-spacing:.04em;text-transform:none;opacity:.85;margin-top:3px}
+.tu-sh{position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.45) 50%,transparent 65%) no-repeat;background-size:250% 100%;animation:tuShine 2.6s ease-in-out infinite;pointer-events:none}
+@keyframes tuShine{0%,40%{background-position:130% 0}100%{background-position:-60% 0}}
+@keyframes tuPulse{50%{box-shadow:0 0 0 1px rgba(255,255,255,.18) inset,0 10px 34px -4px rgba(236,72,153,1)}}
+@keyframes tuArrow{50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.btn-upg,.btn-upg svg,.tu-sh{animation:none}}

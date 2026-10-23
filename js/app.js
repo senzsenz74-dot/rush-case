@@ -1579,15 +1579,15 @@ function ccDone(c, wins, given, demo) {
       const left = live().length;
       cc.innerHTML = `<div class="cc-btns">
           <button class="btn btn-primary btn-xl btn-cham" id="againBtn">Открыть ещё за ${casePrice(c, c.price * caseN)}</button>
-          ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="toUpg">${ic.up}В апгрейд</button>` : ''}
+          ${left ? `<button class="btn btn-xl btn-cham btn-upg" id="toUpg"><span class="tu-sh"></span>${ic.up}<span class="tu-t">В апгрейд<small>шанс умножить дроп до x10</small></span></button>` : ''}
           ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="sellAll">${ic.coin}Продать${wins.length > 1 ? ' всё' : ''} за ${money(sum())}</button>` : ''}
         </div>
-        <button class="btn ${left ? 'btn-take' : 'btn-ghost'}" id="backBtn">${left ? ic.box + 'Забрать в инвентарь' : ic.left + 'К кейсу'}</button>
+        ${left ? '' : `<button class="btn btn-ghost" id="backBtn">${ic.left}К кейсу</button>`}
         ${left ? '<div class="cc-note">Предметы уже в вашем <b>профиле</b> — их можно продать или вывести в Steam позже.</div>' : ''}`;
       const sa = $('#sellAll');
       if (sa) sa.onclick = () => { let t = 0; live().forEach(g => { t += sellItem(g.id, true); }); Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); markSold(); draw(); };
       const tu = $('#toUpg'); if (tu) tu.onclick = () => { upg.sel = live().map(g => g.id); upg.bal = 0; upg.to = null; upg.mult = 0; location.hash = '#/upgrade'; };
-      $('#againBtn').onclick = again; $('#backBtn').onclick = () => { if (live().length) toast('Предметы сохранены в профиле'); back(); };
+      $('#againBtn').onclick = again; const bb = $('#backBtn'); if (bb) bb.onclick = back;
     };
     const markSold = () => given.forEach(g => { if (g.st !== 'own') { const el = $(`.rv-card[data-id="${g.id}"]`); if (el) { el.classList.add('rv-sold'); const b = $('[data-sellone]', el); if (b) b.outerHTML = '<div class="rv-rar" style="color:var(--txt3)">Продано</div>'; } } });
     $$('[data-sellone]').forEach(b => b.onclick = () => { sellItem(b.dataset.sellone); markSold(); draw(); });
