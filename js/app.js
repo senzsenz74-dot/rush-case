@@ -2005,7 +2005,15 @@ function mountProfile() {
   $$('#pfTabs button').forEach(b => b.onclick = () => { pfTab = b.dataset.tab; drawPf(); });
   drawPf();
 }
-const INV_COLS = 12; // слоты дорисовываются до кратного 12 (ровные ряды при 6/4/3/2 колонках)
+/* пустые карточки: дорисовываем до полных рядов (минимум 3 ряда) — по фактическому числу колонок сетки */
+function invFill() {
+  const g = $('#invGrid'); if (!g) return;
+  $$('.inv-empty-card', g).forEach(x => x.remove());
+  const cols = getComputedStyle(g).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
+  const n = $$('.inv-card', g).length, total = Math.max(cols * 3, Math.ceil(n / cols) * cols);
+  g.insertAdjacentHTML('beforeend', Array.from({ length: total - n }, () => `<div class="icard inv-empty-card" aria-hidden="true"><span>${ic.box}</span></div>`).join(''));
+}
+window.addEventListener('resize', () => { if ($('#invGrid')) invFill(); });
 const dstr = ts => new Date(ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 function drawPf() {
   const body = $('#pfBody'); if (!body) return;
@@ -2016,18 +2024,16 @@ function drawPf() {
   if (pfTab === 'inv') {
     $('#invSum').innerHTML = list.length ? `Стоимость: <b>${money(sum)}</b> &nbsp;<button class="btn btn-accent btn-sm" id="sellAllInv">${ic.coin}Продать всё</button>` : '';
     const sorted = list.slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
-    const slots = Math.max(INV_COLS * 2, Math.ceil(sorted.length / INV_COLS) * INV_COLS);
     body.innerHTML = `<div class="pf-trade inv-trade">
         <div class="t">Трейд-ссылка Steam<small>Нужна для вывода скинов. <a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></small></div>
         <div class="inp-row"><input class="inp" id="tradeInp" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade)}"><button class="btn btn-accent" id="tradeSave">Сохранить</button></div>
       </div>
-      <div class="inv-slots">${Array.from({ length: slots }, (_, i) => {
-        const x = sorted[i]; if (!x) return '<div class="slot empty"></div>';
+      <div class="items-grid inv-grid" id="invGrid">${sorted.map(x => {
         const s = SK[x.n];
-        return `<div class="slot r-${s.r}"><span class="sl-src">${fromName(x.from)}</span><img src="${imgUrl(s, 'm')}" alt="" loading="lazy">
-          <div class="sl-n"><span>${esc(s.w)}</span>${esc(s.f)}</div><div class="sl-p">${money(s.p)}</div>
-          <div class="sl-acts"><button class="btn btn-accent" data-sell="${x.id}">Продать</button><button class="btn btn-dark" data-wd="${x.id}" title="Вывести в Steam">${ic.send}</button></div></div>`;
-      }).join('')}</div>${list.length ? '' : `<div class="empty inv-empty">${ic.box}Инвентарь пуст — самое время открыть кейс!<a class="btn btn-primary btn-sm" href="#/cases">К кейсам</a></div>`}`;
+        return `<div class="icard inv-card r-${s.r}"><span class="ic-st">${fromName(x.from)}</span><img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="ic-w">${esc(s.w)}</div><div class="ic-f">${esc(s.f)}</div><div class="ic-p">${money(s.p)}</div>
+          <div class="inv-acts"><button class="btn btn-accent" data-sell="${x.id}">Продать</button><button class="btn btn-dark" data-wd="${x.id}" title="Вывести в Steam">${ic.send}</button></div></div>`;
+      }).join('')}</div>${list.length ? '' : '<p class="inv-hint">Инвентарь пуст — выпавшие предметы займут эти места. <a href="#/cases">Открыть кейс</a></p>'}`;
+    invFill();
     $('#tradeSave').onclick = () => {
       const v = $('#tradeInp').value.trim();
       if (!/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/.test(v)) { $('#tradeInp').classList.add('err'); return toast('Неверный формат трейд-ссылки', 'err'); }

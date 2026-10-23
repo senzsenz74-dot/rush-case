@@ -1907,3 +1907,20 @@ img.rc-ic.big{filter:drop-shadow(0 3px 0 #6b4306) drop-shadow(0 6px 0 #3a2403) d
 .muted{color:var(--txt3);font-size:13px}
 @media (max-width:1100px){.st-grid{grid-template-columns:repeat(2,1fr)}.st-row{grid-template-columns:1fr}}
 @media (max-width:520px){.st-grid{grid-template-columns:1fr}}
+
+/* ===== инвентарь: карточки как в кейсах + пустые места ===== */
+.inv-grid .icard{height:180px;justify-content:flex-end}
+.inv-grid .icard img{transition:transform .2s}
+.inv-card .inv-acts{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;opacity:0;transform:translateY(6px);transition:.18s;z-index:2}
+.inv-card:hover .inv-acts,.inv-card:focus-within .inv-acts{opacity:1;transform:none}
+.inv-card:hover .ic-p,.inv-card:hover .ic-f,.inv-card:hover .ic-w{opacity:.15}
+.inv-acts .btn{height:32px;flex:1;padding:0 8px;font-size:11.5px}
+.inv-acts .btn-dark{flex:0 0 36px}.inv-acts svg{width:15px;height:15px}
+.inv-empty-card{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));border:1px dashed rgba(255,255,255,.09);box-shadow:inset 0 2px 14px rgba(0,0,0,.55)}
+.inv-empty-card span{color:rgba(255,255,255,.07)}.inv-empty-card svg{width:34px;height:34px}
+.inv-hint{margin:14px 0 0;text-align:center;color:var(--txt3);font-size:13.5px}.inv-hint a{color:var(--gold)}
+@media (max-width:720px){.inv-card .inv-acts{opacity:1;transform:none}.inv-grid .icard{height:170px}}
+/* монета в наклонной метке заголовка — по центру, без «торца» */
+.sh-tag img.rc-ic{display:block;width:30px;height:30px;margin:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
+.sh-tag{overflow:visible}
+.inv-card .ic-st{display:none}
