@@ -1229,13 +1229,14 @@ function frameSmoke() {
   const sx = W * .5, sy = H - 4;
   const sprite = document.createElement('canvas'); sprite.width = sprite.height = 64;
   { const g = sprite.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(230,230,235,.55)'); gr.addColorStop(.45, 'rgba(210,210,218,.22)'); gr.addColorStop(1, 'rgba(200,200,210,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
-  let last = performance.now(), acc = 0;
+  let last = performance.now(), acc = 0, on = true, sw = performance.now() + 1800; // струйка идёт порциями: 1,2–2,6 с дым, 0,6–1,4 с пауза
   const tick = now => {
     if (!cv.isConnected) return;
     const dt = Math.min(50, now - last) / 16.7; last = now;
     const fast = !!document.querySelector('.rl.spinning');
-    acc += dt * (fast ? 1.4 : .9);
-    while (acc >= 1) { acc--; P.push({ x: sx + (Math.random() - .5), y: sy, age: 0, life: 150 + Math.random() * 90, ph: Math.random() * 6.28, sp: .55 + Math.random() * .25, r0: 2 + Math.random() * 1.5 }); }
+    if (now > sw) { on = !on; sw = now + (on ? 1200 + Math.random() * 1400 : 600 + Math.random() * 800); }
+    if (on) acc += dt * (fast ? 1.6 : 1.2);
+    while (acc >= 1) { acc--; P.push({ x: sx + (Math.random() - .5), y: sy, age: 0, life: 170 + Math.random() * 80, ph: Math.random() * 6.28, sp: .6 + Math.random() * .2, r0: 1 + Math.random() * .6 }); }
     // привязка: точка (sx, sy) канваса = центр огонька сигареты
     const em = cv.parentElement.querySelector('.fr-ember'), host = cv.parentElement.getBoundingClientRect();
     if (em && host.width) { const e = em.getBoundingClientRect(), k = cv.clientWidth / W; cv.style.left = (e.left + e.width / 2 - host.left - sx * k) + 'px'; cv.style.top = (e.top + e.height / 2 - host.top - sy * k) + 'px'; }
@@ -1246,9 +1247,9 @@ function frameSmoke() {
       const k = p.age / p.life; if (k >= 1) { P.splice(i, 1); continue; }
       // подъём + завихрение: снизу ровная струйка, выше амплитуда растёт
       p.y -= p.sp * dt * (1 - k * .35);
-      const sway = Math.sin(t * 1.3 + p.y * .045 + p.ph * .15) * (k * k * 26) + Math.sin(t * .7 + p.y * .02) * k * 10;
+      const sway = Math.sin(t * 1.3 + p.y * .05 + p.ph * .1) * (k * k * 18) + Math.sin(t * .7 + p.y * .02) * k * 6;
       const px = sx + sway + (p.x - sx) + k * 8;
-      const r = p.r0 + k * k * 30, a = (k < .08 ? k / .08 : 1) * (1 - k) * .8;
+      const r = p.r0 + k * k * 11, a = (k < .06 ? k / .06 : 1) * (1 - k) * (1 - k) * .9;
       x.globalAlpha = a; x.drawImage(sprite, px - r, p.y - r, r * 2, r * 2);
     }
     x.globalAlpha = 1;
