@@ -1586,7 +1586,7 @@ function ccDone(c, wins, given, demo) {
         ${left ? '<div class="cc-note">Предметы уже в вашем <b>профиле</b> — их можно продать или вывести в Steam позже.</div>' : ''}`;
       const sa = $('#sellAll');
       if (sa) sa.onclick = () => { let t = 0; live().forEach(g => { t += sellItem(g.id, true); }); Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); markSold(); draw(); };
-      const tu = $('#toUpg'); if (tu) tu.onclick = () => { upg.sel = live().map(g => g.id); upg.bal = 0; upg.to = null; upg.mult = 0; location.hash = '#/upgrade'; };
+      const tu = $('#toUpg'); if (tu) tu.onclick = () => { upg.sel = live().map(g => g.id); upg.bal = 0; upg.to = null; upg.mult = 0; upg.autoX2 = true; location.hash = '#/upgrade'; };
       $('#againBtn').onclick = again; const bb = $('#backBtn'); if (bb) bb.onclick = back;
     };
     const markSold = () => given.forEach(g => { if (g.st !== 'own') { const el = $(`.rv-card[data-id="${g.id}"]`); if (el) { el.classList.add('rv-sold'); const b = $('[data-sellone]', el); if (b) b.outerHTML = '<div class="rv-rar" style="color:var(--txt3)">Продано</div>'; } } });
@@ -1721,6 +1721,8 @@ function mountUpgrade() {
   $('#upgBtn').onclick = runUpgrade;
   upg.rot = 0; $('#wPtr').style.transform = 'rotate(0deg)';
   drawUpg();
+  // пришли из кейса кнопкой «В апгрейд» — сразу цель по x2
+  if (upg.autoX2) { upg.autoX2 = false; if (upg.sel.length) $('.mults [data-m="2"]')?.click(); }
 }
 function stakeSlot(items, v) {
   if (!items.length && !upg.bal) return `<span class="us-label">Ваша ставка</span><div class="us-empty"><div class="plus">${ic.plus}</div>Выберите один или несколько скинов ниже и/или добавьте баланс</div>`;
