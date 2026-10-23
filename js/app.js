@@ -376,7 +376,7 @@ const CASES = [
   {
     id: 'donk', name: 'DONK666', price: 666, tag: 'Новинка', tagIc: 'star', rtp: .9, win: .1,
     sub: 'Сине-чёрный дроп от 560 ₽. Ультра-редкие: ★ Stiletto и ★ Talon Doppler, перчатки King Snake и Hedge Maze',
-    th: { a: '#3b82f6' }, img: 'assets/case-donk.webp', overlay: 'donk', // молнии из глаз
+    th: { a: '#3b82f6' }, img: 'assets/case-donk.webp',
     strict: true, setX: 'donk', minDrop: 560,
     ultra: [
       '★ Stiletto Knife | Doppler (Factory New)', '★ Talon Knife | Doppler (Factory New)', '★ Driver Gloves | King Snake (Minimal Wear)',
@@ -784,7 +784,7 @@ const BoltFx = {
   raf: 0,
   // разряд: ломаная со смещениями + ветки; возвращает массив путей [{pts, w}]
   make(x, y, ang, len, depth = 0) {
-    const paths = [], pts = [[x, y]], n = 9 + (Math.random() * 5 | 0), st = len / n;
+    const paths = [], pts = [[x, y]], n = 5 + (Math.random() * 3 | 0), st = len / n;
     let a = ang, cx = x, cy = y;
     for (let i = 0; i < n; i++) {
       a += (Math.random() - .5) * .9; a += (ang - a) * .25; // зигзаг, но держит общее направление
@@ -816,32 +816,32 @@ const BoltFx = {
       c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
       const k = c.width / r.width, pts = eyes.map(e => { const q = e.getBoundingClientRect(); return [(q.left + q.width / 2 - r.left) * k, (q.top + q.height / 2 - r.top) * k]; });
       const both = Math.random() < .55, which = Math.random() < .5 ? 0 : 1;
-      const flashes = 2 + (Math.random() * 3 | 0), seq = [];
+      const flashes = 1 + (Math.random() * 2 | 0), seq = [];
       let t = 0; for (let i = 0; i < flashes; i++) { const on = 45 + Math.random() * 70; seq.push([t, t + on, 1 - i * .18]); t += on + 30 + Math.random() * 70; }
       st.strike = { t0: now, end: t + 140, seq, pts, use: both ? [0, 1] : [which], scale: box.getBoundingClientRect().width * k, gen: -1, paths: [] };
     }
     const S = st.strike, el = now - S.t0, x = c.getContext('2d');
-    if (el > S.end) { x.clearRect(0, 0, c.width, c.height); eyes.forEach(e => e.style.opacity = 0); st.strike = null; st.next = now + 2200 + Math.random() * 3600; return; }
+    if (el > S.end) { x.clearRect(0, 0, c.width, c.height); eyes.forEach(e => e.style.opacity = 0); st.strike = null; st.next = now + 2500 + Math.random() * 4000; return; }
     const fi = S.seq.findIndex(([a, b]) => el >= a && el < b), I = fi >= 0 ? S.seq[fi][2] : 0;
     // каждая вспышка — свой изгиб молнии (как у настоящего разряда)
     if (fi >= 0 && fi !== S.gen) {
       S.gen = fi; S.paths = [];
       S.use.forEach(ei => {
         const [ex, ey] = S.pts[ei] || [0, 0], dir = ei === 0 ? Math.PI * (.97 + Math.random() * .2) : Math.PI * (1.83 + Math.random() * .2);
-        S.paths.push(...this.make(ex, ey, dir, S.scale * (.32 + Math.random() * .2)));
-        if (Math.random() < .5) S.paths.push(...this.make(ex, ey, dir + (Math.random() < .5 ? -.7 : .7), S.scale * (.16 + Math.random() * .12), 1));
+        S.paths.push(...this.make(ex, ey, dir, S.scale * (.07 + Math.random() * .05), 1)); // маленькие искры-разряды
+        if (Math.random() < .35) S.paths.push(...this.make(ex, ey, dir + (Math.random() < .5 ? -.8 : .8), S.scale * (.04 + Math.random() * .03), 2));
       });
     }
     x.clearRect(0, 0, c.width, c.height);
-    eyes.forEach((e, i) => { e.style.opacity = S.use.includes(i) ? Math.max(I, el < S.end - 140 ? .35 : 0) : 0; });
+    eyes.forEach((e, i) => { e.style.opacity = S.use.includes(i) ? I * .6 : 0; });
     if (!I) return;
     const u = S.scale / 300; // толщина от размера кейса
     x.globalCompositeOperation = 'lighter'; x.lineCap = x.lineJoin = 'round';
     const pass = (col, w, blur, a) => { x.shadowColor = '#4aa3ff'; x.shadowBlur = blur * u; x.strokeStyle = col; x.globalAlpha = a * I;
       S.paths.forEach(p => { x.lineWidth = Math.max(.6, w * p.w * u); x.beginPath(); p.pts.forEach(([px, py], j) => j ? x.lineTo(px, py) : x.moveTo(px, py)); x.stroke(); }); };
-    pass('rgba(40,110,255,.55)', 9, 26, .9);  // широкое синее свечение
-    pass('rgba(120,190,255,.95)', 3.6, 12, 1); // голубой канал
-    pass('#ffffff', 1.4, 4, 1);               // белое ядро
+    pass('rgba(40,110,255,.4)', 4, 8, .7);  // свечение
+    pass('rgba(120,190,255,.9)', 1.8, 4, .9); // канал
+    pass('#ffffff', .8, 2, .9);              // ядро
     x.globalAlpha = 1; x.shadowBlur = 0; x.globalCompositeOperation = 'source-over';
   },
 };

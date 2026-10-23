@@ -2065,3 +2065,4 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .dk-eye{position:absolute;width:4.5%;aspect-ratio:1.5;transform:translate(-50%,-50%);border-radius:50%;opacity:0;pointer-events:none;z-index:6;mix-blend-mode:screen;
   background:radial-gradient(closest-side,#fff 0 15%,rgba(150,210,255,.95) 35%,rgba(60,140,255,.45) 65%,transparent 100%);filter:blur(.4px) drop-shadow(0 0 6px #4aa3ff)}
 @media (prefers-reduced-motion:reduce){.dk-bolt,.dk-eye{display:none}}
+.dk-eye{width:2.4%;filter:blur(.3px) drop-shadow(0 0 3px #4aa3ff)}
