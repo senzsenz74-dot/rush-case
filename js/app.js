@@ -779,8 +779,10 @@ const ChainFx = {
 const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%" aria-hidden="true"><i class="tfx-rays"></i><i class="tfx-glow"></i>${
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
-function caseArt(c, cls = '') {
-  if (c.img && (c.fx || c.overlay)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || c.fx.ar}"><img src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay]() : ''}</div></div>`;
+/* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
+const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329};
+function caseArt(c, cls = '', badge = '') {
+  if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay]() : ''}</div></div>`;
   if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
   const [m, a, b] = c.show.map(n => SK[n]);
   const sparks = [[14, 20, 0], [84, 16, .9], [90, 60, 1.7], [8, 64, 2.4], [52, 6, 1.2]]
@@ -1039,7 +1041,7 @@ const caseBlock = (b, grp) => {
   </section>`;
 };
 const caseCard = c => `<a class="case-card" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
-  ${NEW_CASES.includes(c.id) ? '<span class="cc-new">Новое</span>' : ''}<div class="cc-art">${caseArt(c)}</div>
+  <div class="cc-art">${caseArt(c, '', NEW_CASES.includes(c.id) ? '<span class="cc-new">Новое</span>' : '')}</div>
   <div class="cc-body">
     <div class="cc-name">${c.name}</div>
     <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}${c.rc ? ' cc-price-rc' : ''}">${casePrice(c, c.price)}</span></div>

@@ -1776,3 +1776,5 @@ canvas.it-fx{-webkit-mask:none;mask:none;mix-blend-mode:screen}
 .sh-n{flex:none;padding:6px 12px;border-radius:999px;font:700 12px var(--ff-h);color:var(--bc);background:color-mix(in srgb,var(--bc) 10%,transparent);border:1px solid color-mix(in srgb,var(--bc) 35%,transparent)}
 @media (max-width:720px){.sh{gap:12px}.sh-tag{width:40px;height:34px}.sh-n,.sh-tt p{display:none}.home-secs .sh{margin-top:38px}}
 @media (prefers-reduced-motion:reduce){.sh-line>i{animation:none;display:none}}
+/* метка «НОВОЕ» — внутри картинки кейса: качается и увеличивается вместе с ним */
+.ca-imgbox .cc-new{position:absolute;top:4%;left:2%;z-index:6;font-size:10px;padding:3px 8px}
