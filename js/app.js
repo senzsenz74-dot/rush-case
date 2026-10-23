@@ -1989,12 +1989,37 @@ function pageProfile() {
   if (!st.user) return `<section class="container"><div class="empty-big">${ic.user}<h2>Войдите в аккаунт</h2><p>Чтобы видеть инвентарь, историю дропов и статистику.</p><button class="btn btn-primary btn-lg" data-act="login">${ic.login}Войти</button></div></section>`;
   const u = st.user, rk = rankOf(st.stats.spent), best = st.stats.best && SK[st.stats.best];
   return `<section class="container profile">
-    <div class="pf-card">
-      <div class="pf-ava">${ava(u, 'xl')}</div>
-      <div class="pf-info"><h1>${esc(u.name)}</h1><div class="pf-meta">ID ${u.id} · ${u.via === 'steam' ? 'Steam' : esc(u.email || '')} · на сайте с ${new Date(u.reg).toLocaleDateString('ru-RU')}</div>
-        <div class="rank-line"><span class="rank-badge">${ic.crown}${rk.cur.n}</span><div class="bar"><i style="width:${rk.pct}%"></i></div><span>${rk.next ? `до «${rk.next.n}» осталось ${money(rk.left)}` : 'Максимальный ранг'}</span></div>
+    <div class="pf-hero" style="--rk1:${rk.cur.c[0]};--rk2:${rk.cur.c[1]}">
+      <span class="pfh-wm" aria-hidden="true">${rk.cur.n}</span>
+      <div class="pfh-main">
+        <div class="pfh-ava">${ava(u, 'xl')}<span class="pfh-rk" title="Ранг ${rk.cur.n}">${rankIcon(rk.cur, rk.i)}</span></div>
+        <div class="pfh-info">
+          <h1>${esc(u.name)}</h1>
+          <div class="pfh-chips">
+            <button class="pfh-chip" data-act="copy" data-copy="${u.id}" title="Скопировать ID">ID ${u.id}${ic.copy}</button>
+            <span class="pfh-chip">${u.via === 'steam' ? ic.steam + 'Steam' : ic.user + esc(u.email || '')}</span>
+            <span class="pfh-chip">${ic.clock}с ${new Date(u.reg).toLocaleDateString('ru-RU')}</span>
+          </div>
+          <div class="pfh-rank">
+            <div class="pfr-top"><span class="pfr-cur">${rankIcon(rk.cur, rk.i)}<b>${rk.cur.n}</b></span>
+              <span class="pfr-pct">${Math.round(rk.pct)}%</span>
+              ${rk.next ? `<span class="pfr-next"><b>${rk.next.n}</b>${rankIcon(rk.next, rk.i + 1)}</span>` : '<span class="pfr-next"><b>Максимум</b></span>'}</div>
+            <div class="pfr-bar"><i style="width:${rk.pct}%"></i></div>
+            <div class="pfr-sub">${rk.next ? `Откройте кейсов ещё на <b>${money(rk.left)}</b>, чтобы получить «${rk.next.n}»${rk.next.cb ? ` и кэшбэк ${rk.next.cb}%` : ''}` : 'Вы достигли максимального ранга'}</div>
+          </div>
+        </div>
+        <div class="pfh-wallet">
+          <div class="pfw-bal"><span>Баланс</span><b>${money(st.balance)}</b></div>
+          <div class="pfw-rc"><img class="rc-ic" src="assets/rcoin.webp" alt=""><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b></div>
+          <div class="pfw-btns"><button class="btn btn-primary" data-act="deposit">${ic.plus}Пополнить</button><button class="btn btn-dark" data-act="logout" title="Выйти" aria-label="Выйти">${ic.logout}</button></div>
+        </div>
       </div>
-      <div class="pf-bal"><span>Баланс</span><b>${money(st.balance)}</b><div class="btns"><button class="btn btn-primary" data-act="deposit">${ic.plus}Пополнить</button><button class="btn btn-dark" data-act="logout" title="Выйти">${ic.logout}</button></div></div>
+      <div class="pfh-stats">
+        <div><span>${ic.box}Кейсов открыто</span><b>${fmt(st.stats.opened)}</b></div>
+        <div><span>${ic.coins}Потрачено на кейсы</span><b>${money(st.stats.spent)}</b></div>
+        <div><span>${ic.gem}Инвентарь</span><b>${own().length} · ${money(own().reduce((t, x) => t + SK[x.n].p, 0))}</b></div>
+        <div class="pfh-best r-${best ? best.r : 'milspec'}"><span>${ic.trophy}Лучший дроп</span>${best ? `<b><img src="${imgUrl(best, 's')}" alt="">${money(best.p)}</b>` : '<b>—</b>'}</div>
+      </div>
     </div>
     <div class="tabs-row"><div class="seg pf-seg" id="pfTabs"><button data-tab="inv">${ic.box}Инвентарь<b id="invCnt"></b></button><button data-tab="stats">${ic.trend}Статистика</button><button data-tab="rc"><img class="rc-ic" src="assets/rcoin.webp" alt="">R-COIN</button><button data-tab="hist">${ic.history}История</button></div><div class="sum" id="invSum"></div></div>
     <div id="pfBody"></div>
@@ -2025,7 +2050,7 @@ function drawPf() {
     $('#invSum').innerHTML = list.length ? `Стоимость: <b>${money(sum)}</b> &nbsp;<button class="btn btn-accent btn-sm" id="sellAllInv">${ic.coin}Продать всё</button>` : '';
     const sorted = list.slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
     body.innerHTML = `<div class="pf-trade inv-trade">
-        <div class="t">Трейд-ссылка Steam<small>Нужна для вывода скинов. <a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></small></div>
+        <div class="t"><span class="tr-ic">${ic.steam}</span><span>Трейд-ссылка Steam<small>Нужна для вывода скинов. <a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></small></span></div>
         <div class="inp-row"><input class="inp" id="tradeInp" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade)}"><button class="btn btn-accent" id="tradeSave">Сохранить</button></div>
       </div>
       <div class="items-grid inv-grid" id="invGrid">${sorted.map(x => {
