@@ -375,21 +375,21 @@ const CASES = [
     ],
   },
   {
-    id: 'bonus30', name: 'Бонусный кейс Mini', price: 30, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .55,
+    id: 'bonus30', name: 'КЕЙС №1', price: 30, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .55,
     sub: 'За 30 R-COIN: ширп от 8 до 40 ₽, главный приз — +50 ₽ на баланс',
     th: { a: '#f3c14f' }, img: 'assets/case-bonus.webp',
     bonusSet: { lo: 8, hi: 40, n: 12, cash: { 50: .04 } },
     show: [], items: [],
   },
   {
-    id: 'bonus150', name: 'Бонусный кейс Max', price: 150, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .4,
+    id: 'bonus150', name: 'КЕЙС №3', price: 150, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .4,
     sub: 'За 150 R-COIN: скины от 15 до 100 ₽, главный приз — +300 ₽ на баланс',
     th: { a: '#f3c14f' }, img: 'assets/case-bonus.webp',
     bonusSet: { lo: 15, hi: 100, n: 14, cash: { 200: .025, 300: .01 } },
     show: [], items: [],
   },
   {
-    id: 'bonus', name: 'Бонусный кейс', price: 50, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .65,
+    id: 'bonus', name: 'КЕЙС №2', price: 50, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .65,
     sub: 'Открывается за R-COIN: ширп от 10 до 55 ₽, деньги на баланс +100 и +200 ₽ и ультра-редкий скин',
     th: { a: '#f3c14f' }, img: 'assets/case-bonus.webp',
     // состав собирается в buildBonus: 14 скинов 10–55 ₽ + ультра ~300 ₽ (1 из 2 000) + 100 ₽ (3%) и 200 ₽ (1%) на баланс
@@ -1405,13 +1405,13 @@ function ccIdle(c) {
   else if (st.balance >= cost) main = `<button class="btn btn-primary btn-xl btn-cham" id="openBtn">${ic.coins}Открыть за ${money(cost)}</button>`;
   else main = `<button class="btn btn-primary btn-xl btn-cham" data-act="deposit" data-need="${cost - st.balance}">${ic.wallet}Пополнить на ${money(cost - st.balance)}</button>`;
   cc.innerHTML = `<div class="mult" role="group" aria-label="Количество кейсов">${Array.from({ length: maxN }, (_, i) => i + 1).map(n => `<button class="${n === caseN ? 'on' : ''}" data-n="${n}">x${n}</button>`).join('')}</div>
-    <div class="cc-btns">${main}<button class="btn btn-xl btn-cham btn-gline" id="demoBtn">${ic.eye}Демо</button></div>
+    <div class="cc-btns">${main}${c.rc ? '' : `<button class="btn btn-xl btn-cham btn-gline" id="demoBtn">${ic.eye}Демо</button>`}</div>
     <label class="switch"><input type="checkbox" id="fastChk"${st.fast ? ' checked' : ''}><i></i>Быстрое открытие</label>
     ${!st.user ? '<div class="cc-note">В демо-режиме выигрыш не сохраняется. <b>Войдите</b>, чтобы забирать скины по-настоящему.</div>' : ''}`;
   $$('.mult button', cc).forEach(b => b.onclick = () => { caseN = +b.dataset.n; Snd.click(); ccIdle(c); });
   $('#fastChk').onchange = e => { st.fast = e.target.checked; save(); };
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
-  $('#demoBtn').onclick = () => openCase(c, true);
+  const db = $('#demoBtn'); if (db) db.onclick = () => openCase(c, true);
 }
 /* демо: всегда предмет минимум вдвое дороже кейса (чаще 2–5×, дороже — реже); на настоящие открытия не влияет */
 function rollDemo(c) {
