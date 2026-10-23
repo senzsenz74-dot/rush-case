@@ -110,7 +110,7 @@ for (const [name, d] of Object.entries(window.SKINS)) {
 }
 const CATALOG = ITEMS.slice().sort((a, b) => a.p - b.p);
 /* денежный дроп бонусных кейсов: сразу зачисляется на рублёвый баланс, в инвентарь не попадает */
-[100, 200].forEach(v => { SK[`${v} ₽ на баланс`] = { name: `${v} ₽ на баланс`, w: 'На баланс', f: `+${v} ₽`, r: v >= 200 ? 'covert' : 'classified', p: v, c: 'cash', cash: v, img: `assets/cash-${v}.webp` }; });
+[50, 100, 200, 300].forEach(v => { SK[`${v} ₽ на баланс`] = { name: `${v} ₽ на баланс`, w: 'На баланс', f: `+${v} ₽`, r: v >= 300 ? 'rare' : v >= 200 ? 'covert' : v >= 100 ? 'classified' : 'restricted', p: v, c: 'cash', cash: v, img: `assets/cash-${v}.webp` }; });
 /* предметы с market.csgo.com: ножи, перчатки, наклейки, граффити, значки, агенты, ширп — участвуют только в апгрейде */
 const STEAM_IMG = 'https://community.steamstatic.com/economy/image/';
 const CAT_SKIN = 'skin';
@@ -160,6 +160,15 @@ function solveWin(items, target, price, win, fix = {}, floor = Math.max(0, ...Ob
 }
 /* то же, но «скромность» выигрышей задаётся вручную: kh фиксирован (больше kh — чаще выигрыш чуть дороже кейса),
    а распределение дешёвой части (kl, может быть < 0) подбирается под RTP */
+/* бонусные кейсы: фиксированные шансы (деньги, ультра) + ширп с весами ~ p^-k, k подбирается под матожидание */
+function solveBonus(items, target, fix = {}) {
+  let fMass = 0, fEv = 0; items.forEach(it => { if (fix[it.name] != null) { fMass += fix[it.name]; fEv += fix[it.name] * it.p; } });
+  const rest = items.filter(it => fix[it.name] == null), m = 1 - fMass, need = (target - fEv) / m;
+  const ev = k => { let sw = 0, sv = 0; rest.forEach(it => { const w = it.p ** -k; sw += w; sv += w * it.p; }); return sv / sw; };
+  let a = -6, b = 12; for (let i = 0; i < 80; i++) { const mid = (a + b) / 2; if (ev(mid) > need) a = mid; else b = mid; }
+  const k = (a + b) / 2, sw = rest.reduce((t, it) => t + it.p ** -k, 0);
+  return items.map(it => fix[it.name] ?? m * it.p ** -k / sw);
+}
 function solveWinKh(items, target, price, win, kh, fix = {}) {
   const ev = (arr, k) => { let sw = 0, sv = 0; for (const it of arr) { const w = it.p ** -k; sw += w; sv += w * it.p; } return sv / sw; };
   const norm = (arr, mass, k) => { const sw = arr.reduce((t, it) => t + it.p ** -k, 0); return new Map(arr.map(it => [it, mass * it.p ** -k / sw])); };
@@ -366,7 +375,21 @@ const CASES = [
     ],
   },
   {
-    id: 'bonus', name: 'Бонусный кейс', price: 50, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .8, win: .12,
+    id: 'bonus30', name: 'Бонусный кейс Mini', price: 30, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .55,
+    sub: 'За 30 R-COIN: ширп от 8 до 40 ₽, главный приз — +50 ₽ на баланс',
+    th: { a: '#f3c14f' }, img: 'assets/case-bonus.webp',
+    bonusSet: { lo: 8, hi: 40, n: 12, cash: { 50: .04 } },
+    show: [], items: [],
+  },
+  {
+    id: 'bonus150', name: 'Бонусный кейс Max', price: 150, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .4,
+    sub: 'За 150 R-COIN: скины от 15 до 100 ₽, главный приз — +300 ₽ на баланс',
+    th: { a: '#f3c14f' }, img: 'assets/case-bonus.webp',
+    bonusSet: { lo: 15, hi: 100, n: 14, cash: { 200: .025, 300: .01 } },
+    show: [], items: [],
+  },
+  {
+    id: 'bonus', name: 'Бонусный кейс', price: 50, rc: true, tag: 'За R-COIN', tagIc: 'gift', rtp: .65,
     sub: 'Открывается за R-COIN: ширп от 10 до 55 ₽, деньги на баланс +100 и +200 ₽ и ультра-редкий скин',
     th: { a: '#f3c14f' }, img: 'assets/case-bonus.webp',
     // состав собирается в buildBonus: 14 скинов 10–55 ₽ + ультра ~300 ₽ (1 из 2 000) + 100 ₽ (3%) и 200 ₽ (1%) на баланс
@@ -479,7 +502,7 @@ const CASES = [
     c.strict = true;
     c.items = buildSet(c, pool, band(b.lo / c.price, b.hi / c.price, b.n), new Set(), b.lo);
     const usedB = new Set(c.items.map(n => baseOf(SK[n])));
-    const ul = ITEMS.filter(x => x.c === 'skin' && !usedB.has(baseOf(x))).reduce((a, x) => !a || Math.abs(x.p - b.ultra) < Math.abs(a.p - b.ultra) ? x : a, null);
+    const ul = !b.ultra ? null : ITEMS.filter(x => x.c === 'skin' && !usedB.has(baseOf(x))).reduce((a, x) => !a || Math.abs(x.p - b.ultra) < Math.abs(a.p - b.ultra) ? x : a, null);
     c.fix = {};
     if (ul) { c.items.push(ul.name); c.fix[ul.name] = b.ultraCh; }
     Object.entries(b.cash).forEach(([v, ch]) => { const n = `${v} ₽ на баланс`; c.items.push(n); c.fix[n] = ch; });
@@ -527,7 +550,7 @@ const CASES = [
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
 CASES.forEach(c => {
   const items = c.items.map(n => { if (!SK[n]) throw new Error('Нет скина: ' + n); return SK[n]; });
-  const ch = c.kh ? solveWinKh(items, c.price * c.rtp, c.price, c.win, c.kh, c.fix) : c.win ? solveWin(items, c.price * c.rtp, c.price, c.win, c.fix) : solveChances(items, c.price * c.rtp);
+  const ch = c.bonusSet ? solveBonus(items, c.price * c.rtp, c.fix) : c.kh ? solveWinKh(items, c.price * c.rtp, c.price, c.win, c.kh, c.fix) : c.win ? solveWin(items, c.price * c.rtp, c.price, c.win, c.fix) : solveChances(items, c.price * c.rtp);
   const fwRaw = ch.map(x => Math.sqrt(x)), fs = fwRaw.reduce((a, b) => a + b, 0);
   c.items = items.map((s, i) => ({ ...s, ch: ch[i], fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p);
   c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
