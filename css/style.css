@@ -1800,3 +1800,15 @@ canvas.it-fx{-webkit-mask:none;mask:none;mix-blend-mode:screen}
 .jr-t{margin-left:auto;color:var(--rc)}
 @media (max-width:1000px){.jp-rooms{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:520px){.jp-rooms{gap:8px}.jp-room{padding:11px 12px}.jr-st{gap:8px;font-size:11px}}
+
+/* главная: три промо в ряд, карточка соцсетей */
+.promo-row{grid-template-columns:repeat(3,1fr)}
+@media (max-width:1100px){.promo-row{grid-template-columns:1fr 1fr}.promo-soc{grid-column:1/-1}}
+@media (max-width:720px){.promo-row{grid-template-columns:1fr}}
+.promo-soc{background:radial-gradient(120% 120% at 100% 0%,rgba(92,200,255,.18),transparent 55%),linear-gradient(135deg,#141823,#0b0c10)}
+.promo-soc p{color:var(--txt2);margin:6px 0 12px;font-size:13.5px}
+.soc-ic{display:flex;gap:8px;margin-bottom:14px}
+.soc-ic span{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#9fd8ff}
+.soc-ic svg{width:20px;height:20px}
+/* апгрейд: выбранный множитель */
+.mults button.on{color:#1a1204;border-color:transparent;background:linear-gradient(180deg,#ffeaa6,#f6c650 50%,#d6941f);box-shadow:0 0 16px -4px rgba(246,198,80,.9)}

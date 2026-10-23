@@ -436,7 +436,7 @@ const CASES = [
     return out;
   }
   // минимальный дроп не дешевле floor ₽ + n дополнительных позиций в диапазоне lo–hi ₽
-  const EXTRA_SET = { sifon: [9, 9, 15, 10], frog: [70, 70, 240, 12], orange: [50, 50, 300, 20], cotton: [200, 200, 800, 25], premium: [600, 600, 3500, 25] };
+  const EXTRA_SET = { alt: [100, 100, 400, 15], sifon: [9, 9, 15, 10], frog: [70, 70, 240, 12], orange: [50, 50, 300, 20], cotton: [200, 200, 800, 25], premium: [600, 600, 3500, 25] };
   function addBand(c, pool) {
     const e = EXTRA_SET[c.id]; if (!e) return;
     const [floor, lo, hi, n] = e;
@@ -563,6 +563,7 @@ function sellItem(id, silent) {
 /* ---------- sound (WebAudio, без файлов) ---------- */
 const Snd = {
   ctx: null, out: null, nbuf: null,
+  get kk() { return document.querySelector('.upg') ? .4 : 1; }, // на странице апгрейда все звуки тише
   get a() {
     if (!this.ctx) {
       try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
@@ -582,7 +583,7 @@ const Snd = {
     if (!st.sound) return; const a = this.a; if (!a) return;
     const t = a.currentTime + when, o = a.createOscillator(), g = a.createGain();
     o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
-    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    vol *= this.kk; g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
     o.connect(g); g.connect(this.out); o.start(t); o.stop(t + dur + .05);
   },
   /* щелчок шума через фильтр */
@@ -590,7 +591,7 @@ const Snd = {
     if (!st.sound) return; const a = this.a; if (!a) return;
     const t = a.currentTime + when, s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
     s.buffer = this.nbuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    g.gain.setValueAtTime(vol * this.kk, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(this.out); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
   },
   /* твёрдый «щелчок храповика» для лент и колеса */
@@ -606,7 +607,7 @@ const Snd = {
   bufs: {},
   preload(name, url) { fetch(url).then(r => r.arrayBuffer()).then(ab => { this.bufs[name] = ab; }).catch(() => {}); },
   async play(name, vol = 1, rate = 1) {
-    if (!st.sound) return false; const a = this.a; if (!a) return false;
+    if (!st.sound) return false; const a = this.a; if (!a) return false; vol *= this.kk;
     let b = this.bufs[name]; if (!b) return false;
     if (b instanceof ArrayBuffer) { try { b = this.bufs[name] = await a.decodeAudioData(b); } catch (e) { return false; } }
     const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; s.playbackRate.value = rate; g.gain.value = vol; s.connect(g); g.connect(a.destination); s.start(); return true;
@@ -998,6 +999,7 @@ function pageHome() {
     <div class="promo-row">
       <div class="promo promo-dep"><div><h3>Бонус к пополнению <em>+35%</em></h3><div class="code">RUSH35</div><br><button class="btn btn-light btn-sm" data-act="copy" data-copy="RUSH35">${ic.copy}Скопировать</button></div><div class="promo-pct">%</div></div>
       <div class="promo promo-daily"><div><h3>Ежедневный бонус</h3><p id="dailyHome">${dailyLeft() ? 'Следующий через ' + dailyText() : 'Уже доступен! До 250 ₽ на баланс'}</p><a class="btn btn-outline btn-sm" href="#/bonus">${ic.gift}Получить</a></div><img src="assets/soldier.png" alt=""></div>
+      <div class="promo promo-soc"><div><h3>Бонус за соцсети</h3><p>+10 ₽ на баланс за подписку на каждый наш канал</p><div class="soc-ic">${SOCIALS.map(x => `<span>${ic[x.i]}</span>`).join('')}</div><a class="btn btn-outline btn-sm" href="#/bonus">${ic.gift}Забрать бонус</a></div></div>
     </div>
     <div class="features">
       ${[['shield', 'Честно', 'Результат определяется до начала анимации — рулетка лишь показывает выпавший предмет.'], ['bolt', 'Быстрый вывод', 'Скины уходят в Steam через трейд за пару минут.'], ['gift', 'Бонусы', 'Ежедневный бонус, промокоды и кэшбэк за ранг.'], ['chat', 'Поддержка 24/7', 'Отвечаем в чате и Telegram в любое время.']]
@@ -1196,13 +1198,16 @@ function resetRoulette() {
 }
 function ccIdle(c) {
   const cc = $('#cc'); if (!cc) return;
+  const have = c.rc ? (st.rcoin || 0) : st.balance;
+  const maxN = st.user ? clamp(Math.floor(have / c.price + 1e-9), 1, 7) : 7;
+  if (caseN > maxN) caseN = maxN;
   const cost = c.price * caseN;
   let main;
   if (!st.user) main = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`;
   else if (c.rc) main = (st.rcoin || 0) >= cost ? `<button class="btn btn-primary btn-xl btn-cham btn-rc" id="openBtn">Открыть за ${casePrice(c, cost)}</button>` : `<a class="btn btn-primary btn-xl btn-cham btn-rc" href="#/profile">Не хватает ${casePrice(c, cost - (st.rcoin || 0))}</a>`;
   else if (st.balance >= cost) main = `<button class="btn btn-primary btn-xl btn-cham" id="openBtn">${ic.coins}Открыть за ${money(cost)}</button>`;
   else main = `<button class="btn btn-primary btn-xl btn-cham" data-act="deposit" data-need="${cost - st.balance}">${ic.wallet}Пополнить на ${money(cost - st.balance)}</button>`;
-  cc.innerHTML = `<div class="mult" role="group" aria-label="Количество кейсов">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button class="${n === caseN ? 'on' : ''}" data-n="${n}">x${n}</button>`).join('')}</div>
+  cc.innerHTML = `<div class="mult" role="group" aria-label="Количество кейсов">${Array.from({ length: maxN }, (_, i) => i + 1).map(n => `<button class="${n === caseN ? 'on' : ''}" data-n="${n}">x${n}</button>`).join('')}</div>
     <div class="cc-btns">${main}<button class="btn btn-xl btn-cham btn-gline" id="demoBtn">${ic.eye}Демо</button></div>
     <label class="switch"><input type="checkbox" id="fastChk"${st.fast ? ' checked' : ''}><i></i>Быстрое открытие</label>
     ${!st.user ? '<div class="cc-note">В демо-режиме выигрыш не сохраняется. <b>Войдите</b>, чтобы забирать скины по-настоящему.</div>' : ''}`;
@@ -1422,7 +1427,7 @@ function ccDone(c, wins, given, demo) {
 /* =========================================================
    UPGRADE
    ========================================================= */
-const upg = { cat: 'all', sel: [], bal: 0, to: null, q: '', sort: 'asc', rot: 0, busy: false };
+const upg = { cat: 'all', mult: 0, sel: [], bal: 0, to: null, q: '', sort: 'asc', rot: 0, busy: false };
 const ARC_R = 138;
 const upgItems = () => upg.sel.map(id => st.inv.find(x => x.id === id && x.st === 'own')).filter(Boolean);
 function upgValue() { return upgItems().reduce((a, x) => a + SK[x.n].p, 0) + upg.bal; }
@@ -1489,7 +1494,7 @@ function pageUpgrade() {
           </svg></div>
           <div class="w-center"><b id="wChance">0%</b><span id="wLabel">шанс</span></div>
         </div>
-        <div class="mults">${[1.5, 2, 3, 5, 10].map(m => `<button data-m="${m}">x${m}</button>`).join('')}</div>
+        <div class="mults">${[1.5, 2, 2.5, 3, 5, 10].map(m => `<button data-m="${m}">x${m}</button>`).join('')}</div>
         <button class="btn btn-primary btn-xl" id="upgBtn">${ic.up}Апгрейд</button>
       </div>
       <div class="upg-slot" id="upgTo"></div>
@@ -1513,10 +1518,12 @@ function mountUpgrade() {
   upg.busy = false;
   $$('#upgSort button').forEach(b => b.onclick = () => { upg.sort = b.dataset.s; drawTargets(); });
   $('#upgQ').oninput = e => { upg.q = e.target.value.trim().toLowerCase(); drawTargets(); };
-  $$('#upgCats [data-cat]').forEach(b => { b.classList.toggle('on', b.dataset.cat === upg.cat); b.onclick = () => { upg.cat = b.dataset.cat; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x === b)); drawTargets(); }; });
+  $$('#upgCats [data-cat]').forEach(b => { b.classList.toggle('on', b.dataset.cat === upg.cat); b.onclick = () => { upg.cat = b.dataset.cat; upg.mult = 0; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x === b)); drawTargets(); }; });
   $$('.mults button').forEach(b => b.onclick = () => {
     if (upg.busy) return;
     const v = upgValue(); if (!v) return toast('Сначала соберите ставку', 'err');
+    if (upg.mult === +b.dataset.m) { upg.mult = 0; Snd.safeSel(false); return drawUpg(); } // повторный клик — сбросить фильтр
+    upg.mult = +b.dataset.m; upg.cat = 'all';
     const want = v * +b.dataset.m;
     // случайный предмет из ВСЕХ категорий с ценой около нужного множителя (±12%), независимо от выбранной вкладки
     const pool = UPG_CAT.filter(s => s.p > v * 1.05);
@@ -1631,6 +1638,13 @@ function drawBalPop() {
 function drawTargets() {
   const v = upgValue(), box = $('#upgTargets'); if (!box) return;
   let list = UPG_CAT.filter(s => s.p > v * 1.05 && (upg.cat === 'all' || s.c === upg.cat) && (!upg.q || s.name.toLowerCase().includes(upg.q)));
+  // фильтр по множителю: только предметы около v × m (±12%); если таких мало — ближайшие по цене
+  if (upg.mult && v) {
+    const want = v * upg.mult, near = list.filter(s => s.p >= want * .88 && s.p <= want * 1.12);
+    list = near.length >= 3 ? near : list.slice().sort((a, z) => Math.abs(Math.log(a.p / want)) - Math.abs(Math.log(z.p / want))).slice(0, 12).sort((a, z) => a.p - z.p);
+    if (upg.sort === 'desc') list.reverse();
+  }
+  $$('.mults button').forEach(x => x.classList.toggle('on', +x.dataset.m === upg.mult));
   if (upg.sort === 'desc') list = list.slice().reverse();
   const total = list.length, LIMIT = 240;
   if (total > LIMIT) { const k = upg.to ? list.findIndex(s => s.name === upg.to) : -1; const st0 = k >= LIMIT ? Math.max(0, k - Math.floor(LIMIT / 2)) : 0; list = list.slice(st0, st0 + LIMIT); }
@@ -1689,7 +1703,7 @@ async function runUpgrade() {
   cEl.textContent = win ? '' : 'LOSE';
   $('#wLabel').textContent = win ? '' : 'не повезло';
   if (win) { Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
-  else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); }
+  else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); addRcoin(v * .005, 'Утешительный бонус: апгрейд'); }
   // победа — карточка выигрыша поверх апгрейда, ждём выбор игрока
   let act = null;
   if (win) act = await upgWinCard(ts);
@@ -1987,7 +2001,7 @@ function pageProfile() {
     </div>
     <div class="pf-rc" id="rcoins">
       <div class="rc-head"><img class="rc-ic big" src="assets/rcoin.webp" alt="" aria-hidden="true"><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах (скоро)</small></div></div>
-      <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый.</p>
+      <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый. А ещё <em>0,5% от пополнения</em> и <em>0,5% от ставки</em> при проигрыше в апгрейде.</p>
         <div class="rc-ex">${CASES.slice().sort((a, b) => a.price - b.price).map(c => `<span>${esc(c.name)} <i>+${rc(Math.round(c.price * RCOIN_RATE(c) * 100 + 1e-6) / 100)}</i></span>`).join('')}</div></div>
       <div class="rc-log"><b>История</b>${(st.rlog || []).length ? (st.rlog || []).slice(0, 20).map(x => `<div><span>${esc(x.note)}</span><small>${new Date(x.ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small><i class="${x.v < 0 ? 'neg' : ''}">${x.v < 0 ? '−' + rc(-x.v) : '+' + rc(x.v)}</i></div>`).join('') : '<p class="muted">Откройте кейс — здесь появятся начисления.</p>'}</div>
     </div>
@@ -2240,6 +2254,7 @@ function openDeposit(need = 0) {
     await sleep(900);
     st.depBonus = 0; st.stats.dep += amount;
     setBalance(st.balance + total); Snd.file('assets/sounds/deposit.wav'); closeModal();
+    addRcoin(amount * .005, `Пополнение на ${money(amount)}`);
     toast(`Баланс пополнен на <b>+${money(total)}</b>`);
     if (total >= 1000) burst(26);
     route();
