@@ -1211,6 +1211,14 @@ function ccIdle(c) {
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
   $('#demoBtn').onclick = () => openCase(c, true);
 }
+/* демо: всегда предмет минимум вдвое дороже кейса (чаще 2–5×, дороже — реже); на настоящие открытия не влияет */
+function rollDemo(c) {
+  let pool = c.items.filter(s => s.p >= c.price * 2);
+  if (!pool.length) pool = c.items.slice().sort((a, b) => b.p - a.p).slice(0, 3);
+  const w = pool.map(s => (s.p / c.price) ** -1.6), sw = w.reduce((a, b) => a + b, 0);
+  let r = Math.random() * sw; for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) return pool[i]; }
+  return pool[0];
+}
 async function openCase(c, demo) {
   if (spinning) return;
   const n = caseN, cost = c.price * n;
@@ -1220,7 +1228,7 @@ async function openCase(c, demo) {
     else if (st.balance < cost) return openDeposit(cost - st.balance);
   }
   resetRoulette();
-  const wins = Array.from({ length: n }, () => roll(c.items));
+  const wins = Array.from({ length: n }, () => demo ? rollDemo(c) : roll(c.items));
   wins.forEach(s => { new Image().src = imgUrl(s, 'l'); }); // большие картинки грузим, пока крутится рулетка
   let given = [];
   if (!demo) {
