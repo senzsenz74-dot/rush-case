@@ -1851,3 +1851,7 @@ canvas.it-fx{-webkit-mask:none;mask:none;mix-blend-mode:screen}
   .user-area{gap:8px}
 }
 @media (max-width:520px){.ubtn>svg{display:none}.ubtn .ava{width:34px;height:34px}.wal-plus{width:32px;height:32px}}
+/* монета R-COIN: без свечения — объём тенью (торец + падающая тень) */
+img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.sec-sub img.rc-ic,.sh-tag img.rc-ic,.cs-hex-in img.rc-ic{
+  filter:drop-shadow(0 1.5px 0 #6b4306) drop-shadow(0 3px 0 #3a2403) drop-shadow(0 6px 5px rgba(0,0,0,.75))}
+img.rc-ic.big{filter:drop-shadow(0 3px 0 #6b4306) drop-shadow(0 6px 0 #3a2403) drop-shadow(0 12px 12px rgba(0,0,0,.75))}
