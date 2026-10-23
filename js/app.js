@@ -985,7 +985,10 @@ function pageHome() {
       <div class="sb-i"><span class="sb-ic">${ic.users}</span><div><b>24 816</b><span>Игроков</span></div></div>
       <div class="sb-i"><span class="sb-ic">${ic.shield}</span><div><b>98.7%</b><span>Выплат</span></div></div>
     </div>
-    <div class="cs-blocks">${CASE_BLOCKS.map(b => caseBlock(b)).join('')}</div>
+    <div class="sec-row"><h2 class="sec-h">Популярные кейсы</h2><i class="st-line"></i></div>
+    <div class="cases-grid" id="popRow">${HOME_POP.map(caseById).filter(Boolean).map(caseCard).join('')}</div>
+    <div class="sec-row sec-more"><h2 class="sec-h">Новые кейсы</h2><i class="st-line"></i></div>
+    <div class="cases-grid" id="newRow">${NEW_CASES.map(caseById).filter(Boolean).map(caseCard).join('')}</div>
     <div class="promo-row">
       <div class="promo promo-dep"><div><h3>Бонус к пополнению <em>+35%</em></h3><div class="code">RUSH35</div><br><button class="btn btn-light btn-sm" data-act="copy" data-copy="RUSH35">${ic.copy}Скопировать</button></div><div class="promo-pct">%</div></div>
       <div class="promo promo-daily"><div><h3>Ежедневный бонус</h3><p id="dailyHome">${dailyLeft() ? 'Следующий через ' + dailyText() : 'Уже доступен! До 250 ₽ на баланс'}</p><a class="btn btn-outline btn-sm" href="#/bonus">${ic.gift}Получить</a></div><img src="assets/soldier.png" alt=""></div>
@@ -1012,22 +1015,19 @@ const blockCases = b => {
   const extra = b.id === 'pop' ? CASES.filter(c => !listed.has(c.id) && !c.rc) : b.rc ? CASES.filter(c => c.rc && !listed.has(c.id)) : [];
   return [...b.ids.map(caseById).filter(Boolean), ...extra];
 };
+/* главная: популярные + новые (с меткой «НОВОЕ») */
+const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
+const NEW_CASES = ['gold', 'zont', 's1mple', 'frog', 'bonus'];
+/* страница «Кейсы»: группы с тонким заголовком */
 const caseBlock = (b, grp) => {
   const list = blockCases(b); if (!list.length) return '';
-  const n = CASE_BLOCKS.indexOf(b) + 1;
-  return `<section class="cs-block cs-${b.id}" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>
-    <header class="cs-plate"><div class="cs-plate-in">
-      <span class="cs-wm" aria-hidden="true">${b.wm}</span>
-      <span class="cs-emb" aria-hidden="true"><span class="cs-hex"><span class="cs-hex-in">${b.rc ? RC_IMG : ic[b.ic]}</span></span></span>
-      <div class="cs-tt"><span class="cs-kick">Блок ${String(n).padStart(2, '0')}</span><h2>${b.t}</h2><p>${b.sub}</p></div>
-      <div class="cs-side"><span class="cs-stripes" aria-hidden="true"></span><span class="cs-cnt"><b>${list.length}</b>${plural(list.length, 'кейс', 'кейса', 'кейсов')}</span></div>
-      <i class="cs-sweep" aria-hidden="true"></i>
-    </div></header>
+  return `<section class="cs-block" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>
+    <div class="cs-h"><i class="cs-dot"></i><h2>${b.t}</h2><span class="cs-n">${list.length}</span><i class="cs-line"></i></div>
     <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${list.map(caseCard).join('')}</div>
   </section>`;
 };
 const caseCard = c => `<a class="case-card" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
-  <div class="cc-art">${caseArt(c)}</div>
+  ${NEW_CASES.includes(c.id) ? '<span class="cc-new">Новое</span>' : ''}<div class="cc-art">${caseArt(c)}</div>
   <div class="cc-body">
     <div class="cc-name">${c.name}</div>
     <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}${c.rc ? ' cc-price-rc' : ''}">${casePrice(c, c.price)}</span></div>

@@ -1746,78 +1746,13 @@ canvas.it-fx{-webkit-mask:none;mask:none;mix-blend-mode:screen}
 .sec-sub img.rc-ic{width:22px;height:22px}
 .rc-log>div i.neg{color:#ff8a8a}
 
-/* ===== блоки кейсов v2: шапка-плита + свечение «пола», карточки без коробок ===== */
-.cs-blocks{display:flex;flex-direction:column;gap:64px;margin-top:48px}
-.cs-block{position:relative;isolation:isolate}
-/* свечение «пола» под кейсами блока */
-.cs-block::after{content:"";position:absolute;left:4%;right:4%;bottom:-26px;height:46%;z-index:-1;pointer-events:none;
-  background:radial-gradient(60% 100% at 50% 100%,color-mix(in srgb,var(--bc) 16%,transparent),transparent 70%)}
-/* шапка: скошенные углы, кромка цвета блока (внешний слой — кромка, внутренний — плита) */
-.cs-plate{--cut:22px;position:relative;margin-bottom:30px;padding:1.5px;
-  clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut));
-  background:linear-gradient(100deg,var(--bc) 0%,color-mix(in srgb,var(--bc) 45%,transparent) 22%,rgba(255,255,255,.08) 55%,color-mix(in srgb,var(--bc) 55%,transparent) 100%);
-  filter:drop-shadow(0 18px 30px rgba(0,0,0,.6))}
-.cs-plate-in{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:24px;min-height:112px;padding:18px 30px 18px 24px;overflow:hidden;
-  clip-path:polygon(calc(var(--cut) - 1px) 0,100% 0,100% calc(100% - var(--cut) + 1px),calc(100% - var(--cut) + 1px) 100%,0 100%,0 calc(var(--cut) - 1px));
-  background:
-    repeating-linear-gradient(135deg,rgba(255,255,255,.022) 0 2px,transparent 2px 9px),
-    radial-gradient(70% 160% at 0% 50%,color-mix(in srgb,var(--bc) 26%,transparent),transparent 60%),
-    linear-gradient(180deg,#16130e 0%,#0c0b09 55%,#080807 100%)}
-/* огромный контурный водяной знак */
-.cs-wm{position:absolute;right:170px;top:50%;transform:translateY(-52%);font:900 clamp(70px,9vw,132px)/1 var(--ff-h);letter-spacing:.02em;white-space:nowrap;pointer-events:none;
-  color:transparent;-webkit-text-stroke:1.5px color-mix(in srgb,var(--bc) 30%,transparent);opacity:.9;
-  -webkit-mask:linear-gradient(90deg,transparent,#000 25%,#000 75%,transparent);mask:linear-gradient(90deg,transparent,#000 25%,#000 75%,transparent)}
-/* шестигранная эмблема */
-.cs-emb{position:relative;z-index:1;filter:drop-shadow(0 0 14px color-mix(in srgb,var(--bc) 70%,transparent))}
-.cs-hex{display:flex;align-items:center;justify-content:center;width:70px;height:78px;padding:2px;
-  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(160deg,color-mix(in srgb,var(--bc) 60%,#fff),var(--bc) 45%,color-mix(in srgb,var(--bc) 40%,#000))}
-.cs-hex-in{display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--bc);
-  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--bc) 22%,#14110c),#0b0a08 75%)}
-.cs-hex-in svg{width:30px;height:30px;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--bc) 80%,transparent))}
-.cs-hex-in img.rc-ic{width:46px;height:46px}
-/* заголовок */
-.cs-tt{position:relative;z-index:1;min-width:0}
-.cs-kick{display:inline-flex;align-items:center;gap:10px;font:800 11px var(--ff-h);letter-spacing:.32em;text-transform:uppercase;color:var(--bc)}
-.cs-kick::after{content:"";width:46px;height:1.5px;background:linear-gradient(90deg,var(--bc),transparent)}
-.cs-tt h2{margin:6px 0 0;font:900 clamp(26px,3.2vw,42px)/1 var(--ff-h);text-transform:uppercase;letter-spacing:.01em;
-  background:linear-gradient(180deg,#ffffff 0%,#fff6e4 40%,color-mix(in srgb,var(--bc) 70%,#fff) 72%,var(--bc) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 2px 0 rgba(0,0,0,.6)) drop-shadow(0 0 22px color-mix(in srgb,var(--bc) 35%,transparent))}
-.cs-tt p{margin:8px 0 0;color:#b9b2a5;font-size:14px;max-width:560px}
-/* правая часть: полосы и счётчик */
-.cs-side{position:relative;z-index:1;display:flex;align-items:center;gap:18px}
-.cs-stripes{width:96px;height:16px;transform:skewX(-20deg);background:repeating-linear-gradient(90deg,var(--bc) 0 9px,transparent 9px 17px);opacity:.85;
-  -webkit-mask:linear-gradient(90deg,transparent,#000 40%);mask:linear-gradient(90deg,transparent,#000 40%)}
-.cs-cnt{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:76px;height:64px;padding:0 12px;
-  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
-  background:linear-gradient(180deg,color-mix(in srgb,var(--bc) 22%,#14110c),#0b0a08);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bc) 45%,transparent);
-  font:700 10.5px var(--ff-h);letter-spacing:.14em;text-transform:uppercase;color:#a9a294}
-.cs-cnt b{font:900 26px/1 var(--ff-h);letter-spacing:0;color:#fff;text-shadow:0 0 14px color-mix(in srgb,var(--bc) 70%,transparent)}
-/* бегущий блик по плите */
-.cs-sweep{position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.07) 48%,rgba(255,255,255,.16) 50%,rgba(255,255,255,.07) 52%,transparent 60%) no-repeat;background-size:260% 100%;background-position:140% 0;animation:csSweep 7s ease-in-out infinite}
-.cs-pro .cs-sweep{animation-delay:-1.7s}.cs-allin .cs-sweep{animation-delay:-3.4s}.cs-farm .cs-sweep{animation-delay:-5.1s}
-@keyframes csSweep{0%,55%{background-position:140% 0}85%,100%{background-position:-60% 0}}
-.cs-block .cases-grid{margin-top:0;position:relative}
-/* характер блоков */
-.cs-allin .cs-stripes{background:repeating-linear-gradient(90deg,#ff4d4d 0 9px,#f3c14f 9px 18px,transparent 18px 26px);animation:csCrawl 1.2s linear infinite}
-@keyframes csCrawl{to{background-position:26px 0}}
-.cs-allin .cs-emb{animation:csPulse 2.2s ease-in-out infinite}
-@keyframes csPulse{50%{filter:drop-shadow(0 0 26px var(--bc)) drop-shadow(0 0 8px #f3c14f)}}
-.cs-allin .cs-wm{animation:csFlicker 5s steps(1) infinite}
-@keyframes csFlicker{0%,100%{opacity:.9}62%{opacity:.35}64%{opacity:.9}66%{opacity:.5}68%{opacity:.9}}
-.cs-allin .cs-plate-in{background:repeating-linear-gradient(135deg,rgba(255,77,77,.035) 0 2px,transparent 2px 9px),radial-gradient(60% 160% at 0% 50%,rgba(255,77,77,.3),transparent 60%),radial-gradient(50% 140% at 100% 50%,rgba(243,193,79,.14),transparent 60%),linear-gradient(180deg,#1a0f0c 0%,#0e0908 55%,#080606 100%)}
-.cs-farm .cs-hex-in img.rc-ic{animation:csCoin 4s ease-in-out infinite}
-@keyframes csCoin{0%,40%{transform:rotateY(0)}60%,100%{transform:rotateY(360deg)}}
-.cs-pro .cs-plate-in::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(92,200,255,.05) 0 1px,transparent 1px 4px)}
-@media (max-width:900px){.cs-wm{right:20px;opacity:.5}.cs-stripes{display:none}}
-@media (max-width:720px){
-  .cs-blocks{gap:44px;margin-top:34px}
-  .cs-plate{--cut:14px;margin-bottom:20px}
-  .cs-plate-in{gap:14px;min-height:0;padding:14px 14px 14px 12px;grid-template-columns:auto 1fr}
-  .cs-side{display:none}
-  .cs-hex{width:50px;height:56px}.cs-hex-in svg{width:22px;height:22px}.cs-hex-in img.rc-ic{width:32px;height:32px}
-  .cs-tt p{font-size:12.5px}.cs-kick{font-size:9.5px;letter-spacing:.24em}
-  .cs-wm{font-size:64px;right:-10px}
-}
-@media (prefers-reduced-motion:reduce){.cs-sweep,.cs-allin .cs-stripes,.cs-allin .cs-emb,.cs-allin .cs-wm,.cs-farm .cs-hex-in img.rc-ic{animation:none}}
-/* свечение «пола»: замкнутый эллипс, гаснет во все стороны (без обреза по нижней кромке) */
-.cs-block::after{left:6%;right:6%;top:42%;bottom:-70px;height:auto;background:radial-gradient(closest-side,color-mix(in srgb,var(--bc) 14%,transparent) 0%,color-mix(in srgb,var(--bc) 6%,transparent) 55%,transparent 100%)}
+/* ===== группы кейсов (страница «Кейсы») — минимально ===== */
+.cs-blocks{display:flex;flex-direction:column;gap:40px;margin-top:30px}
+.cs-h{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.cs-dot{width:8px;height:8px;border-radius:50%;background:var(--bc);box-shadow:0 0 10px var(--bc)}
+.cs-h h2{margin:0;font:800 18px var(--ff-h);text-transform:uppercase;letter-spacing:.06em;color:#f3eee4}
+.cs-n{font:700 13px var(--ff-h);color:var(--txt3)}
+.cs-line{flex:1;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--bc) 45%,transparent),transparent)}
+/* метка «НОВОЕ» */
+.case-card{position:relative}
+.cc-new{position:absolute;top:6px;left:8px;z-index:5;padding:4px 9px;border-radius:6px;font:800 10.5px var(--ff-h);letter-spacing:.12em;text-transform:uppercase;color:#1a1204;background:linear-gradient(180deg,#ffeaa6,#f6c650 50%,#d6941f);box-shadow:0 4px 14px -4px rgba(246,198,80,.8)}
