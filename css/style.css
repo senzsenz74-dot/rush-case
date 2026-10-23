@@ -2038,3 +2038,18 @@ button.pfh-chip{cursor:pointer}button.pfh-chip:hover{color:var(--gold);border-co
 img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.sec-sub img.rc-ic,.sh-tag img.rc-ic,.cs-hex-in img.rc-ic,.pfw-rc img.rc-ic,.pf-seg img.rc-ic,img.rc-ic.big{filter:none!important;display:block;align-self:center}
 .wal .rc{align-items:center}
 .wal .rc img.rc-ic{width:28px;height:28px}
+
+/* ===== эффекты на персонажах рамки ===== */
+.fr-fx{position:absolute;inset:0;z-index:9;pointer-events:none}
+.fr-eye{position:absolute;width:1.5%;aspect-ratio:1.6;transform:translate(-50%,-50%);border-radius:50%;opacity:0;transition:opacity .4s;
+  background:radial-gradient(closest-side,#fff 0 12%,#ff3030 30%,rgba(255,0,0,.55) 60%,transparent 100%);mix-blend-mode:screen;filter:drop-shadow(0 0 6px #ff1a1a) drop-shadow(0 0 14px rgba(255,0,0,.8))}
+.rl-framed:has(.rl.spinning) .fr-eye,.rl-framed:has(.rl.unlocking) .fr-eye{opacity:1;animation:frEye 2.6s infinite}
+.fr-eye2{animation-delay:.05s!important}
+@keyframes frEye{0%,100%{transform:translate(-50%,-50%) scale(1)}20%{transform:translate(-50%,-50%) scale(.85);filter:drop-shadow(0 0 3px #ff1a1a) drop-shadow(0 0 8px rgba(255,0,0,.6))}40%{transform:translate(-50%,-50%) scale(1.1)}
+  70%{transform:translate(-50%,-50%) scaleY(1)}73%{transform:translate(-50%,-50%) scaleY(.08)}77%{transform:translate(-50%,-50%) scaleY(1)}}
+.fr-cig{position:absolute;width:2.6%;transform:translate(-50%,-50%);filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+.fr-ember{animation:frEmber 1.8s ease-in-out infinite;filter:drop-shadow(0 0 2px #ff7a20)}
+@keyframes frEmber{50%{fill:#ffb347}}
+.fr-smoke{position:absolute;width:7%;height:auto;aspect-ratio:160/300;transform:translateX(-50%);filter:blur(.6px)}
+@media (max-width:1100px){.fr-fx{display:none}}
+@media (prefers-reduced-motion:reduce){.fr-smoke{display:none}.fr-eye{animation:none!important}}
