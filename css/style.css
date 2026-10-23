@@ -2022,3 +2022,15 @@ button.pfh-chip{cursor:pointer}button.pfh-chip:hover{color:var(--gold);border-co
 @media (max-width:1024px){.hs-arr{display:none}.hs-dots{bottom:auto;top:calc(100% - 26px)}}
 @media (max-width:1024px){.hs-track{aspect-ratio:auto}.hs-slide{position:relative;display:none}.hs-slide.on{display:block}.hs-slide .h3-img{height:auto}.hs-cover{aspect-ratio:2000/667}}
 @media (max-width:1024px){.hs-dots{position:static;transform:none;justify-content:center;margin:12px auto 0}}
+/* страница кейса: кнопки вплотную под рамкой (поверх затухающих персонажей), меньше пустоты до «Содержимого кейса» */
+@media (min-width:1101px){
+  .rl-framed{margin-bottom:calc(min(100vw - 24px, 1560px) * -0.065)}
+  .rl-framed.f-gold{margin-bottom:calc(min(118vw, 1860px) * -0.112)}
+  #cc{position:relative;z-index:9}
+}
+.case-page #cc{margin-bottom:0}
+.case-page #cc+.sec-row,.case-page .sec-row{margin-top:26px}
+@media (min-width:1101px){
+  .rl-framed:not(.f-gold){margin-top:-70px}
+  #cc{margin-top:12px}
+}
