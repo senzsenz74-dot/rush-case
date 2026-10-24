@@ -1253,73 +1253,49 @@ function heroSlider() {
   auto();
 }
 /* ---------- блок бонусов под баннером ---------- */
-const HB_GIFT = `<svg viewBox="0 8 120 120" aria-hidden="true"><defs>
-  <linearGradient id="hbBox" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd978"/><stop offset=".55" stop-color="#e09a26"/><stop offset="1" stop-color="#8a4f0c"/></linearGradient>
-  <linearGradient id="hbLid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="1" stop-color="#d48a1c"/></linearGradient>
-  <linearGradient id="hbRib" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a3171d"/><stop offset=".5" stop-color="#ff4b4b"/><stop offset="1" stop-color="#a3171d"/></linearGradient></defs>
-  <ellipse cx="60" cy="108" rx="30" ry="4" fill="rgba(0,0,0,.28)"/>
-  <rect x="24" y="56" width="72" height="50" rx="6" fill="url(#hbBox)"/><rect x="24" y="56" width="72" height="8" fill="rgba(0,0,0,.18)"/>
-  <rect x="53" y="56" width="14" height="50" fill="url(#hbRib)"/>
-  <g class="hb-lid"><rect x="18" y="42" width="84" height="18" rx="5" fill="url(#hbLid)"/><rect x="52" y="42" width="16" height="18" fill="url(#hbRib)"/>
-    <path d="M60 42 C46 22 30 28 38 38 C42 43 52 43 60 42 Z M60 42 C74 22 90 28 82 38 C78 43 68 43 60 42 Z" fill="url(#hbRib)" stroke="#7a0f14" stroke-width="1.2"/>
-    <circle cx="60" cy="41" r="5" fill="#ff5a5a" stroke="#7a0f14" stroke-width="1.2"/></g>
-  <rect x="30" y="66" width="5" height="34" rx="2.5" fill="rgba(255,255,255,.35)"/></svg>`;
-const HB_SOC = { tg: '#2aabee', vk: '#2787f5', yt: '#ff2a2a' };
+const HB_SOC = { tg: '#2aabee', vk: '#2787f5', yt: '#ff3b3b' };
+const HB_PCT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 5L5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>';
 function homeBonus() {
-  const got = (st.socials || []).length, left = dailyLeft();
-  return `<div class="hb-row" id="homeBonus">
-    <article class="hb-card hb-dep" style="--ac:#f5c76b">
-      <i class="hb-spot" aria-hidden="true"></i><i class="hb-coin c1" aria-hidden="true">₽</i><i class="hb-coin c2" aria-hidden="true">₽</i><i class="hb-coin c3" aria-hidden="true">₽</i>
-      <div class="hb-in">
-        <span class="hb-tag">${ic.bolt}Бонус к пополнению</span>
-        <div class="hb-big"><b>+35</b><i>%</i></div>
-        <p>к сумме пополнения баланса по промокоду</p>
-        <button class="hb-coupon" data-act="copy" data-copy="RUSH35" title="Скопировать промокод"><span class="hb-code">RUSH35</span><span class="hb-cp">${ic.copy}<em>Копировать</em></span></button>
+  const got = (st.socials || []).length, left = dailyLeft(), all = SOCIALS.length;
+  return `<div class="hb2" id="homeBonus">
+    <article class="hb2-c hb2-dep" style="--ac:#f5c76b;--ac2:#d99a2b">
+      <i class="hb2-wm" aria-hidden="true">%</i>
+      <header class="hb2-h"><span class="hb2-ic">${HB_PCT}</span><span class="hb2-l">Бонус к пополнению</span></header>
+      <div class="hb2-v"><b class="hb2-gold">+35%</b></div>
+      <p class="hb2-p">к сумме пополнения по промокоду</p>
+      <div class="hb2-f">
+        <button class="hb2-code" data-act="copy" data-copy="RUSH35" title="Скопировать промокод"><span>RUSH35</span><i>${ic.copy}</i></button>
+        <button class="hb2-btn" data-act="deposit">Пополнить</button>
       </div>
     </article>
-    <article class="hb-card hb-daily${left ? '' : ' ready'}" style="--ac:#ffb23f">
-      <i class="hb-spot" aria-hidden="true"></i>
-      <div class="hb-in hb-dl">
-        <div class="hb-giftw"><svg class="hb-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="54"/><circle class="p" id="hbRing" cx="60" cy="60" r="54" pathLength="100" style="stroke-dashoffset:${(left / DAILY_MS * 100).toFixed(2)}"/></svg>
-          <div class="hb-gift">${HB_GIFT}</div><i class="hb-sp s1"></i><i class="hb-sp s2"></i><i class="hb-sp s3"></i></div>
-        <div>
-          <span class="hb-tag">${ic.gift}Каждые 24 часа</span>
-          <h3>Ежедневный<br>бонус</h3>
-          <div class="hb-timer" id="hbTimer">${left ? dailyText() : 'Доступен!'}</div>
-          <small class="hb-sub" id="hbSub">${left ? 'до следующего подарка' : 'до 250 ₽ на баланс'}</small>
-          <a class="hb-btn" href="#/bonus">${ic.gift}<span id="hbBtnT">${left ? 'Посмотреть' : 'Открыть подарок'}</span></a>
-        </div>
-      </div>
+    <article class="hb2-c hb2-daily${left ? '' : ' ready'}" style="--ac:#ffb547;--ac2:#e0811a">
+      <i class="hb2-wm hb2-wm-ic" aria-hidden="true">${ic.gift}</i>
+      <header class="hb2-h"><span class="hb2-ic">${ic.gift}</span><span class="hb2-l">Ежедневный бонус</span><em class="hb2-dot" id="hbDot">${left ? '' : 'доступен'}</em></header>
+      <div class="hb2-v"><b class="hb2-timer" id="hbTimer">${left ? dailyText() : 'до 250 ₽'}</b></div>
+      <div class="hb2-bar"><i id="hbBar" style="width:${((1 - left / DAILY_MS) * 100).toFixed(1)}%"></i></div>
+      <p class="hb2-p" id="hbSub">${left ? 'до следующего подарка' : 'подарок ждёт — заберите его'}</p>
+      <div class="hb2-f"><a class="hb2-btn${left ? ' ghost' : ''}" id="hbBtn" href="#/bonus">${left ? 'Подробнее' : 'Забрать подарок'}</a></div>
     </article>
-    <article class="hb-card hb-soc" style="--ac:#6fb6ff">
-      <i class="hb-spot" aria-hidden="true"></i>
-      <div class="hb-in">
-        <span class="hb-tag">${ic.users}Бонус за соцсети</span>
-        <h3><b>+10 ₽</b> за каждый канал</h3>
-        <div class="hb-socs">${SOCIALS.map(x => { const ok = (st.socials || []).includes(x.k); return `<a href="#/bonus" class="hb-si${ok ? ' ok' : ''}" style="--c:${HB_SOC[x.k] || '#888'}" title="${x.n}">${ic[x.i]}<em>${ok ? ic.check : '+10'}</em></a>`; }).join('')}</div>
-        <div class="hb-prog"><i style="width:${(got / SOCIALS.length * 100).toFixed(0)}%"></i></div>
-        <div class="hb-pf"><span>Получено <b>${got}/${SOCIALS.length}</b></span><a class="hb-btn sm" href="#/bonus">${got >= SOCIALS.length ? 'Всё собрано' : 'Забрать'}${ic.right}</a></div>
-      </div>
+    <article class="hb2-c hb2-soc" style="--ac:#7ab8ff;--ac2:#3f7fe0">
+      <i class="hb2-wm hb2-wm-ic" aria-hidden="true">${ic.users}</i>
+      <header class="hb2-h"><span class="hb2-ic">${ic.users}</span><span class="hb2-l">Бонус за соцсети</span></header>
+      <div class="hb2-v"><b class="hb2-blue">+10 ₽</b><span class="hb2-u">за каждый канал</span></div>
+      <div class="hb2-socs">${SOCIALS.map(x => { const ok = (st.socials || []).includes(x.k); return `<a href="#/bonus" class="hb2-si${ok ? ' ok' : ''}" style="--c:${HB_SOC[x.k] || '#888'}" title="${x.n}">${ic[x.i]}${ok ? `<i>${ic.check}</i>` : ''}</a>`; }).join('')}
+        <span class="hb2-cnt">${got}/${all}</span></div>
+      <div class="hb2-f"><a class="hb2-btn${got >= all ? ' ghost' : ''}" href="#/bonus">${got >= all ? 'Всё получено' : 'Подписаться'}</a></div>
     </article>
   </div>`;
 }
 function mountHomeBonus() {
-  const row = $('#homeBonus'); if (!row) return;
-  // 3D-наклон и подсветка за курсором (одна карточка, раз в кадр)
-  if (matchMedia('(hover:hover)').matches) $$('.hb-card', row).forEach(card => {
-    let ev = null, raf = 0;
-    card.addEventListener('pointermove', e => { ev = e; if (raf) return; raf = requestAnimationFrame(() => { raf = 0; const r = card.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width, y = (ev.clientY - r.top) / r.height;
-      card.style.transform = `perspective(900px) rotateX(${((.5 - y) * 7).toFixed(2)}deg) rotateY(${((x - .5) * 9).toFixed(2)}deg) translateY(-4px)`;
-      card.querySelector('.hb-spot').style.transform = `translate(${(x * r.width - 160).toFixed(0)}px,${(y * r.height - 160).toFixed(0)}px)`; }); }, { passive: true });
-    card.addEventListener('pointerleave', () => { card.style.transform = ''; });
-  });
+  if (!$('#homeBonus')) return;
   const tick = () => {
     const t = $('#hbTimer'); if (!t) return; const left = dailyLeft();
-    t.textContent = left ? dailyText() : 'Доступен!';
-    $('#hbSub').textContent = left ? 'до следующего подарка' : 'до 250 ₽ на баланс';
-    $('#hbBtnT').textContent = left ? 'Посмотреть' : 'Открыть подарок';
-    $('#hbRing').style.strokeDashoffset = (left / DAILY_MS * 100).toFixed(2);
-    t.closest('.hb-card').classList.toggle('ready', !left);
+    t.textContent = left ? dailyText() : 'до 250 ₽';
+    $('#hbBar').style.width = ((1 - left / DAILY_MS) * 100).toFixed(1) + '%';
+    $('#hbSub').textContent = left ? 'до следующего подарка' : 'подарок ждёт — заберите его';
+    $('#hbDot').textContent = left ? '' : 'доступен';
+    const b = $('#hbBtn'); b.textContent = left ? 'Подробнее' : 'Забрать подарок'; b.classList.toggle('ghost', !!left);
+    t.closest('.hb2-c').classList.toggle('ready', !left);
   };
   every(tick, 1000);
 }
