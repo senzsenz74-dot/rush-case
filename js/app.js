@@ -2003,7 +2003,7 @@ let conSel = [], conBusy = false;
 /* =========================================================
    КОНТРАКТЫ — «Досье»: лист изъятия → соглашение с подписью → протокол выдачи
    ========================================================= */
-let conStep = 1, conSigned = false, conCase = null, conRes = null;
+let conStep = 1, conSigned = false, conCase = null, conRes = null, conLast = null;
 const CON_MAX = 10;
 const conNo = () => 'RC-' + String((st.stats.con || 0) + 45).padStart(3, '0') + '-' + 'ABCDEFGH'[(st.stats.con || 0) % 8];
 function pageContracts() {
@@ -2022,6 +2022,10 @@ function pageContracts() {
       <button data-step="3"><i>03</i>Протокол выдачи</button>
     </nav>
     <div class="dos-desk" id="dosDesk"></div>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <filter id="dosRough" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="3" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter>
+      <filter id="dosRough2" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency=".08" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G"/></filter>
+    </svg>
   </section>`;
 }
 function mountContracts() {
@@ -2030,6 +2034,9 @@ function mountContracts() {
   if (conStep === 3 && !conRes) conStep = 1;
   if (conStep === 2 && conSel.length < 3) conStep = 1;
   $$('#dosTabs [data-step]').forEach(b => b.onclick = () => conGo(+b.dataset.step));
+  const desk = $('#dosDesk');
+  desk.addEventListener('pointermove', e => { const r = desk.getBoundingClientRect(); desk.style.setProperty('--lx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%'); desk.style.setProperty('--ly', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%'); });
+  if (!window._dosRz) { window._dosRz = 1; window.addEventListener('resize', () => { if ($('#dosThreadSvg')) dosThread(false); }); }
   drawCon();
 }
 function conGo(n) {
@@ -2046,6 +2053,7 @@ function drawCon() {
   $$('#dosTabs [data-step]').forEach(b => { const n = +b.dataset.step; b.classList.toggle('on', n === conStep); b.classList.toggle('lock', (n === 2 && conSel.length < 3) || (n === 3 && !conRes)); });
   const no = $('#dosNo'); if (no) no.textContent = conStep === 3 && conRes ? conRes.no : conNo();
   desk.className = 'dos-desk s' + conStep;
+  setTimeout(() => { conLast = null; }, 0);
   if (conStep === 1) drawConEvidence(desk);
   else if (conStep === 2) drawConAgreement(desk);
   else drawConProtocol(desk);
@@ -2057,19 +2065,19 @@ function drawConEvidence(desk) {
     <section class="dpaper dos-board">
       <header class="dp-head"><span>Вещественные доказательства / лист изъятия</span><em>Форма RC-10 · ${CON_MAX} ячеек</em></header>
       <div class="dos-board-h"><h3>Состав контракта</h3><span>Нажмите на скин в архиве — он ляжет в следующую ячейку</span></div>
-      <div class="dos-thread">
+      <div class="dos-thread"><svg class="dos-thr" id="dosThreadSvg" aria-hidden="true"></svg>
         <div class="dos-slots">${Array.from({ length: CON_MAX }, (_, i) => {
           const x = items[i], next = i === items.length;
-          if (!x) return `<div class="dslot${next ? ' next' : ''}"><i class="pin"></i><span class="dn">Улика ${String(i + 1).padStart(2, '0')}</span><b>+</b><small>${next ? 'Следующая ячейка' : 'Пусто'}</small></div>`;
+          if (!x) return `<div class="dslot${next ? ' next' : ''}"><i class="pin"><b></b></i><span class="dn">Улика ${String(i + 1).padStart(2, '0')}</span><b>+</b><small>${next ? 'Следующая ячейка' : 'Пусто'}</small></div>`;
           const s = SK[x.n];
-          return `<div class="dslot f r-${s.r}"><i class="pin"></i><span class="dn">Улика ${String(i + 1).padStart(2, '0')}</span><button class="dx" data-rm="${x.id}" aria-label="Убрать">×</button><img src="${imgUrl(s, 's')}" alt=""><div class="dw">${dosEsc(s.w)}</div><div class="df">${dosEsc(s.f)}</div><div class="dpz">${money(s.p)}</div></div>`;
+          return `<div class="dslot f r-${s.r}${x.id === conLast ? ' drop' : ''}"><i class="pin"><b></b></i><span class="dn">Улика ${String(i + 1).padStart(2, '0')}</span><button class="dx" data-rm="${x.id}" aria-label="Убрать">×</button><img src="${imgUrl(s, 's')}" alt=""><div class="dw">${dosEsc(s.w)}</div><div class="df">${dosEsc(s.f)}</div><div class="dpz">${money(s.p)}</div></div>`;
         }).join('')}</div>
       </div>
       <div class="dos-next"><p><b>Правило отдела:</b> минимум 3 предмета, максимум ${CON_MAX}. Изъятые предметы сгорают — взамен выдаётся один скин.</p>
         <button class="dbtn red" id="dosToSign" ${items.length < 3 ? 'disabled' : ''}>Передать дело на подпись →</button></div>
     </section>
     <aside class="dos-side">
-      <section class="dpaper dos-sum">
+      <section class="dpaper dos-sum"><i class="clip" aria-hidden="true"></i>
         <header class="dp-head"><span>Сводка следователя</span></header>
         <div class="dm"><span>Изъято предметов</span><b>${items.length} / ${CON_MAX}</b></div>
         <div class="dm"><span>Сумма контракта</span><b>${money(sum)}</b></div>
@@ -2094,13 +2102,43 @@ function drawConEvidence(desk) {
     : `<div class="dos-empty">Архив пуст — нужно минимум 3 предмета.<a class="dbtn red" href="#/case/sifon">Открыть «Сифон и Борода» за 29 ₽</a></div>`;
   $$('[data-pick]', desk).forEach(el => el.onclick = () => {
     const id = el.dataset.pick;
-    if (conSel.includes(id)) conSel = conSel.filter(z => z !== id); else if (conSel.length < CON_MAX) conSel = [...conSel, id]; else return toast(`В деле максимум ${CON_MAX} предметов`, 'err');
+    if (conSel.includes(id)) conSel = conSel.filter(z => z !== id); else if (conSel.length < CON_MAX) { conSel = [...conSel, id]; conLast = id; } else return toast(`В деле максимум ${CON_MAX} предметов`, 'err');
     Snd.click(); drawCon();
   });
   $$('[data-rm]', desk).forEach(el => el.onclick = () => { conSel = conSel.filter(z => z !== el.dataset.rm); Snd.click(); drawCon(); });
   $('#dosAuto').onclick = () => { conSel = own().slice().sort((a, b) => SK[a.n].p - SK[b.n].p).slice(0, 5).map(x => x.id); Snd.click(); drawCon(); };
   $('#dosClear').onclick = () => { conSel = []; drawCon(); };
   const ts = $('#dosToSign'); if (ts) ts.onclick = () => conGo(2);
+  requestAnimationFrame(() => dosThread(true));
+}
+/* нитка: от булавки к булавке по заполненным уликам, с провисом и кручением; хвост свисает с последней.
+   Новый отрезок натягивается анимацией */
+let dosThreadN = 0;
+function dosThread(animate) {
+  const svg = $('#dosThreadSvg'); if (!svg) return;
+  const box = svg.parentElement.getBoundingClientRect();
+  const pins = $$('.dslot .pin', svg.parentElement).map(p => { const r = p.getBoundingClientRect(); return [r.left + r.width / 2 - box.left, r.top + r.height / 2 - box.top]; });
+  const k = conItems().length, pts = pins.slice(0, Math.max(1, k));
+  svg.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
+  // отрезок между булавками: натянутая нить чуть провисает
+  const seg = ([x1, y1], [x2, y2]) => { const d = Math.hypot(x2 - x1, y2 - y1), sag = Math.min(16, 4 + d * .035); return `Q${((x1 + x2) / 2).toFixed(1)} ${((y1 + y2) / 2 + sag).toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`; };
+  let main = '';
+  for (let i = 1; i < pts.length && k > 1; i++) main += (i === 1 ? `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}` : '') + seg(pts[i - 1], pts[i]);
+  // свободный конец: провисает от последней булавки к следующей ячейке, не дотягиваясь до неё
+  const [lx, ly] = pts[pts.length - 1], nx = pins[Math.min(pins.length - 1, Math.max(1, k))] || [lx + 120, ly];
+  const ex = lx + (nx[0] - lx) * .62, ey = ly + (nx[1] - ly) * .62 + 34;
+  const tail = k >= pins.length ? '' : `M${lx.toFixed(1)} ${ly.toFixed(1)} C${(lx + (ex - lx) * .25).toFixed(1)} ${(ly + 46).toFixed(1)} ${(ex - 26).toFixed(1)} ${(ey + 26).toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)} q6 -4 9 -12`;
+  // последний отрезок — отдельно, чтобы его «натянуть»
+  let last = '';
+  if (k > 1) { last = `M${pts[k - 2][0].toFixed(1)} ${pts[k - 2][1].toFixed(1)}` + seg(pts[k - 2], pts[k - 1]); }
+  const grow = animate && k > dosThreadN && k > 1;
+  const body = d => `<path class="t-sh" d="${d}"/><path class="t-b" d="${d}"/><path class="t-tw" d="${d}"/><path class="t-hi" d="${d}"/>`;
+  // узелки вокруг булавок
+  const knots = pts.slice(0, Math.max(1, k)).map(([x, y]) => `<circle class="t-knot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5"/>`).join('');
+  svg.innerHTML = `<g class="t-main">${k > 1 ? body(grow ? (pts.slice(0, k - 1).length > 1 ? pts.slice(0, k - 1).map((p, i) => i ? seg(pts[i - 1], p) : `M${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('') : '') : main) : ''}</g>
+    ${grow ? `<g class="t-new">${body(last)}</g>` : ''}<g class="t-tail${grow ? ' late' : ''}">${tail ? body(tail) : ''}</g>${knots}`;
+  if (grow) $$('.t-new path', svg).forEach(p => { const L = p.getTotalLength(); p.style.strokeDasharray = p.classList.contains('t-tw') || p.classList.contains('t-hi') ? '' : L; if (!p.style.strokeDasharray) { p.style.opacity = 0; p.style.animation = 'dosTw .3s ease .45s forwards'; } else { p.style.strokeDashoffset = L; p.style.animation = 'dosPull .5s cubic-bezier(.3,.7,.3,1) forwards'; } });
+  dosThreadN = k;
 }
 /* ---------- лист 02: соглашение и подпись ---------- */
 const CON_CLAUSES = [
@@ -2113,7 +2151,7 @@ const CON_CLAUSES = [
 function drawConAgreement(desk) {
   const items = conItems(), sum = items.reduce((a, x) => a + SK[x.n].p, 0), nick = st.user ? st.user.name : '';
   desk.innerHTML = `<div class="dos-grid wide">
-    <article class="dpaper dos-agr">
+    <article class="dpaper dos-agr"><i class="coffee" aria-hidden="true"></i>
       <header class="dp-head"><span>Лист 02 / договор о передаче виртуального имущества</span><em>${conNo()} · экземпляр 1/1</em></header>
       <div class="dos-agr-b">
         <h2>Соглашение о перемещении<br>виртуального имущества</h2>
@@ -2211,7 +2249,7 @@ function drawConProtocol(desk) {
       </div>
     </article>
     <aside class="dos-side">
-      <section class="dpaper dos-slip"><h3>Выписка из реестра</h3>
+      <section class="dpaper dos-slip"><i class="clip" aria-hidden="true"></i><h3>Выписка из реестра</h3>
         <div class="dm"><span>Номер дела</span><b>${R.no}</b></div>
         <div class="dm"><span>Предметов передано</span><b>${R.n}</b></div>
         <div class="dm"><span>Сумма контракта</span><b>${money(R.sum)}</b></div>

@@ -2290,3 +2290,81 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .dos-sign .dbtn{white-space:normal;height:auto;min-height:48px;padding:10px 14px;letter-spacing:.04em;line-height:1.25}
 .dsig .sn{font-size:30px}
 @media (max-width:720px){.dos-slots{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ===================== ДОСЬЕ v2: реализм ===================== */
+/* стол: тёмное дерево + свет лампы за курсором */
+.dos-desk{--lx:30%;--ly:20%;background:
+  radial-gradient(520px 420px at var(--lx) var(--ly),rgba(255,214,150,.22),transparent 70%),
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='600'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0035 .11' numOctaves='4' seed='2'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .05 0 0 0 0 .02 0 0 0 1.25 -.28'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23w)'/%3E%3C/svg%3E"),
+  linear-gradient(180deg,#3e2614,#2d1a0c 60%,#21130a);
+  background-size:auto,900px 600px,auto;border:1px solid #160c05;box-shadow:0 3px 0 #1c0f06,0 30px 70px -10px rgba(0,0,0,.9),inset 0 0 120px rgba(0,0,0,.55);transition:background-position .2s}
+.dos-desk::before{border:0;inset:0;border-radius:inherit;background:radial-gradient(ellipse at 50% 120%,rgba(0,0,0,.5),transparent 60%)}
+/* бумага: фактура на ::before с неровным краем, под листом — второй лист */
+.dpaper{background:none!important;border:0;box-shadow:none;overflow:visible;isolation:isolate;transition:transform .35s cubic-bezier(.2,.8,.3,1)}
+.dpaper::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:2px;filter:url(#dosRough) drop-shadow(0 1px 1px rgba(40,20,5,.45)) drop-shadow(0 14px 18px rgba(0,0,0,.5));
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .22 0 0 0 0 .11 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004 .09' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .2 0 0 0 0 .1 0 0 0 .9 -.42'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='800'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.006' numOctaves='4' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .27 0 0 0 0 .1 0 0 0 1.6 -.72'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 0% 0%,rgba(110,62,20,.32),transparent 22%),radial-gradient(ellipse at 100% 100%,rgba(110,62,20,.36),transparent 24%),
+    radial-gradient(ellipse at 100% 0%,rgba(110,62,20,.18),transparent 18%),radial-gradient(ellipse at 0% 100%,rgba(110,62,20,.2),transparent 20%),
+    radial-gradient(ellipse at 60% 35%,rgba(255,248,222,.5),transparent 55%),
+    linear-gradient(115deg,#e6d4ab,#d8c08e 40%,#e8d8b2 72%,#d2b887);
+  background-size:220px 220px,600px 600px,800px 800px,auto,auto,auto,auto,auto,auto;
+  box-shadow:inset 0 0 40px rgba(110,62,20,.22),inset 0 0 6px rgba(80,45,15,.35)}
+.dpaper::after{content:"";position:absolute;inset:6px -6px -8px 8px;z-index:-2;width:auto;height:auto;transform:rotate(1.4deg);border-radius:2px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .22 0 0 0 0 .11 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),linear-gradient(115deg,#cdb27c,#bfa06a);background-size:220px 220px,auto;filter:url(#dosRough2) drop-shadow(0 10px 14px rgba(0,0,0,.45))}
+.dpaper:hover{transform:translateY(-2px) rotate(0deg)!important}
+.dp-head{background:linear-gradient(180deg,rgba(104,70,31,.1),rgba(104,70,31,.04));border-bottom:1px solid rgba(76,49,22,.3)}
+/* выцветшие чернила */
+.dpaper .dp-head,.dpaper h2,.dpaper h3,.dos-board-h h3{text-shadow:0 0 .5px rgba(42,29,18,.5)}
+/* скрепка, кофейное пятно */
+.dpaper .clip{position:absolute;top:-22px;right:34px;width:22px;height:62px;z-index:5;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 110'%3E%3Cdefs%3E%3ClinearGradient id='m' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23f4f4f4'/%3E%3Cstop offset='.45' stop-color='%23a9adb3'/%3E%3Cstop offset='.7' stop-color='%23e9eaec'/%3E%3Cstop offset='1' stop-color='%23767b82'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M12 100 V22 a8 8 0 0 1 16 0 V88 a5 5 0 0 1 -10 0 V30' fill='none' stroke='url(%23m)' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M28 40 V12 a10 10 0 0 0 -20 0 V96 a6 6 0 0 0 12 0' fill='none' stroke='url(%23m)' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;filter:drop-shadow(1px 3px 2px rgba(0,0,0,.5));transform:rotate(8deg)}
+.dpaper .coffee{position:absolute;right:-30px;top:120px;width:190px;height:190px;z-index:0;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.05' numOctaves='2' seed='5'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='9'/%3E%3C/filter%3E%3Cg filter='url(%23c)' fill='none'%3E%3Ccircle cx='100' cy='100' r='72' stroke='%23633a17' stroke-opacity='.28' stroke-width='5'/%3E%3Ccircle cx='100' cy='100' r='70' stroke='%23633a17' stroke-opacity='.12' stroke-width='12'/%3E%3Cpath d='M40 120 A70 70 0 0 1 60 48' stroke='%23633a17' stroke-opacity='.18' stroke-width='3'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat;mix-blend-mode:multiply;transform:rotate(-20deg)}
+/* заметка — неровный оторванный лист */
+.dos-note{background:none!important;border:0;box-shadow:none;isolation:isolate}
+.dos-note::before{content:"";position:absolute;inset:0;z-index:-1;filter:url(#dosRough2) drop-shadow(0 12px 14px rgba(0,0,0,.5));
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .22 0 0 0 0 .11 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004 .09' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .2 0 0 0 0 .1 0 0 0 .9 -.42'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),repeating-linear-gradient(0deg,transparent 0 24px,rgba(80,49,18,.12) 25px),linear-gradient(130deg,#d8bd85,#bf9f68);background-size:220px 220px,600px 600px,auto,auto}
+.dos-note .tape{background:linear-gradient(90deg,rgba(255,250,235,.0),rgba(255,250,235,.55) 8%,rgba(250,240,215,.55) 92%,rgba(255,250,235,0));border:0;height:24px;width:110px;box-shadow:0 1px 3px rgba(0,0,0,.18);backdrop-filter:blur(.5px);
+  -webkit-mask:linear-gradient(90deg,transparent 0 3px,#000 3px calc(100% - 3px),transparent 0);mask:linear-gradient(90deg,transparent 0 3px,#000 3px calc(100% - 3px),transparent 0)}
+/* булавки */
+.dslot .pin{top:-9px;left:calc(50% - 9px);width:18px;height:18px;background:radial-gradient(circle at 34% 30%,#ff8a7a 0,#d8392c 30%,#8e1a14 72%,#5c0f0b 100%);box-shadow:3px 7px 5px -1px rgba(40,15,5,.55),inset -2px -2px 3px rgba(0,0,0,.35);z-index:4}
+.dslot .pin b{position:absolute;left:4px;top:3px;width:6px;height:4px;border-radius:50%;background:rgba(255,255,255,.75);filter:blur(.6px)}
+/* нитка */
+.dos-thread::before,.dos-thread::after{display:none}
+.dos-thr{position:absolute;inset:0;width:100%;height:100%;overflow:visible;z-index:3;pointer-events:none}
+.dos-thr path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.dos-thr .t-sh{stroke:rgba(30,10,4,.35);stroke-width:3.2;transform:translate(2px,6px);filter:blur(1.6px)}
+.dos-thr .t-b{stroke:#8d1914;stroke-width:2.4}
+.dos-thr .t-tw{stroke:#d64536;stroke-width:1.5;stroke-dasharray:2.2 2.6}
+.dos-thr .t-hi{stroke:rgba(255,190,170,.65);stroke-width:.6;stroke-dasharray:1 4.8;stroke-dashoffset:1}
+.dos-thr .t-knot{fill:none;stroke:#8d1914;stroke-width:2.2;filter:drop-shadow(1px 2px 1px rgba(30,10,4,.4))}
+.dos-thr .t-tail{opacity:.95}
+.dos-thr .t-tail.late{opacity:0;animation:dosTw .4s ease .45s forwards}
+@keyframes dosPull{to{stroke-dashoffset:0}}
+@keyframes dosTw{to{opacity:1}}
+/* ячейки — бумажные карточки, приколотые булавкой */
+.dslot{border:0;background:none;box-shadow:none;isolation:isolate}
+.dslot::before{content:"";position:absolute;inset:0;z-index:-1;filter:url(#dosRough2) drop-shadow(0 4px 5px rgba(50,25,8,.32));
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .22 0 0 0 0 .11 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),linear-gradient(140deg,#efe0bc,#d9c191);background-size:220px 220px,auto}
+.dslot::after{inset:6px;border:1px dashed rgba(109,76,38,.28)}
+.dslot:nth-child(odd){transform:rotate(-.8deg)}.dslot:nth-child(even){transform:rotate(.7deg)}.dslot:nth-child(3n){transform:rotate(-.3deg)}
+.dslot.f{background:none;box-shadow:none}
+.dslot.f::before{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .22 0 0 0 0 .11 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),radial-gradient(70% 55% at 50% 40%,color-mix(in srgb,var(--rc-a) 32%,transparent),transparent 75%),linear-gradient(140deg,#efe0bc,#d6bb88);background-size:220px 220px,auto,auto}
+.dslot.f::after{border-style:solid;border-color:rgba(109,76,38,.18);box-shadow:inset 0 -3px 0 var(--rc)}
+.dslot.next::before{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .22 0 0 0 0 .11 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),linear-gradient(140deg,#fbefd2,#e9d4a6);background-size:220px 220px,auto}
+.dslot.next{box-shadow:none}
+.dslot.next::after{border-color:rgba(165,41,37,.6)}
+.dslot.drop{animation:dosDrop .55s cubic-bezier(.2,1.4,.4,1)}
+@keyframes dosDrop{0%{transform:translateY(-26px) rotate(-6deg) scale(1.08);opacity:0}100%{opacity:1}}
+/* карточки архива — тоже бумага */
+.dcard{border:0;box-shadow:none;isolation:isolate;background:none}
+.dcard::before{content:"";position:absolute;inset:0;z-index:-1;filter:url(#dosRough2) drop-shadow(0 3px 4px rgba(50,25,8,.28));
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .22 0 0 0 0 .11 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),radial-gradient(70% 50% at 50% 38%,color-mix(in srgb,var(--rc-a) 26%,transparent),transparent 75%),linear-gradient(140deg,#f0e1bf,#d8bf8e);background-size:220px 220px,auto,auto}
+.dcard::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--rc);opacity:.8}
+.dcard:hover{box-shadow:none;transform:translateY(-4px) rotate(-.6deg)}
+/* печати — краска с непрокрасом */
+.dseal,.dst,.dos-stamp{filter:url(#dosRough2)}
+.dseal{background:radial-gradient(circle,rgba(157,42,32,.05),transparent 70%)}
+/* кнопки досье — плотнее */
+.dbtn.red,.dbtn.gold,.dbtn.dark,.dbtn.upg{border-radius:3px}
+@media (max-width:720px){.dpaper .coffee{display:none}.dslot:nth-child(n){transform:none}}
+@media (prefers-reduced-motion:reduce){.dslot.drop{animation:none}}
