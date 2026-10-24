@@ -2000,97 +2000,233 @@ function upgWinCard(s) {
    CONTRACTS
    ========================================================= */
 let conSel = [], conBusy = false;
+/* =========================================================
+   КОНТРАКТЫ — «Досье»: лист изъятия → соглашение с подписью → протокол выдачи
+   ========================================================= */
+let conStep = 1, conSigned = false, conCase = null, conRes = null;
+const CON_MAX = 10;
+const conNo = () => 'RC-' + String((st.stats.con || 0) + 45).padStart(3, '0') + '-' + 'ABCDEFGH'[(st.stats.con || 0) % 8];
 function pageContracts() {
-  return `<section class="container con">
-    <div class="page-head"><h1>Контракты</h1><p>Обменяйте от 3 до 10 своих скинов на один случайный — стоимостью от 25% до 400% от суммы контракта.</p></div>
-    <div class="con-main">
-      <div class="con-stage" id="conStage">
-        <div class="con-slots" id="conSlots"></div>
-        <div class="con-core" id="conCore"></div>
-        <div class="con-result" id="conResult"></div>
+  return `<section class="container dos" id="dos">
+    <div class="dos-mast">
+      <div>
+        <div class="dos-eye">Досье <span id="dosNo">${conNo()}</span> · материалы ограниченного доступа</div>
+        <h1 class="dos-title">Дело <em>«Контракт»</em></h1>
+        <p class="dos-sub">Изымите от 3 до 10 предметов, передайте дело на подпись — комиссия выдаст один случайный скин стоимостью от 25% до 400% суммы контракта.</p>
       </div>
-      <div class="con-side">
-        <div class="con-sum">
-          <div class="row">Предметов<b id="conCnt">0 / 10</b></div>
-          <div class="row">Сумма контракта<b id="conSum">0 ₽</b></div>
-          <div class="row">Возможный дроп<b class="l" id="conRange">—</b></div>
-          <button class="btn btn-primary btn-xl btn-block" id="conBtn">${ic.swap}Подписать контракт</button>
-        </div>
-        <div class="con-rules"><b>Как это работает</b><ul><li>Минимум 3 предмета, максимум 10.</li><li>Предметы контракта сгорают, взамен вы получаете один скин.</li><li>Средняя отдача — около 90% от суммы.</li></ul></div>
-      </div>
+      <div class="dos-stamp">Секретно<small>только для агента</small></div>
     </div>
-    <div class="panel" style="margin-top:20px">
-      <div class="panel-h"><h3>Ваш инвентарь</h3><button class="btn btn-dark btn-sm" id="conAuto">Автовыбор</button><button class="btn btn-ghost btn-sm" id="conClear">Очистить</button></div>
-      <div class="mini-grid" id="conInv"></div>
-    </div>
+    <nav class="dos-tabs" id="dosTabs">
+      <button data-step="1"><i>01</i>Улики</button>
+      <button data-step="2"><i>02</i>Соглашение</button>
+      <button data-step="3"><i>03</i>Протокол выдачи</button>
+    </nav>
+    <div class="dos-desk" id="dosDesk"></div>
   </section>`;
 }
 function mountContracts() {
   conBusy = false;
   conSel = conSel.filter(id => st.inv.find(x => x.id === id && x.st === 'own'));
-  $('#conBtn').onclick = runContract;
-  $('#conClear').onclick = () => { if (conBusy) return; conSel = []; drawCon(); };
-  $('#conAuto').onclick = () => { if (conBusy) return; conSel = own().slice().sort((a, b) => SK[a.n].p - SK[b.n].p).slice(0, 10).map(x => x.id); drawCon(); };
+  if (conStep === 3 && !conRes) conStep = 1;
+  if (conStep === 2 && conSel.length < 3) conStep = 1;
+  $$('#dosTabs [data-step]').forEach(b => b.onclick = () => conGo(+b.dataset.step));
   drawCon();
 }
-const conItems = () => conSel.map(id => st.inv.find(x => x.id === id)).filter(Boolean);
-function drawCon() {
-  const items = conItems(), sum = items.reduce((a, x) => a + SK[x.n].p, 0);
-  $('#conSlots').innerHTML = Array.from({ length: 10 }, (_, i) => {
-    const x = items[i]; if (!x) return `<div class="cslot">${i + 1}</div>`;
-    const s = SK[x.n]; return `<div class="cslot f r-${s.r}" data-rm="${x.id}" title="Убрать"><img src="${imgUrl(s, 's')}" alt=""><span class="cs-p">${money(s.p)}</span></div>`;
-  }).join('');
-  $$('[data-rm]').forEach(el => el.onclick = () => { if (conBusy) return; conSel = conSel.filter(id => id !== el.dataset.rm); drawCon(); });
-  $('#conCnt').textContent = `${items.length} / 10`;
-  $('#conSum').textContent = money(sum);
-  $('#conRange').textContent = items.length ? `${money(sum * .25)} – ${money(sum * 4)}` : '—';
-  $('#conBtn').disabled = items.length < 3;
-  const list = own();
-  $('#conInv').innerHTML = list.length ? list.map(x => mcard(SK[x.n], `data-pick="${x.id}"`)).join('')
-    : `<div class="empty">${ic.box}${st.user ? 'Нужно минимум 3 предмета. Откройте пару кейсов «Сифон и Борода» — это всего 29 ₽.' : 'Войдите, чтобы увидеть свой инвентарь.'}<a class="btn btn-primary btn-sm" href="#/case/sifon">Открыть кейс</a></div>`;
-  $$('[data-pick]').forEach(el => {
-    const id = el.dataset.pick;
-    if (conSel.includes(id)) el.classList.add('sel');
-    else if (conSel.length >= 10) el.classList.add('dis');
-    el.onclick = () => { if (conBusy) return; conSel = conSel.includes(id) ? conSel.filter(z => z !== id) : [...conSel, id].slice(0, 10); Snd.click(); drawCon(); };
-  });
+function conGo(n) {
+  if (conBusy) return;
+  if (n === 2 && conSel.length < 3) return toast('Для передачи дела нужно не менее трёх предметов', 'err');
+  if (n === 3 && !conRes) return toast('Сначала подпишите и закройте дело', 'err');
+  conStep = n; Snd.click(); drawCon();
+  const d = $('#dos'); if (d) window.scrollTo({ top: d.getBoundingClientRect().top + scrollY - 90, behavior: 'smooth' });
 }
+const conItems = () => conSel.map(id => st.inv.find(x => x.id === id)).filter(Boolean);
+const dosEsc = t => esc(String(t));
+function drawCon() {
+  const desk = $('#dosDesk'); if (!desk) return;
+  $$('#dosTabs [data-step]').forEach(b => { const n = +b.dataset.step; b.classList.toggle('on', n === conStep); b.classList.toggle('lock', (n === 2 && conSel.length < 3) || (n === 3 && !conRes)); });
+  const no = $('#dosNo'); if (no) no.textContent = conStep === 3 && conRes ? conRes.no : conNo();
+  desk.className = 'dos-desk s' + conStep;
+  if (conStep === 1) drawConEvidence(desk);
+  else if (conStep === 2) drawConAgreement(desk);
+  else drawConProtocol(desk);
+}
+/* ---------- лист 01: улики ---------- */
+function drawConEvidence(desk) {
+  const items = conItems(), sum = items.reduce((a, x) => a + SK[x.n].p, 0);
+  desk.innerHTML = `<div class="dos-grid">
+    <section class="dpaper dos-board">
+      <header class="dp-head"><span>Вещественные доказательства / лист изъятия</span><em>Форма RC-10 · ${CON_MAX} ячеек</em></header>
+      <div class="dos-board-h"><h3>Состав контракта</h3><span>Нажмите на скин в архиве — он ляжет в следующую ячейку</span></div>
+      <div class="dos-thread">
+        <div class="dos-slots">${Array.from({ length: CON_MAX }, (_, i) => {
+          const x = items[i], next = i === items.length;
+          if (!x) return `<div class="dslot${next ? ' next' : ''}"><i class="pin"></i><span class="dn">Улика ${String(i + 1).padStart(2, '0')}</span><b>+</b><small>${next ? 'Следующая ячейка' : 'Пусто'}</small></div>`;
+          const s = SK[x.n];
+          return `<div class="dslot f r-${s.r}"><i class="pin"></i><span class="dn">Улика ${String(i + 1).padStart(2, '0')}</span><button class="dx" data-rm="${x.id}" aria-label="Убрать">×</button><img src="${imgUrl(s, 's')}" alt=""><div class="dw">${dosEsc(s.w)}</div><div class="df">${dosEsc(s.f)}</div><div class="dpz">${money(s.p)}</div></div>`;
+        }).join('')}</div>
+      </div>
+      <div class="dos-next"><p><b>Правило отдела:</b> минимум 3 предмета, максимум ${CON_MAX}. Изъятые предметы сгорают — взамен выдаётся один скин.</p>
+        <button class="dbtn red" id="dosToSign" ${items.length < 3 ? 'disabled' : ''}>Передать дело на подпись →</button></div>
+    </section>
+    <aside class="dos-side">
+      <section class="dpaper dos-sum">
+        <header class="dp-head"><span>Сводка следователя</span></header>
+        <div class="dm"><span>Изъято предметов</span><b>${items.length} / ${CON_MAX}</b></div>
+        <div class="dm"><span>Сумма контракта</span><b>${money(sum)}</b></div>
+        <div class="dm"><span>Средняя отдача</span><b>${sum ? '≈ ' + money(sum * .9) : '—'}</b></div>
+        <div class="drange"><small>Возможный дроп</small><strong>${sum ? `${money(sum * .25)} — ${money(sum * 4)}` : '25% — 400%'}</strong></div>
+      </section>
+      <section class="dos-note"><i class="tape"></i><h4>Пометка на полях</h4>
+        <p>Комиссия оценивает каждый предмет и выбирает один случайный результат.</p>
+        <p class="red">Не обещайте владельцу, что его любимый скин вернётся домой.</p>
+        <p>Особенно если на нём наклейка с котом.</p></section>
+    </aside>
+  </div>
+  <section class="dpaper dos-arch">
+    <header class="dp-head dos-arch-h"><span>Архив скинов <b class="cnt">${own().length}</b></span>
+      <div><button class="dmini" id="dosAuto">Автоподбор</button><button class="dmini" id="dosClear">Очистить дело</button></div></header>
+    <div class="dos-inv" id="dosInv"></div>
+  </section>`;
+  const list = own().slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
+  $('#dosInv').innerHTML = !st.user ? `<div class="dos-empty">Войдите, чтобы открыть архив своих скинов.<button class="dbtn red" data-act="login">Войти</button></div>`
+    : list.length ? list.map(x => { const s = SK[x.n], used = conSel.includes(x.id), full = !used && conSel.length >= CON_MAX;
+      return `<button class="dcard r-${s.r}${used ? ' used' : ''}${full ? ' full' : ''}" data-pick="${x.id}"><span class="dr">${RAR[s.r] ? RAR[s.r].n : ''}</span><img src="${imgUrl(s, 's')}" alt="" loading="lazy"><span class="dw">${dosEsc(s.w)}</span><span class="df">${dosEsc(s.f)}</span><span class="db"><b>${money(s.p)}</b><em>${used ? 'В деле' : '+ В дело'}</em></span></button>`; }).join('')
+    : `<div class="dos-empty">Архив пуст — нужно минимум 3 предмета.<a class="dbtn red" href="#/case/sifon">Открыть «Сифон и Борода» за 29 ₽</a></div>`;
+  $$('[data-pick]', desk).forEach(el => el.onclick = () => {
+    const id = el.dataset.pick;
+    if (conSel.includes(id)) conSel = conSel.filter(z => z !== id); else if (conSel.length < CON_MAX) conSel = [...conSel, id]; else return toast(`В деле максимум ${CON_MAX} предметов`, 'err');
+    Snd.click(); drawCon();
+  });
+  $$('[data-rm]', desk).forEach(el => el.onclick = () => { conSel = conSel.filter(z => z !== el.dataset.rm); Snd.click(); drawCon(); });
+  $('#dosAuto').onclick = () => { conSel = own().slice().sort((a, b) => SK[a.n].p - SK[b.n].p).slice(0, 5).map(x => x.id); Snd.click(); drawCon(); };
+  $('#dosClear').onclick = () => { conSel = []; drawCon(); };
+  const ts = $('#dosToSign'); if (ts) ts.onclick = () => conGo(2);
+}
+/* ---------- лист 02: соглашение и подпись ---------- */
+const CON_CLAUSES = [
+  ['Передача имущества', 'Владелец добровольно передаёт перечисленные в деле предметы в распоряжение Комиссии. <u>Переданные предметы не возвращаются</u> — ни целиком, ни по частям, ни «на пять минут посмотреть».'],
+  ['Условия обратной выдачи', 'После закрытия дела Владелец получает один случайный скин стоимостью от 25% до 400% суммы контракта. Он может оказаться дороже, дешевле или выглядеть так, будто его трижды роняли с лестницы в архиве.'],
+  ['Состояние имущества', 'Комиссия не гарантирует сохранение износа, наклеек, блеска и боевого духа. В случае претензий к качеству виновным назначается ближайший принтер.'],
+  ['Непредвиденные обстоятельства', 'Выпадение не того цвета, внезапная ностальгия и фраза «надо было оставить старый скин» не являются основанием для отмены контракта.'],
+  ['Окончательное решение', 'Подписывая документ, Владелец подтверждает, что понимает: <u>результат случаен и не является гарантированной прибылью</u>. Комиссия сохраняет за собой право выглядеть загадочно.'],
+];
+function drawConAgreement(desk) {
+  const items = conItems(), sum = items.reduce((a, x) => a + SK[x.n].p, 0), nick = st.user ? st.user.name : '';
+  desk.innerHTML = `<div class="dos-grid wide">
+    <article class="dpaper dos-agr">
+      <header class="dp-head"><span>Лист 02 / договор о передаче виртуального имущества</span><em>${conNo()} · экземпляр 1/1</em></header>
+      <div class="dos-agr-b">
+        <h2>Соглашение о перемещении<br>виртуального имущества</h2>
+        <div class="dos-agr-s">Составлено комиссией по необъяснимому обмену</div>
+        <p class="dos-pre">Настоящий документ заключён между Владельцем скинов (далее — «Сдающая сторона») и Комиссией сомнительных совпадений (далее — «Сторона, которая всё отрицает»).</p>
+        ${CON_CLAUSES.map(([t, p], i) => `<div class="dcl"><b>§ ${String(i + 1).padStart(2, '0')}</b><p><strong>${t}.</strong> ${p}</p></div>`).join('')}
+        <div class="dos-items"><span>Предметы дела (${items.length})</span><div>${items.map(x => { const s = SK[x.n]; return `<i class="r-${s.r}" title="${dosEsc(s.name)} — ${money(s.p)}"><img src="${imgUrl(s, 's')}" alt=""></i>`; }).join('')}</div><b>${money(sum)}</b></div>
+        <div class="dos-warn">Это шуточный внутриигровой документ. Контракт относится только к внутриигровым предметам сайта RUSH CASE.</div>
+      </div>
+    </article>
+    <aside class="dpaper dos-sign${conSigned ? ' signed' : ''}" id="dosSign">
+      <header class="dp-head"><span>Подписной лист</span><em>Форма 7-Б</em></header>
+      <div class="dseal"><span>♛</span><b>RUSH CASE<br>ARCHIVE</b></div>
+      <div class="dsc">
+        <label for="dosNick">Подпись / игровой ник</label>
+        <input id="dosNick" class="dinp" maxlength="24" value="${dosEsc(nick)}" placeholder="Ваш ник…" ${conSigned ? 'disabled' : ''}>
+        <div class="dsig"><span>Подпись владельца</span><div id="dosSigV">${conSigned ? conSigSvg(conCase.nick, false) : ''}</div></div>
+        <div class="ddate"><span>Дата контракта</span><b id="dosDate">${conSigned ? conCase.date : 'не заполнено'}</b></div>
+      </div>
+      <div class="dsigned">✓ Дело подписано и внесено в архив. Отменить подпись нельзя — таково требование загадочной комиссии.</div>
+      <div class="dsc">
+        ${conSigned ? `<button class="dbtn gold" id="dosClose">Закрыть дело и получить дроп ✓</button>` : `<button class="dbtn red" id="dosDoSign">✒ Подписать контракт</button>`}
+        <div class="dreg">Реестр: <b>${conSigned ? 'подписано / зарегистрировано' : 'ожидает подписи'}</b><br>Предметов в деле: <b>${items.length}</b><br>Общая стоимость: <b>${money(sum)}</b></div>
+      </div>
+    </aside>
+  </div>
+  <div class="dos-nav"><button class="dbtn dark" id="dosBack">← Вернуться к уликам</button></div>`;
+  $('#dosBack').onclick = () => { if (conSigned) return toast('Подписанное дело больше нельзя редактировать', 'err'); conGo(1); };
+  const sg = $('#dosDoSign'); if (sg) sg.onclick = () => {
+    if (!st.user) return openAuth('login');
+    const nickV = ($('#dosNick').value.trim() || st.user.name).slice(0, 24), d = new Date();
+    conCase = { nick: nickV, date: d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) };
+    conSigned = true; Snd.click();
+    drawCon();
+    const v = $('#dosSigV'); if (v) v.innerHTML = conSigSvg(conCase.nick, true);
+    const p = $('#dosSign'); if (p) { p.classList.remove('stamp-anim'); void p.offsetWidth; p.classList.add('stamp-anim'); }
+  };
+  const cl = $('#dosClose'); if (cl) cl.onclick = runContract;
+}
+function conSigSvg(name, anim) {
+  return `<svg viewBox="0 0 320 82" class="${anim ? 'anim' : ''}" role="img" aria-label="Подпись: ${dosEsc(name)}"><g transform="translate(150 4) scale(.53)"><path class="ss" d="M8 49 C18 8 27 8 23 40 S12 59 34 35 C44 22 45 56 54 47 S68 18 72 39 C76 61 86 49 95 34 C106 13 108 52 117 45 S132 30 137 40 C145 57 157 43 164 35 C178 17 176 53 190 45 S207 27 211 39 C220 57 229 44 239 37"/><path class="ss fl" d="M10 62 C68 70 117 58 161 62 S247 68 293 42 C306 35 309 48 295 53 C271 61 259 57 251 52"/><path class="ss fl" d="M237 35 C252 16 265 14 273 23 S266 42 257 33 C249 23 270 12 285 20"/><circle class="sd" cx="292" cy="20" r="3.4"/></g><text class="sn" x="4" y="52" textLength="${Math.min(160, 14 + name.length * 13)}" lengthAdjust="spacingAndGlyphs">${dosEsc(name)}</text></svg>`;
+}
+/* ---------- закрытие дела: настоящий контракт ---------- */
 async function runContract() {
   if (conBusy) return;
   if (!st.user) return openAuth('login');
   const items = conItems(); if (items.length < 3) return toast('Добавьте минимум 3 предмета', 'err');
-  const sum = items.reduce((a, x) => a + SK[x.n].p, 0);
+  if (items.some(x => x.st !== 'own')) { conSel = []; conSigned = false; conStep = 1; drawCon(); return toast('Часть предметов уже недоступна — соберите дело заново', 'err'); }
+  const sum = items.reduce((a, x) => a + SK[x.n].p, 0), caseNo = conNo();
   let pool = CATALOG.filter(s => s.p >= sum * .25 && s.p <= sum * 4);
   if (pool.length < 4) pool = CATALOG.slice().sort((a, b) => Math.abs(Math.log(a.p / sum)) - Math.abs(Math.log(b.p / sum))).slice(0, 8);
   const ch = solveChances(pool, sum * .9);
   const res = roll(pool.map((s, i) => ({ ...s, ch: ch[i] })));
+  const given = items.map(x => SK[x.n]);
   items.forEach(x => { x.st = 'con'; });
   const got = giveItem(SK[res.name], 'contract');
-  const pre = new Image(); pre.src = imgUrl(res, 'l');
   st.stats.con++; save();
-  conBusy = true; $('#conBtn').disabled = true; Snd.click();
-  // анимация «засасывания»
-  const stage = $('#conStage'), r0 = stage.getBoundingClientRect(), cx = r0.left + r0.width / 2, cy = r0.top + r0.height / 2;
-  $$('.cslot.f').forEach((el, i) => {
-    const r = el.getBoundingClientRect();
-    el.style.setProperty('--dx', `${cx - (r.left + r.width / 2)}px`); el.style.setProperty('--dy', `${cy - (r.top + r.height / 2)}px`);
-    el.style.transitionDelay = `${i * 90}ms`;
-    setTimeout(() => Snd.tick(), i * 90);
-    requestAnimationFrame(() => el.classList.add('suck'));
-  });
-  await sleep(items.length * 90 + 750);
-  if (!$('#conCore')) { conBusy = false; return; }
-  $('#conCore').classList.add('go');
-  await Promise.race([sleep(900).then(() => pre.decode().catch(() => {})), sleep(2500)]);
-  if (!$('#conResult')) { conBusy = false; return; }
-  const s = SK[res.name];
-  Snd.win(RAR[s.r].o); if (RAR[s.r].o >= 5 || s.p > sum * 1.5) burst();
-  $('#conResult').innerHTML = `<div class="rv-card r-${s.r}"><div class="rv-imgw"><div class="rv-rays"></div><div class="rv-glow"></div><img src="${imgUrl(s, 'l')}" alt=""></div><div class="rv-rar">${RAR[s.r].n} · x${(s.p / sum).toFixed(2)}</div><div class="rv-name"><span>${esc(s.w)}</span>${esc(s.f)}</div><div class="rv-price">${money(s.p)}</div></div>
-    <div class="cc-btns"><button class="btn btn-accent" id="conSell">${ic.coin}Продать за ${money(s.p)}</button><button class="btn btn-primary" id="conNew">Новый контракт</button></div>`;
-  $('#conResult').classList.add('on');
-  const reset = () => { conSel = []; conBusy = false; $('#conResult').classList.remove('on'); $('#conCore').classList.remove('go'); drawCon(); };
-  $('#conSell').onclick = () => { sellItem(got.id); reset(); };
-  $('#conNew').onclick = reset;
+  conBusy = true;
+  const b = $('#dosClose'); if (b) { b.disabled = true; b.innerHTML = '<span class="spinner"></span>Комиссия рассматривает дело…'; }
+  const pre = new Image(); pre.src = imgUrl(res, 'l');
+  Snd.tick(); await sleep(700); Snd.tick(); await sleep(600);
+  await Promise.race([pre.decode().catch(() => {}), sleep(1500)]);
+  conRes = { no: caseNo, s: SK[res.name], id: got.id, sum, n: items.length, given, code: 'RC-' + String(Math.floor(100 + Math.random() * 899)), nick: conCase ? conCase.nick : st.user.name, date: conCase ? conCase.date : '' };
+  conSel = []; conSigned = false; conCase = null; conBusy = false;
+  if (!$('#dosDesk')) return;
+  conStep = 3; drawCon();
+  const s = conRes.s; Snd.win(RAR[s.r].o); if (RAR[s.r].o >= 5 || s.p > sum * 1.5) burst();
+}
+/* ---------- лист 03: протокол выдачи ---------- */
+function drawConProtocol(desk) {
+  const R = conRes, s = R.s, x = s.p / R.sum, it = st.inv.find(z => z.id === R.id), own_ = it && it.st === 'own';
+  desk.innerHTML = `<div class="dos-grid">
+    <article class="dpaper dos-prot">
+      <header class="dp-head"><span>Лист 03 / протокол выдачи</span><em>${R.no} · архивный экземпляр</em></header>
+      <div class="dos-prot-b">
+        <div class="dst big">Дело закрыто</div>
+        <h2>Протокол<br>выданного дропа</h2>
+        <div class="dos-prot-s">Результат обработки контракта · не для публикации</div>
+        <div class="dreward r-${s.r}">
+          <div class="drw-art"><i></i><img src="${imgUrl(s, 'l')}" alt=""></div>
+          <div class="drw-t">
+            <div class="drw-m">Объект получения / № ${R.code}</div>
+            <div class="drw-n"><span>${dosEsc(s.w)}</span>${dosEsc(s.f)}</div>
+            <div class="drw-m">Класс предмета: ${RAR[s.r] ? RAR[s.r].n : '—'}</div>
+            <div class="drw-p">${money(s.p)} <em class="${x >= 1 ? 'up' : 'dn'}">×${x.toFixed(2)}</em></div>
+          </div>
+        </div>
+        <p class="dnote">Заключение эксперта: объект выдан владельцу по результатам обмена и уже лежит в его профиле. Все совпадения с удачей являются подозрительными.</p>
+        <div class="dst">Выдано владельцу</div>
+        <div class="dprot-sig">Подпись владельца: <b>${dosEsc(R.nick)}</b><br>Место хранения: архив RUSH CASE / сектор ${R.code.slice(3)}</div>
+        <div class="dos-prot-a">
+          ${own_ ? `<button class="dbtn upg" id="dosUpg">${ic.up}В апгрейд</button><button class="dbtn dark" id="dosSell">${ic.coin}Продать за ${money(s.p)}</button>` : `<div class="dnote">Предмет уже ${it && it.st === 'sold' ? 'продан' : 'использован'}.</div>`}
+          <button class="dbtn gold" id="dosNew">Новое дело ↻</button>
+        </div>
+      </div>
+    </article>
+    <aside class="dos-side">
+      <section class="dpaper dos-slip"><h3>Выписка из реестра</h3>
+        <div class="dm"><span>Номер дела</span><b>${R.no}</b></div>
+        <div class="dm"><span>Предметов передано</span><b>${R.n}</b></div>
+        <div class="dm"><span>Сумма контракта</span><b>${money(R.sum)}</b></div>
+        <div class="dm"><span>Получено</span><b class="${x >= 1 ? 'g' : 'r'}">${money(s.p)}</b></div>
+        <div class="dm"><span>Статус</span><b>Завершён</b></div>
+        <div class="dseal sm"><span>♛</span><b>RUSH CASE<br>АРХИВ</b></div>
+      </section>
+      <section class="dos-note"><i class="tape"></i><h4>Заметка следователя</h4>
+        <p>«Пять минут назад это были улики. Теперь — один предмет и множество вопросов. Архив считает дело закрытым. Архив всегда так считает».</p></section>
+    </aside>
+  </div>`;
+  const newCase = () => { conRes = null; conStep = 1; drawCon(); };
+  $('#dosNew').onclick = newCase;
+  const sl = $('#dosSell'); if (sl) sl.onclick = () => { sellItem(R.id); drawCon(); };
+  const up = $('#dosUpg'); if (up) up.onclick = () => { upg.sel = [R.id]; upg.bal = 0; upg.to = null; upg.mult = 0; upg.autoX2 = true; conRes = null; conStep = 1; location.hash = '#/upgrade'; };
 }
 
 /* =========================================================
