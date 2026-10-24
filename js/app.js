@@ -1717,8 +1717,7 @@ function ccDone(c, wins, given, demo) {
   const back = () => { resetRoulette(); ccIdle(c); };
   if (demo) {
     cc.innerHTML = `<div class="cc-note">Это было <b>демо-открытие</b> — предмет не сохранён.</div>
-      <div class="cc-btns">${st.user ? `<button class="btn btn-primary btn-xl btn-cham" id="realBtn">Открыть за ${casePrice(c, c.price * caseN)}</button>` : `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`}<button class="btn btn-xl btn-cham btn-gline" id="againBtn">Ещё демо</button></div>
-      <a class="btn btn-ghost cc-other" href="#/cases">${ic.box}Выбрать другой кейс</a>`;
+      <div class="cc-btns">${st.user ? `<button class="btn btn-primary btn-xl btn-cham" id="realBtn">Открыть за ${casePrice(c, c.price * caseN)}</button>` : `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`}<button class="btn btn-xl btn-cham btn-gline" id="againBtn">Ещё демо</button></div>`;
     const rb = $('#realBtn'); if (rb) rb.onclick = () => openCase(c, false);
   } else {
     const live = () => given.filter(g => g.st === 'own');
@@ -1730,7 +1729,6 @@ function ccDone(c, wins, given, demo) {
           ${left ? `<button class="btn btn-xl btn-cham btn-upg" id="toUpg"><span class="tu-sh"></span>${ic.up}<span class="tu-t">В апгрейд<small>шанс умножить дроп до x10</small></span></button>` : ''}
           ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="sellAll">${ic.coin}Продать${wins.length > 1 ? ' всё' : ''} за ${money(sum())}</button>` : ''}
         </div>
-        <a class="btn btn-ghost cc-other" href="#/cases">${ic.box}Выбрать другой кейс</a>
         ${left ? '<div class="cc-note">Предметы уже в вашем <b>профиле</b> — их можно продать или вывести в Steam позже.</div>' : ''}`;
       const sa = $('#sellAll');
       if (sa) sa.onclick = () => { let t = 0; live().forEach(g => { t += sellItem(g.id, true); }); Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); back(); };
