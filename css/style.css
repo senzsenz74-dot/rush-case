@@ -2625,3 +2625,5 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .case-card .case-art.has-img img.ca-img[src*="case-bonus"],.case-card .case-art.has-img .ca-imgbox:has(img[src*="case-bonus"]){top:62%}
 /* бонусные кейсы стоят плотнее */
 @media (min-width:721px){.cases-grid[data-grp="bonusrc"],#bonusRow{grid-template-columns:repeat(auto-fill,184px);gap:28px 10px}}
+/* тумблер «Быстрая прокрутка» под колесом апгрейда */
+.upg-fast{display:flex;width:max-content;margin:4px auto 12px}

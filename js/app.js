@@ -634,7 +634,7 @@ function rankIcon(r, i) {
 /* ---------- state ---------- */
 const KEY = 'rushcase.v1';
 const freshProfile = () => ({ balance: 0, rcoin: 0, rlog: [], inv: [], stats: { opened: 0, spent: 0, upg: 0, upgWin: 0, con: 0, best: null, dep: 0 }, daily: 0, promos: [], depBonus: 0, socials: [], trade: '' });
-const DEF = () => ({ user: null, ...freshProfile(), sound: true, fast: false, accounts: {} });
+const DEF = () => ({ user: null, ...freshProfile(), sound: true, fast: false, upgFast: false, accounts: {} });
 let st;
 try {
   const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -1778,7 +1778,7 @@ function pageUpgrade() {
               <linearGradient id="rimOut" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a5650"/><stop offset=".5" stop-color="#2a2825"/><stop offset="1" stop-color="#141311"/></linearGradient>
               <linearGradient id="rimIn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#121110"/><stop offset=".5" stop-color="#2a2825"/><stop offset="1" stop-color="#5f5a52"/></linearGradient>
               <!-- внутренняя тень: канава утоплена, свет сверху -->
-              <filter id="groove" x="-10%" y="-10%" width="120%" height="120%">
+              <filter id="groove" filterUnits="userSpaceOnUse" x="0" y="0" width="320" height="320">
                 <feComponentTransfer in="SourceAlpha" result="inv"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>
                 <feGaussianBlur in="inv" stdDeviation="4"/><feOffset dy="5" result="off"/>
                 <feFlood flood-color="#000" flood-opacity=".95"/><feComposite in2="off" operator="in"/>
@@ -1817,6 +1817,7 @@ function pageUpgrade() {
           </svg></div>
           <div class="w-center"><b id="wChance">0%</b><span id="wLabel">шанс</span></div>
         </div>
+        <label class="switch upg-fast"><input type="checkbox" id="upgFastChk"${st.upgFast ? ' checked' : ''}><i></i>Быстрая прокрутка</label>
         <div class="mults">${[1.5, 2, 2.5, 3, 5, 10].map(m => `<button data-m="${m}">x${m}</button>`).join('')}</div>
         <button class="btn btn-primary btn-xl" id="upgBtn">${ic.up}Апгрейд</button>
       </div>
@@ -1839,6 +1840,7 @@ function pageUpgrade() {
 const mcard = (s, attrs = '', extra = '') => `<div class="mcard r-${s.r}" ${attrs}>${extra}<img src="${imgUrl(s, 's')}" alt="" loading="lazy"><div class="mc-w">${esc(s.w)}</div><div class="mc-f">${esc(s.f)}</div><div class="mc-p">${money(s.p)}</div></div>`;
 function mountUpgrade() {
   upg.busy = false;
+  $('#upgFastChk').onchange = e => { st.upgFast = e.target.checked; save(); };
   $$('#upgSort button').forEach(b => b.onclick = () => { upg.sort = b.dataset.s; drawTargets(); });
   $('#upgQ').oninput = e => { upg.q = e.target.value.trim().toLowerCase(); drawTargets(); };
   $$('#upgCats [data-cat]').forEach(b => { b.classList.toggle('on', b.dataset.cat === upg.cat); b.onclick = () => { upg.cat = b.dataset.cat; upg.mult = 0; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x === b)); drawTargets(); }; });
@@ -1996,32 +1998,34 @@ async function runUpgrade() {
   save();
   upg.busy = true; $('#upgBtn').disabled = true;
   // старт: рычаг сейфа, стрелка трогается после «клаца»
+  const F = !!st.upgFast; // быстрая прокрутка: ~2 с вместо ~9, без сердцебиения
   Snd.safeStart();
-  await sleep(380);
+  await sleep(F ? 150 : 380);
   // зона выигрыша — дуга ±half градусов от низа кольца
   const half = ch * 180, m = Math.min(3, half / 3);
   const off = win ? rand(-(half - m), half - m) : rand(half + 3, 360 - half - 3);
   const d = (180 + off + 360) % 360;
   const ptr = $('#wPtr');
   ptr.style.transition = 'none'; ptr.style.transform = 'rotate(0deg)'; void ptr.offsetWidth; // старт сверху
-  upg.rot = 360 * 4 + d;
-  ptr.style.transition = 'transform 8.6s cubic-bezier(.18,.62,.06,1)';
+  const DUR = F ? 2200 : 8600;
+  upg.rot = 360 * (F ? 2 : 4) + d;
+  ptr.style.transition = `transform ${DUR / 1000}s cubic-bezier(.18,.62,.06,1)`;
   ptr.style.transform = `rotate(${upg.rot}deg)`;
   const cEl = $('#wChance'); cEl.textContent = '…'; cEl.style.color = ''; cEl.style.fontSize = '';
   // щелчки храповика: тяжелеют при замедлении; последние ~2 с — сердцебиение
-  const DUR = 8600, t0 = performance.now();
-  let last = null, lastA = null, raf, nextBeat = DUR - 2300;
+  const t0 = performance.now();
+  let last = null, lastA = null, raf, nextBeat = F ? Infinity : DUR - 2300;
   const loop = now => {
     const mx = new DOMMatrixReadOnly(getComputedStyle(ptr).transform), a = (Math.atan2(mx.b, mx.a) * 180 / Math.PI + 360) % 360;
     const el = now - t0, dA = lastA == null ? 0 : (a - lastA + 360) % 360; lastA = a;
-    const k = Math.floor(a / 40), tense = el > DUR - 2300 ? 1 : 0; // щелчок реже — раз в 40°
+    const k = Math.floor(a / 40), tense = !F && el > DUR - 2300 ? 1 : 0; // щелчок реже — раз в 40°
     if (last !== null && k !== last) Snd.safeTick(Math.min(1, dA / 14), tense);
     last = k;
     if (el >= nextBeat && el < DUR - 150) { const p = (el - (DUR - 2300)) / 2300; Snd.heart(.35 + p * .35); nextBeat += 620 - p * 260; }
     raf = requestAnimationFrame(loop);
   };
   raf = requestAnimationFrame(loop);
-  await sleep(8750); cancelAnimationFrame(raf);
+  await sleep(DUR + 150); cancelAnimationFrame(raf);
   const nearMiss = !win && Math.min(Math.abs(off - half), Math.abs(360 - half - off)) < 10;
   const w = $('#wheel'); if (!w) { upg.busy = false; return; }
   w.classList.add(win ? 'win' : 'lose');
@@ -2033,7 +2037,7 @@ async function runUpgrade() {
   // победа — карточка выигрыша поверх апгрейда, ждём выбор игрока
   let act = null;
   if (win) act = await upgWinCard(ts);
-  else await sleep(1900);
+  else await sleep(F ? 900 : 1900);
   if (!$('#wheel')) { upg.busy = false; return; }
   // плавно возвращаем стрелку наверх
   ptr.style.transition = 'transform .9s cubic-bezier(.3,.7,.25,1)';
