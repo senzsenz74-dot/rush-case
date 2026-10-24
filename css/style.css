@@ -2418,3 +2418,7 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .dblue2 svg{width:100%;height:100%;display:block}
 @keyframes dosBlue2{0%{transform:rotate(-14deg) scale(2.4);opacity:0}60%{transform:rotate(-11deg) scale(.92);opacity:.95}100%{transform:rotate(-14deg) scale(1);opacity:.86}}
 @media (hover:none){.dpen,.dpen-sh{display:none}.dpad,.dpad canvas{cursor:crosshair}}
+/* шапка страницы кейса (кнопка «Все кейсы») — поверх рамки, которая подтянута вверх */
+.cp-head{position:relative;z-index:12}
+.rl-framed{pointer-events:none}
+.rl-framed .rl-wrap,.rl-framed .rl,.rl-framed button,.rl-framed a{pointer-events:auto}
