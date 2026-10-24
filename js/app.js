@@ -1217,11 +1217,11 @@ function heroSlider() {
   auto();
 }
 /* ---------- блок бонусов под баннером ---------- */
-const HB_GIFT = `<svg viewBox="0 0 120 120" aria-hidden="true"><defs>
+const HB_GIFT = `<svg viewBox="0 8 120 120" aria-hidden="true"><defs>
   <linearGradient id="hbBox" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd978"/><stop offset=".55" stop-color="#e09a26"/><stop offset="1" stop-color="#8a4f0c"/></linearGradient>
   <linearGradient id="hbLid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="1" stop-color="#d48a1c"/></linearGradient>
   <linearGradient id="hbRib" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a3171d"/><stop offset=".5" stop-color="#ff4b4b"/><stop offset="1" stop-color="#a3171d"/></linearGradient></defs>
-  <ellipse cx="60" cy="108" rx="34" ry="6" fill="rgba(0,0,0,.45)"/>
+  <ellipse cx="60" cy="108" rx="30" ry="4" fill="rgba(0,0,0,.28)"/>
   <rect x="24" y="56" width="72" height="50" rx="6" fill="url(#hbBox)"/><rect x="24" y="56" width="72" height="8" fill="rgba(0,0,0,.18)"/>
   <rect x="53" y="56" width="14" height="50" fill="url(#hbRib)"/>
   <g class="hb-lid"><rect x="18" y="42" width="84" height="18" rx="5" fill="url(#hbLid)"/><rect x="52" y="42" width="16" height="18" fill="url(#hbRib)"/>

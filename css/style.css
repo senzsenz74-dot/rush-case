@@ -2565,3 +2565,7 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .hb-btn{white-space:nowrap}
 @media (max-width:1280px) and (min-width:1101px){.hb-dl .hb-btn{padding:0 14px;font-size:11px}.hb-big b{font-size:64px}.hb-dep .hb-coin.c3{display:none}}
 @media (max-width:680px){.hb-dep .hb-coin.c3{display:none}.hb-dl{gap:12px;padding-right:16px}.hb-giftw{flex-basis:96px;height:96px}.hb-gift{width:66px;height:66px}.hb-card h3{font-size:17px}.hb-timer{font-size:21px}.hb-dl .hb-btn{padding:0 12px;font-size:10.5px}.hb-tag{font-size:9.5px}}
+/* подарок: по центру кольца, без тёмного ореола; свечение — только когда бонус доступен */
+.hb-gift{filter:none;display:grid;place-items:center}
+.hb-daily.ready .hb-gift{filter:drop-shadow(0 0 18px rgba(125,255,138,.35))}
+.hb-giftw{place-items:center}
