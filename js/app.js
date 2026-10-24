@@ -1750,7 +1750,11 @@ const upg = { cat: 'all', mult: 0, sel: [], bal: 0, to: null, q: '', sort: 'asc'
 const ARC_R = 138;
 const upgItems = () => upg.sel.map(id => st.inv.find(x => x.id === id && x.st === 'own')).filter(Boolean);
 function upgValue() { return upgItems().reduce((a, x) => a + SK[x.n].p, 0) + upg.bal; }
-const upgChance = (v, t) => (v && t) ? clamp(v / t.p * .92, .01, .8) : 0;
+// шанс апгрейда: до x20 — честные 92% от отношения сумм; дальше резко падает (x50 ≈ 0,12%, x100 ≈ 0,007%, x500 ≈ 0,00001%) — x500/x1000 практически не выпадают
+const UPG_SOFT = 20;
+const upgChance = (v, t) => { if (!v || !t) return 0; const x = t.p / v; return Math.min(.8, .92 / x * (x > UPG_SOFT ? (UPG_SOFT / x) ** 3 : 1)); };
+/* процент шанса: мелкие значения — без округления в ноль (0,0000118%) */
+const pctTxt = ch => { const p = ch * 100; if (p < 1e-6) return '<0,000001%'; const d = p >= 10 ? 1 : p >= 1 ? 2 : Math.min(12, 1 - Math.floor(Math.log10(p))); return p.toFixed(d).replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1').replace('.', ',') + '%'; };
 /* дуга шанса по центру снизу кольца */
 function arcPath(span) {
   span = Math.min(span, 359.9);
@@ -1915,7 +1919,8 @@ function drawUpg() {
   const gl = $('#wArcGloss'); gl.setAttribute('d', ch ? arcPath(ch * 360) : 'M0 0'); gl.style.opacity = ch ? 1 : 0;
   $('#wheel').classList.remove('win', 'lose');
   const cEl = $('#wChance');
-  cEl.textContent = ch ? (ch * 100).toFixed(ch < .1 ? 2 : 1).replace('.', ',') + '%' : '0%';
+  cEl.textContent = ch ? pctTxt(ch) : '0%';
+  cEl.style.fontSize = cEl.textContent.length > 6 ? Math.min(44, 44 * 190 / (34 * cEl.textContent.length)).toFixed(1) + 'px' : ''; // длинный процент — мельче, чтобы влезал в колесо
   cEl.style.color = ch ? chanceColor(ch) : '';
   $('#wLabel').textContent = ts && v ? `x${(ts.p / v).toFixed(2)}` : 'шанс';
   // инвентарь (мультивыбор)
@@ -1970,7 +1975,7 @@ function drawTargets() {
   const total = list.length, LIMIT = 240;
   if (total > LIMIT) { const k = upg.to ? list.findIndex(s => s.name === upg.to) : -1; const st0 = k >= LIMIT ? Math.max(0, k - Math.floor(LIMIT / 2)) : 0; list = list.slice(st0, st0 + LIMIT); }
   $('#upgCnt') && ($('#upgCnt').textContent = total > LIMIT ? `показано ${LIMIT} из ${fmt(total)} — уточните поиск` : `${fmt(total)} предм.`);
-  box.innerHTML = list.length ? list.map(s => mcard(s, `data-t="${esc(s.name)}"`, v ? `<span class="mc-x">${(upgChance(v, s) * 100).toFixed(1)}%</span>` : '')).join('') : `<div class="empty">${ic.search}Ничего не найдено</div>`;
+  box.innerHTML = list.length ? list.map(s => mcard(s, `data-t="${esc(s.name)}"`, v ? `<span class="mc-x">${pctTxt(upgChance(v, s))}</span>` : '')).join('') : `<div class="empty">${ic.search}Ничего не найдено</div>`;
   $$('[data-t]', box).forEach(el => { if (el.dataset.t === upg.to) el.classList.add('sel'); el.onclick = () => { if (upg.busy) return; upg.to = el.dataset.t; Snd.safeSel(true); drawUpg(); }; });
   // после выбора множителем — прокручиваем список к выбранному предмету
   if (upg.focus) { upg.focus = false; const el = $('[data-t].sel', box); if (el) box.scrollTop = el.offsetTop - box.clientHeight / 2 + el.offsetHeight / 2; }
@@ -2002,7 +2007,7 @@ async function runUpgrade() {
   upg.rot = 360 * 4 + d;
   ptr.style.transition = 'transform 8.6s cubic-bezier(.18,.62,.06,1)';
   ptr.style.transform = `rotate(${upg.rot}deg)`;
-  const cEl = $('#wChance'); cEl.textContent = '…'; cEl.style.color = '';
+  const cEl = $('#wChance'); cEl.textContent = '…'; cEl.style.color = ''; cEl.style.fontSize = '';
   // щелчки храповика: тяжелеют при замедлении; последние ~2 с — сердцебиение
   const DUR = 8600, t0 = performance.now();
   let last = null, lastA = null, raf, nextBeat = DUR - 2300;
