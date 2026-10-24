@@ -400,7 +400,7 @@ const CASES = [
     id: 'coco', name: 'CO-CO', price: 60, tag: 'Фарм', tagIc: 'star', rtp: .82,
     sub: 'Жёлто-чёрный фарм-кейс: дроп от 5 ₽, ~13% открытий окупаются. Джекпоты — AK-47 | Fuel Injector, MP9 | Bulldozer, M4A1-S | Golden Coil',
     th: { a: '#f5c518' }, img: 'assets/case-coco.webp',
-    // точные шансы: [скин, износ, шанс, редкость по таблице (необязательно)]. Таблица заказчика ×0,84 (сумма 84%) + 13 своих жёлто-чёрных скинов (16%); окупаемость ≈ 82%
+    // точные шансы: [скин, износ, шанс, редкость по таблице (необязательно)]. Шансы нормируются к 100%. Таблица заказчика ×0,84 + 13 своих скинов (16%), затем +10 скинов 50–95 ₽ (5%) — итог ×0,95; окупаемость ≈ 83%
     exact: [
       ['Nova | Mandrel', 'FN', .1512], ['Tec-9 | Citric Acid', 'FN', .1176], ['XM1014 | XoooM', 'FN', .0924],
       ['P250 | Re.built', 'FT', .0756], ['P2000 | Grip Tape', 'BS', .0756], ['AUG | Tom Cat', 'BS', .074172],
@@ -412,6 +412,10 @@ const CASES = [
       ['M249 | Warbird', 'FT', .005], ['MP9 | Goo', 'FT', .002], ['Galil AR | Firefight', 'BS', .001],
       ['AWP | Phobos', 'FT', .0006], ['AK-47 | Safety Net', 'FT', .0003], ['CZ75-Auto | Yellow Jacket', 'BS', .00015],
       ['MAC-10 | Золотой кирпич', 'FT', .00005],
+      // +10 скинов 50–95 ₽ (вместе 5%, чем дороже — тем реже)
+      ['Galil AR | Black Sand', 'FT', .00636], ['MP7 | Amberline', 'FT', .00577], ['R8 Revolver | Banana Cannon', 'MW', .00687],
+      ['Desert Eagle | Firebreathing', 'FT', .00486], ['Nova | Rising Sun', 'MW', .00486], ['USP-S | Black Lotus', 'FT', .00398],
+      ['MAG-7 | Поджигатель', 'FT', .00709], ['MP9 | Sand Scale', 'MW', .00401], ['PP-Bizon | Fuel Rod', 'FT', .00298], ['SG 553 | Tiger Moth', 'WW', .00321],
     ],
     show: [], items: [],
   },
@@ -551,6 +555,7 @@ const CASES = [
         c.exactCh[it.name] = (c.exactCh[it.name] || 0) + ch; if (r) c.exactR[it.name] = r; return it.name;
       });
       c.items = [...new Set(c.items)];
+      const tot = Object.values(c.exactCh).reduce((a, b) => a + b, 0); for (const n in c.exactCh) c.exactCh[n] /= tot;
       return;
     }
     if (c.bonusSet) return buildBonus(c);
@@ -1200,7 +1205,7 @@ const CASE_BLOCKS = [
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
   { id: 'allin', wm: 'ALL IN', t: 'Всё или ничего', sub: 'Ультра дорогие кейсы — максимальный риск, максимальный дроп', ic: 'crown', a: '#ff4d4d', ids: ['gold', 'karambit', 'premium'] },
   { id: 'farm', wm: 'FARM', t: 'Фарм кейсы', sub: 'Дешёвые кейсы с частым дропом — фарми скины и копи на апгрейд', ic: 'trend', a: '#f5c518', ids: ['coco'] },
-  { id: 'bonusrc', wm: 'BONUS', t: 'Бонусные кейсы', sub: 'Открываются за R-COIN, которые копятся с каждого открытия', ic: 'gift', a: '#8be04e', rc: true, ids: ['bonus'] },
+  { id: 'bonusrc', wm: 'BONUS', t: 'Бонусные кейсы', sub: 'Открываются за R-COIN, которые копятся с каждого открытия', ic: 'gift', a: '#8be04e', rc: true, ids: ['bonus30', 'bonus', 'bonus150'] },
 ];
 const blockCases = b => {
   const listed = new Set(CASE_BLOCKS.flatMap(x => x.ids));
