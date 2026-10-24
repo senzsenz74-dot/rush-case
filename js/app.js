@@ -2016,7 +2016,6 @@ function pageContracts() {
         <h1 class="dos-title">Дело <em>«Контракт»</em></h1>
         <p class="dos-sub">Изымите от 3 до 10 предметов, передайте дело на подпись — комиссия выдаст один случайный скин стоимостью от 25% до 400% суммы контракта.</p>
       </div>
-      <div class="dos-stamp">Секретно<small>только для агента</small></div>
     </div>
     <nav class="dos-tabs" id="dosTabs">
       <button data-step="1"><i>01</i>Улики</button>
