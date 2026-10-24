@@ -2004,7 +2004,9 @@ let conSel = [], conBusy = false;
    КОНТРАКТЫ — «Досье»: лист изъятия → соглашение с подписью → протокол выдачи
    ========================================================= */
 let conStep = 1, conSigned = false, conCase = null, conRes = null, conLast = null;
-const CON_MAX = 10;
+const CON_MAX = 5;
+/* улики приколоты к доске вразброс: [left %, top %, поворот] */
+const DOS_POS = [[2, 8, -5], [22, 44, 4], [41, 4, -2.5], [60, 40, 5.5], [79, 10, -3.5]];
 const conNo = () => 'RC-' + String((st.stats.con || 0) + 45).padStart(3, '0') + '-' + 'ABCDEFGH'[(st.stats.con || 0) % 8];
 function pageContracts() {
   return `<section class="container dos" id="dos">
@@ -2059,18 +2061,19 @@ function drawCon() {
   else drawConProtocol(desk);
 }
 /* ---------- лист 01: улики ---------- */
+const dosPos = i => { const [l, t, r] = DOS_POS[i]; return `--l:${l}%;--t:${t}%;--r:${r}deg`; };
 function drawConEvidence(desk) {
   const items = conItems(), sum = items.reduce((a, x) => a + SK[x.n].p, 0);
   desk.innerHTML = `<div class="dos-grid">
     <section class="dpaper dos-board">
-      <header class="dp-head"><span>Вещественные доказательства / лист изъятия</span><em>Форма RC-10 · ${CON_MAX} ячеек</em></header>
+      <header class="dp-head"><span>Вещественные доказательства / лист изъятия</span><em>Форма RC-5 · ${CON_MAX} улик</em></header>
       <div class="dos-board-h"><h3>Состав контракта</h3><span>Нажмите на скин в архиве — он ляжет в следующую ячейку</span></div>
       <div class="dos-thread"><svg class="dos-thr" id="dosThreadSvg" aria-hidden="true"></svg>
         <div class="dos-slots">${Array.from({ length: CON_MAX }, (_, i) => {
           const x = items[i], next = i === items.length;
-          if (!x) return `<div class="dslot${next ? ' next' : ''}"><i class="pin"><b></b></i><span class="dn">Улика ${String(i + 1).padStart(2, '0')}</span><b>+</b><small>${next ? 'Следующая ячейка' : 'Пусто'}</small></div>`;
+          if (!x) return `<div class="dslot${next ? ' next' : ''}" style="${dosPos(i)}"><i class="pin"><b></b></i><span class="dn">Улика ${String(i + 1).padStart(2, '0')}</span><b>+</b><small>${next ? 'Следующая ячейка' : 'Пусто'}</small></div>`;
           const s = SK[x.n];
-          return `<div class="dslot f r-${s.r}${x.id === conLast ? ' drop' : ''}"><i class="pin"><b></b></i><span class="dn">Улика ${String(i + 1).padStart(2, '0')}</span><button class="dx" data-rm="${x.id}" aria-label="Убрать">×</button><img src="${imgUrl(s, 's')}" alt=""><div class="dw">${dosEsc(s.w)}</div><div class="df">${dosEsc(s.f)}</div><div class="dpz">${money(s.p)}</div></div>`;
+          return `<div class="dslot f r-${s.r}${x.id === conLast ? ' drop' : ''}" style="${dosPos(i)}"><i class="pin"><b></b></i><span class="dn">Улика ${String(i + 1).padStart(2, '0')}</span><button class="dx" data-rm="${x.id}" aria-label="Убрать">×</button><img src="${imgUrl(s, 's')}" alt=""><div class="dw">${dosEsc(s.w)}</div><div class="df">${dosEsc(s.f)}</div><div class="dpz">${money(s.p)}</div></div>`;
         }).join('')}</div>
       </div>
       <div class="dos-next"><p><b>Правило отдела:</b> минимум 3 предмета, максимум ${CON_MAX}. Изъятые предметы сгорают — взамен выдаётся один скин.</p>
@@ -2113,32 +2116,41 @@ function drawConEvidence(desk) {
 }
 /* нитка: от булавки к булавке по заполненным уликам, с провисом и кручением; хвост свисает с последней.
    Новый отрезок натягивается анимацией */
-let dosThreadN = 0;
+let dosThreadN = 0, dosThreadRaf = 0;
 function dosThread(animate) {
   const svg = $('#dosThreadSvg'); if (!svg) return;
-  const box = svg.parentElement.getBoundingClientRect();
-  const pins = $$('.dslot .pin', svg.parentElement).map(p => { const r = p.getBoundingClientRect(); return [r.left + r.width / 2 - box.left, r.top + r.height / 2 - box.top]; });
-  const k = conItems().length, pts = pins.slice(0, Math.max(1, k));
+  const host = svg.parentElement, box = host.getBoundingClientRect();
+  const pins = $$('.dslot .pin', host).map(p => { const r = p.getBoundingClientRect(); return [r.left + r.width / 2 - box.left, r.top + r.height / 2 - box.top]; });
+  const k = conItems().length;
   svg.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
-  // отрезок между булавками: натянутая нить чуть провисает
-  const seg = ([x1, y1], [x2, y2]) => { const d = Math.hypot(x2 - x1, y2 - y1), sag = Math.min(16, 4 + d * .035); return `Q${((x1 + x2) / 2).toFixed(1)} ${((y1 + y2) / 2 + sag).toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`; };
-  let main = '';
-  for (let i = 1; i < pts.length && k > 1; i++) main += (i === 1 ? `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}` : '') + seg(pts[i - 1], pts[i]);
-  // свободный конец: провисает от последней булавки к следующей ячейке, не дотягиваясь до неё
-  const [lx, ly] = pts[pts.length - 1], nx = pins[Math.min(pins.length - 1, Math.max(1, k))] || [lx + 120, ly];
-  const ex = lx + (nx[0] - lx) * .62, ey = ly + (nx[1] - ly) * .62 + 34;
-  const tail = k >= pins.length ? '' : `M${lx.toFixed(1)} ${ly.toFixed(1)} C${(lx + (ex - lx) * .25).toFixed(1)} ${(ly + 46).toFixed(1)} ${(ex - 26).toFixed(1)} ${(ey + 26).toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)} q6 -4 9 -12`;
-  // последний отрезок — отдельно, чтобы его «натянуть»
-  let last = '';
-  if (k > 1) { last = `M${pts[k - 2][0].toFixed(1)} ${pts[k - 2][1].toFixed(1)}` + seg(pts[k - 2], pts[k - 1]); }
   const grow = animate && k > dosThreadN && k > 1;
-  const body = d => `<path class="t-sh" d="${d}"/><path class="t-b" d="${d}"/><path class="t-tw" d="${d}"/><path class="t-hi" d="${d}"/>`;
-  // узелки вокруг булавок
-  const knots = pts.slice(0, Math.max(1, k)).map(([x, y]) => `<circle class="t-knot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5"/>`).join('');
-  svg.innerHTML = `<g class="t-main">${k > 1 ? body(grow ? (pts.slice(0, k - 1).length > 1 ? pts.slice(0, k - 1).map((p, i) => i ? seg(pts[i - 1], p) : `M${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('') : '') : main) : ''}</g>
-    ${grow ? `<g class="t-new">${body(last)}</g>` : ''}<g class="t-tail${grow ? ' late' : ''}">${tail ? body(tail) : ''}</g>${knots}`;
-  if (grow) $$('.t-new path', svg).forEach(p => { const L = p.getTotalLength(); p.style.strokeDasharray = p.classList.contains('t-tw') || p.classList.contains('t-hi') ? '' : L; if (!p.style.strokeDasharray) { p.style.opacity = 0; p.style.animation = 'dosTw .3s ease .45s forwards'; } else { p.style.strokeDashoffset = L; p.style.animation = 'dosPull .5s cubic-bezier(.3,.7,.3,1) forwards'; } });
+  const body = cls => `<g class="${cls}"><path class="t-sh"/><path class="t-b"/><path class="t-tw"/><path class="t-hi"/></g>`;
+  svg.innerHTML = body('t-main') + body('t-new') + body('t-tail') + pins.slice(0, Math.max(1, k)).map(([x, y]) => `<circle class="t-knot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7"/>`).join('');
+  const G = n => $$('.' + n + ' path', svg), gMain = G('t-main'), gNew = G('t-new'), gTail = G('t-tail');
+  const f = v => v.toFixed(1);
+  // отрезок с провисом; ph — фаза покачивания
+  const seg = (p, q, ph) => { const d = Math.hypot(q[0] - p[0], q[1] - p[1]), sag = Math.min(30, 8 + d * .06) * (1 + .18 * Math.sin(ph)), sw = 5 * Math.sin(ph * .7);
+    return `Q${f((p[0] + q[0]) / 2 + sw)} ${f((p[1] + q[1]) / 2 + sag)} ${f(q[0])} ${f(q[1])}`; };
+  const path = (arr, t) => arr.length < 2 ? '' : `M${f(arr[0][0])} ${f(arr[0][1])}` + arr.slice(1).map((q, i) => seg(arr[i], q, t * 1.3 + i * 1.7)).join('');
+  const tailD = t => { if (k >= pins.length || !k) return ''; const [lx, ly] = pins[k - 1], nx = pins[k], ex = lx + (nx[0] - lx) * .55 + 6 * Math.sin(t * 1.1), ey = ly + (nx[1] - ly) * .55 + 46 + 4 * Math.sin(t * .9);
+    return `M${f(lx)} ${f(ly)} C${f(lx + (ex - lx) * .2)} ${f(ly + 50)} ${f(ex - 22)} ${f(ey + 24)} ${f(ex)} ${f(ey)} q6 -4 9 -12`; };
+  const set = (g, d) => g.forEach(p => p.setAttribute('d', d));
+  const draw = t => {
+    const base = grow ? pins.slice(0, k - 1) : pins.slice(0, k);
+    set(gMain, path(base, t));
+    if (grow) set(gNew, path([pins[k - 2], pins[k - 1]], t + (k - 2) * 1.3 / 1.3));
+    set(gTail, tailD(t));
+  };
+  draw(0);
+  if (grow) {
+    gNew.forEach(p => { if (p.classList.contains('t-b') || p.classList.contains('t-sh')) { const L = p.getTotalLength() + 20; p.style.strokeDasharray = L; p.style.strokeDashoffset = L; p.style.animation = 'dosPull .55s cubic-bezier(.3,.7,.3,1) forwards'; } else { p.style.opacity = 0; p.style.animation = 'dosTw .3s ease .45s forwards'; } });
+    svg.querySelector('.t-tail').classList.add('late');
+  }
   dosThreadN = k;
+  cancelAnimationFrame(dosThreadRaf);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, t0 = performance.now();
+  const loop = now => { if (!svg.isConnected) return; draw((now - t0) / 1000); dosThreadRaf = requestAnimationFrame(loop); };
+  if (!reduce) dosThreadRaf = requestAnimationFrame(loop);
 }
 /* ---------- лист 02: соглашение и подпись ---------- */
 const CON_CLAUSES = [
@@ -2173,7 +2185,7 @@ function drawConAgreement(desk) {
       </div>
       <div class="dsigned">✓ Дело подписано и внесено в архив. Отменить подпись нельзя — таково требование загадочной комиссии.</div>
       <div class="dsc">
-        ${conSigned ? `<button class="dbtn gold" id="dosClose">Закрыть дело и получить дроп ✓</button>` : `<button class="dbtn red" id="dosDoSign">✒ Подписать контракт</button>`}
+        ${conSigned ? `<button class="dbtn gold" id="dosClose" disabled><span class="spinner"></span>Комиссия заверяет дело…</button>` : `<button class="dbtn red" id="dosDoSign">✒ Подписать и закрыть дело</button>`}
         <div class="dreg">Реестр: <b>${conSigned ? 'подписано / зарегистрировано' : 'ожидает подписи'}</b><br>Предметов в деле: <b>${items.length}</b><br>Общая стоимость: <b>${money(sum)}</b></div>
       </div>
     </aside>
@@ -2188,6 +2200,14 @@ function drawConAgreement(desk) {
     drawCon();
     const v = $('#dosSigV'); if (v) v.innerHTML = conSigSvg(conCase.nick, true);
     const p = $('#dosSign'); if (p) { p.classList.remove('stamp-anim'); void p.offsetWidth; p.classList.add('stamp-anim'); }
+    conBusy = true;
+    // подпись пишется ~2,2 с, затем синяя печать ложится на подпись, и через мгновение — протокол
+    setTimeout(() => {
+      const sg2 = $('.dsig'); if (!sg2) { conBusy = false; return; }
+      sg2.insertAdjacentHTML('beforeend', '<div class="dblue"><b>RUSH CASE</b><span>утверждено · архив</span><i>★ ★ ★</i></div>');
+      Snd.noise(.06, .7, 0, 900, 1); Snd.tone(110, .18, 'sine', .4, 0, 60);
+      setTimeout(() => { conBusy = false; runContract(); }, 650);
+    }, 2300);
   };
   const cl = $('#dosClose'); if (cl) cl.onclick = runContract;
 }
@@ -2212,8 +2232,7 @@ async function runContract() {
   conBusy = true;
   const b = $('#dosClose'); if (b) { b.disabled = true; b.innerHTML = '<span class="spinner"></span>Комиссия рассматривает дело…'; }
   const pre = new Image(); pre.src = imgUrl(res, 'l');
-  Snd.tick(); await sleep(700); Snd.tick(); await sleep(600);
-  await Promise.race([pre.decode().catch(() => {}), sleep(1500)]);
+  await Promise.race([pre.decode().catch(() => {}), sleep(900)]);
   conRes = { no: caseNo, s: SK[res.name], id: got.id, sum, n: items.length, given, code: 'RC-' + String(Math.floor(100 + Math.random() * 899)), nick: conCase ? conCase.nick : st.user.name, date: conCase ? conCase.date : '' };
   conSel = []; conSigned = false; conCase = null; conBusy = false;
   if (!$('#dosDesk')) return;
