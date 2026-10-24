@@ -2430,3 +2430,19 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .dst.big.open{animation:none;opacity:.88}
 .dst.big.open.anim{animation:dosOpenIn .6s cubic-bezier(.2,.9,.3,1.4) .25s both}
 @keyframes dosOpenIn{0%{transform:rotate(-8deg) scale(2);opacity:0}100%{transform:rotate(-8deg) scale(1);opacity:.88}}
+
+/* ===== контракты: оптимизация ===== */
+.dos-desk{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='600'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0035 .11' numOctaves='4' seed='2'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .05 0 0 0 0 .02 0 0 0 1.25 -.28'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23w)'/%3E%3C/svg%3E"),linear-gradient(180deg,#3e2614,#2d1a0c 60%,#21130a);background-size:900px 600px,auto;transition:none}
+.dos-desk{overflow:clip;overflow-clip-margin:40px}
+.dos-lamp{position:absolute;left:0;top:0;width:1040px;height:840px;pointer-events:none;z-index:1;background:radial-gradient(closest-side,rgba(255,214,150,.2),transparent);mix-blend-mode:screen;will-change:transform;transform:translate3d(-200px,-150px,0)}
+.dos-desk>:not(.dos-lamp){position:relative;z-index:2}
+/* нитка — свой слой, тень без блюра */
+.dos-thr{will-change:transform}
+.dos-thr .t-sh{filter:none;stroke:rgba(30,10,4,.22);stroke-width:4}
+.dos-thr .t-knot{filter:none}
+/* карточки архива: без пересчитываемого фильтра, обычная тень */
+.dcard::before{filter:none;box-shadow:0 3px 5px rgba(50,25,8,.3);border-radius:2px}
+.dcard{will-change:auto}
+/* ручка — это курсор */
+.dpad,.dpad canvas{cursor:crosshair}
+.dpen,.dpen-sh{display:none}

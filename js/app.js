@@ -2038,7 +2038,12 @@ function mountContracts() {
   if (conStep === 2 && conSel.length < 3) conStep = 1;
   $$('#dosTabs [data-step]').forEach(b => b.onclick = () => conGo(+b.dataset.step));
   const desk = $('#dosDesk');
-  desk.addEventListener('pointermove', e => { const r = desk.getBoundingClientRect(); desk.style.setProperty('--lx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%'); desk.style.setProperty('--ly', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%'); });
+  const lamp = dosLampEl = Object.assign(document.createElement('i'), { className: 'dos-lamp' }); desk.prepend(lamp);
+  let lq = null, lraf = 0;
+  desk.addEventListener('pointermove', e => {
+    lq = e; if (lraf) return;
+    lraf = requestAnimationFrame(() => { lraf = 0; const r = desk.getBoundingClientRect(); lamp.style.transform = `translate3d(${(lq.clientX - r.left - 520).toFixed(0)}px,${(lq.clientY - r.top - 420).toFixed(0)}px,0)`; });
+  }, { passive: true });
   if (!window._dosRz) { window._dosRz = 1; window.addEventListener('resize', () => { if ($('#dosThreadSvg')) dosThread(false); }); }
   drawCon();
 }
@@ -2060,7 +2065,9 @@ function drawCon() {
   if (conStep === 1) drawConEvidence(desk);
   else if (conStep === 2) drawConAgreement(desk);
   else drawConProtocol(desk);
+  if (dosLampEl) desk.prepend(dosLampEl);
 }
+let dosLampEl = null;
 /* ---------- лист 01: улики ---------- */
 const dosPos = i => { const [l, t, r] = DOS_POS[i]; return `--l:${l}%;--t:${t}%;--r:${r}deg`; };
 let dosOpenShown = false;
@@ -2152,7 +2159,9 @@ function dosThread(animate) {
   dosThreadN = k;
   cancelAnimationFrame(dosThreadRaf);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, t0 = performance.now();
-  const loop = now => { if (!svg.isConnected) return; draw((now - t0) / 1000); dosThreadRaf = requestAnimationFrame(loop); };
+  let vis = true, lastT = 0;
+  if (window.IntersectionObserver) new IntersectionObserver(en => { vis = en[0].isIntersecting; }).observe(svg);
+  const loop = now => { if (!svg.isConnected) return; dosThreadRaf = requestAnimationFrame(loop); if (!vis || document.hidden || now - lastT < 33) return; lastT = now; draw((now - t0) / 1000); };
   if (!reduce) dosThreadRaf = requestAnimationFrame(loop);
 }
 /* ---------- лист 02: соглашение и подпись ---------- */
@@ -2186,7 +2195,7 @@ function drawConAgreement(desk) {
         <div class="dsig"><span>Подпись владельца</span>
           <div class="dpad" id="dosPadWrap"><canvas id="dosPad"></canvas><em class="dpad-hint">Распишитесь здесь</em>
             <button class="dpad-clr" id="dosPadClr" title="Стереть">Стереть</button>
-            <i class="dpen-sh" aria-hidden="true"></i><span class="dpen" aria-hidden="true">${DOS_PEN}</span></div></div>
+</div></div>
         <div class="ddate"><span>Дата контракта</span><b id="dosDate">${conSigned ? conCase.date : 'не заполнено'}</b></div>
       </div>
       <div class="dsigned">✓ Дело подписано и внесено в архив. Отменить подпись нельзя — таково требование загадочной комиссии.</div>
@@ -2219,19 +2228,18 @@ function drawConAgreement(desk) {
   };
 }
 /* 3D-ручка (перьевая): корпус, золотые кольца, перо; кончик пера — в левом нижнем углу */
-const DOS_PEN = `<svg viewBox="0 0 200 200"><defs>
-  <linearGradient id="pnB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a4a7a"/><stop offset=".35" stop-color="#121a33"/><stop offset=".6" stop-color="#0a0f1f"/><stop offset="1" stop-color="#26335c"/></linearGradient>
-  <linearGradient id="pnG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2c4"/><stop offset=".4" stop-color="#d4a548"/><stop offset=".7" stop-color="#8a5f1c"/><stop offset="1" stop-color="#f3d38a"/></linearGradient>
-  <linearGradient id="pnN" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5418"/><stop offset=".45" stop-color="#ffe7a0"/><stop offset="1" stop-color="#9a6b22"/></linearGradient></defs>
-  <g transform="rotate(-45 100 100)">
-    <path d="M100 196 L91 160 L109 160 Z" fill="url(#pnN)"/><path d="M100 196 L100 168" stroke="#5a3a0e" stroke-width="1.2"/><circle cx="100" cy="166" r="2" fill="#3a2508"/>
-    <rect x="88" y="138" width="24" height="24" rx="4" fill="#0d1226"/><rect x="88" y="136" width="24" height="5" fill="url(#pnG)"/>
-    <rect x="86" y="30" width="28" height="108" rx="12" fill="url(#pnB)"/>
-    <rect x="86" y="96" width="28" height="7" fill="url(#pnG)"/><rect x="86" y="106" width="28" height="2.5" fill="url(#pnG)"/>
-    <rect x="93" y="36" width="5" height="54" rx="2.5" fill="rgba(255,255,255,.28)"/>
-    <path d="M110 34 h6 v58 q0 6 -4 6 h-2 z" fill="url(#pnG)"/>
-    <rect x="86" y="4" width="28" height="30" rx="13" fill="url(#pnB)"/><circle cx="100" cy="10" r="5" fill="url(#pnG)"/>
-  </g></svg>`;
+/* ручка-курсор 48×48: тёмное перо, кончик в точке (2,46); при нажатии наклоняется сильнее */
+const dosPenSvg = deg => `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><defs>
+  <linearGradient id="b" x1="0" x2="1"><stop offset="0" stop-color="#2a2f3d"/><stop offset=".45" stop-color="#0c0e14"/><stop offset="1" stop-color="#05060a"/></linearGradient>
+  <linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#5a4214"/><stop offset=".5" stop-color="#b08a3e"/><stop offset="1" stop-color="#4a3510"/></linearGradient></defs>
+  <g transform="translate(2 46) rotate(${deg})">
+  <path d="M0 0 L-2.6 -9.5 L2.6 -9.5 Z" fill="url(#g)" stroke="#2a1d06" stroke-width=".5"/><path d="M0 -.6 V-7" stroke="#1a1204" stroke-width=".6"/>
+  <rect x="-3" y="-15.5" width="6" height="6.2" rx="1" fill="#07080c"/><rect x="-3.4" y="-17" width="6.8" height="1.6" fill="url(#g)"/>
+  <rect x="-3.7" y="-52" width="7.4" height="35.5" rx="3" fill="url(#b)" stroke="rgba(255,255,255,.28)" stroke-width=".5"/>
+  <rect x="-2.3" y="-49" width="1.1" height="29" rx=".55" fill="rgba(255,255,255,.22)"/>
+  <rect x="-3.7" y="-34" width="7.4" height="1.4" fill="url(#g)"/>
+  <path d="M3.7 -50 h1.2 v17 q0 2 -1.2 2 z" fill="url(#g)"/></g></svg>`;
+const dosPenCur = deg => `url("data:image/svg+xml,${encodeURIComponent(dosPenSvg(deg))}") 2 46, crosshair`;
 /* синяя печать: двойное кольцо, текст по кругу, в центре RUSH CASE */
 const DOS_BLUE = `<div class="dblue2"><svg viewBox="0 0 200 200"><defs><path id="dbArc" d="M100 100 m-74 0 a74 74 0 1 1 148 0 a74 74 0 1 1 -148 0"/></defs>
   <circle cx="100" cy="100" r="94" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="100" cy="100" r="86" fill="none" stroke="currentColor" stroke-width="1.6"/>
@@ -2244,11 +2252,12 @@ const DOS_BLUE = `<div class="dblue2"><svg viewBox="0 0 200 200"><defs><path id=
 /* холст подписи: чернила с нажимом по скорости, ручка следует за курсором и опускается при касании */
 function dosPad() {
   const wrap = $('#dosPadWrap'), cv = $('#dosPad'); if (!cv) return;
-  const pen = $('.dpen', wrap), sh = $('.dpen-sh', wrap), btn = $('#dosDoSign');
+  const btn = $('#dosDoSign'), curUp = dosPenCur(45), curDn = dosPenCur(52);
+  cv.style.cursor = curUp;
   const fit = () => { const r = wrap.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); cv.width = r.width * dpr; cv.height = r.height * dpr; cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px'; const x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); return x; };
   let x = fit(), down = false, last = null, ink = 0, lw = 2.4;
   const pos = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-  const movePen = (p, pressed) => { pen.style.transform = `translate(${p[0]}px,${p[1]}px)${pressed ? ' translate(1px,2px)' : ''}`; sh.style.transform = `translate(${p[0] + (pressed ? 6 : 16)}px,${p[1] + (pressed ? 8 : 20)}px)`; wrap.classList.toggle('press', !!pressed); };
+  const movePen = (p, pressed) => { const c = wrap.classList.contains('done') ? 'default' : pressed ? curDn : curUp; if (cv.style.cursor !== c) cv.style.cursor = c; };
   cv.addEventListener('pointerenter', () => wrap.classList.add('hov'));
   cv.addEventListener('pointerleave', () => { wrap.classList.remove('hov'); down = false; last = null; });
   cv.addEventListener('pointerdown', e => { if (wrap.classList.contains('done')) return; cv.setPointerCapture(e.pointerId); down = true; last = pos(e); wrap.classList.add('inked'); movePen(last, true); });
