@@ -2569,3 +2569,8 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .hb-gift{filter:none;display:grid;place-items:center}
 .hb-daily.ready .hb-gift{filter:drop-shadow(0 0 18px rgba(125,255,138,.35))}
 .hb-giftw{place-items:center}
+/* чёткая граница под баннером: золотая линия с бликом по центру */
+.hero3 .h3-frame::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;z-index:6;pointer-events:none;
+  background:linear-gradient(90deg,rgba(245,199,107,.15),rgba(245,199,107,.75) 30%,#ffe7a0 50%,rgba(245,199,107,.75) 70%,rgba(245,199,107,.15));
+  box-shadow:0 0 14px rgba(245,199,107,.45),0 1px 0 rgba(0,0,0,.8)}
+.hero3 .h3-frame::after{height:3px;background:linear-gradient(90deg,rgba(245,199,107,.35),#f5c76b 25%,#fff0c2 50%,#f5c76b 75%,rgba(245,199,107,.35));box-shadow:0 0 18px rgba(245,199,107,.6),0 2px 0 rgba(0,0,0,.85)}
