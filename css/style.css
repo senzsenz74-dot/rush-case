@@ -2456,3 +2456,7 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 /* улика при наведении приподнимается — нитка тянется за ней */
 .dos-slots .dslot{transition:transform .3s cubic-bezier(.2,.8,.3,1.2)}
 .dos-slots .dslot.f:hover{transform:translate(6px,-14px) rotate(calc(var(--r) * -.6)) scale(1.06)!important}
+/* нитка всегда поверх улик (и поднятой тоже), поднятая улика — поверх остальных */
+.dos-slots{z-index:auto}
+.dos-thr{z-index:8}
+.dos-slots .dslot:hover{z-index:6}
