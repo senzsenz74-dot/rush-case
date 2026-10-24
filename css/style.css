@@ -2452,3 +2452,7 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .dst.big{font-size:16px;padding:9px 16px;opacity:.95}
 .dst.big.open{color:#17803a;border-color:#17803a;background:rgba(23,128,58,.07);opacity:.95}
 .dst.big.open{font-size:14px;padding:7px 13px;top:46px}
+
+/* улика при наведении приподнимается — нитка тянется за ней */
+.dos-slots .dslot{transition:transform .3s cubic-bezier(.2,.8,.3,1.2)}
+.dos-slots .dslot.f:hover{transform:translate(6px,-14px) rotate(calc(var(--r) * -.6)) scale(1.06)!important}

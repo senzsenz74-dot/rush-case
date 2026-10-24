@@ -2129,7 +2129,9 @@ let dosThreadN = 0, dosThreadRaf = 0;
 function dosThread(animate) {
   const svg = $('#dosThreadSvg'); if (!svg) return;
   const host = svg.parentElement, box = host.getBoundingClientRect();
-  const pins = $$('.dslot .pin', host).map(p => { const r = p.getBoundingClientRect(); return [r.left + r.width / 2 - box.left, r.top + r.height / 2 - box.top]; });
+  const pinEls = $$('.dslot .pin', host);
+  const readPins = () => { const b = host.getBoundingClientRect(); return pinEls.map(p => { const r = p.getBoundingClientRect(); return [r.left + r.width / 2 - b.left, r.top + r.height / 2 - b.top]; }); };
+  let pins = readPins();
   const k = conItems().length;
   svg.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
   const grow = animate && k > dosThreadN && k > 1;
@@ -2144,12 +2146,16 @@ function dosThread(animate) {
   const tailD = t => { if (k >= pins.length || !k) return ''; const [lx, ly] = pins[k - 1], nx = pins[k], ex = lx + (nx[0] - lx) * .55 + 6 * Math.sin(t * 1.1), ey = ly + (nx[1] - ly) * .55 + 46 + 4 * Math.sin(t * .9);
     return `M${f(lx)} ${f(ly)} C${f(lx + (ex - lx) * .2)} ${f(ly + 50)} ${f(ex - 22)} ${f(ey + 24)} ${f(ex)} ${f(ey)} q6 -4 9 -12`; };
   const set = (g, d) => g.forEach(p => p.setAttribute('d', d));
+  let knots = [];
   const draw = t => {
+    pins = readPins(); // булавки двигаются вместе с карточкой при наведении
+    knots.forEach((c, i) => { c.setAttribute('cx', f(pins[i][0])); c.setAttribute('cy', f(pins[i][1])); });
     const base = grow ? pins.slice(0, k - 1) : pins.slice(0, k);
     set(gMain, path(base, t));
     if (grow) set(gNew, path([pins[k - 2], pins[k - 1]], t + (k - 2) * 1.3 / 1.3));
     set(gTail, tailD(t));
   };
+  knots = $$('.t-knot', svg);
   draw(0);
   if (grow) {
     gNew.forEach(p => { if (p.classList.contains('t-b') || p.classList.contains('t-sh')) { const L = p.getTotalLength() + 20; p.style.strokeDasharray = L; p.style.strokeDashoffset = L; p.style.animation = 'dosPull .55s cubic-bezier(.3,.7,.3,1) forwards'; } else { p.style.opacity = 0; p.style.animation = 'dosTw .3s ease .45s forwards'; } });
@@ -2158,9 +2164,10 @@ function dosThread(animate) {
   dosThreadN = k;
   cancelAnimationFrame(dosThreadRaf);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, t0 = performance.now();
-  let vis = true, lastT = 0;
+  let vis = true, lastT = 0, fastTill = 0;
+  host.onpointerover = host.onpointerout = () => { fastTill = performance.now() + 500; };
   if (window.IntersectionObserver) new IntersectionObserver(en => { vis = en[0].isIntersecting; }).observe(svg);
-  const loop = now => { if (!svg.isConnected) return; dosThreadRaf = requestAnimationFrame(loop); if (!vis || document.hidden || now - lastT < 33) return; lastT = now; draw((now - t0) / 1000); };
+  const loop = now => { if (!svg.isConnected) return; dosThreadRaf = requestAnimationFrame(loop); if (!vis || document.hidden || (now > fastTill && now - lastT < 33)) return; lastT = now; draw((now - t0) / 1000); };
   if (!reduce) dosThreadRaf = requestAnimationFrame(loop);
 }
 /* ---------- лист 02: соглашение и подпись ---------- */
