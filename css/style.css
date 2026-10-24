@@ -2422,3 +2422,11 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .cp-head{position:relative;z-index:12}
 .rl-framed{pointer-events:none}
 .rl-framed .rl-wrap,.rl-framed .rl,.rl-framed button,.rl-framed a{pointer-events:auto}
+
+/* зелёная печать «Дело открыто» на листе улик */
+.dos-board{position:relative}
+.dst.big.open{--gn:#1f8a3a;border-color:var(--gn);color:var(--gn);top:48px;right:auto;left:252px;transform:rotate(-8deg);z-index:4;pointer-events:none;mix-blend-mode:multiply}
+@media (max-width:720px){.dst.big.open{position:static;display:inline-block;margin:4px 0 10px}}
+.dst.big.open{animation:none;opacity:.88}
+.dst.big.open.anim{animation:dosOpenIn .6s cubic-bezier(.2,.9,.3,1.4) .25s both}
+@keyframes dosOpenIn{0%{transform:rotate(-8deg) scale(2);opacity:0}100%{transform:rotate(-8deg) scale(1);opacity:.88}}

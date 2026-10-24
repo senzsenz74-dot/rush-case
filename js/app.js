@@ -2031,6 +2031,7 @@ function pageContracts() {
   </section>`;
 }
 function mountContracts() {
+  dosOpenShown = false;
   conBusy = false;
   conSel = conSel.filter(id => st.inv.find(x => x.id === id && x.st === 'own'));
   if (conStep === 3 && !conRes) conStep = 1;
@@ -2062,12 +2063,14 @@ function drawCon() {
 }
 /* ---------- лист 01: улики ---------- */
 const dosPos = i => { const [l, t, r] = DOS_POS[i]; return `--l:${l}%;--t:${t}%;--r:${r}deg`; };
+let dosOpenShown = false;
 function drawConEvidence(desk) {
+  setTimeout(() => { dosOpenShown = true; }, 900);
   const items = conItems(), sum = items.reduce((a, x) => a + SK[x.n].p, 0);
   desk.innerHTML = `<div class="dos-grid">
     <section class="dpaper dos-board">
       <header class="dp-head"><span>Вещественные доказательства / лист изъятия</span><em>Форма RC-5 · ${CON_MAX} улик</em></header>
-      <div class="dos-board-h"><h3>Состав контракта</h3><span>Нажмите на скин в архиве — он ляжет в следующую ячейку</span></div>
+      <div class="dst big open${dosOpenShown ? '' : ' anim'}">Дело открыто</div><div class="dos-board-h"><h3>Состав контракта</h3><span>Нажмите на скин в архиве — он ляжет в следующую ячейку</span></div>
       <div class="dos-thread"><svg class="dos-thr" id="dosThreadSvg" aria-hidden="true"></svg>
         <div class="dos-slots">${Array.from({ length: CON_MAX }, (_, i) => {
           const x = items[i], next = i === items.length;
@@ -2286,7 +2289,7 @@ async function runContract() {
   const pre = new Image(); pre.src = imgUrl(res, 'l');
   await Promise.race([pre.decode().catch(() => {}), sleep(900)]);
   conRes = { no: caseNo, s: SK[res.name], id: got.id, sum, n: items.length, given, code: 'RC-' + String(Math.floor(100 + Math.random() * 899)), nick: conCase ? conCase.nick : st.user.name, date: conCase ? conCase.date : '' };
-  conSel = []; conSigned = false; conCase = null; conBusy = false;
+  conSel = []; conSigned = false; conCase = null; conBusy = false; dosOpenShown = false;
   if (!$('#dosDesk')) return;
   conStep = 3; drawCon();
   const s = conRes.s; Snd.win(RAR[s.r].o); if (RAR[s.r].o >= 5 || s.p > sum * 1.5) burst();
