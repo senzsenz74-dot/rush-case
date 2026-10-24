@@ -2446,3 +2446,9 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 /* ручка — это курсор */
 .dpad,.dpad canvas{cursor:crosshair}
 .dpen,.dpen-sh{display:none}
+
+/* печати «Дело закрыто / открыто / Выдано владельцу» — чёткий текст (без искажающего фильтра) */
+.dst{filter:none;font:900 13px var(--ff-h);letter-spacing:.1em;color:#b3201a;border-color:#b3201a;border-width:3px;background:rgba(179,32,26,.06);text-shadow:0 0 .5px currentColor;opacity:1}
+.dst.big{font-size:16px;padding:9px 16px;opacity:.95}
+.dst.big.open{color:#17803a;border-color:#17803a;background:rgba(23,128,58,.07);opacity:.95}
+.dst.big.open{font-size:14px;padding:7px 13px;top:46px}
