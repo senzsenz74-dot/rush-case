@@ -397,6 +397,25 @@ const CASES = [
     show: [], items: [],
   },
   {
+    id: 'coco', name: 'CO-CO', price: 60, tag: 'Фарм', tagIc: 'star', rtp: .82,
+    sub: 'Жёлто-чёрный фарм-кейс: дроп от 5 ₽, ~13% открытий окупаются. Джекпоты — AK-47 | Fuel Injector, MP9 | Bulldozer, M4A1-S | Golden Coil',
+    th: { a: '#f5c518' }, img: 'assets/case-coco.webp',
+    // точные шансы: [скин, износ, шанс, редкость по таблице (необязательно)]. Таблица заказчика ×0,84 (сумма 84%) + 13 своих жёлто-чёрных скинов (16%); окупаемость ≈ 82%
+    exact: [
+      ['Nova | Mandrel', 'FN', .1512], ['Tec-9 | Citric Acid', 'FN', .1176], ['XM1014 | XoooM', 'FN', .0924],
+      ['P250 | Re.built', 'FT', .0756], ['P2000 | Grip Tape', 'BS', .0756], ['AUG | Tom Cat', 'BS', .074172],
+      ['Desert Eagle | Oxide Blaze', 'FT', .0672], ['Glock-18 | Glockingbird', 'BS', .0588], ['USP-S | Torque', 'FT', .0588],
+      ['Five-SeveN | Kami', 'MW', .042, 'restricted'], ['MP7 | Nemesis', 'FT', .0252, 'classified'],
+      ['M4A1-S | Golden Coil', 'BS', .00084, 'covert'], ['MP9 | Bulldozer', 'BS', .00042, 'rare'], ['AK-47 | Fuel Injector', 'BS', .000168, 'rare'],
+      ['Negev | Bulkhead', 'MW', .0499], ['MAC-10 | Calf Skin', 'MW', .04], ['Sawed-Off | Yorick', 'WW', .025],
+      ['Desert Eagle | Bronze Deco', 'FT', .02], ['SSG 08 | Hand Brake', 'WW', .01], ['P2000 | Янтарный градиент', 'FT', .006],
+      ['M249 | Warbird', 'FT', .005], ['MP9 | Goo', 'FT', .002], ['Galil AR | Firefight', 'BS', .001],
+      ['AWP | Phobos', 'FT', .0006], ['AK-47 | Safety Net', 'FT', .0003], ['CZ75-Auto | Yellow Jacket', 'BS', .00015],
+      ['MAC-10 | Золотой кирпич', 'FT', .00005],
+    ],
+    show: [], items: [],
+  },
+  {
     id: 'donk', name: 'DONK666', price: 666, tag: 'Новинка', tagIc: 'star', rtp: .82, win: .16,
     sub: 'Сине-чёрный дроп от 400 ₽. Ультра-редкие: ★ Stiletto и ★ Talon Doppler, перчатки King Snake и Hedge Maze',
     th: { a: '#3b82f6' }, img: 'assets/case-donk.webp',
@@ -523,6 +542,17 @@ const CASES = [
     c.fix = {}; c.items.filter(n => SK[n].p >= c.price * 10).forEach(n => { c.fix[n] = .000005; }); // ультра — 1 из 200 000
   }
   CASES.forEach(c => {
+    if (c.exact) {
+      // нужный износ; если его нет в каталоге — ближайший по цене к самому дешёвому
+      c.exactCh = {}; c.exactR = {};
+      c.items = c.exact.map(([b, q, ch, r]) => {
+        const v = (VARIANTS[b] || []).map(n => SK[n]), it = v.find(x => x.q === q) || v.sort((x, y) => x.p - y.p)[0] || SK[b];
+        if (!it) throw new Error('Нет скина: ' + b);
+        c.exactCh[it.name] = (c.exactCh[it.name] || 0) + ch; if (r) c.exactR[it.name] = r; return it.name;
+      });
+      c.items = [...new Set(c.items)];
+      return;
+    }
     if (c.bonusSet) return buildBonus(c);
     if (c.knifeSet) return buildKnife(c);
     Object.assign(c, SETUP[c.id] || {});
@@ -566,9 +596,9 @@ const CASES = [
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
 CASES.forEach(c => {
   const items = c.items.map(n => { if (!SK[n]) throw new Error('Нет скина: ' + n); return SK[n]; });
-  const ch = c.bonusSet ? solveBonus(items, c.price * c.rtp, c.fix) : c.kh ? solveWinKh(items, c.price * c.rtp, c.price, c.win, c.kh, c.fix) : c.win ? solveWin(items, c.price * c.rtp, c.price, c.win, c.fix) : solveChances(items, c.price * c.rtp);
+  const ch = c.exact ? items.map(s => c.exactCh[s.name]) : c.bonusSet ? solveBonus(items, c.price * c.rtp, c.fix) : c.kh ? solveWinKh(items, c.price * c.rtp, c.price, c.win, c.kh, c.fix) : c.win ? solveWin(items, c.price * c.rtp, c.price, c.win, c.fix) : solveChances(items, c.price * c.rtp);
   const fwRaw = ch.map(x => Math.sqrt(x)), fs = fwRaw.reduce((a, b) => a + b, 0);
-  c.items = items.map((s, i) => ({ ...s, ch: ch[i], fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p);
+  c.items = items.map((s, i) => ({ ...s, ...(c.exactR && c.exactR[s.name] ? { r: c.exactR[s.name] } : {}), ch: ch[i], fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p);
   c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
   c.show = c.items.slice(0, 3).map(s => s.name);
 });
@@ -920,7 +950,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208};
+const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-coco.webp':1.1321};
 function caseArt(c, cls = '', badge = '') {
   if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay](c) : ''}</div></div>`;
   if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
@@ -1169,7 +1199,8 @@ const CASE_BLOCKS = [
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
   { id: 'allin', wm: 'ALL IN', t: 'Всё или ничего', sub: 'Ультра дорогие кейсы — максимальный риск, максимальный дроп', ic: 'crown', a: '#ff4d4d', ids: ['gold', 'karambit', 'premium'] },
-  { id: 'farm', wm: 'FARM', t: 'Фарм кейсы', sub: 'Открываются за R-COIN, которые копятся с каждого открытия', ic: 'gift', a: '#8be04e', rc: true, ids: ['bonus'] },
+  { id: 'farm', wm: 'FARM', t: 'Фарм кейсы', sub: 'Дешёвые кейсы с частым дропом — фарми скины и копи на апгрейд', ic: 'trend', a: '#f5c518', ids: ['coco'] },
+  { id: 'bonusrc', wm: 'BONUS', t: 'Бонусные кейсы', sub: 'Открываются за R-COIN, которые копятся с каждого открытия', ic: 'gift', a: '#8be04e', rc: true, ids: ['bonus'] },
 ];
 const blockCases = b => {
   const listed = new Set(CASE_BLOCKS.flatMap(x => x.ids));
@@ -1179,7 +1210,7 @@ const blockCases = b => {
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['karambit', 'donk', 'gold', 'zont', 's1mple', 'frog'];
+const NEW_CASES = ['coco', 'karambit', 'donk', 'gold', 'zont', 's1mple', 'frog'];
 /* заголовок раздела: наклонная метка со значком, название с переливом, подпись, линия с бегущим огоньком, счётчик */
 const secHead = (t, sub, icon, a, n) => `<div class="sh" style="--bc:${a}">
   <span class="sh-tag">${icon}</span>
