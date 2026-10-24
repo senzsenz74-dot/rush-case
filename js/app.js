@@ -398,24 +398,24 @@ const CASES = [
   },
   {
     id: 'coco', name: 'CO-CO', price: 60, tag: 'Фарм', tagIc: 'star', rtp: .82,
-    sub: 'Жёлто-чёрный фарм-кейс: дроп от 5 ₽, ~13% открытий окупаются. Джекпоты — AK-47 | Fuel Injector, MP9 | Bulldozer, M4A1-S | Golden Coil',
+    sub: 'Фарм-кейс жёлтых скинов: дроп от 5 ₽, ~13% открытий окупаются. Джекпоты — AK-47 | Fuel Injector, MP9 | Bulldozer, M4A1-S | Golden Coil',
     th: { a: '#f5c518' }, img: 'assets/case-coco.webp',
-    // точные шансы: [скин, износ, шанс, редкость по таблице (необязательно)]. Шансы нормируются к 100%. Таблица заказчика ×0,84 + 13 своих скинов (16%), затем +10 скинов 50–95 ₽ (5%) — итог ×0,95; окупаемость ≈ 83%
+    // точные шансы: [скин, износ, шанс, редкость по таблице (необязательно)]. Шансы нормируются к 100%. Таблица заказчика ×0,84 + 13 жёлтых скинов (16%), затем +10 жёлтых 40–95 ₽ (5%); свои скины — из списка жёлтых csgobroker.cc — итог ×0,95; окупаемость ≈ 83%
     exact: [
       ['Nova | Mandrel', 'FN', .1512], ['Tec-9 | Citric Acid', 'FN', .1176], ['XM1014 | XoooM', 'FN', .0924],
       ['P250 | Re.built', 'FT', .0756], ['P2000 | Grip Tape', 'BS', .0756], ['AUG | Tom Cat', 'BS', .074172],
       ['Desert Eagle | Oxide Blaze', 'FT', .0672], ['Glock-18 | Glockingbird', 'BS', .0588], ['USP-S | Torque', 'FT', .0588],
       ['Five-SeveN | Kami', 'MW', .042, 'restricted'], ['MP7 | Nemesis', 'FT', .0252, 'classified'],
       ['M4A1-S | Golden Coil', 'BS', .00084, 'covert'], ['MP9 | Bulldozer', 'BS', .00042, 'rare'], ['AK-47 | Fuel Injector', 'BS', .000168, 'rare'],
-      ['Negev | Bulkhead', 'MW', .0499], ['MAC-10 | Calf Skin', 'MW', .04], ['Sawed-Off | Yorick', 'WW', .025],
-      ['Desert Eagle | Bronze Deco', 'FT', .02], ['SSG 08 | Hand Brake', 'WW', .01], ['P2000 | Янтарный градиент', 'FT', .006],
-      ['M249 | Warbird', 'FT', .005], ['MP9 | Goo', 'FT', .002], ['Galil AR | Firefight', 'BS', .001],
-      ['AWP | Phobos', 'FT', .0006], ['AK-47 | Safety Net', 'FT', .0003], ['CZ75-Auto | Yellow Jacket', 'BS', .00015],
+      ['Negev | Bulkhead', 'MW', .0499], ['MAC-10 | Acid Hex', 'FN', .04], ['Sawed-Off | Yorick', 'WW', .025],
+      ['Desert Eagle | Bronze Deco', 'FT', .02], ['M4A1-S | Emphorosaur-S', 'FT', .01], ['P2000 | Янтарный градиент', 'FT', .006],
+      ['Five-SeveN | Buddy', 'FT', .005], ['Desert Eagle | Light Rail', 'FT', .002], ['P250 | Wingshot', 'BS', .001],
+      ['AWP | Phobos', 'FT', .0006], ['AWP | Mortis', 'FT', .0003], ['CZ75-Auto | Yellow Jacket', 'BS', .00015],
       ['MAC-10 | Золотой кирпич', 'FT', .00005],
-      // +10 скинов 50–95 ₽ (вместе 5%, чем дороже — тем реже)
-      ['Galil AR | Black Sand', 'FT', .00636], ['MP7 | Amberline', 'FT', .00577], ['R8 Revolver | Banana Cannon', 'MW', .00687],
-      ['Desert Eagle | Firebreathing', 'FT', .00486], ['Nova | Rising Sun', 'MW', .00486], ['USP-S | Black Lotus', 'FT', .00398],
-      ['MAG-7 | Поджигатель', 'FT', .00709], ['MP9 | Sand Scale', 'MW', .00401], ['PP-Bizon | Fuel Rod', 'FT', .00298], ['SG 553 | Tiger Moth', 'WW', .00321],
+      // +10 жёлтых скинов ~40–95 ₽ (вместе 5%, чем дороже — тем реже)
+      ['G3SG1 | High Seas', 'FT', .00636], ['MP7 | Just Smile', 'MW', .00577], ['R8 Revolver | Banana Cannon', 'MW', .00687],
+      ["Tec-9 | Mummy's Rot", 'WW', .00486], ['Nova | Wild Six', 'MW', .00486], ['FAMAS | Neural Net', 'FT', .00398],
+      ['MP5-SD | Agent', 'FT', .00709], ['Dual Berettas | Tread', 'BS', .00401], ['XM1014 | Teclu Burner', 'FT', .00298], ['Negev | Power Loader', 'WW', .00321],
     ],
     show: [], items: [],
   },
