@@ -1609,12 +1609,12 @@ function showReveal(c, wins, given, demo) {
 }
 function ccDone(c, wins, given, demo) {
   const cc = $('#cc');
-  const again = () => openCase(c, demo);
+  const again = () => { resetRoulette(); ccIdle(c); }; // назад к этому кейсу — можно выбрать другой x
   const back = () => { resetRoulette(); ccIdle(c); };
   if (demo) {
     cc.innerHTML = `<div class="cc-note">Это было <b>демо-открытие</b> — предмет не сохранён.</div>
       <div class="cc-btns">${st.user ? `<button class="btn btn-primary btn-xl btn-cham" id="realBtn">Открыть за ${casePrice(c, c.price * caseN)}</button>` : `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`}<button class="btn btn-xl btn-cham btn-gline" id="againBtn">Ещё демо</button></div>
-      <button class="btn btn-ghost" id="backBtn">${ic.left}К кейсу</button>`;
+      <a class="btn btn-ghost cc-other" href="#/cases">${ic.box}Выбрать другой кейс</a>`;
     const rb = $('#realBtn'); if (rb) rb.onclick = () => openCase(c, false);
   } else {
     const live = () => given.filter(g => g.st === 'own');
@@ -1622,23 +1622,23 @@ function ccDone(c, wins, given, demo) {
     const draw = () => {
       const left = live().length;
       cc.innerHTML = `<div class="cc-btns">
-          <button class="btn btn-primary btn-xl btn-cham" id="againBtn">Открыть ещё за ${casePrice(c, c.price * caseN)}</button>
+          <button class="btn btn-primary btn-xl btn-cham" id="againBtn">${ic.box}Открыть ещё</button>
           ${left ? `<button class="btn btn-xl btn-cham btn-upg" id="toUpg"><span class="tu-sh"></span>${ic.up}<span class="tu-t">В апгрейд<small>шанс умножить дроп до x10</small></span></button>` : ''}
           ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="sellAll">${ic.coin}Продать${wins.length > 1 ? ' всё' : ''} за ${money(sum())}</button>` : ''}
         </div>
-        ${left ? '' : `<button class="btn btn-ghost" id="backBtn">${ic.left}К кейсу</button>`}
+        <a class="btn btn-ghost cc-other" href="#/cases">${ic.box}Выбрать другой кейс</a>
         ${left ? '<div class="cc-note">Предметы уже в вашем <b>профиле</b> — их можно продать или вывести в Steam позже.</div>' : ''}`;
       const sa = $('#sellAll');
-      if (sa) sa.onclick = () => { let t = 0; live().forEach(g => { t += sellItem(g.id, true); }); Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); markSold(); draw(); };
+      if (sa) sa.onclick = () => { let t = 0; live().forEach(g => { t += sellItem(g.id, true); }); Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); back(); };
       const tu = $('#toUpg'); if (tu) tu.onclick = () => { upg.sel = live().map(g => g.id); upg.bal = 0; upg.to = null; upg.mult = 0; upg.autoX2 = true; location.hash = '#/upgrade'; };
       $('#againBtn').onclick = again; const bb = $('#backBtn'); if (bb) bb.onclick = back;
     };
     const markSold = () => given.forEach(g => { if (g.st !== 'own') { const el = $(`.rv-card[data-id="${g.id}"]`); if (el) { el.classList.add('rv-sold'); const b = $('[data-sellone]', el); if (b) b.outerHTML = '<div class="rv-rar" style="color:var(--txt3)">Продано</div>'; } } });
-    $$('[data-sellone]').forEach(b => b.onclick = () => { sellItem(b.dataset.sellone); markSold(); draw(); });
+    $$('[data-sellone]').forEach(b => b.onclick = () => { sellItem(b.dataset.sellone); if (!live().length) return back(); markSold(); draw(); });
     draw();
     return;
   }
-  $('#againBtn').onclick = again; $('#backBtn').onclick = back;
+  $('#againBtn').onclick = () => openCase(c, true);
 }
 
 /* =========================================================
