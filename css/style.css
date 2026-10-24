@@ -2614,3 +2614,9 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
     radial-gradient(240px 160px at 62% 32%,rgba(255,120,60,.38),transparent 72%),
     radial-gradient(240px 170px at 86% 64%,rgba(60,140,255,.45),transparent 72%);
   -webkit-mask:radial-gradient(ellipse 50% 50% at 50% 50%,#000 60%,transparent 100%);mask:radial-gradient(ellipse 50% 50% at 50% 50%,#000 60%,transparent 100%)}
+/* стекло прозрачнее, без зерна */
+.feat::before{display:none}
+.feat{background:linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.015) 45%,rgba(255,255,255,.035));
+  -webkit-backdrop-filter:blur(14px) saturate(150%);backdrop-filter:blur(14px) saturate(150%);border-color:rgba(255,255,255,.12)}
+.features::after{opacity:.35}
+.features::after{display:none}
