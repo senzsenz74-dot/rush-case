@@ -2391,3 +2391,30 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
   .dos-slots .dslot{position:relative;left:auto;top:auto;width:auto;height:150px}
 }
 .dblue b{font-size:15px;white-space:nowrap}.dos-slots{height:380px}
+
+/* ===== досье v4: подпись от руки и 3D-ручка ===== */
+.dsig{min-height:0;padding-bottom:0;border:0}
+.dpad{position:relative;height:150px;margin-top:6px;border-bottom:1.5px solid #8b6a40;background:repeating-linear-gradient(0deg,transparent 0 37px,rgba(91,64,31,.12) 38px);cursor:none;touch-action:none;overflow:visible}
+.dpad canvas{position:absolute;inset:0;display:block;cursor:none}
+.dpad-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:italic 600 16px var(--serif);color:rgba(110,80,45,.45);pointer-events:none;transition:opacity .25s}
+.dpad.inked .dpad-hint{opacity:0}
+.dpad::before{content:"✕";position:absolute;left:4px;bottom:6px;font:700 14px var(--mono);color:rgba(110,80,45,.5)}
+.dpad-clr{position:absolute;right:4px;top:4px;z-index:3;height:24px;padding:0 9px;border:1px solid rgba(110,77,36,.35);background:rgba(250,234,198,.6);color:#6b4c2a;font:800 9px var(--ff-h);text-transform:uppercase;letter-spacing:.06em;cursor:pointer;opacity:0;transition:opacity .2s}
+.dpad.inked .dpad-clr{opacity:1}.dpad.done .dpad-clr{display:none}
+/* ручка: кончик пера в точке курсора (svg 200×200, перо в левом нижнем углу) */
+.dpen{position:absolute;left:0;top:0;width:150px;height:150px;margin:-142px 0 0 -8px;pointer-events:none;z-index:4;opacity:0;transition:opacity .2s;will-change:transform;filter:drop-shadow(0 2px 1px rgba(0,0,0,.35))}
+.dpen svg{width:100%;height:100%;transform-origin:5% 95%;transition:transform .12s}
+.dpad.press .dpen svg{transform:rotate(3deg) scale(.97)}
+.dpen-sh{position:absolute;left:0;top:0;width:150px;height:28px;margin:-18px 0 0 -6px;pointer-events:none;z-index:2;opacity:0;transition:opacity .2s;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(40,20,5,.28),transparent);transform-origin:0 50%;rotate:-45deg;filter:blur(4px)}
+.dpad.hov:not(.done) .dpen,.dpad.hov:not(.done) .dpen-sh{opacity:1}
+.dpad.done{cursor:default}.dpad.done canvas{cursor:default}
+#dosDoSign.ready{animation:dosReady 1.6s ease-in-out infinite}
+@keyframes dosReady{50%{box-shadow:0 3px 0 #5b1714,0 0 0 6px rgba(190,60,50,.25),0 10px 22px rgba(101,48,27,.4)}}
+/* синяя печать */
+.dblue,.dblue2{pointer-events:none}
+.dblue2{position:absolute;right:6%;top:50%;width:132px;height:132px;margin-top:-66px;z-index:5;color:#1f4fb3;mix-blend-mode:multiply;opacity:.86;filter:url(#dosRough2);
+  transform:rotate(-14deg);animation:dosBlue2 .5s cubic-bezier(.2,.9,.3,1.5) both}
+.dblue2 svg{width:100%;height:100%;display:block}
+@keyframes dosBlue2{0%{transform:rotate(-14deg) scale(2.4);opacity:0}60%{transform:rotate(-11deg) scale(.92);opacity:.95}100%{transform:rotate(-14deg) scale(1);opacity:.86}}
+@media (hover:none){.dpen,.dpen-sh{display:none}.dpad,.dpad canvas{cursor:crosshair}}

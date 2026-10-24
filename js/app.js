@@ -2180,37 +2180,89 @@ function drawConAgreement(desk) {
       <div class="dsc">
         <label for="dosNick">Подпись / игровой ник</label>
         <input id="dosNick" class="dinp" maxlength="24" value="${dosEsc(nick)}" placeholder="Ваш ник…" ${conSigned ? 'disabled' : ''}>
-        <div class="dsig"><span>Подпись владельца</span><div id="dosSigV">${conSigned ? conSigSvg(conCase.nick, false) : ''}</div></div>
+        <div class="dsig"><span>Подпись владельца</span>
+          <div class="dpad" id="dosPadWrap"><canvas id="dosPad"></canvas><em class="dpad-hint">Распишитесь здесь</em>
+            <button class="dpad-clr" id="dosPadClr" title="Стереть">Стереть</button>
+            <i class="dpen-sh" aria-hidden="true"></i><span class="dpen" aria-hidden="true">${DOS_PEN}</span></div></div>
         <div class="ddate"><span>Дата контракта</span><b id="dosDate">${conSigned ? conCase.date : 'не заполнено'}</b></div>
       </div>
       <div class="dsigned">✓ Дело подписано и внесено в архив. Отменить подпись нельзя — таково требование загадочной комиссии.</div>
       <div class="dsc">
-        ${conSigned ? `<button class="dbtn gold" id="dosClose" disabled><span class="spinner"></span>Комиссия заверяет дело…</button>` : `<button class="dbtn red" id="dosDoSign">✒ Подписать и закрыть дело</button>`}
+        <button class="dbtn red" id="dosDoSign" disabled>✒ Забрать дроп</button>
         <div class="dreg">Реестр: <b>${conSigned ? 'подписано / зарегистрировано' : 'ожидает подписи'}</b><br>Предметов в деле: <b>${items.length}</b><br>Общая стоимость: <b>${money(sum)}</b></div>
       </div>
     </aside>
   </div>
   <div class="dos-nav"><button class="dbtn dark" id="dosBack">← Вернуться к уликам</button></div>`;
   $('#dosBack').onclick = () => { if (conSigned) return toast('Подписанное дело больше нельзя редактировать', 'err'); conGo(1); };
+  dosPad();
   const sg = $('#dosDoSign'); if (sg) sg.onclick = () => {
     if (!st.user) return openAuth('login');
+    if (conBusy) return;
     const nickV = ($('#dosNick').value.trim() || st.user.name).slice(0, 24), d = new Date();
-    conCase = { nick: nickV, date: d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) };
-    conSigned = true; Snd.click();
-    drawCon();
-    const v = $('#dosSigV'); if (v) v.innerHTML = conSigSvg(conCase.nick, true);
-    const p = $('#dosSign'); if (p) { p.classList.remove('stamp-anim'); void p.offsetWidth; p.classList.add('stamp-anim'); }
-    conBusy = true;
-    // подпись пишется ~2,2 с, затем синяя печать ложится на подпись, и через мгновение — протокол
+    conCase = { nick: nickV, date: d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }), sig: $('#dosPad').toDataURL() };
+    conSigned = true; conBusy = true;
+    const pad = $('#dosPadWrap'); pad.classList.add('done');
+    const p = $('#dosSign'); p.classList.add('signed', 'stamp-anim');
+    $('#dosDate').textContent = conCase.date; $('#dosNick').disabled = true;
+    sg.disabled = true; sg.innerHTML = '<span class="spinner"></span>Комиссия заверяет дело…';
+    // синяя печать на подпись → протокол
     setTimeout(() => {
-      const sg2 = $('.dsig'); if (!sg2) { conBusy = false; return; }
-      sg2.insertAdjacentHTML('beforeend', '<div class="dblue"><b>RUSH CASE</b><span>утверждено · архив</span><i>★ ★ ★</i></div>');
+      if (!$('#dosPadWrap')) { conBusy = false; return; }
+      pad.insertAdjacentHTML('beforeend', DOS_BLUE);
       Snd.noise(.06, .7, 0, 900, 1); Snd.tone(110, .18, 'sine', .4, 0, 60);
-      setTimeout(() => { conBusy = false; runContract(); }, 650);
-    }, 2300);
+      setTimeout(() => { conBusy = false; runContract(); }, 700);
+    }, 250);
   };
-  const cl = $('#dosClose'); if (cl) cl.onclick = runContract;
 }
+/* 3D-ручка (перьевая): корпус, золотые кольца, перо; кончик пера — в левом нижнем углу */
+const DOS_PEN = `<svg viewBox="0 0 200 200"><defs>
+  <linearGradient id="pnB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a4a7a"/><stop offset=".35" stop-color="#121a33"/><stop offset=".6" stop-color="#0a0f1f"/><stop offset="1" stop-color="#26335c"/></linearGradient>
+  <linearGradient id="pnG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2c4"/><stop offset=".4" stop-color="#d4a548"/><stop offset=".7" stop-color="#8a5f1c"/><stop offset="1" stop-color="#f3d38a"/></linearGradient>
+  <linearGradient id="pnN" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5418"/><stop offset=".45" stop-color="#ffe7a0"/><stop offset="1" stop-color="#9a6b22"/></linearGradient></defs>
+  <g transform="rotate(-45 100 100)">
+    <path d="M100 196 L91 160 L109 160 Z" fill="url(#pnN)"/><path d="M100 196 L100 168" stroke="#5a3a0e" stroke-width="1.2"/><circle cx="100" cy="166" r="2" fill="#3a2508"/>
+    <rect x="88" y="138" width="24" height="24" rx="4" fill="#0d1226"/><rect x="88" y="136" width="24" height="5" fill="url(#pnG)"/>
+    <rect x="86" y="30" width="28" height="108" rx="12" fill="url(#pnB)"/>
+    <rect x="86" y="96" width="28" height="7" fill="url(#pnG)"/><rect x="86" y="106" width="28" height="2.5" fill="url(#pnG)"/>
+    <rect x="93" y="36" width="5" height="54" rx="2.5" fill="rgba(255,255,255,.28)"/>
+    <path d="M110 34 h6 v58 q0 6 -4 6 h-2 z" fill="url(#pnG)"/>
+    <rect x="86" y="4" width="28" height="30" rx="13" fill="url(#pnB)"/><circle cx="100" cy="10" r="5" fill="url(#pnG)"/>
+  </g></svg>`;
+/* синяя печать: двойное кольцо, текст по кругу, в центре RUSH CASE */
+const DOS_BLUE = `<div class="dblue2"><svg viewBox="0 0 200 200"><defs><path id="dbArc" d="M100 100 m-74 0 a74 74 0 1 1 148 0 a74 74 0 1 1 -148 0"/></defs>
+  <circle cx="100" cy="100" r="94" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="100" cy="100" r="86" fill="none" stroke="currentColor" stroke-width="1.6"/>
+  <circle cx="100" cy="100" r="58" fill="none" stroke="currentColor" stroke-width="1.6"/>
+  <text font-family="Unbounded,Arial Black,sans-serif" font-weight="800" font-size="12.5" fill="currentColor"><textPath href="#dbArc" startOffset="0" textLength="458" lengthAdjust="spacing">УТВЕРЖДЕНО · RUSH CASE · АРХИВ · ★ ·</textPath></text>
+  <text x="100" y="82" text-anchor="middle" font-size="18" fill="currentColor">♛</text>
+  <text x="100" y="106" text-anchor="middle" font-family="Unbounded,Arial Black,sans-serif" font-weight="900" font-size="21" fill="currentColor">RUSH</text>
+  <text x="100" y="128" text-anchor="middle" font-family="Unbounded,Arial Black,sans-serif" font-weight="900" font-size="21" fill="currentColor">CASE</text>
+  <text x="100" y="146" text-anchor="middle" font-size="9" letter-spacing="3" fill="currentColor">★ ★ ★</text></svg></div>`;
+/* холст подписи: чернила с нажимом по скорости, ручка следует за курсором и опускается при касании */
+function dosPad() {
+  const wrap = $('#dosPadWrap'), cv = $('#dosPad'); if (!cv) return;
+  const pen = $('.dpen', wrap), sh = $('.dpen-sh', wrap), btn = $('#dosDoSign');
+  const fit = () => { const r = wrap.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); cv.width = r.width * dpr; cv.height = r.height * dpr; cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px'; const x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); return x; };
+  let x = fit(), down = false, last = null, ink = 0, lw = 2.4;
+  const pos = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const movePen = (p, pressed) => { pen.style.transform = `translate(${p[0]}px,${p[1]}px)${pressed ? ' translate(1px,2px)' : ''}`; sh.style.transform = `translate(${p[0] + (pressed ? 6 : 16)}px,${p[1] + (pressed ? 8 : 20)}px)`; wrap.classList.toggle('press', !!pressed); };
+  cv.addEventListener('pointerenter', () => wrap.classList.add('hov'));
+  cv.addEventListener('pointerleave', () => { wrap.classList.remove('hov'); down = false; last = null; });
+  cv.addEventListener('pointerdown', e => { if (wrap.classList.contains('done')) return; cv.setPointerCapture(e.pointerId); down = true; last = pos(e); wrap.classList.add('inked'); movePen(last, true); });
+  cv.addEventListener('pointerup', () => { down = false; last = null; movePen(pos(event), false); });
+  cv.addEventListener('pointermove', e => {
+    const p = pos(e); movePen(p, down);
+    if (!down || !last || wrap.classList.contains('done')) return;
+    const d = Math.hypot(p[0] - last[0], p[1] - last[1]); if (d < .8) return;
+    const w = Math.max(1.1, Math.min(3.4, 3.6 - d * .12)); lw += (w - lw) * .35; // быстрее — тоньше
+    x.strokeStyle = '#13285a'; x.lineCap = x.lineJoin = 'round'; x.lineWidth = lw; x.globalAlpha = .92;
+    x.beginPath(); x.moveTo(last[0], last[1]); x.quadraticCurveTo(last[0], last[1], (last[0] + p[0]) / 2, (last[1] + p[1]) / 2); x.lineTo(p[0], p[1]); x.stroke();
+    ink += d; last = p;
+    if (ink > 90 && btn && btn.disabled && !wrap.classList.contains('done')) { btn.disabled = false; btn.classList.add('ready'); }
+  });
+  $('#dosPadClr').onclick = () => { if (wrap.classList.contains('done')) return; x.clearRect(0, 0, cv.width, cv.height); ink = 0; wrap.classList.remove('inked'); if (btn) { btn.disabled = true; btn.classList.remove('ready'); } };
+}
+
 function conSigSvg(name, anim) {
   return `<svg viewBox="0 0 320 82" class="${anim ? 'anim' : ''}" role="img" aria-label="Подпись: ${dosEsc(name)}"><g transform="translate(150 4) scale(.53)"><path class="ss" d="M8 49 C18 8 27 8 23 40 S12 59 34 35 C44 22 45 56 54 47 S68 18 72 39 C76 61 86 49 95 34 C106 13 108 52 117 45 S132 30 137 40 C145 57 157 43 164 35 C178 17 176 53 190 45 S207 27 211 39 C220 57 229 44 239 37"/><path class="ss fl" d="M10 62 C68 70 117 58 161 62 S247 68 293 42 C306 35 309 48 295 53 C271 61 259 57 251 52"/><path class="ss fl" d="M237 35 C252 16 265 14 273 23 S266 42 257 33 C249 23 270 12 285 20"/><circle class="sd" cx="292" cy="20" r="3.4"/></g><text class="sn" x="4" y="52" textLength="${Math.min(160, 14 + name.length * 13)}" lengthAdjust="spacingAndGlyphs">${dosEsc(name)}</text></svg>`;
 }
