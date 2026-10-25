@@ -2834,3 +2834,16 @@ html{overflow-x:clip}
 /* подсветка при наведении — почти сразу */
 .case-art.has-img .ca-glow{transition:opacity .15s ease-out,transform .25s cubic-bezier(.2,.8,.3,1)}
 .case-card .case-art.has-img .ca-img{transition:transform .22s cubic-bezier(.2,.9,.3,1.3),filter .15s ease-out}
+/* шапка страницы и панель фильтров — читаются на любом фоне */
+.page-head h1{filter:drop-shadow(0 2px 2px rgba(0,0,0,.9)) drop-shadow(0 6px 18px rgba(0,0,0,.85))}
+.page-head p{color:rgba(240,234,222,.88);font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 14px rgba(0,0,0,.9)}
+.filterbar{background:linear-gradient(180deg,rgba(20,18,15,.94),rgba(11,10,8,.94));border:1px solid rgba(255,255,255,.09);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 18px 40px -18px rgba(0,0,0,.95),0 0 0 1px rgba(0,0,0,.4)}
+.filterbar .search .inp{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1)}
+.filterbar .chip{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);color:rgba(240,234,222,.85)}
+.filterbar .chip:hover{background:rgba(255,255,255,.1);color:#fff}
+.filterbar .chip.on{color:var(--ink);background:var(--g-gold);border-color:transparent}
+.filterbar .switch{color:rgba(240,234,222,.85)}
+/* заголовки разделов и подписи под ними — тень, чтобы не терялись на фоне */
+.sh-tt p{color:rgba(240,234,222,.8);text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 12px rgba(0,0,0,.9)}
+.sh-tt h2,.sh-tt h3{filter:drop-shadow(0 2px 2px rgba(0,0,0,.9)) drop-shadow(0 4px 14px rgba(0,0,0,.8))}
