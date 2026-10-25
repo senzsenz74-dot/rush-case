@@ -2903,3 +2903,61 @@ html{overflow-x:clip}
 .tr .h3-btns .btn svg{width:max(13px,1.5cqw);height:max(13px,1.5cqw)}
 /* фон крупнее на 16% — оружие уходит к краям экрана и не заходит на кейсы (центр картинки пустой) */
 .fx{background-size:auto,auto,calc(max(100vw,100vh * 1.7787) * 1.16) auto}
+
+/* ===== админ-панель ===== */
+.adm{padding-top:26px}
+.adm-top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:22px}
+.adm-eyebrow{display:inline-flex;align-items:center;gap:8px;font:800 11px var(--ff-h);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.adm-eyebrow svg{width:15px;height:15px}
+.adm-top h1{margin-top:6px;font:900 32px/1.1 var(--ff-h);text-transform:uppercase;filter:drop-shadow(0 2px 2px rgba(0,0,0,.9))}
+.adm-top h1 em{font-style:normal;background:var(--g-gold-txt);-webkit-background-clip:text;background-clip:text;color:transparent}
+.adm-tabs{display:flex;gap:6px;padding:5px;border-radius:14px;background:rgba(14,12,10,.92);border:1px solid rgba(255,255,255,.08)}
+.adm-tabs button{display:flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:10px;font:800 12px var(--ff-h);letter-spacing:.06em;text-transform:uppercase;color:var(--txt2);transition:.2s}
+.adm-tabs button svg{width:16px;height:16px}
+.adm-tabs button:hover{color:#fff;background:rgba(255,255,255,.05)}
+.adm-tabs button.on{color:#1b1204;background:linear-gradient(180deg,#ffe08a,#f2b23c)}
+.adm-load{display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;color:var(--txt2);font-weight:700}
+.adm-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.adm-tile{position:relative;overflow:hidden;padding:18px 20px;border-radius:18px;background:linear-gradient(180deg,#16130f,#0e0c0a);border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:6px}
+.adm-tile::before{content:"";position:absolute;left:20px;right:20px;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--ac),transparent)}
+.adm-tile span{font:800 11px var(--ff-h);letter-spacing:.1em;text-transform:uppercase;color:var(--txt3)}
+.adm-tile b{font:900 26px/1.1 var(--ff-h);color:#fff}
+.adm-tile small{font-size:12px;color:var(--txt2);font-weight:600}
+.adm-panel{margin-top:16px;padding:20px 22px;border-radius:20px;background:linear-gradient(180deg,rgba(22,19,15,.96),rgba(12,11,9,.96));border:1px solid rgba(255,255,255,.08)}
+.adm-ph{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.adm-ph h3{font:900 18px var(--ff-h);text-transform:uppercase}
+.adm-ph p{flex-basis:100%;font-size:13px;color:var(--txt2)}
+.adm-bars{display:flex;align-items:flex-end;gap:8px;height:170px;padding-top:20px}
+.adm-bar{flex:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px}
+.adm-bar i{width:100%;max-width:40px;min-height:3px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,#ffe08a,#d99a2b)}
+.adm-bar b{font:800 11px var(--ff-h);color:#fff;order:-1}
+.adm-bar span{font-size:10.5px;color:var(--txt3);font-weight:700}
+.adm-cases{display:flex;flex-direction:column;gap:8px}
+.adm-case{display:grid;grid-template-columns:64px minmax(140px,1.4fr) 110px 110px minmax(170px,1.2fr) 130px 120px;align-items:center;gap:14px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);transition:opacity .2s,background .2s}
+.adm-case.off{opacity:.55;background:rgba(255,60,60,.04)}
+.adm-case img{width:64px;height:52px;object-fit:contain}
+.ac-n{display:flex;flex-direction:column;min-width:0}.ac-n b{font:800 14px var(--ff-h)}.ac-n span{font-size:12px;color:var(--txt2);font-weight:700}
+.ac-m{display:flex;flex-direction:column}.ac-m span{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--txt3)}.ac-m b{font:800 15px var(--ff-h)}
+.ac-rtp.hot{color:#ff6b6b}
+.ac-luck{display:flex;flex-direction:column;gap:6px}.ac-luck span{font-size:11px;font-weight:800;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em}.ac-luck b{color:var(--gold)}
+.ac-r{width:100%;accent-color:#f2b23c}
+.ac-sw span{font-size:13px}
+.adm-search{min-width:280px}
+.adm-tbl{display:flex;flex-direction:column;gap:6px}
+.at-h,.at-r{display:grid;grid-template-columns:minmax(220px,2fr) 1fr 90px 1fr 120px 130px;align-items:center;gap:12px;padding:10px 14px}
+.at-h{font:800 10.5px var(--ff-h);letter-spacing:.1em;text-transform:uppercase;color:var(--txt3)}
+.at-r{border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);font-weight:700;font-size:13px}
+.at-u{display:flex;align-items:center;gap:10px;min-width:0}.at-u>span{display:flex;flex-direction:column;min-width:0}
+.at-u b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.at-u small{font-size:11.5px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.at-adm{font-style:normal;font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(245,199,107,.15);color:var(--gold);margin-left:4px}
+.at-bal{display:flex;flex-direction:column;color:#fff}.at-bal small{font-size:11px;color:var(--txt3)}
+.at-r em.on{font-style:normal;color:#4ade80}
+.adm-give h2 em{font-style:normal;color:var(--gold)}
+.um-admin{color:var(--gold)!important}
+/* закрытый кейс в витрине */
+.case-card.cc-closed{filter:grayscale(.85) brightness(.7)}
+.cc-lock{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;padding:6px 14px;border-radius:99px;background:rgba(10,8,6,.85);border:1px solid rgba(255,90,90,.5);color:#ff8a8a;font:900 12px var(--ff-h);letter-spacing:.12em;text-transform:uppercase}
+@media (max-width:1180px){.adm-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.adm-case{grid-template-columns:56px 1fr 1fr;row-gap:10px}.adm-case .ac-luck{grid-column:span 2}.at-h{display:none}.at-r{grid-template-columns:1fr 1fr;row-gap:6px}}
+.case-card.cc-closed{filter:none}
+.case-card.cc-closed .cc-art{position:relative}
+.case-card.cc-closed .ca-img,.case-card.cc-closed .cc-body{filter:grayscale(.9) brightness(.6)}

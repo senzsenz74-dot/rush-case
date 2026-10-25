@@ -1042,6 +1042,7 @@ function renderUser() {
         <div class="um-h">${ava(st.user, 'xs')}<b>${esc(st.user.name)}</b></div>
         <a href="#/profile">${ic.user}Профиль и инвентарь</a>
         <a href="#/bonus">${ic.gift}Бонусы</a>
+        ${st.user.admin ? `<a href="#/admin" class="um-admin">${ic.shield}Админ-панель</a>` : ''}
         <button id="umSound">${st.sound ? ic.sound : ic.mute}Звук: ${st.sound ? 'вкл' : 'выкл'}</button>
         <button data-act="logout">${ic.logout}Выйти</button>
       </div>
@@ -1348,8 +1349,8 @@ const caseBlock = (b, grp) => {
     <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${list.map(caseCard).join('')}</div>
   </section>`;
 };
-const caseCard = c => `<a class="case-card" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
-  <div class="cc-art">${caseArt(c, '', NEW_CASES.includes(c.id) ? '<span class="cc-new">Новое</span>' : '')}</div>
+const caseCard = c => `<a class="case-card${c.disabled ? ' cc-closed' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
+  <div class="cc-art">${caseArt(c, '', NEW_CASES.includes(c.id) ? '<span class="cc-new">Новое</span>' : '')}${c.disabled ? '<span class="cc-lock">Закрыт</span>' : ''}</div>
   <div class="cc-body">
     <div class="cc-name">${c.name}</div>
     <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}${c.rc ? ' cc-price-rc' : ''}">${casePrice(c, c.price)}</span></div>
@@ -1634,7 +1635,8 @@ function ccIdle(c) {
   if (caseN > maxN) caseN = maxN;
   const cost = c.price * caseN;
   let main;
-  if (!st.user) main = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`;
+  if (c.disabled) main = `<button class="btn btn-primary btn-xl btn-cham" disabled>${ic.lock || ic.shield}Кейс временно закрыт</button>`;
+  else if (!st.user) main = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`;
   else if (c.rc) main = (st.rcoin || 0) >= cost ? `<button class="btn btn-primary btn-xl btn-cham btn-rc" id="openBtn">Открыть за ${casePrice(c, cost)}</button>` : `<a class="btn btn-primary btn-xl btn-cham btn-rc" href="#/profile">Не хватает ${casePrice(c, cost - (st.rcoin || 0))}</a>`;
   else if (st.balance >= cost) main = `<button class="btn btn-primary btn-xl btn-cham" id="openBtn">${ic.coins}Открыть за ${money(cost)}</button>`;
   else main = `<button class="btn btn-primary btn-xl btn-cham" data-act="deposit" data-need="${cost - st.balance}">${ic.wallet}Пополнить на ${money(cost - st.balance)}</button>`;
@@ -1659,6 +1661,7 @@ async function openCase(c, demo) {
   if (spinning) return;
   const n = caseN, cost = c.price * n;
   if (!demo) {
+    if (c.disabled) return toast('Кейс временно закрыт администрацией', 'err');
     if (!st.user) return openAuth('login');
     if (c.rc) { if ((st.rcoin || 0) < cost) return toast(`Не хватает ${rc(cost - (st.rcoin || 0))} R-COIN — они начисляются за открытия кейсов`, 'err'); }
     else if (st.balance < cost) return openDeposit(cost - st.balance);
@@ -2967,16 +2970,47 @@ const SB_ERR = { 'Invalid login credentials': 'Неверный e-mail или п
 const sbErr = e => SB_ERR[e.message] || (/rate limit|too many/i.test(e.message) ? 'Слишком много попыток — подождите минуту' : /password/i.test(e.message) ? 'Пароль слишком простой — минимум 6 символов' : 'Ошибка: ' + e.message);
 async function sbLoadProfile(session) {
   if (!sb || !session) return false;
-  const { data: p, error } = await sb.from('profiles').select('name, ava, data, created_at').eq('id', session.user.id).single();
+  const { data: p, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
   if (error || !p) { toast('Не удалось загрузить профиль — попробуйте ещё раз', 'err'); return false; }
   Object.assign(st, freshProfile(), p.data || {});
   st.stats = Object.assign(freshProfile().stats, st.stats || {});
   st.inv.forEach(x => { x.n = fixName(x.n); });
-  st.user = { id: session.user.id, rid: session.user.id.slice(0, 8), name: p.name, email: session.user.email, ava: p.ava || null, reg: Date.parse(p.created_at), via: 'email', key: 'sb', sb: true };
+  st.user = { id: session.user.id, rid: session.user.id.slice(0, 8), name: p.name, email: session.user.email, ava: p.ava || null, reg: Date.parse(p.created_at), via: 'email', key: 'sb', sb: true, admin: !!p.is_admin };
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
   renderUser(); route();
-  jpClaim(false); jpResolveMine();
+  jpClaim(false); jpResolveMine(); claimGrants();
   return true;
+}
+// начисления от администратора: забираем при входе, раз в 30 с и при возврате на вкладку
+async function claimGrants() {
+  if (!sb || !st.user || !st.user.sb) return;
+  const { data, error } = await sb.rpc('claim_grants');
+  if (error || !data || !data.length) return;
+  const sum = data.reduce((a, g) => a + +g.amount, 0);
+  setBalance(st.balance + sum); sbPush();
+  toast(sum > 0 ? `Администрация начислила вам <b>+${money(sum)}</b>${data[0].note ? ' — ' + esc(data[0].note) : ''}` : `Списание с баланса: <b>${money(sum)}</b>`, sum > 0 ? undefined : 'err');
+  if (sum > 0) { Snd.coin(); burst(30); }
+}
+setInterval(claimGrants, 30000);
+addEventListener('focus', claimGrants);
+/* настройки кейсов из админки: закрыт / множитель удачи (×шанс предметов дороже кейса, остальные пропорционально реже) */
+const caseRtp = c => c.items.reduce((a, s) => a + s.ch * s.p, 0) / c.price;
+const caseWin = c => c.items.reduce((a, s) => a + (s.p >= c.price ? s.ch : 0), 0);
+function applyLuck(c, luck) {
+  c.items.forEach(s => { if (s.ch0 == null) s.ch0 = s.ch; });
+  let tot = 0; c.items.forEach(s => { s.ch = s.ch0 * (s.p >= c.price ? luck : 1); tot += s.ch; });
+  c.items.forEach(s => { s.ch /= tot; });
+  c.luck = luck;
+}
+async function loadCaseSettings() {
+  if (!sb) return;
+  const { data, error } = await sb.from('case_settings').select('id, disabled, luck');
+  if (error || !data) return;
+  CASES.forEach(c => { const r = data.find(x => x.id === c.id); c.disabled = !!(r && r.disabled); applyLuck(c, r ? +r.luck || 1 : 1); });
+  // перерисовать витрину / кнопку открытия (не во время прокрутки)
+  const key = location.hash.replace(/^#\/?/, '').split('/')[0];
+  if ((key === '' || key === 'cases') && !spinning) route();
+  else if (key === 'case' && !spinning && $('#cc') && !$('.rl-row.done, .cc-done')) { const c = caseById(location.hash.split('/')[2]); if (c) ccIdle(c); }
 }
 function afterLogin(isNew) {
   Snd.coin();
@@ -2992,6 +3026,7 @@ async function logout() {
 // при загрузке сайта: восстанавливаем вход; старый локальный аккаунт (без базы) — выходим из него
 function sbInit() {
   if (!sb) return;
+  loadCaseSettings();
   sb.auth.getSession().then(({ data }) => {
     if (data.session) sbLoadProfile(data.session);
     else if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); }
@@ -3432,11 +3467,137 @@ function jpOpenBet() {
   };
 }
 /* =========================================================
+   АДМИН-ПАНЕЛЬ: дашборд, кейсы (закрыть / удача), игроки (начислить баланс).
+   Права проверяет база (is_admin в profiles, функции admin_* — см. supabase/admin.sql).
+   ========================================================= */
+let admTab = 'dash';
+const pctS = v => (v * 100).toFixed(v < .1 ? 2 : 1).replace('.', ',') + '%';
+function pageAdmin() {
+  if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
+  return `<section class="container cases-wide adm" id="adm">
+    <div class="adm-top"><div><span class="adm-eyebrow">${ic.shield}Админ-панель</span><h1>Управление <em>RUSH CASE</em></h1></div>
+      <div class="adm-tabs" id="admTabs">${[['dash', 'Дашборд', 'trend'], ['cases', 'Кейсы', 'box'], ['players', 'Игроки', 'users']].map(([k, t, i]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${ic[i] || ''}${t}</button>`).join('')}</div></div>
+    <div id="admBody"></div>
+  </section>`;
+}
+function mountAdmin() {
+  if (!$('#adm')) return;
+  $$('#admTabs [data-t]').forEach(b => b.onclick = () => { admTab = b.dataset.t; $$('#admTabs [data-t]').forEach(x => x.classList.toggle('on', x === b)); admDraw(); });
+  admDraw();
+}
+function admDraw() {
+  const box = $('#admBody'); if (!box) return;
+  if (!sb && admTab !== 'cases') return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
+  if (admTab === 'dash') admDash(box); else if (admTab === 'cases') admCases(box); else admPlayers(box);
+}
+const admErr = e => `<div class="empty">${ic.shield}Ошибка: ${esc(e.message || String(e))}. Проверьте, что запущен supabase/admin.sql и ваш аккаунт — админ.</div>`;
+/* ---------- дашборд ---------- */
+async function admDash(box) {
+  box.innerHTML = `<div class="adm-load"><span class="spinner"></span>Загружаем статистику…</div>`;
+  const { data: s, error } = await sb.rpc('admin_stats');
+  if (error) return (box.innerHTML = admErr(error));
+  const tile = (t, v, sub, ac) => `<div class="adm-tile" style="--ac:${ac}"><span>${t}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  const days = s.regDays || [], mx = Math.max(1, ...days.map(d => d.n));
+  const open = CASES.filter(c => !c.disabled).length, lucky = CASES.filter(c => (c.luck || 1) !== 1).length;
+  box.innerHTML = `<div class="adm-tiles">
+      ${tile('Игроков', fmt(s.users), `+${fmt(s.new24)} за сутки`, '#f5c76b')}
+      ${tile('Онлайн', fmt(s.online), 'активны за 10 мин', '#4ade80')}
+      ${tile('Балансы игроков', money(+s.balance), `R-COIN: ${rc(+s.rcoin)}`, '#60a5fa')}
+      ${tile('Пополнено', money(+s.dep), 'за всё время (тест)', '#a78bfa')}
+      ${tile('Открыто кейсов', fmt(+s.opened), `потрачено ${money(+s.spent)}`, '#fb923c')}
+      ${tile('Ставки за сутки', money(+s.jpPot24), `${fmt(s.jpRounds24)} раундов · реальных ставок ${fmt(s.jpRealBets24)} на ${money(+s.jpRealSum24)}`, '#f472b6')}
+      ${tile('Начислено админом', money(+s.grants24), 'за сутки', '#22d3ee')}
+      ${tile('Кейсы', `${open} / ${CASES.length}`, `открыто · с удачей ≠ ×1: ${lucky}`, '#facc15')}
+    </div>
+    <div class="adm-panel"><div class="adm-ph"><h3>Регистрации за 14 дней</h3></div>
+      <div class="adm-bars">${days.length ? days.map(d => `<div class="adm-bar" title="${d.d}: ${d.n}"><i style="height:${(d.n / mx * 100).toFixed(0)}%"></i><b>${d.n}</b><span>${d.d.slice(8)}.${d.d.slice(5, 7)}</span></div>`).join('') : '<div class="empty">Пока нет регистраций</div>'}</div></div>`;
+}
+/* ---------- кейсы: закрыть / открыть, множитель удачи ---------- */
+function admCases(box) {
+  const row = c => {
+    const l = c.luck || 1;
+    return `<div class="adm-case${c.disabled ? ' off' : ''}" data-id="${c.id}">
+      <img src="${c.img ? c.img.replace(/\.webp$/, '-s.webp') : ''}" alt="" loading="lazy">
+      <div class="ac-n"><b>${esc(c.name)}</b><span>${c.rc ? c.price + " R-COIN" : money(c.price)} · ${c.items.length} предм.</span></div>
+      <div class="ac-m"><span>Окупаемость</span><b class="ac-rtp">${pctS(caseRtp(c))}</b></div>
+      <div class="ac-m"><span>Дороже кейса</span><b class="ac-win">${pctS(caseWin(c))}</b></div>
+      <div class="ac-luck"><span>Удача <b class="ac-lv">×${l.toFixed(2)}</b></span><input type="range" min="0.5" max="3" step="0.05" value="${l}" class="ac-r"></div>
+      <label class="switch ac-sw"><input type="checkbox" class="ac-open"${c.disabled ? '' : ' checked'}><i></i><span>${c.disabled ? 'Закрыт' : 'Открыт'}</span></label>
+      <button class="btn btn-primary btn-sm ac-save" disabled>Сохранить</button>
+    </div>`;
+  };
+  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><p>«Удача» умножает шанс всех предметов дороже кейса (остальные — пропорционально реже). Окупаемость пересчитывается сразу; у игроков — после обновления страницы.</p></div>
+    <div class="adm-cases">${CASES.map(row).join('')}</div></div>`;
+  $$('.adm-case', box).forEach(el => {
+    const c = caseById(el.dataset.id), r = $('.ac-r', el), sw = $('.ac-open', el), save = $('.ac-save', el);
+    const preview = () => {
+      const was = c.luck || 1; applyLuck(c, +r.value);
+      $('.ac-lv', el).textContent = '×' + (+r.value).toFixed(2); $('.ac-rtp', el).textContent = pctS(caseRtp(c)); $('.ac-win', el).textContent = pctS(caseWin(c));
+      $('.ac-rtp', el).classList.toggle('hot', caseRtp(c) > 1);
+      applyLuck(c, was);
+      $('.ac-sw span', el).textContent = sw.checked ? 'Открыт' : 'Закрыт'; el.classList.toggle('off', !sw.checked);
+      save.disabled = +r.value === (c.luck || 1) && sw.checked === !c.disabled;
+    };
+    r.oninput = preview; sw.onchange = preview;
+    save.onclick = async () => {
+      save.disabled = true; save.innerHTML = '<span class="spinner"></span>';
+      const { error } = await sb.from('case_settings').upsert({ id: c.id, disabled: !sw.checked, luck: +r.value, updated_at: new Date().toISOString(), updated_by: st.user.id });
+      save.textContent = 'Сохранить';
+      if (error) { save.disabled = false; return toast('Не сохранено: ' + error.message, 'err'); }
+      c.disabled = !sw.checked; applyLuck(c, +r.value); preview();
+      toast(`«${esc(c.name)}»: ${c.disabled ? 'закрыт' : 'открыт'}, удача ×${(+r.value).toFixed(2)}, окупаемость ${pctS(caseRtp(c))}`);
+    };
+  });
+}
+/* ---------- игроки: поиск, начисление баланса ---------- */
+let admQ = '';
+async function admPlayers(box) {
+  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Игроки</h3>
+      <div class="search adm-search"><input class="inp" id="admQ" placeholder="Ник или e-mail" value="${esc(admQ)}" autocomplete="off">${ic.search}</div></div>
+    <div id="admList"><div class="adm-load"><span class="spinner"></span>Загружаем игроков…</div></div></div>`;
+  let t = 0;
+  $('#admQ').oninput = e => { admQ = e.target.value.trim(); clearTimeout(t); t = setTimeout(load, 350); };
+  const load = async () => {
+    const list = $('#admList'); if (!list) return;
+    const { data, error } = await sb.rpc('admin_players', { p_q: admQ, p_limit: 100 });
+    if (error) return (list.innerHTML = admErr(error));
+    if (!data.length) return (list.innerHTML = `<div class="empty">${ic.users}Никого не нашли</div>`);
+    const ago = ts => { const m = (Date.now() - Date.parse(ts)) / 60000; return m < 10 ? '<em class="on">онлайн</em>' : m < 60 ? Math.round(m) + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : new Date(ts).toLocaleDateString('ru-RU'); };
+    list.innerHTML = `<div class="adm-tbl"><div class="at-h"><span>Игрок</span><span>Баланс</span><span>Открыто</span><span>Потрачено</span><span>Был</span><span></span></div>
+      ${data.map(p => `<div class="at-r" data-uid="${p.id}" data-name="${esc(p.name)}">
+        <span class="at-u">${ava({ name: p.name }, 'xs')}<span><b>${esc(p.name)}${p.is_admin ? ' <i class="at-adm">админ</i>' : ''}</b><small>${esc(p.email || '')} · с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</small></span></span>
+        <span class="at-bal">${money(+p.balance)}<small>R ${rc(+p.rcoin)}</small></span><span>${fmt(+p.opened)}</span><span>${money(+p.spent)}</span><span>${ago(p.last_seen)}</span>
+        <span><button class="btn btn-dark btn-sm at-give">${ic.plus}Начислить</button></span></div>`).join('')}</div>`;
+    $$('.at-give', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admGive(r.dataset.uid, r.dataset.name, load); });
+  };
+  load();
+}
+function admGive(uid, name, done) {
+  const m = modal(`<div class="dep adm-give"><h2>Начислить <em>${esc(name)}</em></h2>
+    <p class="dep-sub">Сумма поступит игроку в течение 30 секунд (или при следующем входе). Отрицательная сумма — списание.</p>
+    <div class="dep-amt"><input class="inp" id="agAmt" type="number" step="1" value="100"><span>₽</span></div>
+    <div class="amounts">${[50, 100, 500, 1000, 5000].map(a => `<button data-a="${a}">+${fmt(a)} ₽</button>`).join('')}</div>
+    <div class="field" style="margin-top:12px"><input class="inp" id="agNote" maxlength="120" placeholder="Комментарий (увидит игрок), например: компенсация"></div>
+    <button class="btn btn-primary btn-xl btn-block" id="agGo" style="margin-top:16px">Начислить</button></div>`, 'm-dep');
+  $$('[data-a]', m).forEach(b => b.onclick = () => { $('#agAmt', m).value = b.dataset.a; });
+  $('#agGo', m).onclick = async () => {
+    const amount = +$('#agAmt', m).value, note = $('#agNote', m).value.trim();
+    if (!amount) return toast('Введите сумму', 'err');
+    const go = $('#agGo', m); go.disabled = true; go.innerHTML = '<span class="spinner"></span>Начисляем…';
+    const { error } = await sb.rpc('admin_grant', { p_uid: uid, p_amount: amount, p_note: note || null });
+    if (error) { go.disabled = false; go.textContent = 'Начислить'; return toast('Не начислено: ' + error.message, 'err'); }
+    closeModal(); toast(`${esc(name)}: ${amount > 0 ? '+' : ''}${money(amount)} — отправлено`);
+    if (st.user && uid === st.user.id) claimGrants();
+    done && done();
+  };
+}
+
+/* =========================================================
    ROUTER
    ========================================================= */
 const ROUTES = {
   '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], contracts: [pageContracts, mountContracts],
-  bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null],
+  bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], admin: [pageAdmin, mountAdmin],
 };
 function route() {
   clearTimers(); spinning = false; spinId++;
@@ -3451,7 +3612,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', admin: 'Админ-панель' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
