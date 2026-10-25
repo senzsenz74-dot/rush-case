@@ -1174,8 +1174,8 @@ function pageHome() {
       <div class="hs-dots"><button class="on" data-go="0" aria-label="Баннер 1"></button><button data-go="1" aria-label="Баннер 2"></button></div>
     </div>
   </section>
-  <section class="container hb-wrap">${homeBonus()}</section>
-  <section class="container">
+  <section class="container cases-wide hb-wrap">${homeBonus()}</section>
+  <section class="container cases-wide">
     <div class="stbar">
       <div class="sb-i"><span class="sb-ic">${ic.box}</span><div><b id="sbOpened">${fmt(statOpened)}</b><span>Кейсов открыто</span></div></div>
       <div class="sb-i"><span class="sb-ic">${ic.users}</span><div><b>24 816</b><span>Игроков</span></div></div>
