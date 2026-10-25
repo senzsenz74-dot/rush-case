@@ -3008,3 +3008,27 @@ html{overflow-x:clip}
 .adm-ct .pos{color:#6ee79a}.adm-ct .neg{color:#ff7272}
 @media (max-width:1180px){.adm-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.adm-grid2{grid-template-columns:1fr}.act-h{display:none}.act-r{grid-template-columns:1fr 1fr;row-gap:6px}}
 .adm-kpi.best{padding-right:22px}.adm-kpi.best small{max-width:62%}.adm-kpi.best img{width:120px;opacity:.9}
+
+/* ===== админка: статистика за период ===== */
+.ast-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:0;margin-bottom:6px}
+.ast-presets{display:flex;gap:6px;flex-wrap:wrap}
+.ast-presets button{height:38px;padding:0 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:var(--txt2);font:800 12px var(--ff-h);transition:.2s}
+.ast-presets button:hover{color:#fff;background:rgba(255,255,255,.09)}
+.ast-presets button.on{color:#1b1204;background:linear-gradient(180deg,#ffe08a,#f2b23c);border-color:transparent}
+.ast-custom{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em}
+.ast-custom .inp{height:38px;width:150px;color-scheme:dark}
+.ast-custom i{font-style:normal;color:var(--txt3)}
+.ast-h{display:flex;align-items:center;gap:10px;margin:24px 0 12px;font:900 18px var(--ff-h);text-transform:uppercase}
+.ast-h svg{width:20px;height:20px;color:var(--gold)}
+.ast-leg{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--txt2)}
+.ast-leg i{width:10px;height:10px;border-radius:3px;background:var(--c);margin-left:10px}
+.ast-svg{width:100%;height:240px;display:block}
+.ast-grid{stroke:rgba(255,255,255,.07);stroke-dasharray:4 6}
+.ast-ax{fill:rgba(255,255,255,.4);font:700 11px var(--ff)}
+.ast-bars{display:flex;align-items:stretch;gap:4px;height:220px}
+.ast-g{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.ast-gb{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:2px;border-bottom:1px solid rgba(255,255,255,.08)}
+.ast-gb i{flex:1;max-width:14px;min-height:2px;border-radius:3px 3px 0 0;opacity:.9}
+.ast-g span{height:14px;font-size:10.5px;font-weight:700;color:var(--txt3);text-align:center;white-space:nowrap}
+.ast-max{margin-top:6px;font-size:11px;color:var(--txt3);text-align:right;font-weight:700}
+.adm-kpis .adm-kpi{min-height:120px}

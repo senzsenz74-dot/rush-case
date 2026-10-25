@@ -659,6 +659,14 @@ const save = () => {
   if (sb && st.user && st.user.sb) { clearTimeout(sbSaveT); sbSaveT = setTimeout(sbPush, 1200); }
 };
 addEventListener('visibilitychange', () => { if (document.hidden) sbPush(); });
+/* журнал для статистики админки: пульс онлайна (раз в 2 мин с открытой вкладки), пополнения, выводы, открытия кейсов */
+const SID = (() => { try { let s = sessionStorage.getItem('rc.sid'); if (!s) { s = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); sessionStorage.setItem('rc.sid', s); } return s; } catch (e) { return 'x' + Math.random().toString(36).slice(2, 12); } })();
+function logEv(kind, amount = 0, won = 0) {
+  if (!sb) return;
+  sb.from('site_events').insert({ kind, sid: SID, uid: st.user && st.user.sb ? st.user.id : null, amount: Math.max(0, Math.round(amount * 100) / 100), won: Math.max(0, Math.round(won * 100) / 100) }).then(() => {}, () => {});
+}
+setTimeout(() => logEv('hb'), 3000);
+setInterval(() => { if (!document.hidden) logEv('hb'); }, 120000);
 // ставки старого локального режима (без номера раунда) возвращаем в инвентарь; ставки в общих раундах ждут итога
 st.inv.forEach(x => { if (x.st === 'pend') x.st = 'out'; if (x.st === 'bet' && !x.round) x.st = 'own'; });
 // износ пропал из каталога (отсеянная цена) — меняем на основной износ того же скина
@@ -1678,8 +1686,10 @@ async function openCase(c, demo) {
     st.stats.opened += n; if (!c.rc) st.stats.spent += cost;
     // учёт по кейсу (для админки): открыто, потрачено, выдано (стоимость дропа)
     const cs = (st.stats.cs = st.stats.cs || {}), k = cs[c.id] = cs[c.id] || { n: 0, spent: 0, won: 0 };
-    k.n += n; k.spent += cost; k.won += wins.reduce((a, s) => a + (s.cash || s.p || 0), 0);
+    const wonV = wins.reduce((a, s) => a + (s.cash || s.p || 0), 0);
+    k.n += n; k.spent += cost; k.won += wonV;
     save();
+    if (!c.rc) logEv('open', cost, wonV);
     if (!c.rc) addRcoin(cost * RCOIN_RATE(c), `Кейс «${c.name}»${n > 1 ? ' ×' + n : ''}`);
   }
   spinning = true;
@@ -2837,7 +2847,7 @@ function withdraw(id) {
   const s = SK[it.n];
   const m = modal(`<div class="wd r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><h2>Вывод предмета</h2><p>${esc(s.name)} · ${money(s.p)}<br>Бот отправит обмен на вашу трейд-ссылку. Примите его в течение 10 минут.</p><button class="btn btn-primary btn-lg btn-block" id="wdGo">${ic.send}Вывести в Steam</button></div>`, 'm-wd');
   $('#wdGo', m).onclick = () => {
-    it.st = 'pend'; save(); closeModal(); drawPf(); toast('Бот готовит обмен…', 'info');
+    it.st = 'pend'; save(); logEv('out', s.p); closeModal(); drawPf(); toast('Бот готовит обмен…', 'info');
     setTimeout(() => { it.st = 'out'; save(); toast(`Обмен отправлен: <b>${esc(s.name)}</b>. Примите его в Steam`); if ($('#pfBody')) drawPf(); }, 4000);
   };
 }
@@ -3106,7 +3116,7 @@ function openDeposit(need = 0) {
     const total = draw(), b = $('#depGo', m);
     b.innerHTML = '<span class="spinner"></span>Обработка…'; b.disabled = true;
     await sleep(900);
-    st.depBonus = 0; st.stats.dep += amount;
+    st.depBonus = 0; st.stats.dep += amount; logEv('dep', amount);
     setBalance(st.balance + total); Snd.file('assets/sounds/deposit.wav'); closeModal();
     addRcoin(amount * .005, `Пополнение на ${money(amount)}`);
     toast(`Баланс пополнен на <b>+${money(total)}</b>`);
@@ -3480,7 +3490,7 @@ function pageAdmin() {
   if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
   return `<section class="container cases-wide adm" id="adm">
     <div class="adm-top"><div><span class="adm-eyebrow">${ic.shield}Админ-панель</span><h1>Управление <em>RUSH CASE</em></h1></div>
-      <div class="adm-tabs" id="admTabs">${[['dash', 'Дашборд', 'trend'], ['cases', 'Кейсы', 'box'], ['players', 'Игроки', 'users']].map(([k, t, i]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${ic[i] || ''}${t}</button>`).join('')}</div></div>
+      <div class="adm-tabs" id="admTabs">${[['dash', 'Дашборд', 'trend'], ['stats', 'Статистика', 'chart'], ['cases', 'Кейсы', 'box'], ['players', 'Игроки', 'users']].map(([k, t, i]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${ic[i] || ''}${t}</button>`).join('')}</div></div>
     <div id="admBody"></div>
   </section>`;
 }
@@ -3492,7 +3502,7 @@ function mountAdmin() {
 function admDraw() {
   const box = $('#admBody'); if (!box) return;
   if (!sb && admTab !== 'cases') return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
-  if (admTab === 'dash') admDash(box); else if (admTab === 'cases') admCases(box); else admPlayers(box);
+  if (admTab === 'dash') admDash(box); else if (admTab === 'stats') admStats(box); else if (admTab === 'cases') admCases(box); else admPlayers(box);
 }
 const admErr = e => `<div class="empty">${ic.shield}Ошибка: ${esc(e.message || String(e))}. Проверьте, что запущен supabase/admin.sql и ваш аккаунт — админ.</div>`;
 /* ---------- дашборд ---------- */
@@ -3554,6 +3564,81 @@ async function admDash(box) {
         ${rows.map(r => `<div class="act-r"><span class="act-c"><img src="${r.c.img.replace(/\.webp$/, '-s.webp')}" alt="">${esc(r.c.name)}${r.est ? '<em>оценка</em>' : ''}</span><span>${fmt(r.n)}</span><span>${money(r.spent)}</span><span>${money(r.won)}</span>
           <span class="act-rtp ${r.rtp > 1 ? 'neg' : ''}"><i style="width:${Math.min(100, r.rtp * 50).toFixed(0)}%"></i>${pctS(r.rtp)}</span><span class="${r.spent - r.won < 0 ? 'neg' : 'pos'}">${(r.spent - r.won < 0 ? '−' : '+') + money(Math.abs(r.spent - r.won))}</span></div>`).join('')}</div>`
         : '<div class="empty">Пока нет открытий</div>'}</div>`;
+}
+/* ---------- статистика за любой период: онлайн и деньги ---------- */
+let admRange = { k: '7d' };
+const admDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+const admIso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function admRangeDates() {
+  const now = new Date(), today = admDay(now), tomorrow = new Date(+today + 864e5);
+  const R = { today: [today, tomorrow], yest: [new Date(+today - 864e5), today], '7d': [new Date(+today - 6 * 864e5), tomorrow], '30d': [new Date(+today - 29 * 864e5), tomorrow], '90d': [new Date(+today - 89 * 864e5), tomorrow], all: [new Date('2026-10-01'), tomorrow] };
+  if (admRange.k === 'custom') return [admDay(admRange.from), new Date(+admDay(admRange.to) + 864e5)];
+  return R[admRange.k];
+}
+function admStats(box) {
+  const [f, t] = admRangeDates();
+  box.innerHTML = `<div class="adm-panel ast-bar">
+      <div class="ast-presets">${[['today', 'Сегодня'], ['yest', 'Вчера'], ['7d', '7 дней'], ['30d', '30 дней'], ['90d', '90 дней'], ['all', 'Всё время']].map(([k, n]) => `<button data-k="${k}" class="${admRange.k === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="ast-custom"><span>Период</span><input class="inp" type="date" id="astFrom" value="${admIso(f)}"><i>—</i><input class="inp" type="date" id="astTo" value="${admIso(new Date(+t - 864e5))}"><button class="btn btn-primary btn-sm" id="astGo">Показать</button></div>
+    </div><div id="astBody"><div class="adm-load"><span class="spinner"></span>Считаем…</div></div>`;
+  $$('.ast-presets [data-k]', box).forEach(b => b.onclick = () => { admRange = { k: b.dataset.k }; admStats(box); });
+  $('#astGo', box).onclick = () => { const a = $('#astFrom', box).value, b = $('#astTo', box).value; if (!a || !b || a > b) return toast('Проверьте даты', 'err'); admRange = { k: 'custom', from: a, to: b }; admStats(box); };
+  admStatsLoad(f, t);
+}
+async function admStatsLoad(f, t) {
+  const hours = (t - f) / 36e5 <= 48, body = $('#astBody');
+  const { data: d, error } = await sb.rpc('admin_period', { p_from: f.toISOString(), p_to: t.toISOString(), p_bucket: hours ? 'hour' : 'day' });
+  if (!body || !$('#astBody')) return;
+  if (error) return (body.innerHTML = admErr(error) + '<div class="empty" style="margin-top:8px">Запустите supabase/stats.sql в Supabase.</div>');
+  const T = d.total, S = d.series || [], profit = +T.dep - +T.out;
+  const lbl = r => { const x = new Date(r.t); return hours ? pad(x.getHours()) + ':00' : pad(x.getDate()) + '.' + pad(x.getMonth() + 1); };
+  const kpi = (t_, v, sub, ac, cls = '') => `<div class="adm-kpi ${cls}" style="--ac:${ac}"><span class="ak-t">${t_}</span><b>${v}</b><small>${sub}</small></div>`;
+  body.innerHTML = `
+    <h3 class="ast-h">${ic.users}Онлайн</h3>
+    <div class="adm-kpis">
+      ${kpi('Пик онлайна', fmt(T.peak), 'одновременно на сайте', '#4ade80')}
+      ${kpi('Средний онлайн', String(T.avg).replace('.', ','), 'одновременно, в среднем', '#22d3ee')}
+      ${kpi('Посетителей', fmt(T.visitors), `из них игроков ${fmt(T.players)}`, '#60a5fa')}
+      ${kpi('Регистраций', fmt(T.reg), 'новых аккаунтов', '#f5c76b')}
+    </div>
+    <div class="adm-panel"><div class="adm-ph"><h3>Онлайн по ${hours ? 'часам' : 'дням'}</h3><div class="ast-leg"><i style="--c:#4ade80"></i>пик<i style="--c:#22d3ee"></i>средний<i style="--c:#60a5fa"></i>посетители</div></div>
+      ${admLine(S, [['peak', '#4ade80'], ['avg', '#22d3ee'], ['visitors', '#60a5fa']], lbl)}</div>
+    <h3 class="ast-h">${ic.coin}Деньги</h3>
+    <div class="adm-kpis">
+      ${kpi('Пополнения', money(+T.dep), `${fmt(T.depN)} платежей`, '#4ade80')}
+      ${kpi('Выведено в Steam', money(+T.out), `${fmt(T.outN)} предм.`, '#f472b6')}
+      ${kpi('Пополнения − выводы', (profit < 0 ? '−' : '') + money(Math.abs(profit)), 'поток денег за период', profit >= 0 ? '#4ade80' : '#ff5d5d', profit >= 0 ? 'pos' : 'neg')}
+      ${kpi('Кейсы', money(+T.spent), `${fmt(T.opens)} открытий · выдано ${money(+T.won)}${+T.spent ? ' · отдают ' + pctS(+T.won / +T.spent) : ''}`, '#fb923c')}
+    </div>
+    <div class="adm-panel"><div class="adm-ph"><h3>Деньги по ${hours ? 'часам' : 'дням'}</h3><div class="ast-leg"><i style="--c:#4ade80"></i>пополнения<i style="--c:#f472b6"></i>выведено<i style="--c:#fb923c"></i>потрачено на кейсы</div></div>
+      ${admBars(S, [['dep', '#4ade80'], ['out', '#f472b6'], ['spent', '#fb923c']], lbl)}</div>
+    <div class="adm-tiles" style="margin-top:14px">
+      <div class="adm-tile" style="--ac:#f472b6"><span>Ставки (банк)</span><b>${money(+T.jp)}</b><small>разыграно за период</small></div>
+      <div class="adm-tile" style="--ac:#22d3ee"><span>Начислено админом</span><b>${money(+T.grants)}</b><small>за период</small></div>
+      <div class="adm-tile" style="--ac:#a78bfa"><span>Средний чек</span><b>${T.depN ? money(+T.dep / T.depN) : '—'}</b><small>на одно пополнение</small></div>
+      <div class="adm-tile" style="--ac:#facc15"><span>Прибыль с кейсов</span><b>${(+T.spent - +T.won < 0 ? '−' : '') + money(Math.abs(+T.spent - +T.won))}</b><small>потрачено − выдано</small></div>
+    </div>`;
+}
+// линейный график (SVG): несколько рядов
+function admLine(S, keys, lbl) {
+  if (!S.length) return '<div class="empty">Нет данных за период</div>';
+  const W = 1000, H = 220, P = 26, mx = Math.max(1, ...S.flatMap(r => keys.map(([k]) => +r[k]))), n = S.length;
+  const X = i => P + (n === 1 ? (W - 2 * P) / 2 : i * (W - 2 * P) / (n - 1)), Y = v => H - P - (v / mx) * (H - 2 * P);
+  const step = Math.ceil(n / 12);
+  return `<svg class="ast-svg" viewBox="0 0 ${W} ${H + 16}" preserveAspectRatio="none">
+    ${[0, .5, 1].map(k => `<line x1="${P}" x2="${W - P}" y1="${Y(mx * k)}" y2="${Y(mx * k)}" class="ast-grid"/><text x="2" y="${Y(mx * k) + 4}" class="ast-ax">${fmt(mx * k)}</text>`).join('')}
+    ${keys.map(([k, c]) => `<path d="M${S.map((r, i) => X(i).toFixed(1) + ' ' + Y(+r[k]).toFixed(1)).join('L')}" fill="none" stroke="${c}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}
+    ${keys.map(([k, c]) => S.map((r, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(+r[k]).toFixed(1)}" r="3" fill="${c}"><title>${lbl(r)}: ${r[k]}</title></circle>`).join('')).join('')}
+    ${S.map((r, i) => i % step ? '' : `<text x="${X(i)}" y="${H + 12}" class="ast-ax" text-anchor="middle">${lbl(r)}</text>`).join('')}
+  </svg>`;
+}
+// столбики по группам
+function admBars(S, keys, lbl) {
+  if (!S.length) return '<div class="empty">Нет данных за период</div>';
+  const mx = Math.max(1, ...S.flatMap(r => keys.map(([k]) => +r[k]))), step = Math.ceil(S.length / 12);
+  return `<div class="ast-bars">${S.map((r, i) => `<div class="ast-g" title="${lbl(r)}">
+    <div class="ast-gb">${keys.map(([k, c]) => `<i style="height:${(+r[k] / mx * 100).toFixed(1)}%;background:${c}" title="${lbl(r)}: ${money(+r[k])}"></i>`).join('')}</div>
+    <span>${i % step ? '' : lbl(r)}</span></div>`).join('')}</div><div class="ast-max">макс. ${money(mx)}</div>`;
 }
 /* ---------- кейсы: закрыть / открыть, множитель удачи ---------- */
 function admCases(box) {
