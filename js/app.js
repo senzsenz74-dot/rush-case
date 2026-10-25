@@ -982,8 +982,7 @@ const ava = (u, cls = '') => {
 
 /* ---------- header / footer ---------- */
 const NAV = [
-  { k: 'home', h: '/', t: 'Главная', i: 'box' },
-  { k: 'cases', h: '/cases', t: 'Кейсы', i: 'box' },
+  { k: 'cases', h: '/', t: 'Кейсы', i: 'box' }, // отдельной главной нет — сайт открывается сразу на кейсах
   { k: 'upgrade', h: '/upgrade', t: 'Апгрейд', i: 'up' },
   { k: 'contracts', h: '/contracts', t: 'Контракты', i: 'swap' },
   { k: 'jackpot', h: '/jackpot', t: 'Ставки', i: 'coins' },
@@ -1123,10 +1122,10 @@ function initLive() {
   (function loop() { pushLive(fakeDrop()); setTimeout(loop, rand(1300, 3600)); })();
 }
 
-/* ---------- background fx: цветовые пятна (CSS) + частицы (пыль, угольки) ---------- */
+/* ---------- background fx: фон-картинка с оружием (CSS) + частицы (пыль, угольки, искры из оружия) ---------- */
 const BG_W = 1672, BG_H = 940;
-// точки, откуда иногда сыплются искры (были привязаны к картинке с оружием; сейчас фон без оружия — искр нет)
-const BG_HOT = [];
+// точки на картинке фона, откуда иногда сыплются искры: АК слева, Desert Eagle справа, керамбит снизу справа
+const BG_HOT = [[110, 335, -1], [1384, 93, 1], [1635, 613, 1], [93, 800, -1]];
 function initFx() {
   const host = $('#fx');
   host.innerHTML = '<canvas class="fx-cv" aria-hidden="true"></canvas>';
@@ -1142,8 +1141,9 @@ function initFx() {
     dpr = Math.min(1.5, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
     cv.width = W * dpr; cv.height = H * dpr; x.setTransform(dpr, 0, 0, dpr, 0, 0);
     // как картинка ложится при background-size:cover — чтобы искры вылетали ровно из оружия
-    const s = document.documentElement.clientWidth / BG_W;
-    map = ([px, py]) => [px * s, py * s - scrollY]; // картинка с оружием — вверху страницы, уезжает при прокрутке
+    // как картинка ложится при background-size:cover — чтобы искры вылетали ровно из оружия
+    const s = Math.max(W / BG_W, H / BG_H), ox = (W - BG_W * s) / 2, oy = (H - BG_H * s) / 2;
+    map = ([px, py]) => [ox + px * s, oy + py * s];
   };
   fit(); addEventListener('resize', fit);
   const side = () => Math.random() < .5 ? rand(0, W * .2) : rand(W * .8, W); // угольки — в основном по бокам, где оружие
@@ -1237,7 +1237,8 @@ const CASE_DESC = {
 };
 const HERO_SKIN = 'AK-47 | Золотая арабеска';
 let statOpened = 1284590;
-function pageHome() {
+/* баннер-слайдер (верх страницы кейсов) */
+function heroHtml() {
   const embers = Array.from({ length: 22 }, () => `<i style="left:${rand(2, 98)}%;--d:${rand(4, 9)}s;--dl:${rand(0, 8)}s;--x:${rand(-40, 40)}px;--s:${rand(.6, 1.4)}"></i>`).join('');
   const dust = Array.from({ length: 34 }, () => `<i style="left:${rand(0, 100)}%;top:${rand(0, 100)}%;--d:${rand(9, 18)}s;--dl:${rand(-18, 0)}s;--x:${rand(-60, 60)}px;--y:${rand(-50, 50)}px;--s:${rand(.4, 1.2)}"></i>`).join('');
   return `<section class="hero3">
@@ -1268,7 +1269,10 @@ function pageHome() {
       <button class="hs-arr hs-next" aria-label="Следующий баннер">${ic.right}</button>
       <div class="hs-dots"><button class="on" data-go="0" aria-label="Баннер 1"></button><button data-go="1" aria-label="Баннер 2"></button><button data-go="2" aria-label="Баннер 3"></button></div>
     </div>
-  </section>
+  </section>`;
+}
+function pageHome() {
+  return `${heroHtml()}
   <section class="container cases-wide hb-wrap">${homeBonus()}</section>
   <section class="container cases-wide">
     <div class="stbar">
@@ -1384,12 +1388,12 @@ function homeBonus() {
 function mountHomeBonus() {
   if (!$('#homeBonus')) return;
   const tick = () => {
-    const t = $('#hbTimer'); if (!t) return; const left = dailyLeft();
+    const t = $('#hbTimer'); if (!t) return; const left = dailyLeft(), el = id => $('#' + id) || {};
     t.textContent = left ? dailyText() : 'до 250 ₽';
-    $('#hbBar').style.width = ((1 - left / DAILY_MS) * 100).toFixed(1) + '%';
-    $('#hbSub').textContent = left ? 'до следующего подарка' : 'подарок ждёт — заберите его';
-    $('#hbDot').textContent = left ? '' : 'доступен';
-    const b = $('#hbBtn'); b.textContent = left ? 'Подробнее' : 'Забрать подарок'; b.classList.toggle('ghost', !!left);
+    if ($('#hbBar')) $('#hbBar').style.width = ((1 - left / DAILY_MS) * 100).toFixed(1) + '%';
+    el('hbSub').textContent = left ? 'до следующего подарка' : 'подарок ждёт — заберите его';
+    el('hbDot').textContent = left ? '' : 'доступен';
+    const b = $('#hbBtn'); if (b) { b.textContent = left ? 'Подробнее' : 'Забрать'; b.classList.toggle('ghost', !!left); }
     t.closest('.hb2-c').classList.toggle('ready', !left);
   };
   every(tick, 1000);
@@ -1404,9 +1408,27 @@ function mountHome() {
 /* =========================================================
    ВСЕ КЕЙСЫ
    ========================================================= */
+/* три окна бонусов — компактно, столбиком справа от баннера */
+function bonusMini() {
+  const got = (st.socials || []).length, left = dailyLeft(), all = SOCIALS.length;
+  return `<div class="hbm" id="homeBonus">
+    <article class="hb2-c hbm-c hb2-dep" style="--ac:#f5c76b;--ac2:#d99a2b"><i class="hb2-wm" aria-hidden="true">%</i>
+      <div class="hbm-t"><span class="hb2-l">Бонус к пополнению</span><b class="hb2-gold">+35%</b></div>
+      <div class="hbm-a"><button class="hb2-code" data-act="copy" data-copy="RUSH35" title="Скопировать промокод"><span>RUSH35</span><i>${ic.copy}</i></button></div></article>
+    <article class="hb2-c hbm-c hb2-daily${left ? '' : ' ready'}" style="--ac:#ffb547;--ac2:#e0811a"><i class="hb2-wm hb2-wm-ic" aria-hidden="true">${ic.gift}</i>
+      <div class="hbm-t"><span class="hb2-l">Ежедневный бонус <em class="hb2-dot" id="hbDot">${left ? '' : 'доступен'}</em></span><b class="hb2-timer" id="hbTimer">${left ? dailyText() : 'до 250 ₽'}</b><div class="hb2-bar"><i id="hbBar" style="width:${((1 - left / DAILY_MS) * 100).toFixed(1)}%"></i></div></div>
+      <div class="hbm-a"><a class="hb2-btn${left ? ' ghost' : ''}" id="hbBtn" href="#/bonus">${left ? 'Подробнее' : 'Забрать'}</a></div></article>
+    <article class="hb2-c hbm-c hb2-soc" style="--ac:#7ab8ff;--ac2:#3f7fe0"><i class="hb2-wm hb2-wm-ic" aria-hidden="true">${ic.users}</i>
+      <div class="hbm-t"><span class="hb2-l">Бонус за соцсети · ${got}/${all}</span><b class="hb2-blue">+10 ₽ <small>за канал</small></b></div>
+      <div class="hbm-a"><div class="hb2-socs">${SOCIALS.map(x => { const ok = (st.socials || []).includes(x.k); return `<a href="#/bonus" class="hb2-si${ok ? ' ok' : ''}" style="--c:${HB_SOC[x.k] || '#888'}" title="${x.n}">${ic[x.i]}${ok ? `<i>${ic.check}</i>` : ''}</a>`; }).join('')}</div></div></article>
+  </div>`;
+}
 function pageCases() {
-  return `<section class="container cases-wide">
-    <div class="page-head"><h1>Все <em>кейсы</em></h1><p>Выберите кейс, откройте до 7 штук за раз и забирайте дроп в инвентарь.</p></div>
+  return `<section class="container cases-wide tr">
+    <div class="tr-hero">${heroHtml()}</div>
+    <aside class="tr-side">${bonusMini()}</aside>
+  </section>
+  <section class="container cases-wide">
     <div class="filterbar">
       <div class="search"><input class="inp" id="caseQ" placeholder="Поиск кейса или скина" autocomplete="off">${ic.search}</div>
       <div class="chips" id="chips"><button class="chip on" data-f="all">Все</button><button class="chip" data-f="0-100">до 100 ₽</button><button class="chip" data-f="100-500">100–500 ₽</button><button class="chip" data-f="500-1e9">500+ ₽</button></div>
@@ -1417,6 +1439,7 @@ function pageCases() {
   </section>`;
 }
 function mountCases() {
+  heroSlider(); mountHomeBonus();
   let f = 'all';
   const apply = () => {
     const q = $('#caseQ').value.trim().toLowerCase(), avail = $('#availChk').checked;
@@ -3290,7 +3313,7 @@ function jpOpenBet() {
    ROUTER
    ========================================================= */
 const ROUTES = {
-  '': [pageHome, mountHome], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], contracts: [pageContracts, mountContracts],
+  '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null],
 };
 function route() {
@@ -3302,7 +3325,7 @@ function route() {
   app.innerHTML = page(parts[1]);
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   if (mount) mount(parts[1]);
-  const navKey = key === '' ? 'home' : key === 'case' ? 'cases' : key;
+  const navKey = key === '' || key === 'case' ? 'cases' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
