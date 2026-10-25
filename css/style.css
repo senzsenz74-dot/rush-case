@@ -2699,16 +2699,25 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .container.cases-wide{max-width:1640px;padding:0 40px}
 @media (max-width:720px){.container.cases-wide{padding:0 16px}}
 
-/* ===== фон сайта: прокручивается со страницей — сверху картинка с оружием, ниже фон без оружия (плитка «картинка + её зеркало» — без швов, стык с первой прикрыт мягкой полосой); частицы — закреплённый слой .fx ===== */
-body{background:
-  linear-gradient(180deg,transparent,rgba(5,4,3,.75) 50%,transparent) center calc(var(--bg1h,56.2vw) - 160px)/100% 320px no-repeat,
-  url("../assets/bg-site.webp") center top/100% auto no-repeat,
-  url("../assets/bg-site2.webp") center var(--bg1h,56.2vw)/100% auto repeat-y,
-  #050403}
+/* ===== фон сайта: тёмная основа и большие мягкие цветовые пятна в палитре сайта (золото, янтарь, фиолетовый), медленно плавают; поверх — частицы ===== */
+body{background:#070605}
 body::before{display:none}
-/* мягкое затемнение по краям экрана, чтобы текст читался */
-.fx{background:radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.5) 100%)}
-.fx-cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fx{background:radial-gradient(130% 100% at 50% 45%,transparent 50%,rgba(2,2,2,.6) 100%),#070605}
+.fx::before,.fx::after{content:"";position:absolute;inset:-25%;z-index:0;pointer-events:none;will-change:transform}
+.fx::before{background:
+  radial-gradient(30% 26% at 80% 14%,rgba(222,160,58,.30),transparent 70%),
+  radial-gradient(32% 30% at 12% 84%,rgba(104,50,190,.34),transparent 70%),
+  radial-gradient(22% 20% at 52% 58%,rgba(201,122,30,.10),transparent 70%);
+  animation:fxBlobA 46s ease-in-out infinite alternate}
+.fx::after{background:
+  radial-gradient(26% 24% at 16% 20%,rgba(120,56,200,.20),transparent 70%),
+  radial-gradient(28% 26% at 88% 74%,rgba(214,150,50,.20),transparent 70%),
+  radial-gradient(24% 22% at 46% 96%,rgba(180,90,24,.16),transparent 70%);
+  animation:fxBlobB 60s ease-in-out infinite alternate}
+@keyframes fxBlobA{0%{transform:translate(0,0) scale(1)}50%{transform:translate(4%,3%) scale(1.06)}100%{transform:translate(-3%,5%) scale(.97)}}
+@keyframes fxBlobB{0%{transform:translate(0,0) scale(1.02)}50%{transform:translate(-5%,-2%) scale(.96)}100%{transform:translate(3%,-4%) scale(1.05)}}
+.fx-cv{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block}
+@media (prefers-reduced-motion:reduce){.fx::before,.fx::after{animation:none}}
 
 /* ===== окно входа v2: арт слева, форма с плавающими подписями и анимациями ===== */
 .m-auth2{width:min(940px,100%);overflow:hidden}
@@ -2854,3 +2863,15 @@ html{overflow-x:clip}
 .ld-t.con{background:linear-gradient(180deg,#ffb547,#d97706)}
 .ld-upg .ld-u small{color:#86efac}
 .ld-con .ld-u small{color:#fcd38a}
+/* пятна заметнее */
+.fx::before{background:
+  radial-gradient(28% 30% at 74% 22%,rgba(230,165,55,.42),transparent 70%),
+  radial-gradient(30% 32% at 22% 78%,rgba(112,52,205,.50),transparent 70%),
+  radial-gradient(20% 22% at 50% 52%,rgba(205,120,30,.16),transparent 70%)}
+.fx::after{background:
+  radial-gradient(24% 26% at 24% 26%,rgba(128,60,210,.30),transparent 70%),
+  radial-gradient(26% 28% at 78% 74%,rgba(225,150,45,.30),transparent 70%),
+  radial-gradient(22% 22% at 50% 92%,rgba(190,90,25,.22),transparent 70%)}
+/* узор «камуфляж»: мягкие формы основы с тенью (бесшовная плитка), цветовые пятна поверх — слабее */
+.fx{background:radial-gradient(130% 100% at 50% 45%,transparent 50%,rgba(2,2,2,.55) 100%),url("../assets/bg-camo.svg") 0 0/1400px 1400px repeat,#0c0a09}
+.fx::before,.fx::after{opacity:.55}

@@ -1123,17 +1123,14 @@ function initLive() {
   (function loop() { pushLive(fakeDrop()); setTimeout(loop, rand(1300, 3600)); })();
 }
 
-/* ---------- background fx: фон-картинка + частицы (пыль, угольки, искры от оружия) ---------- */
+/* ---------- background fx: цветовые пятна (CSS) + частицы (пыль, угольки) ---------- */
 const BG_W = 1672, BG_H = 940;
-// точки на картинке фона, откуда иногда сыплются искры: АК слева, Desert Eagle справа, керамбит снизу справа
-const BG_HOT = [[110, 335, -1], [1384, 93, 1], [1635, 613, 1], [93, 800, -1]];
+// точки, откуда иногда сыплются искры (были привязаны к картинке с оружием; сейчас фон без оружия — искр нет)
+const BG_HOT = [];
 function initFx() {
   const host = $('#fx');
   host.innerHTML = '<canvas class="fx-cv" aria-hidden="true"></canvas>';
   const cv = host.firstChild, x = cv.getContext('2d');
-  // фон прокручивается со страницей: сверху картинка с оружием, под ней — фон без оружия (повторяется вниз); высота первой — для стыка
-  const bgH = () => document.documentElement.style.setProperty('--bg1h', (document.documentElement.clientWidth * BG_H / BG_W).toFixed(1) + 'px');
-  bgH(); addEventListener('resize', bgH);
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   // светящаяся точка — рисуем один раз и дальше штампуем
   const sprite = (r, g, b) => { const c = document.createElement('canvas'); c.width = c.height = 32; const q = c.getContext('2d'), gr = q.createRadialGradient(16, 16, 0, 16, 16, 16);
@@ -1158,6 +1155,7 @@ function initFx() {
   // 3) искры от оружия: короткая вспышка с хвостом, падают под тяжестью
   const sparks = []; let nextBurst = performance.now() + 1500;
   const burstAt = () => {
+    if (!BG_HOT.length) return;
     const [px, py, dir] = BG_HOT[Math.floor(Math.random() * BG_HOT.length)], [sx, sy] = map([px, py]);
     if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) return;
     const n = randi(7, 13);
