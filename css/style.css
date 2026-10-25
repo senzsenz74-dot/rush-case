@@ -3076,3 +3076,15 @@ html{overflow-x:clip}
 .ced-m b.warn{color:#fbbf24}.ced-m b.neg{color:#ff7272}
 .ced-foot{display:flex;justify-content:flex-end;gap:10px}
 @media (max-width:760px){.ced{padding:24px 16px}.ced-grid{grid-template-columns:1fr}.ced-row{grid-template-columns:1fr 90px 100px 30px}}
+/* админка: ID и личная удача игрока */
+.at-h,.at-r{grid-template-columns:minmax(220px,2fr) 1fr 80px 1fr 90px 110px 130px}
+.at-id{font-style:normal;font:800 11px var(--mono);color:var(--gold);margin-right:6px;opacity:.85}
+.at-luck{height:30px;padding:0 10px;border-radius:8px;font:800 12px var(--ff-h);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--txt2)}
+.at-luck:hover{border-color:var(--gold);color:#fff}
+.at-luck.up{color:#6ee79a;border-color:rgba(74,222,128,.4);background:rgba(74,222,128,.08)}
+.at-luck.dn{color:#ff8a8a;border-color:rgba(255,93,93,.4);background:rgba(255,93,93,.08)}
+.al-val{display:flex;align-items:baseline;gap:12px;margin:6px 0 10px}
+.al-val b{font:900 40px var(--ff-h)}.al-val b.up{color:#6ee79a}.al-val b.dn{color:#ff8a8a}
+.al-val span{font-weight:700;color:var(--txt2)}
+.um-h b small{display:block;font:700 11px var(--mono);color:var(--gold);opacity:.85}
+@media (max-width:1180px){.at-r{grid-template-columns:1fr 1fr}}

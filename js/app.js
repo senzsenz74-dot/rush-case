@@ -1049,7 +1049,7 @@ function renderUser() {
     <div class="ubox">
       <button class="ubtn" id="ubtn" aria-haspopup="true" aria-label="Меню профиля">${ava(st.user)}${ic.chev}</button>
       <div class="umenu hidden" id="umenu">
-        <div class="um-h">${ava(st.user, 'xs')}<b>${esc(st.user.name)}</b></div>
+        <div class="um-h">${ava(st.user, 'xs')}<b>${esc(st.user.name)}${st.user.pid ? `<small>ID ${st.user.pid}</small>` : ''}</b></div>
         <a href="#/profile">${ic.user}Профиль и инвентарь</a>
         <a href="#/bonus">${ic.gift}Бонусы</a>
         ${st.user.admin ? `<a href="#/admin" class="um-admin">${ic.shield}Админ-панель</a>` : ''}
@@ -1677,7 +1677,7 @@ async function openCase(c, demo) {
     else if (st.balance < cost) return openDeposit(cost - st.balance);
   }
   resetRoulette();
-  const wins = Array.from({ length: n }, () => demo ? rollDemo(c) : roll(c.items));
+  const pool = demo ? null : luckItems(c), wins = Array.from({ length: n }, () => demo ? rollDemo(c) : roll(pool));
   wins.forEach(s => { new Image().src = imgUrl(s, 'l'); }); // большие картинки грузим, пока крутится рулетка
   let given = [];
   if (!demo) {
@@ -1883,7 +1883,7 @@ const upgItems = () => upg.sel.map(id => st.inv.find(x => x.id === id && x.st ==
 function upgValue() { return upgItems().reduce((a, x) => a + SK[x.n].p, 0) + upg.bal; }
 // шанс апгрейда: до x20 — честные 92% от отношения сумм; дальше резко падает (x50 ≈ 0,12%, x100 ≈ 0,007%, x500 ≈ 0,00001%) — x500/x1000 практически не выпадают
 const UPG_SOFT = 20;
-const upgChance = (v, t) => { if (!v || !t) return 0; const x = t.p / v; return Math.min(.8, .92 / x * (x > UPG_SOFT ? (UPG_SOFT / x) ** 3 : 1)); };
+const upgChance = (v, t) => { if (!v || !t) return 0; const x = t.p / v; return Math.min(.8, .92 / x * (x > UPG_SOFT ? (UPG_SOFT / x) ** 3 : 1) * myLuck()); };
 /* процент шанса: мелкие значения — без округления в ноль (0,0000118%) */
 const pctTxt = ch => { const p = ch * 100; if (p < 1e-6) return '<0,000001%'; const d = p >= 10 ? 1 : p >= 1 ? 2 : Math.min(12, 1 - Math.floor(Math.log10(p))); return p.toFixed(d).replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1').replace('.', ',') + '%'; };
 /* дуга шанса по центру снизу кольца */
@@ -2719,7 +2719,7 @@ function pageProfile() {
         <div class="pfh-info">
           <h1>${esc(u.name)}</h1>
           <div class="pfh-chips">
-            <button class="pfh-chip" data-act="copy" data-copy="${u.id}" title="Скопировать ID">ID ${u.id}${ic.copy}</button>
+            <button class="pfh-chip" data-act="copy" data-copy="${u.pid || u.rid || u.id}" title="Скопировать ID">ID ${u.pid || u.rid || u.id}${ic.copy}</button>
             <span class="pfh-chip">${u.via === 'steam' ? ic.steam + 'Steam' : ic.user + esc(u.email || '')}</span>
             <span class="pfh-chip">${ic.clock}с ${new Date(u.reg).toLocaleDateString('ru-RU')}</span>
           </div>
@@ -2992,7 +2992,7 @@ async function sbLoadProfile(session) {
   Object.assign(st, freshProfile(), p.data || {});
   st.stats = Object.assign(freshProfile().stats, st.stats || {});
   st.inv.forEach(x => { x.n = fixName(x.n); });
-  st.user = { id: session.user.id, rid: session.user.id.slice(0, 8), name: p.name, email: session.user.email, ava: p.ava || null, reg: Date.parse(p.created_at), via: 'email', key: 'sb', sb: true, admin: !!p.is_admin };
+  st.user = { id: session.user.id, rid: session.user.id.slice(0, 8), name: p.name, email: session.user.email, ava: p.ava || null, reg: Date.parse(p.created_at), via: 'email', key: 'sb', sb: true, admin: !!p.is_admin, pid: p.pid || null, luck: +p.luck || 1 };
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
   renderUser(); route();
   jpClaim(false); jpResolveMine(); claimGrants();
@@ -3009,6 +3009,19 @@ async function claimGrants() {
   if (sum > 0) { Snd.coin(); burst(30); }
 }
 setInterval(claimGrants, 30000);
+async function syncLuck() {
+  if (!sb || !st.user || !st.user.sb) return;
+  const { data } = await sb.from('profiles').select('luck').eq('id', st.user.id).maybeSingle();
+  if (data && data.luck != null && +data.luck !== st.user.luck) { st.user.luck = +data.luck; if ($('#wheel')) drawUpg(); }
+}
+setInterval(syncLuck, 30000);
+/* личная удача игрока (из админки): ×шанс предметов дороже кейса, остальные пропорционально; у апгрейда — ×шанс, показанный игроку */
+const myLuck = () => (st.user && st.user.luck) || 1;
+const luckItems = c => {
+  const L = myLuck(); if (L === 1) return c.items;
+  const its = c.items.map(s => ({ ...s, ch: s.ch * (s.p >= c.price ? L : 1) })), tot = its.reduce((a, s) => a + s.ch, 0);
+  its.forEach(s => { s.ch /= tot; }); return its;
+};
 addEventListener('focus', claimGrants);
 /* настройки кейсов из админки: закрыт / множитель удачи (×шанс предметов дороже кейса, остальные пропорционально реже) */
 const caseRtp = c => c.items.reduce((a, s) => a + s.ch * s.p, 0) / c.price;
@@ -3856,7 +3869,7 @@ function admCaseEditor(row, done) {
 let admQ = '';
 async function admPlayers(box) {
   box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Игроки</h3>
-      <div class="search adm-search"><input class="inp" id="admQ" placeholder="Ник или e-mail" value="${esc(admQ)}" autocomplete="off">${ic.search}</div></div>
+      <div class="search adm-search"><input class="inp" id="admQ" placeholder="ID, ник или e-mail" value="${esc(admQ)}" autocomplete="off">${ic.search}</div></div>
     <div id="admList"><div class="adm-load"><span class="spinner"></span>Загружаем игроков…</div></div></div>`;
   let t = 0;
   $('#admQ').oninput = e => { admQ = e.target.value.trim(); clearTimeout(t); t = setTimeout(load, 350); };
@@ -3866,14 +3879,35 @@ async function admPlayers(box) {
     if (error) return (list.innerHTML = admErr(error));
     if (!data.length) return (list.innerHTML = `<div class="empty">${ic.users}Никого не нашли</div>`);
     const ago = ts => { const m = (Date.now() - Date.parse(ts)) / 60000; return m < 10 ? '<em class="on">онлайн</em>' : m < 60 ? Math.round(m) + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : new Date(ts).toLocaleDateString('ru-RU'); };
-    list.innerHTML = `<div class="adm-tbl"><div class="at-h"><span>Игрок</span><span>Баланс</span><span>Открыто</span><span>Потрачено</span><span>Был</span><span></span></div>
-      ${data.map(p => `<div class="at-r" data-uid="${p.id}" data-name="${esc(p.name)}">
-        <span class="at-u">${ava({ name: p.name }, 'xs')}<span><b>${esc(p.name)}${p.is_admin ? ' <i class="at-adm">админ</i>' : ''}</b><small>${esc(p.email || '')} · с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</small></span></span>
-        <span class="at-bal">${money(+p.balance)}<small>R ${rc(+p.rcoin)}</small></span><span>${fmt(+p.opened)}</span><span>${money(+p.spent)}</span><span>${ago(p.last_seen)}</span>
+    list.innerHTML = `<div class="adm-tbl"><div class="at-h"><span>Игрок</span><span>Баланс</span><span>Открыто</span><span>Потрачено</span><span>Удача</span><span>Был</span><span></span></div>
+      ${data.map(p => `<div class="at-r" data-uid="${p.id}" data-name="${esc(p.name)}" data-luck="${+p.luck || 1}" data-pid="${p.pid || ''}">
+        <span class="at-u">${ava({ name: p.name }, 'xs')}<span><b>${p.pid ? `<i class="at-id">#${p.pid}</i>` : ''}${esc(p.name)}${p.is_admin ? ' <i class="at-adm">админ</i>' : ''}</b><small>${esc(p.email || '')} · с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</small></span></span>
+        <span class="at-bal">${money(+p.balance)}<small>R ${rc(+p.rcoin)}</small></span><span>${fmt(+p.opened)}</span><span>${money(+p.spent)}</span><span><button class="at-luck${(+p.luck || 1) > 1 ? ' up' : (+p.luck || 1) < 1 ? ' dn' : ''}">×${(+p.luck || 1).toFixed(2).replace('.', ',')}</button></span><span>${ago(p.last_seen)}</span>
         <span><button class="btn btn-dark btn-sm at-give">${ic.plus}Начислить</button></span></div>`).join('')}</div>`;
     $$('.at-give', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admGive(r.dataset.uid, r.dataset.name, load); });
+    $$('.at-luck', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admLuck(r.dataset.uid, r.dataset.name, r.dataset.pid, +r.dataset.luck, load); });
   };
   load();
+}
+/* личная удача игрока: ×шанс дорогого дропа в кейсах и ×шанс апгрейда; применяется у игрока в течение 30 с */
+function admLuck(uid, name, pid, cur, done) {
+  const m = modal(`<div class="dep adm-give"><h2>Удача <em>${esc(name)}</em>${pid ? ` <small class="at-id">#${pid}</small>` : ''}</h2>
+    <p class="dep-sub">Множитель шансов игрока: в кейсах — шанс предметов дороже кейса, в апгрейде — шанс победы (игрок видит изменённый шанс на колесе). ×1 — как у всех. Применится у игрока в течение 30 секунд.</p>
+    <div class="al-val"><b id="alV">×${cur.toFixed(2).replace('.', ',')}</b><span id="alHint"></span></div>
+    <input type="range" id="alR" min="0.1" max="5" step="0.05" value="${cur}" class="ac-r">
+    <div class="amounts">${[0.25, 0.5, 1, 1.5, 2, 3, 5].map(a => `<button data-a="${a}">×${String(a).replace('.', ',')}</button>`).join('')}</div>
+    <button class="btn btn-primary btn-xl btn-block" id="alGo" style="margin-top:16px">Сохранить</button></div>`, 'm-dep');
+  const r = $('#alR', m), upd = () => { const v = +r.value; $('#alV', m).textContent = '×' + v.toFixed(2).replace('.', ','); $('#alV', m).className = v > 1 ? 'up' : v < 1 ? 'dn' : '';
+    $('#alHint', m).textContent = v === 1 ? 'обычные шансы' : v > 1 ? `шансы выше в ${v.toFixed(2).replace('.', ',')} раза` : `шансы ниже в ${(1 / v).toFixed(2).replace('.', ',')} раза`; };
+  r.oninput = upd; $$('[data-a]', m).forEach(b => b.onclick = () => { r.value = b.dataset.a; upd(); }); upd();
+  $('#alGo', m).onclick = async () => {
+    const go = $('#alGo', m); go.disabled = true; go.innerHTML = '<span class="spinner"></span>Сохраняем…';
+    const { error } = await sb.rpc('admin_set_luck', { p_uid: uid, p_luck: +r.value });
+    if (error) { go.disabled = false; go.textContent = 'Сохранить'; return toast('Не сохранено: ' + error.message, 'err'); }
+    closeModal(); toast(`${esc(name)}: удача ×${(+r.value).toFixed(2).replace('.', ',')}`);
+    if (st.user && uid === st.user.id) syncLuck();
+    done && done();
+  };
 }
 function admGive(uid, name, done) {
   const m = modal(`<div class="dep adm-give"><h2>Начислить <em>${esc(name)}</em></h2>
