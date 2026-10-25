@@ -2961,3 +2961,9 @@ html{overflow-x:clip}
 .case-card.cc-closed{filter:none}
 .case-card.cc-closed .cc-art{position:relative}
 .case-card.cc-closed .ca-img,.case-card.cc-closed .cc-body{filter:grayscale(.9) brightness(.6)}
+/* «Закончился» — внутри картинки кейса, качается вместе с ним; серой делаем только картинку */
+.case-card.cc-closed .ca-imgbox{filter:none}
+.case-card.cc-closed .ca-imgbox>img{filter:grayscale(.9) brightness(.55)}
+.ca-imgbox .cc-lock{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%) rotate(-8deg);z-index:7;white-space:nowrap;padding:7px 16px;border-radius:8px;
+  background:linear-gradient(180deg,#ff5a5a,#c81e1e);border:1px solid rgba(255,200,200,.35);color:#fff;font:900 13px var(--ff-h);letter-spacing:.14em;
+  box-shadow:0 8px 20px -6px rgba(200,30,30,.8),inset 0 1px 0 rgba(255,255,255,.35);text-shadow:0 1px 2px rgba(0,0,0,.4)}

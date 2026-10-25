@@ -1350,7 +1350,7 @@ const caseBlock = (b, grp) => {
   </section>`;
 };
 const caseCard = c => `<a class="case-card${c.disabled ? ' cc-closed' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
-  <div class="cc-art">${caseArt(c, '', NEW_CASES.includes(c.id) ? '<span class="cc-new">Новое</span>' : '')}${c.disabled ? '<span class="cc-lock">Закрыт</span>' : ''}</div>
+  <div class="cc-art">${caseArt(c, '', (NEW_CASES.includes(c.id) && !c.disabled ? '<span class="cc-new">Новое</span>' : '') + (c.disabled ? '<span class="cc-lock">Закончился</span>' : ''))}</div>
   <div class="cc-body">
     <div class="cc-name">${c.name}</div>
     <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}${c.rc ? ' cc-price-rc' : ''}">${casePrice(c, c.price)}</span></div>
