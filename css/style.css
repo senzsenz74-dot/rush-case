@@ -2709,3 +2709,109 @@ body::before{display:none}
 /* мягкое затемнение по краям экрана, чтобы текст читался */
 .fx{background:radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.5) 100%)}
 .fx-cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* ===== окно входа v2: арт слева, форма с плавающими подписями и анимациями ===== */
+.m-auth2{width:min(940px,100%);overflow:hidden}
+.au2{grid-template-columns:380px 1fr;min-height:620px}
+/* арт: медленный наезд, золотой блик, угольки */
+.au-art{position:relative;overflow:hidden;isolation:isolate;background:#0b0906;border-right:1px solid rgba(245,199,107,.18)}
+.au-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;transform-origin:60% 30%;animation:auZoom 18s ease-in-out infinite alternate}
+@keyframes auZoom{from{transform:scale(1.02)}to{transform:scale(1.09)}}
+.au-sweep{position:absolute;inset:-20% -60%;z-index:2;background:linear-gradient(105deg,transparent 42%,rgba(255,226,150,.18) 49%,rgba(255,255,255,.28) 50%,rgba(255,226,150,.18) 51%,transparent 58%);transform:translateX(-60%);animation:auSweep 6s ease-in-out 1s infinite;mix-blend-mode:screen;pointer-events:none}
+@keyframes auSweep{0%{transform:translateX(-60%)}40%,100%{transform:translateX(60%)}}
+.au-glow{position:absolute;inset:auto 0 0;height:45%;z-index:1;background:radial-gradient(70% 80% at 60% 100%,rgba(245,170,60,.28),transparent 70%);animation:auPulse 4s ease-in-out infinite;pointer-events:none}
+@keyframes auPulse{50%{opacity:.55}}
+.au-art::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:linear-gradient(90deg,transparent 70%,rgba(9,9,10,.55)),linear-gradient(0deg,rgba(9,9,10,.45),transparent 25%)}
+.au-embers{position:absolute;inset:0;z-index:2;pointer-events:none}
+.au-embers i{position:absolute;bottom:-10px;width:4px;height:4px;border-radius:50%;background:#ffcf6b;box-shadow:0 0 10px 2px rgba(255,170,40,.8);opacity:0;transform:scale(var(--s));animation:auRise var(--d) linear var(--dl) infinite}
+@keyframes auRise{0%{opacity:0;transform:translate(0,0) scale(var(--s))}10%{opacity:1}80%{opacity:.7}100%{opacity:0;transform:translate(var(--x),-640px) scale(calc(var(--s) * .4))}}
+/* правая часть */
+.au-main{position:relative;padding:38px 40px 26px;gap:18px;background:radial-gradient(90% 60% at 100% 0%,rgba(214,160,60,.1),transparent 60%)}
+.au-head{display:flex;flex-direction:column;gap:6px}
+.au-eyebrow{display:inline-flex;align-items:center;gap:8px;font:800 10.5px var(--ff-h);letter-spacing:.22em;color:var(--gold)}
+.au-eyebrow i{width:18px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--gold),transparent)}
+.au-main h2{font:900 30px/1.05 var(--ff-h);text-transform:uppercase;letter-spacing:.005em;background:linear-gradient(100deg,#fff 0%,#fff 40%,#ffe2a0 50%,#fff 60%,#fff 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:auTitle 5s ease-in-out infinite}
+@keyframes auTitle{0%,60%{background-position:100% 0}100%{background-position:-150% 0}}
+.au-sub{font-size:13.5px;font-weight:600;color:var(--txt2)}
+.au-sub b{color:var(--gold)}
+/* вкладки: золотая «таблетка» переезжает */
+.au-tabs{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:5px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}
+.au-tabs button{position:relative;z-index:1;height:40px;border-radius:10px;font:800 12px var(--ff-h);letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);transition:color .3s}
+.au-tabs button.on{color:#1b1204}
+.au-pill{position:absolute;top:5px;bottom:5px;left:5px;width:calc(50% - 5px);border-radius:10px;background:linear-gradient(180deg,#ffe08a,#f2b23c);box-shadow:0 6px 18px -6px rgba(242,178,60,.7),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .45s cubic-bezier(.3,1.4,.4,1)}
+.au-tabs[data-on="reg"] .au-pill{transform:translateX(100%)}
+/* Steam */
+.au-steam{position:relative;display:flex;align-items:center;gap:14px;width:100%;height:58px;padding:0 18px 0 8px;border-radius:14px;overflow:hidden;text-align:left;color:#fff;
+  background:linear-gradient(135deg,#1b2838,#2a475e 55%,#1b2838);border:1px solid rgba(102,192,244,.28);box-shadow:0 10px 26px -14px rgba(102,192,244,.6);transition:transform .2s,box-shadow .2s,border-color .2s}
+.au-steam::after{content:"";position:absolute;top:0;bottom:0;left:-40%;width:30%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.18),transparent);transform:skewX(-20deg);transition:left .7s ease}
+.au-steam:hover{transform:translateY(-2px);border-color:rgba(102,192,244,.55);box-shadow:0 16px 34px -14px rgba(102,192,244,.75)}
+.au-steam:hover::after{left:120%}
+.au-steam-ic{width:42px;height:42px;flex:none;border-radius:11px;display:grid;place-items:center;background:rgba(0,0,0,.28);color:#66c0f4}
+.au-steam-ic svg{width:24px;height:24px}
+.au-steam-t{flex:1;display:flex;flex-direction:column;line-height:1.2}
+.au-steam-t b{font:800 13px var(--ff-h);text-transform:uppercase;letter-spacing:.05em}
+.au-steam-t small{font-size:11.5px;color:rgba(200,225,245,.65);font-weight:600}
+.au-steam>svg{width:18px;height:18px;opacity:.6;transition:transform .2s}
+.au-steam:hover>svg{transform:translateX(4px);opacity:1}
+.au-steam.busy .au-steam-ic svg{animation:auSpin 1s linear infinite}
+@keyframes auSpin{to{transform:rotate(1turn)}}
+.au-or{display:flex;align-items:center;gap:12px;margin:2px 0;font:800 10px var(--ff-h);letter-spacing:.16em;text-transform:uppercase;color:var(--txt3)}
+.au-or::before,.au-or::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.1))}
+.au-or::after{background:linear-gradient(90deg,rgba(255,255,255,.1),transparent)}
+.au-body{display:flex;flex-direction:column;gap:14px}
+.au-body #authForm{display:flex;flex-direction:column;gap:12px}
+.au-body.au-swap #authForm>*{animation:auIn .45s cubic-bezier(.2,.8,.3,1) both}
+.au-body.au-swap #authForm>*:nth-child(2){animation-delay:.04s}.au-body.au-swap #authForm>*:nth-child(3){animation-delay:.08s}
+.au-body.au-swap #authForm>*:nth-child(4){animation-delay:.12s}.au-body.au-swap #authForm>*:nth-child(5){animation-delay:.16s}
+.au-body.au-swap #authForm>*:nth-child(n+6){animation-delay:.2s}
+@keyframes auIn{from{opacity:0;transform:translateX(calc(var(--dir,1) * 26px))}}
+/* поля с плавающей подписью */
+.au-f{gap:4px}
+.au-in{position:relative}
+.au-in .inp{height:54px;padding:20px 44px 4px 46px;font-weight:600;border-radius:13px;background:rgba(255,255,255,.035)}
+.au-in .inp:focus{border-color:rgba(245,199,107,.55);background:rgba(245,199,107,.04);box-shadow:0 0 0 4px rgba(245,199,107,.1)}
+.au-in label{position:absolute;left:46px;top:50%;transform:translateY(-50%);font-size:14px;font-weight:600;color:var(--txt3);text-transform:none;letter-spacing:0;pointer-events:none;transition:top .2s,font-size .2s,color .2s,letter-spacing .2s}
+.au-in .inp:focus+label,.au-in .inp:not(:placeholder-shown)+label{top:15px;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+.au-ic{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--txt3);display:grid;transition:color .2s}
+.au-ic svg{width:18px;height:18px}
+.au-in:focus-within .au-ic{color:var(--gold)}
+.au-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--txt3);transition:color .2s,background .2s}
+.au-eye svg{width:17px;height:17px}.au-eye:hover,.au-eye.on{color:var(--gold);background:rgba(245,199,107,.08)}
+.au-line{position:absolute;left:14px;right:14px;bottom:0;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);transform:scaleX(0);transition:transform .35s ease}
+.au-in:focus-within .au-line{transform:scaleX(1)}
+.au-f .msg{min-height:0;font-size:12px;font-weight:700;color:var(--red);padding-left:4px}
+.au-f.bad .au-ic{color:var(--red)}
+.au-f.shake .au-in{animation:auShake .4s}
+@keyframes auShake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.au-row{display:flex;justify-content:space-between;align-items:center;margin-top:-4px}
+.au2 .forgot{font-size:12.5px;font-weight:700;color:var(--txt3);transition:color .2s}.au2 .forgot:hover{color:var(--gold)}
+/* главная кнопка */
+.au-go{position:relative;display:flex;align-items:center;justify-content:center;gap:10px;height:54px;margin-top:4px;border-radius:14px;overflow:hidden;font:900 14px var(--ff-h);letter-spacing:.08em;text-transform:uppercase;color:#1b1204;
+  background:linear-gradient(180deg,#ffe08a,#f2b23c 55%,#dc9420);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 14px 30px -12px rgba(242,178,60,.75);transition:transform .15s,box-shadow .2s,filter .2s}
+.au-go::before{content:"";position:absolute;top:0;bottom:0;left:-50%;width:35%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.65),transparent);transform:skewX(-20deg);animation:auShine 3.4s ease-in-out infinite}
+@keyframes auShine{0%,55%{left:-50%}100%{left:130%}}
+.au-go:hover{filter:brightness(1.06);transform:translateY(-2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 20px 40px -12px rgba(242,178,60,.85)}
+.au-go:active{transform:translateY(1px)}
+.au-go>svg{width:18px;height:18px;transition:transform .2s}.au-go:hover>svg{transform:translateX(4px)}
+.au-bonus{font-style:normal;padding:4px 9px;border-radius:99px;background:#1b1204;color:#ffd572;font-size:12px;letter-spacing:.02em;box-shadow:0 0 14px rgba(255,200,80,.35)}
+.au2 .sw{text-align:center;font-size:13px;color:var(--txt3)}
+.au2 .sw button{color:var(--gold);font-weight:800}
+.au2 .check{font-size:12.5px}
+.au-foot{margin-top:auto;display:flex;align-items:center;justify-content:center;gap:8px;font-size:11.5px;font-weight:700;color:var(--txt3)}
+.au-foot svg{width:14px;height:14px;color:#7ee29a}
+/* появление окна: арт выезжает слева, правая часть — снизу по очереди */
+.modal-ov.in .m-auth2 .au-art{animation:auArt .8s cubic-bezier(.2,.8,.3,1) both}
+.modal-ov.in .m-auth2 .au-main>*{animation:auUp .6s cubic-bezier(.2,.8,.3,1) both}
+.modal-ov.in .m-auth2 .au-main>*:nth-child(2){animation-delay:.07s}.modal-ov.in .m-auth2 .au-main>*:nth-child(3){animation-delay:.14s}.modal-ov.in .m-auth2 .au-main>*:nth-child(4){animation-delay:.21s}
+@keyframes auArt{from{opacity:0;transform:translateX(-30px);filter:brightness(2) saturate(.4)}}
+@keyframes auUp{from{opacity:0;transform:translateY(16px)}}
+@media (max-width:920px){.au2{grid-template-columns:1fr}.au-art{display:none}.au-main{padding:30px 20px 20px}.au-main h2{font-size:24px}}
+@media (max-width:520px){.au2 .row2{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.au-art img,.au-sweep,.au-glow,.au-embers i,.au-go::before,.au-main h2{animation:none!important}}
+/* арт всегда во всю ширину (не обрезается по бокам); если окно выше картинки — снизу плавно уходит в тёмный фон */
+.au-art img{inset:0 0 auto;height:auto;object-fit:initial;-webkit-mask:linear-gradient(180deg,#000 82%,transparent);mask:linear-gradient(180deg,#000 82%,transparent)}
+.au-art{background:radial-gradient(80% 50% at 60% 100%,rgba(214,150,50,.18),transparent 70%),#0b0906}
+@media (max-width:920px){.au2{grid-template-columns:minmax(0,1fr)}.au-main{min-width:0}.m-auth2{width:100%}}
+/* ничего не расширяет страницу по горизонтали (свечения кейсов у правого края раздвигали страницу на телефоне) */
+html{overflow-x:clip}
+@media (max-width:920px){.au-head{padding-right:44px}}

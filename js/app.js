@@ -2819,46 +2819,59 @@ const page404 = () => `<section class="container"><div class="empty-big">${ic.al
 /* =========================================================
    AUTH
    ========================================================= */
+const AU_IC = {
+  mail: sv('<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7l8 6 8-6"/>'),
+  lock: sv('<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>'),
+  eyeOff: sv('<path d="M3 3l18 18M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6A17.4 17.4 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
+};
+// поле ввода: значок слева, плавающая подпись, у пароля — кнопка «показать»
+const auField = (id, label, icon, type = 'text', ac = '', extra = '') => `<div class="field au-f">
+  <div class="au-in"><span class="au-ic">${icon}</span><input class="inp" id="${id}" type="${type}" autocomplete="${ac}" placeholder=" " ${extra}><label for="${id}">${label}</label>${type === 'password' ? `<button type="button" class="au-eye" tabindex="-1" aria-label="Показать пароль">${ic.eye}</button>` : ''}<i class="au-line"></i></div>
+  <span class="msg"></span></div>`;
 function openAuth(tab = 'login') {
-  const m = modal(`<div class="auth">
-    <div class="auth-side">${RINGS}${WORDMARK}
-      <ul class="as-perks"><li>${ic.gift}+100 ₽ на баланс за регистрацию</li><li>${ic.bolt}Мгновенный вывод скинов в Steam</li><li>${ic.shield}Честный результат каждого открытия</li><li>${ic.star}Ежедневный бонус до 250 ₽</li></ul>
-      <img class="as-char" src="assets/agent-fbi.webp" alt=""></div>
-    <div class="auth-main">
-      <h2 id="authTitle"></h2>
-      <div class="seg wide" id="authTabs"><button data-tab="login">Вход</button><button data-tab="reg">Регистрация</button></div>
-      <button class="btn btn-steam btn-lg btn-block" id="steamBtn">${ic.steam}Войти через Steam</button>
-      <div class="or">или по e-mail</div>
-      <form id="authForm" novalidate></form>
-    </div></div>`, 'm-auth');
-  const draw = t => {
+  const m = modal(`<div class="auth au2">
+    <div class="au-art" aria-hidden="true"><img src="assets/auth-art.webp" alt=""><i class="au-sweep"></i><i class="au-glow"></i><div class="au-embers">${Array.from({ length: 14 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(5, 10)}s;--dl:${rand(-10, 0)}s;--x:${rand(-30, 30)}px;--s:${rand(.6, 1.4)}"></i>`).join('')}</div></div>
+    <div class="auth-main au-main">
+      <div class="au-head"><span class="au-eyebrow"><i></i>RUSH CASE</span><h2 id="authTitle"></h2><p class="au-sub" id="authSub"></p></div>
+      <div class="au-tabs" id="authTabs"><i class="au-pill"></i><button data-tab="login">Вход</button><button data-tab="reg">Регистрация</button></div>
+      <div class="au-body" id="authBody">
+        <button class="au-steam" id="steamBtn"><span class="au-steam-ic">${ic.steam}</span><span class="au-steam-t"><b>Войти через Steam</b><small>быстро и безопасно</small></span>${ic.right}</button>
+        <div class="au-or"><span>или по e-mail</span></div>
+        <form id="authForm" novalidate></form>
+      </div>
+      <div class="au-foot">${ic.shield}<span>Данные защищены · Только 18+</span></div>
+    </div></div>`, 'm-auth m-auth2');
+  const draw = (t, first) => {
+    const dir = t === 'reg' ? 1 : -1;
     tab = t;
     $$('#authTabs button', m).forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+    $('#authTabs', m).dataset.on = t;
     $('#authTitle', m).textContent = t === 'login' ? 'С возвращением' : 'Создать аккаунт';
+    $('#authSub', m).innerHTML = t === 'login' ? 'Войдите, чтобы открывать кейсы и забирать дроп' : 'Регистрация за 20 секунд — <b>+100 ₽</b> на баланс сразу';
     const f = $('#authForm', m);
     f.innerHTML = t === 'login' ? `
-      <div class="field"><label for="aEmail">E-mail</label><input class="inp" id="aEmail" type="email" autocomplete="email" placeholder="you@mail.ru"><span class="msg"></span></div>
-      <div class="field"><label for="aPass">Пароль</label><input class="inp" id="aPass" type="password" autocomplete="current-password" placeholder="••••••••"><span class="msg"></span></div>
-      <button type="button" class="forgot" id="forgot">Забыли пароль?</button>
-      <button class="btn btn-primary btn-lg btn-block" type="submit">Войти</button>
+      ${auField('aEmail', 'E-mail', AU_IC.mail, 'email', 'email')}
+      ${auField('aPass', 'Пароль', AU_IC.lock, 'password', 'current-password')}
+      <div class="au-row"><span></span><button type="button" class="forgot" id="forgot">Забыли пароль?</button></div>
+      <button class="au-go" type="submit"><span>Войти</span>${ic.right}</button>
       <div class="sw">Нет аккаунта? <button type="button" data-sw="reg">Зарегистрироваться</button></div>` : `
-      <div class="field"><label for="aNick">Никнейм</label><input class="inp" id="aNick" autocomplete="nickname" placeholder="Clutch_King" maxlength="16"><span class="msg"></span></div>
-      <div class="field"><label for="aEmail">E-mail</label><input class="inp" id="aEmail" type="email" autocomplete="email" placeholder="you@mail.ru"><span class="msg"></span></div>
-      <div class="row2">
-        <div class="field"><label for="aPass">Пароль</label><input class="inp" id="aPass" type="password" autocomplete="new-password" placeholder="Минимум 6 символов"><span class="msg"></span></div>
-        <div class="field"><label for="aPass2">Повторите пароль</label><input class="inp" id="aPass2" type="password" autocomplete="new-password" placeholder="••••••••"><span class="msg"></span></div>
-      </div>
+      ${auField('aNick', 'Никнейм', ic.user, 'text', 'nickname', 'maxlength="16"')}
+      ${auField('aEmail', 'E-mail', AU_IC.mail, 'email', 'email')}
+      <div class="row2">${auField('aPass', 'Пароль', AU_IC.lock, 'password', 'new-password')}${auField('aPass2', 'Повторите', AU_IC.lock, 'password', 'new-password')}</div>
       <label class="check"><input type="checkbox" id="aAgree"><span>Мне исполнилось 18 лет, я принимаю <a href="#/terms" id="termsLink">пользовательское соглашение</a></span></label>
       <span class="msg" id="agreeMsg" style="color:var(--red);font-size:12px"></span>
-      <button class="btn btn-primary btn-lg btn-block" type="submit">Создать аккаунт и получить 100 ₽</button>
+      <button class="au-go" type="submit"><span>Создать аккаунт</span><em class="au-bonus">+100 ₽</em>${ic.right}</button>
       <div class="sw">Уже есть аккаунт? <button type="button" data-sw="login">Войти</button></div>`;
+    // смена вкладки — форма въезжает с нужной стороны, поля появляются по очереди
+    if (!first) { const body = $('#authBody', m); body.style.setProperty('--dir', dir); body.classList.remove('au-swap'); void body.offsetWidth; body.classList.add('au-swap'); }
     $$('[data-sw]', f).forEach(b => b.onclick = () => draw(b.dataset.sw));
     const tl = $('#termsLink', f); if (tl) tl.onclick = () => closeModal();
     const fg = $('#forgot', f); if (fg) fg.onclick = () => { const e = $('#aEmail', f).value.trim(); if (!/^\S+@\S+\.\S+$/.test(e)) return setErr($('#aEmail', f), 'Введите e-mail для восстановления'); toast(`Ссылка для сброса пароля отправлена на <b>${esc(e)}</b>`, 'info'); };
+    $$('.au-eye', f).forEach(b => b.onclick = () => { const i = b.parentElement.querySelector('input'), show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? AU_IC.eyeOff : ic.eye; b.classList.toggle('on', show); i.focus(); });
     f.onsubmit = ev => { ev.preventDefault(); submit(f); };
     $$('.inp', f).forEach(i => i.oninput = () => setErr(i, ''));
   };
-  const setErr = (inp, msg) => { inp.classList.toggle('err', !!msg); const s = inp.parentElement.querySelector('.msg'); if (s) s.textContent = msg; return !msg; };
+  const setErr = (inp, msg) => { inp.classList.toggle('err', !!msg); const fl = inp.closest('.field'); if (fl) { fl.classList.toggle('bad', !!msg); const s = fl.querySelector('.msg'); if (s) s.textContent = msg; if (msg) { fl.classList.remove('shake'); void fl.offsetWidth; fl.classList.add('shake'); } } return !msg; };
   const submit = f => {
     const email = $('#aEmail', f).value.trim().toLowerCase(), pass = $('#aPass', f).value;
     let ok = setErr($('#aEmail', f), /^\S+@\S+\.\S+$/.test(email) ? '' : 'Некорректный e-mail');
@@ -2879,14 +2892,14 @@ function openAuth(tab = 'login') {
       login('e:' + email, acc.user, false);
     }
   };
-  $$('#authTabs button', m).forEach(b => b.onclick = () => draw(b.dataset.tab));
+  $$('#authTabs button', m).forEach(b => b.onclick = () => { if (b.dataset.tab !== tab) draw(b.dataset.tab); });
   $('#steamBtn', m).onclick = async () => {
-    const b = $('#steamBtn', m); b.innerHTML = '<span class="spinner"></span>Переход в Steam…'; b.disabled = true;
+    const b = $('#steamBtn', m); b.classList.add('busy'); $('.au-steam-t', b).innerHTML = '<b>Переход в Steam…</b><small>подтвердите вход</small>'; b.disabled = true;
     await sleep(1100);
     const acc = st.accounts['steam'];
     login('steam', acc ? acc.user : { name: pick(['Rusher', 'Ace_Hunter', 'Clutch_King', 'RushB_Hero']) + randi(10, 99), via: 'steam', ava: 'assets/soldier.png' }, !acc);
   };
-  draw(tab);
+  draw(tab, true);
 }
 /* аккаунты — снимки профиля в localStorage (пароли не храним: это прототип без сервера) */
 function login(key, user, isNew) {
