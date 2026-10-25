@@ -854,7 +854,7 @@ Snd.preload('tick', 'assets/sounds/tick.wav');
 Snd.preload('upgWin', 'assets/sounds/upgrade-win.wav');
 // звуки контрактов
 Snd.preload('conOpen', 'assets/sounds/con-open.mp3'); Snd.preload('conAdd', 'assets/sounds/con-add.mp3'); Snd.preload('conSign', 'assets/sounds/con-sign.mp3');
-Snd.preload('conStamp', 'assets/sounds/con-stamp.mp3'); Snd.preload('conPen', 'assets/sounds/con-pen-src.mp3');
+Snd.preload('conStamp', 'assets/sounds/con-stamp.mp3'); Snd.preload('conHover', 'assets/sounds/con-hover.mp3'); Snd.preload('conPen', 'assets/sounds/con-pen-src.mp3');
 
 /* ---------- toast / modal ---------- */
 function toast(msg, type = 'ok') {
@@ -2338,6 +2338,8 @@ function mountContracts() {
   if (conStep === 2 && conSel.length < 3) conStep = 1;
   $$('#dosTabs [data-step]').forEach(b => b.onclick = () => conGo(+b.dataset.step));
   const desk = $('#dosDesk');
+  // тихий шелест бумаги при наведении на карточку (не чаще раза в 120 мс, вариации высоты)
+  let hvT = 0, hvS = null; desk.addEventListener('pointerover', e => { const el = e.target.closest('.dcard, .dslot.f'); if (!el || el.contains(e.relatedTarget)) return; const now = performance.now(); if (now - hvT < 120) return; hvT = now; if (hvS) hvS.stop(.08); Snd.playCtl('conHover', .22).then(c => { hvS = c; if (c) setTimeout(() => c.stop(.25), 450); }); });
   const lamp = dosLampEl = Object.assign(document.createElement('i'), { className: 'dos-lamp' }); desk.prepend(lamp);
   let lq = null, lraf = 0;
   desk.addEventListener('pointermove', e => {
