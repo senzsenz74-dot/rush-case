@@ -2695,3 +2695,6 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 @media (max-width:1000px){.hb2{grid-template-columns:1fr 1fr}.hb2-soc{grid-column:span 2}}
 @media (max-width:680px){.hb2{grid-template-columns:1fr}.hb2-soc{grid-column:auto}.hb2-c{min-height:0}.hb2-v b{font-size:38px}}
 @media (prefers-reduced-motion:reduce){.hb2-c,.hb2-c::after,.hb2-dot::before{transition:none;animation:none}}
+/* вкладка «Кейсы» — шире, меньше пустых полей по бокам */
+.container.cases-wide{max-width:1640px;padding:0 40px}
+@media (max-width:720px){.container.cases-wide{padding:0 16px}}

@@ -1310,7 +1310,7 @@ function mountHome() {
    ВСЕ КЕЙСЫ
    ========================================================= */
 function pageCases() {
-  return `<section class="container">
+  return `<section class="container cases-wide">
     <div class="page-head"><h1>Все <em>кейсы</em></h1><p>Выберите кейс, откройте до 7 штук за раз и забирайте дроп в инвентарь.</p></div>
     <div class="filterbar">
       <div class="search"><input class="inp" id="caseQ" placeholder="Поиск кейса или скина" autocomplete="off">${ic.search}</div>
