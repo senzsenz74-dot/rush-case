@@ -2711,3 +2711,8 @@ body::before{display:none}
 .hs-agents{object-position:center 35%}
 .hs-hot.hs-all{inset:0;border-radius:0;z-index:2}
 .hs-hot.hs-all:hover{background:none;box-shadow:none}
+/* второй фон (без оружия) — проявляется при прокрутке */
+.fx-bg2{position:absolute;inset:0;opacity:0;will-change:opacity;background:
+  radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.55) 100%),
+  linear-gradient(180deg,rgba(5,4,3,.12),rgba(5,4,3,.32) 70%,rgba(5,4,3,.6)),
+  url("../assets/bg-site2.webp") center/cover no-repeat #050403}
