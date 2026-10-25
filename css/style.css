@@ -3098,3 +3098,5 @@ html{overflow-x:clip}
 /* контракт: пока комиссия рассматривает дело — лист подписи слегка «дышит» */
 .dpad.judging{animation:dosJudge 1s ease-in-out infinite}
 @keyframes dosJudge{50%{filter:brightness(1.08) drop-shadow(0 0 14px rgba(31,79,179,.35))}}
+/* протокол: подпись — рисунок, оставленный игроком */
+.dprot-sigimg{display:inline-block;vertical-align:middle;height:46px;max-width:220px;object-fit:contain;margin:-8px 0 -6px 6px;mix-blend-mode:multiply}

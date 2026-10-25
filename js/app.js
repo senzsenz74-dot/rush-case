@@ -2526,7 +2526,7 @@ function drawConAgreement(desk) {
     if (!st.user) return openAuth('login');
     if (conBusy) return;
     const nickV = ($('#dosNick').value.trim() || st.user.name).slice(0, 24), d = new Date();
-    conCase = { nick: nickV, date: d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }), sig: $('#dosPad').toDataURL() };
+    conCase = { nick: nickV, date: d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }), sig: dosSigCrop($('#dosPad')) };
     conSigned = true; conBusy = true;
     const pad = $('#dosPadWrap'); pad.classList.add('done');
     const p = $('#dosSign'); p.classList.add('signed', 'stamp-anim');
@@ -2595,6 +2595,18 @@ function dosPad() {
   $('#dosPadClr').onclick = () => { if (wrap.classList.contains('done')) return; x.clearRect(0, 0, cv.width, cv.height); ink = 0; wrap.classList.remove('inked'); if (btn) { btn.disabled = true; btn.classList.remove('ready'); } };
 }
 
+// подпись с холста: обрезаем пустые поля по краям чернил
+function dosSigCrop(cv) {
+  try {
+    const x = cv.getContext('2d'), { width: W, height: H } = cv, d = x.getImageData(0, 0, W, H).data;
+    let l = W, t = H, r = -1, b = -1;
+    for (let y = 0; y < H; y++) for (let i = 0; i < W; i++) if (d[(y * W + i) * 4 + 3] > 20) { if (i < l) l = i; if (i > r) r = i; if (y < t) t = y; if (y > b) b = y; }
+    if (r < 0) return '';
+    const pad = 6; l = Math.max(0, l - pad); t = Math.max(0, t - pad); r = Math.min(W - 1, r + pad); b = Math.min(H - 1, b + pad);
+    const o = document.createElement('canvas'); o.width = r - l + 1; o.height = b - t + 1; o.getContext('2d').drawImage(cv, l, t, o.width, o.height, 0, 0, o.width, o.height);
+    return o.toDataURL('image/png');
+  } catch (e) { return ''; }
+}
 function conSigSvg(name, anim) {
   return `<svg viewBox="0 0 320 82" class="${anim ? 'anim' : ''}" role="img" aria-label="Подпись: ${dosEsc(name)}"><g transform="translate(150 4) scale(.53)"><path class="ss" d="M8 49 C18 8 27 8 23 40 S12 59 34 35 C44 22 45 56 54 47 S68 18 72 39 C76 61 86 49 95 34 C106 13 108 52 117 45 S132 30 137 40 C145 57 157 43 164 35 C178 17 176 53 190 45 S207 27 211 39 C220 57 229 44 239 37"/><path class="ss fl" d="M10 62 C68 70 117 58 161 62 S247 68 293 42 C306 35 309 48 295 53 C271 61 259 57 251 52"/><path class="ss fl" d="M237 35 C252 16 265 14 273 23 S266 42 257 33 C249 23 270 12 285 20"/><circle class="sd" cx="292" cy="20" r="3.4"/></g><text class="sn" x="4" y="52" textLength="${Math.min(160, 14 + name.length * 13)}" lengthAdjust="spacingAndGlyphs">${dosEsc(name)}</text></svg>`;
 }
@@ -2617,7 +2629,7 @@ async function runContract() {
   const b = $('#dosClose'); if (b) { b.disabled = true; b.innerHTML = '<span class="spinner"></span>Комиссия рассматривает дело…'; }
   const pre = new Image(); pre.src = imgUrl(res, 'l');
   await Promise.race([pre.decode().catch(() => {}), sleep(900)]);
-  conRes = { no: caseNo, s: SK[res.name], id: got.id, sum, n: items.length, given, code: 'RC-' + String(Math.floor(100 + Math.random() * 899)), nick: conCase ? conCase.nick : st.user.name, date: conCase ? conCase.date : '' };
+  conRes = { no: caseNo, s: SK[res.name], id: got.id, sum, n: items.length, given, code: 'RC-' + String(Math.floor(100 + Math.random() * 899)), nick: conCase ? conCase.nick : st.user.name, date: conCase ? conCase.date : '', sig: conCase ? conCase.sig : '' };
   conSel = []; conSigned = false; conCase = null; conBusy = false; dosOpenShown = false;
   liveMine({ n: res.name, t: 'con', x: res.p / sum });
   if (!$('#dosDesk')) return;
@@ -2645,7 +2657,7 @@ function drawConProtocol(desk) {
         </div>
         <p class="dnote">Заключение эксперта: объект выдан владельцу по результатам обмена и уже лежит в его профиле. Все совпадения с удачей являются подозрительными.</p>
         <div class="dst">Выдано владельцу</div>
-        <div class="dprot-sig">Подпись владельца: <b>${dosEsc(R.nick)}</b><br>Место хранения: архив RUSH CASE / сектор ${R.code.slice(3)}</div>
+        <div class="dprot-sig">Подпись владельца: ${R.sig ? `<img class="dprot-sigimg" src="${R.sig}" alt="Подпись ${dosEsc(R.nick)}" title="${dosEsc(R.nick)}">` : `<b>${dosEsc(R.nick)}</b>`}<br>Место хранения: архив RUSH CASE / сектор ${R.code.slice(3)}</div>
         <div class="dos-prot-a">
           ${own_ ? `<button class="dbtn upg" id="dosUpg">${ic.up}В апгрейд</button><button class="dbtn dark" id="dosSell">${ic.coin}Продать за ${money(s.p)}</button>` : `<div class="dnote">Предмет уже ${it && it.st === 'sold' ? 'продан' : 'использован'}.</div>`}
           <button class="dbtn gold" id="dosNew">Новое дело ↻</button>
