@@ -848,7 +848,7 @@ const RINGS = '<div class="ab-rings"><i></i><i></i><i></i></div>';
 const OVERLAYS = {
   // «БАБА ЧАЙ»: цепь с замком (видео, чёрный фон убирается режимом «экран»), фары машины, дым из ствола AWP
   // блики, пробегающие по форме кейса
-  shine: c => `<span class="ca-shine" aria-hidden="true" style="-webkit-mask-image:url(${c.img});mask-image:url(${c.img})"></span>`,
+  shine: (c, src = c.img) => `<span class="ca-shine" aria-hidden="true" style="-webkit-mask-image:url(${src});mask-image:url(${src})"></span>`,
   // DONK666: молнии из глаз (координаты глаз — % от картинки кейса 900×888)
   donk: () => { queueMicrotask(() => BoltFx.start()); return `<canvas class="dk-bolt" aria-hidden="true"></canvas><i class="dk-eye" style="left:50.4%;top:11.1%"></i><i class="dk-eye" style="left:55.1%;top:9.6%"></i>`; },
   gold: () => { queueMicrotask(() => ChainFx.start()); return `<canvas class="gx-chain" width="600" height="333" aria-hidden="true"></canvas>
@@ -957,8 +957,10 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
 const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-coco.webp':1.1321};
 function caseArt(c, cls = '', badge = '') {
-  if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay](c) : ''}</div></div>`;
-  if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${c.img}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
+  // в витрине (без cls) — лёгкая копия картинки 440 px, на странице кейса — полная
+  const src = c.img && !cls ? c.img.replace(/\.webp$/, '-s.webp') : c.img;
+  if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${src}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay](c, src) : ''}</div></div>`;
+  if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${src}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
   const [m, a, b] = c.show.map(n => SK[n]);
   const sparks = [[14, 20, 0], [84, 16, .9], [90, 60, 1.7], [8, 64, 2.4], [52, 6, 1.2]]
     .map(([x, y, d]) => `<i class="ca-spark" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('');
