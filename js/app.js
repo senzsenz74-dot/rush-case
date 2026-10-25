@@ -1114,12 +1114,11 @@ const BG_W = 1672, BG_H = 940;
 const BG_HOT = [[110, 335, -1], [1384, 93, 1], [1635, 613, 1], [93, 800, -1]];
 function initFx() {
   const host = $('#fx');
-  host.innerHTML = '<i class="fx-bg2" aria-hidden="true"></i><canvas class="fx-cv" aria-hidden="true"></canvas>';
-  const cv = host.lastChild, x = cv.getContext('2d');
-  // фон с оружием по мере прокрутки перетекает в фон без оружия (за ~1 экран, начиная с трети экрана)
-  const bg2 = host.firstChild; let mix = 0, sraf = 0;
-  const onScroll = () => { if (sraf) return; sraf = requestAnimationFrame(() => { sraf = 0; mix = clamp((scrollY - innerHeight * .3) / (innerHeight * .9), 0, 1); bg2.style.opacity = mix.toFixed(3); }); };
-  addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  host.innerHTML = '<canvas class="fx-cv" aria-hidden="true"></canvas>';
+  const cv = host.firstChild, x = cv.getContext('2d');
+  // фон прокручивается со страницей: сверху картинка с оружием, под ней — фон без оружия (повторяется вниз); высота первой — для стыка
+  const bgH = () => document.documentElement.style.setProperty('--bg1h', (document.documentElement.clientWidth * BG_H / BG_W).toFixed(1) + 'px');
+  bgH(); addEventListener('resize', bgH);
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   // светящаяся точка — рисуем один раз и дальше штампуем
   const sprite = (r, g, b) => { const c = document.createElement('canvas'); c.width = c.height = 32; const q = c.getContext('2d'), gr = q.createRadialGradient(16, 16, 0, 16, 16, 16);
@@ -1131,8 +1130,8 @@ function initFx() {
     dpr = Math.min(1.5, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
     cv.width = W * dpr; cv.height = H * dpr; x.setTransform(dpr, 0, 0, dpr, 0, 0);
     // как картинка ложится при background-size:cover — чтобы искры вылетали ровно из оружия
-    const s = Math.max(W / BG_W, H / BG_H), ox = (W - BG_W * s) / 2, oy = (H - BG_H * s) / 2;
-    map = ([px, py]) => [ox + px * s, oy + py * s];
+    const s = document.documentElement.clientWidth / BG_W;
+    map = ([px, py]) => [px * s, py * s - scrollY]; // картинка с оружием — вверху страницы, уезжает при прокрутке
   };
   fit(); addEventListener('resize', fit);
   const side = () => Math.random() < .5 ? rand(0, W * .2) : rand(W * .8, W); // угольки — в основном по бокам, где оружие
@@ -1179,7 +1178,7 @@ function initFx() {
       const sz = e.s * 11; x.globalAlpha = Math.max(0, a); x.drawImage(i % 3 ? SP_GOLD : SP_EMBER, px - sz / 2, py - sz / 2, sz, sz);
     }
     // искры
-    if (now > nextBurst) { if (Math.random() > mix) burstAt(); nextBurst = now + rand(1200, 3200); } // оружие исчезло — искр из него нет
+    if (now > nextBurst) { burstAt(); nextBurst = now + rand(1200, 3200); } // искры — только пока оружие на экране (проверка в burstAt)
     x.lineCap = 'round';
     for (let i = sparks.length - 1; i >= 0; i--) {
       const s = sparks[i]; s.life += dt; if (s.life > s.max) { sparks.splice(i, 1); continue; }

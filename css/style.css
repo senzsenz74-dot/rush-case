@@ -2699,20 +2699,13 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .container.cases-wide{max-width:1640px;padding:0 40px}
 @media (max-width:720px){.container.cases-wide{padding:0 16px}}
 
-/* ===== новый фон сайта: картинка с оружием по краям + частицы на canvas (закреплённый слой .fx — работает и на телефонах) ===== */
-body{background:#050403}
+/* ===== фон сайта: прокручивается со страницей — сверху картинка с оружием, ниже фон без оружия (плитка «картинка + её зеркало» — без швов, стык с первой прикрыт мягкой полосой); частицы — закреплённый слой .fx ===== */
+body{background:
+  linear-gradient(180deg,transparent,rgba(5,4,3,.75) 50%,transparent) center calc(var(--bg1h,56.2vw) - 160px)/100% 320px no-repeat,
+  url("../assets/bg-site.webp") center top/100% auto no-repeat,
+  url("../assets/bg-site2.webp") center var(--bg1h,56.2vw)/100% auto repeat-y,
+  #050403}
 body::before{display:none}
-.fx{background:
-  radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.55) 100%),
-  linear-gradient(180deg,rgba(5,4,3,.12),rgba(5,4,3,.32) 70%,rgba(5,4,3,.6)),
-  url("../assets/bg-site.webp") center/cover no-repeat #050403}
+/* мягкое затемнение по краям экрана, чтобы текст читался */
+.fx{background:radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.5) 100%)}
 .fx-cv{position:absolute;inset:0;width:100%;height:100%;display:block}
-/* третий баннер (агенты): кадрирование чуть выше центра, весь слайд — ссылка на кейсы */
-.hs-agents{object-position:center 35%}
-.hs-hot.hs-all{inset:0;border-radius:0;z-index:2}
-.hs-hot.hs-all:hover{background:none;box-shadow:none}
-/* второй фон (без оружия) — проявляется при прокрутке */
-.fx-bg2{position:absolute;inset:0;opacity:0;will-change:opacity;background:
-  radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.55) 100%),
-  linear-gradient(180deg,rgba(5,4,3,.12),rgba(5,4,3,.32) 70%,rgba(5,4,3,.6)),
-  url("../assets/bg-site2.webp") center/cover no-repeat #050403}
