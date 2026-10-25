@@ -1675,7 +1675,11 @@ async function openCase(c, demo) {
     // денежный дроп — сразу на баланс (в инвентарь не попадает)
     given = wins.map(s => s.cash ? { id: uid(), n: s.name, st: 'cash' } : giveItem(s, c.id));
     const cash = wins.reduce((a, s) => a + (s.cash || 0), 0); if (cash) setBalance(st.balance + cash);
-    st.stats.opened += n; if (!c.rc) st.stats.spent += cost; save();
+    st.stats.opened += n; if (!c.rc) st.stats.spent += cost;
+    // учёт по кейсу (для админки): открыто, потрачено, выдано (стоимость дропа)
+    const cs = (st.stats.cs = st.stats.cs || {}), k = cs[c.id] = cs[c.id] || { n: 0, spent: 0, won: 0 };
+    k.n += n; k.spent += cost; k.won += wins.reduce((a, s) => a + (s.cash || s.p || 0), 0);
+    save();
     if (!c.rc) addRcoin(cost * RCOIN_RATE(c), `Кейс «${c.name}»${n > 1 ? ' ×' + n : ''}`);
   }
   spinning = true;
@@ -3494,23 +3498,62 @@ const admErr = e => `<div class="empty">${ic.shield}Ошибка: ${esc(e.messag
 /* ---------- дашборд ---------- */
 async function admDash(box) {
   box.innerHTML = `<div class="adm-load"><span class="spinner"></span>Загружаем статистику…</div>`;
-  const { data: s, error } = await sb.rpc('admin_stats');
-  if (error) return (box.innerHTML = admErr(error));
-  const tile = (t, v, sub, ac) => `<div class="adm-tile" style="--ac:${ac}"><span>${t}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  const [{ data: s, error }, { data: profs, error: e2 }] = await Promise.all([sb.rpc('admin_stats'), sb.from('profiles').select('id, name, data')]);
+  if (error || e2) return (box.innerHTML = admErr(error || e2));
+  // деньги: всё считаем по профилям игроков (цены скинов — из каталога сайта)
+  const P = it => (SK[it.n] && SK[it.n].p) || 0;
+  let dep = 0, out = 0, outN = 0, bal = 0, hold = 0, holdN = 0;
+  const cs = {}; // по кейсам: n — открыто, spent — потрачено, won — выдано
+  const top = [];
+  for (const p of profs || []) {
+    const d = p.data || {}, inv = d.inv || [], stt = d.stats || {};
+    dep += +stt.dep || 0; bal += +d.balance || 0;
+    let pOut = 0;
+    for (const it of inv) {
+      if (it.st === 'out' || it.st === 'pend') { out += P(it); outN++; pOut += P(it); }
+      else if (it.st === 'own' || it.st === 'bet') { hold += P(it); holdN++; }
+    }
+    if (stt.cs) for (const [id, v] of Object.entries(stt.cs)) { const k = cs[id] = cs[id] || { n: 0, spent: 0, won: 0 }; k.n += v.n; k.spent += v.spent; k.won += v.won; }
+    else for (const it of inv) { const c = caseById(it.from); if (!c) continue; const k = cs[c.id] = cs[c.id] || { n: 0, spent: 0, won: 0, est: true }; k.n++; k.spent += c.price; k.won += P(it); }
+    top.push({ name: p.name, dep: +stt.dep || 0, out: pOut });
+  }
+  const profit = dep - out - bal - hold;
+  const rows = Object.entries(cs).map(([id, k]) => ({ c: caseById(id), ...k, rtp: k.spent ? k.won / k.spent : 0 })).filter(r => r.c && !r.c.rc && r.spent > 0).sort((a, b) => b.rtp - a.rtp);
+  // самый дающий — среди кейсов с хотя бы 5 открытиями (одно случайное открытие не показательно)
+  const best = rows.find(r => r.n >= 5 && !r.est) || rows.find(r => r.n >= 5) || rows[0];
   const days = s.regDays || [], mx = Math.max(1, ...days.map(d => d.n));
-  const open = CASES.filter(c => !c.disabled).length, lucky = CASES.filter(c => (c.luck || 1) !== 1).length;
-  box.innerHTML = `<div class="adm-tiles">
+  const kpi = (t, v, sub, ac, ic_, cls = '') => `<div class="adm-kpi ${cls}" style="--ac:${ac}"><span class="ak-ic">${ic_}</span><span class="ak-t">${t}</span><b>${v}</b><small>${sub}</small></div>`;
+  const tile = (t, v, sub, ac) => `<div class="adm-tile" style="--ac:${ac}"><span>${t}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  const flow = [['Пополнения', dep, '#4ade80'], ['Выведено в Steam', out, '#f472b6'], ['На балансах', bal, '#60a5fa'], ['Скины в инвентарях', hold, '#a78bfa']], fmx = Math.max(1, ...flow.map(f => f[1]));
+  box.innerHTML = `
+    <div class="adm-kpis">
+      ${kpi('Сумма пополнений', money(dep), 'за всё время · тестовые', '#4ade80', ic.wallet || ic.coin)}
+      ${kpi('Выведено в Steam', money(out), `${fmt(outN)} предм.`, '#f472b6', ic.steam)}
+      ${kpi('Чистая прибыль', (profit < 0 ? '−' : '') + money(Math.abs(profit)), 'пополнения − выведено − балансы − скины игроков', profit >= 0 ? '#4ade80' : '#ff5d5d', ic.trend, profit >= 0 ? 'pos' : 'neg')}
+      <div class="adm-kpi best" style="--ac:#f5c76b">${best ? `<img src="${best.c.img.replace(/\.webp$/, '-s.webp')}" alt=""><span class="ak-t">Самый дающий кейс</span><b>${esc(best.c.name)}</b><small>отдаёт ${pctS(best.rtp)} · открыт ${fmt(best.n)} раз${best.est ? ' · оценка' : ''}</small>` : `<span class="ak-ic">${ic.box}</span><span class="ak-t">Самый дающий кейс</span><b>—</b><small>пока нет открытий</small>`}</div>
+    </div>
+    <div class="adm-tiles">
       ${tile('Игроков', fmt(s.users), `+${fmt(s.new24)} за сутки`, '#f5c76b')}
       ${tile('Онлайн', fmt(s.online), 'активны за 10 мин', '#4ade80')}
-      ${tile('Балансы игроков', money(+s.balance), `R-COIN: ${rc(+s.rcoin)}`, '#60a5fa')}
-      ${tile('Пополнено', money(+s.dep), 'за всё время (тест)', '#a78bfa')}
+      ${tile('Балансы игроков', money(bal), `R-COIN: ${rc(+s.rcoin)}`, '#60a5fa')}
+      ${tile('Скины у игроков', money(hold), `${fmt(holdN)} предм. в инвентарях`, '#a78bfa')}
       ${tile('Открыто кейсов', fmt(+s.opened), `потрачено ${money(+s.spent)}`, '#fb923c')}
-      ${tile('Ставки за сутки', money(+s.jpPot24), `${fmt(s.jpRounds24)} раундов · реальных ставок ${fmt(s.jpRealBets24)} на ${money(+s.jpRealSum24)}`, '#f472b6')}
+      ${tile('Ставки за сутки', money(+s.jpPot24), `${fmt(s.jpRounds24)} раундов · игроков ${fmt(s.jpRealBets24)} на ${money(+s.jpRealSum24)}`, '#f472b6')}
       ${tile('Начислено админом', money(+s.grants24), 'за сутки', '#22d3ee')}
-      ${tile('Кейсы', `${open} / ${CASES.length}`, `открыто · с удачей ≠ ×1: ${lucky}`, '#facc15')}
+      ${tile('Кейсы', `${CASES.filter(c => !c.disabled).length} / ${CASES.length}`, `открыто · с удачей ≠ ×1: ${CASES.filter(c => (c.luck || 1) !== 1).length}`, '#facc15')}
     </div>
-    <div class="adm-panel"><div class="adm-ph"><h3>Регистрации за 14 дней</h3></div>
-      <div class="adm-bars">${days.length ? days.map(d => `<div class="adm-bar" title="${d.d}: ${d.n}"><i style="height:${(d.n / mx * 100).toFixed(0)}%"></i><b>${d.n}</b><span>${d.d.slice(8)}.${d.d.slice(5, 7)}</span></div>`).join('') : '<div class="empty">Пока нет регистраций</div>'}</div></div>`;
+    <div class="adm-grid2">
+      <div class="adm-panel"><div class="adm-ph"><h3>Движение денег</h3></div>
+        <div class="adm-flow">${flow.map(([t, v, c]) => `<div class="af-r"><span>${t}</span><div class="af-b"><i style="width:${(v / fmx * 100).toFixed(1)}%;background:${c}"></i></div><b>${money(v)}</b></div>`).join('')}
+          <div class="af-sum ${profit >= 0 ? 'pos' : 'neg'}"><span>Чистая прибыль</span><b>${(profit < 0 ? '−' : '') + money(Math.abs(profit))}</b></div></div></div>
+      <div class="adm-panel"><div class="adm-ph"><h3>Регистрации за 14 дней</h3></div>
+        <div class="adm-bars">${days.length ? days.map(d => `<div class="adm-bar" title="${d.d}: ${d.n}"><i style="height:${(d.n / mx * 100).toFixed(0)}%"></i><b>${d.n}</b><span>${d.d.slice(8)}.${d.d.slice(5, 7)}</span></div>`).join('') : '<div class="empty">Пока нет регистраций</div>'}</div></div>
+    </div>
+    <div class="adm-panel"><div class="adm-ph"><h3>Кейсы: сколько отдают</h3><p>Факт по открытиям игроков: «отдаёт» = стоимость выпавшего ÷ потрачено. Больше 100% — кейс в минусе для сайта.</p></div>
+      ${rows.length ? `<div class="adm-ct"><div class="act-h"><span>Кейс</span><span>Открыто</span><span>Потрачено</span><span>Выдано</span><span>Отдаёт</span><span>Прибыль</span></div>
+        ${rows.map(r => `<div class="act-r"><span class="act-c"><img src="${r.c.img.replace(/\.webp$/, '-s.webp')}" alt="">${esc(r.c.name)}${r.est ? '<em>оценка</em>' : ''}</span><span>${fmt(r.n)}</span><span>${money(r.spent)}</span><span>${money(r.won)}</span>
+          <span class="act-rtp ${r.rtp > 1 ? 'neg' : ''}"><i style="width:${Math.min(100, r.rtp * 50).toFixed(0)}%"></i>${pctS(r.rtp)}</span><span class="${r.spent - r.won < 0 ? 'neg' : 'pos'}">${(r.spent - r.won < 0 ? '−' : '+') + money(Math.abs(r.spent - r.won))}</span></div>`).join('')}</div>`
+        : '<div class="empty">Пока нет открытий</div>'}</div>`;
 }
 /* ---------- кейсы: закрыть / открыть, множитель удачи ---------- */
 function admCases(box) {

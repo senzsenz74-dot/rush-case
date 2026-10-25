@@ -2967,3 +2967,44 @@ html{overflow-x:clip}
 .ca-imgbox .cc-lock{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%) rotate(-8deg);z-index:7;white-space:nowrap;padding:7px 16px;border-radius:8px;
   background:linear-gradient(180deg,#ff5a5a,#c81e1e);border:1px solid rgba(255,200,200,.35);color:#fff;font:900 13px var(--ff-h);letter-spacing:.14em;
   box-shadow:0 8px 20px -6px rgba(200,30,30,.8),inset 0 1px 0 rgba(255,255,255,.35);text-shadow:0 1px 2px rgba(0,0,0,.4)}
+
+/* ===== админка: дашборд v2 ===== */
+.adm-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.adm-kpi{position:relative;overflow:hidden;isolation:isolate;min-height:150px;padding:20px 22px;border-radius:20px;display:flex;flex-direction:column;gap:6px;
+  background:radial-gradient(120% 90% at 100% 0%,color-mix(in srgb,var(--ac) 20%,transparent),transparent 60%),linear-gradient(180deg,#18150f,#0d0b09);
+  border:1px solid color-mix(in srgb,var(--ac) 28%,transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 18px 40px -22px rgba(0,0,0,.95)}
+.adm-kpi::after{content:"";position:absolute;left:22px;right:22px;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--ac),transparent)}
+.ak-ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,transparent);border:1px solid color-mix(in srgb,var(--ac) 30%,transparent);margin-bottom:4px}
+.ak-ic svg{width:19px;height:19px}
+.ak-t{font:800 11px var(--ff-h);letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.adm-kpi b{font:900 30px/1.05 var(--ff-h);color:#fff;letter-spacing:-.01em}
+.adm-kpi small{font-size:12px;font-weight:600;color:var(--txt2)}
+.adm-kpi.pos b{color:#6ee79a}.adm-kpi.neg b{color:#ff7272}
+.adm-kpi.best{padding-right:120px}
+.adm-kpi.best img{position:absolute;right:-6px;bottom:-4px;width:130px;z-index:-1;filter:drop-shadow(0 10px 18px rgba(0,0,0,.6))}
+.adm-kpi.best b{font-size:22px}
+.adm-tiles .adm-tile b{font-size:22px}
+.adm-grid2{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+.adm-grid2 .adm-panel{margin-top:14px}
+.adm-flow{display:flex;flex-direction:column;gap:12px}
+.af-r{display:grid;grid-template-columns:150px 1fr 130px;align-items:center;gap:12px;font-size:13px;font-weight:700;color:var(--txt2)}
+.af-r b{text-align:right;color:#fff;font-family:var(--ff-h)}
+.af-b{height:10px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden}
+.af-b i{display:block;height:100%;border-radius:inherit;min-width:4px;box-shadow:0 0 12px currentColor}
+.af-sum{display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding:12px 16px;border-radius:12px;font-weight:800}
+.af-sum b{font:900 20px var(--ff-h)}
+.af-sum.pos{background:rgba(74,222,128,.08);color:#6ee79a;border:1px solid rgba(74,222,128,.25)}
+.af-sum.neg{background:rgba(255,93,93,.08);color:#ff7272;border:1px solid rgba(255,93,93,.25)}
+.adm-ct{display:flex;flex-direction:column;gap:6px}
+.act-h,.act-r{display:grid;grid-template-columns:minmax(200px,1.6fr) 90px 1fr 1fr 1.2fr 1fr;align-items:center;gap:12px;padding:8px 14px}
+.act-h{font:800 10.5px var(--ff-h);letter-spacing:.1em;text-transform:uppercase;color:var(--txt3)}
+.act-r{border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);font-weight:700;font-size:13px}
+.act-c{display:flex;align-items:center;gap:10px;font-family:var(--ff-h)}
+.act-c img{width:46px;height:38px;object-fit:contain}
+.act-c em{font-style:normal;font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,.07);color:var(--txt3)}
+.act-rtp{position:relative;display:flex;align-items:center;padding-left:0}
+.act-rtp i{display:block;height:6px;border-radius:99px;background:linear-gradient(90deg,#4ade80,#f5c76b);margin-right:10px;min-width:4px;max-width:120px;flex:none}
+.act-rtp.neg i{background:linear-gradient(90deg,#f5c76b,#ff5d5d)}
+.adm-ct .pos{color:#6ee79a}.adm-ct .neg{color:#ff7272}
+@media (max-width:1180px){.adm-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.adm-grid2{grid-template-columns:1fr}.act-h{display:none}.act-r{grid-template-columns:1fr 1fr;row-gap:6px}}
+.adm-kpi.best{padding-right:22px}.adm-kpi.best small{max-width:62%}.adm-kpi.best img{width:120px;opacity:.9}
