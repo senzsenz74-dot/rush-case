@@ -2815,3 +2815,19 @@ body::before{display:none}
 /* ничего не расширяет страницу по горизонтали (свечения кейсов у правого края раздвигали страницу на телефоне) */
 html{overflow-x:clip}
 @media (max-width:920px){.au-head{padding-right:44px}}
+
+/* ===== подсветка кейса при наведении: вместо плоского круга — свет на полу, рассеянный задний свет и ореол по контуру ===== */
+.case-art.has-img .ca-glow{top:auto;bottom:4%;left:50%;width:92%;height:26%;aspect-ratio:auto;border-radius:50%;transform:translateX(-50%) scale(.6,.8);
+  background:radial-gradient(50% 50% at 50% 50%,color-mix(in srgb,var(--ca) 70%,#fff 10%) 0%,color-mix(in srgb,var(--ca) 32%,transparent) 42%,transparent 72%);
+  filter:blur(8px);opacity:0;transition:opacity .4s ease,transform .5s cubic-bezier(.2,.8,.3,1)}
+/* задний свет — очень мягкий, без видимой границы */
+.case-art.has-img .ca-glow::before{content:"";position:absolute;left:4%;right:4%;bottom:40%;height:300%;border-radius:50%;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--ca) 26%,transparent),transparent);filter:blur(18px)}
+.case-card:hover .case-art.has-img .ca-glow{opacity:1;transform:translateX(-50%) scale(1)}
+.case-card .case-art.has-img .ca-img{transition:transform .28s cubic-bezier(.2,.9,.3,1.3),filter .4s ease}
+.case-card:hover .case-art.has-img .ca-img{filter:drop-shadow(0 18px 22px rgba(0,0,0,.6)) drop-shadow(0 0 10px color-mix(in srgb,var(--ca) 50%,transparent))}
+/* страница кейса: тот же свет, постоянно и чуть слабее */
+.rl-idle .case-art.has-img .ca-glow{opacity:.75;transform:translateX(-50%) scale(1)}
+/* свет на полу — под нижним краем кейса, а не за ним */
+.case-art.has-img .ca-glow{bottom:-16%;height:30%}
+.case-art.has-img .ca-glow::before{bottom:55%;height:330%}
