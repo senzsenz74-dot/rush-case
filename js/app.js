@@ -742,6 +742,25 @@ const Snd = {
     if (b instanceof ArrayBuffer) { try { b = this.bufs[name] = await a.decodeAudioData(b); } catch (e) { return false; } }
     const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; s.playbackRate.value = rate; g.gain.value = vol; s.connect(g); g.connect(a.destination); s.start(); return true;
   },
+  /* ручка: петля 3,6–6,7 с записи (сплошное письмо); level 0..1 — громкость по скорости; затухает, если перо стоит */
+  penSrc: null, penG: null, penT: 0,
+  async pen(level) {
+    if (!st.sound) return; const a = this.a; if (!a) return;
+    let b = this.bufs.conPen; if (!b) return;
+    if (b instanceof ArrayBuffer) { if (this.penDec) return; this.penDec = 1; try { b = this.bufs.conPen = await a.decodeAudioData(b); } catch (e) { return; } finally { this.penDec = 0; } }
+    const t = a.currentTime;
+    if (!this.penSrc) {
+      const src = a.createBufferSource(), g = a.createGain(); src.buffer = b; src.loop = true; src.loopStart = 3.6; src.loopEnd = 6.7;
+      g.gain.value = 0; src.connect(g); g.connect(a.destination); src.start(t, 3.6 + Math.random() * 2.5); this.penSrc = src; this.penG = g;
+    }
+    const g = this.penG.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(Math.min(1, .35 + level * .75) * this.kk, t + .05);
+    clearTimeout(this.penT); this.penT = setTimeout(() => this.penStop(), 140);
+  },
+  penStop() {
+    const a = this.a; if (!a || !this.penSrc) return; const t = a.currentTime, src = this.penSrc, g = this.penG.gain;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + .12); try { src.stop(t + .15); } catch (e) {}
+    this.penSrc = null; this.penG = null;
+  },
   /* персональные звуки кейса: грузятся при заходе на его страницу; ключ буфера — url */
   preloadSet(set) { Object.values(set || {}).forEach(u => { if (!this.bufs[u]) this.preload(u, u); }); },
   /* как play, но возвращает управление: stop(fadeSec) — плавно остановить */
@@ -833,6 +852,9 @@ Snd.preload('lock', 'assets/sounds/lock.wav');
 Snd.preload('tick', 'assets/sounds/tick.wav');
 [1, 2, 3].forEach(n => Snd.preload('safe' + n, 'assets/sounds/safe-tick-' + n + '.wav'));
 Snd.preload('upgWin', 'assets/sounds/upgrade-win.wav');
+// звуки контрактов
+Snd.preload('conOpen', 'assets/sounds/con-open.mp3'); Snd.preload('conAdd', 'assets/sounds/con-add.mp3'); Snd.preload('conSign', 'assets/sounds/con-sign.mp3');
+Snd.preload('conStamp', 'assets/sounds/con-stamp.mp3'); Snd.preload('conPen', 'assets/sounds/con-pen-src.mp3');
 
 /* ---------- toast / modal ---------- */
 function toast(msg, type = 'ok') {
@@ -2350,6 +2372,7 @@ let dosLampEl = null;
 const dosPos = i => { const [l, t, r] = DOS_POS[i]; return `--l:${l}%;--t:${t}%;--r:${r}deg`; };
 let dosOpenShown = false;
 function drawConEvidence(desk) {
+  if (!dosOpenShown) setTimeout(() => { if ($('.dst.open.anim')) Snd.play('conOpen', .9); }, 380);
   setTimeout(() => { dosOpenShown = true; }, 900);
   const items = conItems(), sum = items.reduce((a, x) => a + SK[x.n].p, 0);
   desk.innerHTML = `<div class="dos-grid">
@@ -2393,13 +2416,14 @@ function drawConEvidence(desk) {
     : `<div class="dos-empty">Архив пуст — нужно минимум 3 предмета.<a class="dbtn red" href="#/case/sifon">Открыть «Сифон и Борода» за 29 ₽</a></div>`;
   $$('[data-pick]', desk).forEach(el => el.onclick = () => {
     const id = el.dataset.pick;
-    if (conSel.includes(id)) conSel = conSel.filter(z => z !== id); else if (conSel.length < CON_MAX) { conSel = [...conSel, id]; conLast = id; } else return toast(`В деле максимум ${CON_MAX} предметов`, 'err');
-    Snd.click(); drawCon();
+    let added = false;
+    if (conSel.includes(id)) conSel = conSel.filter(z => z !== id); else if (conSel.length < CON_MAX) { conSel = [...conSel, id]; conLast = id; added = true; } else return toast(`В деле максимум ${CON_MAX} предметов`, 'err');
+    if (added) Snd.play('conAdd', .8).then(ok => { if (!ok) Snd.click(); }); else Snd.click(); drawCon();
   });
   $$('[data-rm]', desk).forEach(el => el.onclick = () => { conSel = conSel.filter(z => z !== el.dataset.rm); Snd.click(); drawCon(); });
-  $('#dosAuto').onclick = () => { conSel = own().slice().sort((a, b) => SK[a.n].p - SK[b.n].p).slice(0, 5).map(x => x.id); Snd.click(); drawCon(); };
+  $('#dosAuto').onclick = () => { conSel = own().slice().sort((a, b) => SK[a.n].p - SK[b.n].p).slice(0, 5).map(x => x.id); Snd.play('conAdd', .8).then(ok => { if (!ok) Snd.click(); }); drawCon(); };
   $('#dosClear').onclick = () => { conSel = []; drawCon(); };
-  const ts = $('#dosToSign'); if (ts) ts.onclick = () => conGo(2);
+  const ts = $('#dosToSign'); if (ts) ts.onclick = () => { Snd.play('conSign', .85); conGo(2); };
   requestAnimationFrame(() => dosThread(true));
 }
 /* нитка: от булавки к булавке по заполненным уликам, с провисом и кручением; хвост свисает с последней.
@@ -2507,7 +2531,7 @@ function drawConAgreement(desk) {
     setTimeout(() => {
       if (!$('#dosPadWrap')) { conBusy = false; return; }
       pad.insertAdjacentHTML('beforeend', DOS_BLUE);
-      Snd.noise(.06, .7, 0, 900, 1); Snd.tone(110, .18, 'sine', .4, 0, 60);
+      Snd.play('conStamp', 1).then(ok => { if (!ok) { Snd.noise(.06, .7, 0, 900, 1); Snd.tone(110, .18, 'sine', .4, 0, 60); } });
       setTimeout(() => { conBusy = false; runContract(); }, 700);
     }, 250);
   };
@@ -2546,7 +2570,7 @@ function dosPad() {
   cv.addEventListener('pointerenter', () => wrap.classList.add('hov'));
   cv.addEventListener('pointerleave', () => { wrap.classList.remove('hov'); down = false; last = null; });
   cv.addEventListener('pointerdown', e => { if (wrap.classList.contains('done')) return; cv.setPointerCapture(e.pointerId); down = true; last = pos(e); wrap.classList.add('inked'); movePen(last, true); });
-  cv.addEventListener('pointerup', () => { down = false; last = null; movePen(pos(event), false); });
+  cv.addEventListener('pointerup', () => { down = false; last = null; movePen(pos(event), false); Snd.penStop(); });
   cv.addEventListener('pointermove', e => {
     const p = pos(e); movePen(p, down);
     if (!down || !last || wrap.classList.contains('done')) return;
@@ -2555,6 +2579,7 @@ function dosPad() {
     x.strokeStyle = '#13285a'; x.lineCap = x.lineJoin = 'round'; x.lineWidth = lw; x.globalAlpha = .92;
     x.beginPath(); x.moveTo(last[0], last[1]); x.quadraticCurveTo(last[0], last[1], (last[0] + p[0]) / 2, (last[1] + p[1]) / 2); x.lineTo(p[0], p[1]); x.stroke();
     ink += d; last = p;
+    Snd.pen(Math.min(1, d / 14));
     if (ink > 90 && btn && btn.disabled && !wrap.classList.contains('done')) { btn.disabled = false; btn.classList.add('ready'); }
   });
   $('#dosPadClr').onclick = () => { if (wrap.classList.contains('done')) return; x.clearRect(0, 0, cv.width, cv.height); ink = 0; wrap.classList.remove('inked'); if (btn) { btn.disabled = true; btn.classList.remove('ready'); } };
