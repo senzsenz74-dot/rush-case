@@ -1081,9 +1081,14 @@ function renderFooter() {
 const NICKS = ['Kirill_KZ', 'ShadowFox', 'Clutch_King', 'toxic_ivan', 'Zeus77', 'dimon228', 'ProSniper', 'lazy_cat', 'Smurfik', 'Vanya_AWP', 'Gromila', 'Kolya', 'rush_b', 'FragMaster', 'HeadHunter', 'Снайпер', 'Сашка', 'Мангуст', 'ПашаТехник', 'Lynx', 'Bober', 'xXx_Sniper', 'monkey_d', 'Flick_God', 'Tima', 'Raptor', 'NeoNoir', 'Artem2009', 'Viper', 'Kenny'];
 const liveBuf = [];
 let liveFilter = 'all';
+const LD_DOC = sv('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>');
+// запись ленты: t — 'case' (по умолчанию), 'upg' — апгрейд, 'con' — контракт; x — во сколько раз дороже ставки
 const liveHtml = d => {
-  const s = SK[d.n], c = caseById(d.c);
-  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}" href="#/case/${d.c}" title="${esc(s.name)}"><img src="${imgUrl(s, 's')}" alt="" loading="lazy"><span class="ld-f">${esc(s.f)}</span><span class="ld-w">${esc(s.w)}</span><span class="ld-u"><small>${c ? 'Кейс «' + c.name + '»' : d.c}</small>${esc(d.u)}</span></a>`;
+  const s = SK[d.n], c = d.t ? null : caseById(d.c);
+  const href = d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
+  const src = d.t === 'upg' ? `Апгрейд ×${d.x.toFixed(d.x < 10 ? 1 : 0)}` : d.t === 'con' ? `Контракт ×${d.x.toFixed(1)}` : c ? 'Кейс «' + c.name + '»' : d.c;
+  const tag = d.t === 'upg' ? `<span class="ld-t upg">${ic.up}</span>` : d.t === 'con' ? `<span class="ld-t con">${LD_DOC}</span>` : '';
+  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${href}" title="${esc(s.name)}">${tag}<img src="${imgUrl(s, 's')}" alt="" loading="lazy"><span class="ld-f">${esc(s.f)}</span><span class="ld-w">${esc(s.w)}</span><span class="ld-u"><small>${esc(src)}</small>${esc(d.u)}</span></a>`;
 };
 const liveOk = d => liveFilter === 'all' || SK[d.n].p >= 1000;
 function renderLive() { $('#liveTrack').innerHTML = liveBuf.filter(liveOk).slice(0, 40).map(liveHtml).join(''); }
@@ -1096,6 +1101,14 @@ function pushLive(d) {
   while (tr.children.length > 40) tr.lastElementChild.remove();
 }
 function fakeDrop() {
+  const k = Math.random();
+  // апгрейд: скин дороже ставки в 1,5–10 раз (чаще — небольшие множители)
+  if (k < .18) {
+    const x = 1.5 + 8.5 * Math.random() ** 2.2, pool = UPG_CAT.filter(s => s.c === 'skin' || s.c === 'knife' || s.c === 'gloves'), s = pool[Math.floor(pool.length * Math.random() ** 1.6)];
+    return { n: s.name, t: 'upg', x, u: pick(NICKS) };
+  }
+  // контракт: результат от ×0,25 до ×4 к сумме дела (чаще около ×1)
+  if (k < .26) { const s = pick(UPG_CAT.filter(z => z.c === 'skin' && z.p > 20 && z.p < 20000)); return { n: s.name, t: 'con', x: .25 + 3.75 * Math.random() ** 2.5, u: pick(NICKS) }; }
   const ws = CASES.map(x => 1 / Math.sqrt(x.price)), tw = ws.reduce((a, b) => a + b, 0);
   let r = Math.random() * tw, c = CASES[0];
   for (let i = 0; i < CASES.length; i++) { r -= ws[i]; if (r <= 0) { c = CASES[i]; break; } }
@@ -2092,7 +2105,7 @@ async function runUpgrade() {
   // победа — без надписи на колесе, сразу 3D-карточка; проигрыш — LOSE
   cEl.textContent = win ? '' : 'LOSE';
   $('#wLabel').textContent = win ? '' : 'не повезло';
-  if (win) { Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
+  if (win) { pushLive({ n: ts.name, t: 'upg', x: ts.p / v, u: st.user.name, mine: true }); Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
   else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); addRcoin(v * .005, 'Утешительный бонус: апгрейд'); }
   // победа — карточка выигрыша поверх апгрейда, ждём выбор игрока
   let act = null;
@@ -2476,6 +2489,7 @@ async function runContract() {
   await Promise.race([pre.decode().catch(() => {}), sleep(900)]);
   conRes = { no: caseNo, s: SK[res.name], id: got.id, sum, n: items.length, given, code: 'RC-' + String(Math.floor(100 + Math.random() * 899)), nick: conCase ? conCase.nick : st.user.name, date: conCase ? conCase.date : '' };
   conSel = []; conSigned = false; conCase = null; conBusy = false; dosOpenShown = false;
+  pushLive({ n: res.name, t: 'con', x: res.p / sum, u: st.user.name, mine: true });
   if (!$('#dosDesk')) return;
   conStep = 3; drawCon();
   const s = conRes.s; Snd.win(RAR[s.r].o); if (RAR[s.r].o >= 5 || s.p > sum * 1.5) burst();
