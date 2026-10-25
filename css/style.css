@@ -3088,3 +3088,9 @@ html{overflow-x:clip}
 .al-val span{font-weight:700;color:var(--txt2)}
 .um-h b small{display:block;font:700 11px var(--mono);color:var(--gold);opacity:.85}
 @media (max-width:1180px){.at-r{grid-template-columns:1fr 1fr}}
+.al-prev{margin:8px 0 12px;display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:700}
+.alp-h,.alp-r{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;padding:6px 10px}
+.alp-h{font:800 10px var(--ff-h);letter-spacing:.08em;text-transform:uppercase;color:var(--txt3)}
+.alp-r{border-radius:8px;background:rgba(255,255,255,.04);color:var(--txt2)}
+.alp-r b{color:#fff}.alp-r b.up{color:#6ee79a}.alp-r b.dn{color:#ff8a8a}
+.alp-n{margin-top:4px;font-size:11.5px;color:var(--txt3);font-weight:600}

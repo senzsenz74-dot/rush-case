@@ -3895,10 +3895,11 @@ function admLuck(uid, name, pid, cur, done) {
     <p class="dep-sub">Множитель шансов игрока: в кейсах — шанс предметов дороже кейса, в апгрейде — шанс победы (игрок видит изменённый шанс на колесе). ×1 — как у всех. Применится у игрока в течение 30 секунд.</p>
     <div class="al-val"><b id="alV">×${cur.toFixed(2).replace('.', ',')}</b><span id="alHint"></span></div>
     <input type="range" id="alR" min="0.1" max="5" step="0.05" value="${cur}" class="ac-r">
+    <div class="al-prev" id="alPrev"></div>
     <div class="amounts">${[0.25, 0.5, 1, 1.5, 2, 3, 5].map(a => `<button data-a="${a}">×${String(a).replace('.', ',')}</button>`).join('')}</div>
     <button class="btn btn-primary btn-xl btn-block" id="alGo" style="margin-top:16px">Сохранить</button></div>`, 'm-dep');
   const r = $('#alR', m), upd = () => { const v = +r.value; $('#alV', m).textContent = '×' + v.toFixed(2).replace('.', ','); $('#alV', m).className = v > 1 ? 'up' : v < 1 ? 'dn' : '';
-    $('#alHint', m).textContent = v === 1 ? 'обычные шансы' : v > 1 ? `шансы выше в ${v.toFixed(2).replace('.', ',')} раза` : `шансы ниже в ${(1 / v).toFixed(2).replace('.', ',')} раза`; };
+    admLuckPrev(m, v); $('#alHint', m).textContent = v === 1 ? 'обычные шансы' : v > 1 ? `шансы выше в ${v.toFixed(2).replace('.', ',')} раза` : `шансы ниже в ${(1 / v).toFixed(2).replace('.', ',')} раза`; };
   r.oninput = upd; $$('[data-a]', m).forEach(b => b.onclick = () => { r.value = b.dataset.a; upd(); }); upd();
   $('#alGo', m).onclick = async () => {
     const go = $('#alGo', m); go.disabled = true; go.innerHTML = '<span class="spinner"></span>Сохраняем…';
@@ -3908,6 +3909,14 @@ function admLuck(uid, name, pid, cur, done) {
     if (st.user && uid === st.user.id) syncLuck();
     done && done();
   };
+}
+// что изменит удача: шанс дропа дороже кейса и окупаемость для игрока в нескольких кейсах
+function admLuckPrev(m, L) {
+  const calc = (c, L) => { let t = 0, w = 0, ev = 0; c.items.forEach(s => { const ch = s.ch * (s.p >= c.price ? L : 1); t += ch; if (s.p >= c.price) w += ch; ev += ch * s.p; }); return [w / t, ev / t / c.price]; };
+  const list = CASES.filter(c => !c.rc && !c.disabled).sort((a, b) => a.price - b.price).filter((c, i, A) => i % Math.ceil(A.length / 5) === 0).slice(0, 5);
+  $('#alPrev', m).innerHTML = `<div class="alp-h"><span>Кейс</span><span>Дроп дороже кейса</span><span>Окупаемость для игрока</span></div>` + list.map(c => { const [w0, r0] = calc(c, 1), [w1, r1] = calc(c, L);
+    return `<div class="alp-r"><span>${esc(c.name)}</span><span>${pctS(w0)} → <b class="${L > 1 ? 'up' : L < 1 ? 'dn' : ''}">${pctS(w1)}</b></span><span>${pctS(r0)} → <b class="${r1 > 1 ? 'dn' : ''}">${pctS(r1)}</b></span></div>`; }).join('')
+    + `<div class="alp-n">Апгрейд: шанс ×${L.toFixed(2).replace('.', ',')} (например, x2: 46% → ${pctS(Math.min(.8, .46 * L))}). Это вероятности — на одном-двух открытиях эффект может быть не виден.</div>`;
 }
 function admGive(uid, name, done) {
   const m = modal(`<div class="dep adm-give"><h2>Начислить <em>${esc(name)}</em></h2>
