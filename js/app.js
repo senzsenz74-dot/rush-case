@@ -1243,10 +1243,14 @@ function pageHome() {
           <a class="hs-hot hs-step" href="#/bonus" title="Бонусы" style="left:24.24%;top:72.96%;width:14.56%;height:15.52%"></a>
           <a class="hs-hot hs-step" href="#/bonus" title="Выполнить условия" style="left:42.48%;top:72.96%;width:12.91%;height:15.52%"></a>
         </div>
+        <div class="hs-slide" data-i="2">
+          <img class="h3-img hs-cover hs-agents" src="assets/hero-agents.webp" alt="Твой сквад. Твой дроп. Кейс с агентами — открой кейс и забери своего легендарного агента" loading="lazy">
+          <a class="hs-hot hs-all" href="#/cases" aria-label="Смотреть кейсы"></a>
+        </div>
       </div>
       <button class="hs-arr hs-prev" aria-label="Предыдущий баннер">${ic.left}</button>
       <button class="hs-arr hs-next" aria-label="Следующий баннер">${ic.right}</button>
-      <div class="hs-dots"><button class="on" data-go="0" aria-label="Баннер 1"></button><button data-go="1" aria-label="Баннер 2"></button></div>
+      <div class="hs-dots"><button class="on" data-go="0" aria-label="Баннер 1"></button><button data-go="1" aria-label="Баннер 2"></button><button data-go="2" aria-label="Баннер 3"></button></div>
     </div>
   </section>
   <section class="container cases-wide hb-wrap">${homeBonus()}</section>

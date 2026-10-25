@@ -2707,3 +2707,7 @@ body::before{display:none}
   linear-gradient(180deg,rgba(5,4,3,.12),rgba(5,4,3,.32) 70%,rgba(5,4,3,.6)),
   url("../assets/bg-site.webp") center/cover no-repeat #050403}
 .fx-cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* третий баннер (агенты): кадрирование чуть выше центра, весь слайд — ссылка на кейсы */
+.hs-agents{object-position:center 35%}
+.hs-hot.hs-all{inset:0;border-radius:0;z-index:2}
+.hs-hot.hs-all:hover{background:none;box-shadow:none}
