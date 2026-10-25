@@ -2963,7 +2963,7 @@ function openAuth(tab = 'login') {
   draw(tab, true);
 }
 /* аккаунты — в базе Supabase: вход по e-mail, профиль игрока хранится на сервере */
-const SB_ERR = { 'Invalid login credentials': 'Неверный e-mail или пароль', 'Email not confirmed': 'Подтвердите e-mail по ссылке из письма', 'User already registered': 'Этот e-mail уже зарегистрирован — войдите' };
+const SB_ERR = { 'Invalid login credentials': 'Неверный e-mail или пароль', 'Email not confirmed': 'Подтвердите e-mail по ссылке из письма', 'User already registered': 'Этот e-mail уже зарегистрирован — войдите', 'Email signups are disabled': 'Регистрация временно недоступна — попробуйте позже', 'Signups not allowed for this instance': 'Регистрация временно недоступна — попробуйте позже' };
 const sbErr = e => SB_ERR[e.message] || (/rate limit|too many/i.test(e.message) ? 'Слишком много попыток — подождите минуту' : /password/i.test(e.message) ? 'Пароль слишком простой — минимум 6 символов' : 'Ошибка: ' + e.message);
 async function sbLoadProfile(session) {
   if (!sb || !session) return false;
