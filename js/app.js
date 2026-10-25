@@ -1141,7 +1141,7 @@ function initLive() {
 }
 
 /* ---------- background fx: фон-картинка с оружием (CSS) + частицы (пыль, угольки, искры из оружия) ---------- */
-const BG_W = 1672, BG_H = 940;
+const BG_W = 1672, BG_H = 940, BG_ZOOM = 1.16; // фон крупнее экрана на 16% (как в CSS .fx) — оружие у краёв
 // точки на картинке фона, откуда иногда сыплются искры: АК слева, Desert Eagle справа, керамбит снизу справа
 const BG_HOT = [[110, 335, -1], [1384, 93, 1], [1635, 613, 1], [93, 800, -1]];
 function initFx() {
@@ -1160,7 +1160,7 @@ function initFx() {
     cv.width = W * dpr; cv.height = H * dpr; x.setTransform(dpr, 0, 0, dpr, 0, 0);
     // как картинка ложится при background-size:cover — чтобы искры вылетали ровно из оружия
     // как картинка ложится при background-size:cover — чтобы искры вылетали ровно из оружия
-    const s = Math.max(W / BG_W, H / BG_H), ox = (W - BG_W * s) / 2, oy = (H - BG_H * s) / 2;
+    const s = Math.max(W / BG_W, H / BG_H) * BG_ZOOM, ox = (W - BG_W * s) / 2, oy = (H - BG_H * s) / 2;
     map = ([px, py]) => [ox + px * s, oy + py * s];
   };
   fit(); addEventListener('resize', fit);

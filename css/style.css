@@ -2901,3 +2901,5 @@ html{overflow-x:clip}
 .tr .h3-btns{left:9.2%;bottom:6.5%;gap:1.2cqw}
 .tr .h3-btns .btn{height:4.1cqw;min-height:30px;padding:0 1.7cqw;font-size:max(10px,1.12cqw);border-radius:.9cqw;gap:.7cqw}
 .tr .h3-btns .btn svg{width:max(13px,1.5cqw);height:max(13px,1.5cqw)}
+/* фон крупнее на 16% — оружие уходит к краям экрана и не заходит на кейсы (центр картинки пустой) */
+.fx{background-size:auto,auto,calc(max(100vw,100vh * 1.7787) * 1.16) auto}
