@@ -641,8 +641,26 @@ try {
   st = Object.assign(DEF(), raw || {});
   st.stats = Object.assign(freshProfile().stats, st.stats || {});
 } catch (e) { st = DEF(); }
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ } };
-st.inv.forEach(x => { if (x.st === 'pend') x.st = 'out'; if (x.st === 'bet') x.st = 'own'; });
+/* ---------- база Supabase: аккаунты, профиль, общие ставки ---------- */
+const SB_URL = 'https://gkeexoyrxnsarosymdyp.supabase.co', SB_KEY = 'sb_publishable_oczOEZFsdpzmwq8FB4Of_Q_A_JSZ3zt'; // публичный ключ — ему место в коде
+const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
+const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade'];
+let sbSaveT = 0;
+// профиль пишется в базу с задержкой (пачкой), локально — сразу
+async function sbPush() {
+  clearTimeout(sbSaveT);
+  if (!sb || !st.user || !st.user.sb) return;
+  const data = {}; PROF_KEYS.forEach(k => { data[k] = st[k]; }); data.rlog = (st.rlog || []).slice(0, 60);
+  const { error } = await sb.from('profiles').update({ data, updated_at: new Date().toISOString() }).eq('id', st.user.id);
+  if (error) console.warn('profile save', error.message);
+}
+const save = () => {
+  try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
+  if (sb && st.user && st.user.sb) { clearTimeout(sbSaveT); sbSaveT = setTimeout(sbPush, 1200); }
+};
+addEventListener('visibilitychange', () => { if (document.hidden) sbPush(); });
+// ставки старого локального режима (без номера раунда) возвращаем в инвентарь; ставки в общих раундах ждут итога
+st.inv.forEach(x => { if (x.st === 'pend') x.st = 'out'; if (x.st === 'bet' && !x.round) x.st = 'own'; });
 // износ пропал из каталога (отсеянная цена) — меняем на основной износ того же скина
 const fixName = n => SK[n] ? n : (SK[n.replace(/ \([^()]*\)$/, '')] || {}).name || n;
 st.inv.forEach(x => { x.n = fixName(x.n); });
@@ -2600,7 +2618,7 @@ function pageBonus() {
     <div class="bcard" style="margin-top:20px">
       <h3>${ic.user}Пригласи друга</h3>
       <p>Получайте 5% от пополнений приглашённых друзей, а друг получит +50 ₽ при регистрации.</p>
-      <div class="inp-row"><input class="inp" readonly value="https://rushcase.gg/r/${st.user ? st.user.id : 'XXXXXX'}"><button class="btn btn-dark" data-act="copy" data-copy="https://rushcase.gg/r/${st.user ? st.user.id : 'XXXXXX'}">${ic.copy}Копировать</button></div>
+      <div class="inp-row"><input class="inp" readonly value="https://rushcase.gg/r/${st.user ? st.user.rid || st.user.id : 'XXXXXX'}"><button class="btn btn-dark" data-act="copy" data-copy="https://rushcase.gg/r/${st.user ? st.user.rid || st.user.id : 'XXXXXX'}">${ic.copy}Копировать</button></div>
     </div>
     ${secTitle('Ранги')}
     <div class="ranks">${RANKS.map((r, i) => `<div class="rank${i === rk.i && st.user ? ' cur' : ''}${i > rk.i ? ' locked' : ''}">${rankIcon(r, i)}<h4>${r.n}</h4><small>от ${money(r.min)} в кейсах</small><span class="cb">${r.cb ? 'Кэшбэк ' + r.cb + '%' : 'Старт'}</span></div>`).join('')}</div>
@@ -2903,13 +2921,14 @@ function openAuth(tab = 'login') {
     if (!first) { const body = $('#authBody', m); body.style.setProperty('--dir', dir); body.classList.remove('au-swap'); void body.offsetWidth; body.classList.add('au-swap'); }
     $$('[data-sw]', f).forEach(b => b.onclick = () => draw(b.dataset.sw));
     const tl = $('#termsLink', f); if (tl) tl.onclick = () => closeModal();
-    const fg = $('#forgot', f); if (fg) fg.onclick = () => { const e = $('#aEmail', f).value.trim(); if (!/^\S+@\S+\.\S+$/.test(e)) return setErr($('#aEmail', f), 'Введите e-mail для восстановления'); toast(`Ссылка для сброса пароля отправлена на <b>${esc(e)}</b>`, 'info'); };
+    const fg = $('#forgot', f); if (fg) fg.onclick = () => { const e = $('#aEmail', f).value.trim(); if (!/^\S+@\S+\.\S+$/.test(e)) return setErr($('#aEmail', f), 'Введите e-mail для восстановления');
+      if (sb) sb.auth.resetPasswordForEmail(e, { redirectTo: location.origin + location.pathname }).then(({ error }) => error ? toast(sbErr(error), 'err') : toast(`Ссылка для сброса пароля отправлена на <b>${esc(e)}</b>`, 'info')); };
     $$('.au-eye', f).forEach(b => b.onclick = () => { const i = b.parentElement.querySelector('input'), show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? AU_IC.eyeOff : ic.eye; b.classList.toggle('on', show); i.focus(); });
     f.onsubmit = ev => { ev.preventDefault(); submit(f); };
     $$('.inp', f).forEach(i => i.oninput = () => setErr(i, ''));
   };
   const setErr = (inp, msg) => { inp.classList.toggle('err', !!msg); const fl = inp.closest('.field'); if (fl) { fl.classList.toggle('bad', !!msg); const s = fl.querySelector('.msg'); if (s) s.textContent = msg; if (msg) { fl.classList.remove('shake'); void fl.offsetWidth; fl.classList.add('shake'); } } return !msg; };
-  const submit = f => {
+  const submit = async f => {
     const email = $('#aEmail', f).value.trim().toLowerCase(), pass = $('#aPass', f).value;
     let ok = setErr($('#aEmail', f), /^\S+@\S+\.\S+$/.test(email) ? '' : 'Некорректный e-mail');
     ok = setErr($('#aPass', f), pass.length >= 6 ? '' : 'Минимум 6 символов') && ok;
@@ -2920,47 +2939,78 @@ function openAuth(tab = 'login') {
       const ag = $('#aAgree', f).checked; $('#agreeMsg', f).textContent = ag ? '' : 'Подтвердите возраст и согласие';
       ok = ok && ag;
       if (!ok) return;
-      if (st.accounts['e:' + email]) return setErr($('#aEmail', f), 'Этот e-mail уже зарегистрирован — войдите');
-      login('e:' + email, { name: nick, email, via: 'email' }, true);
+      if (!sb) return toast('Нет связи с сервером — попробуйте позже', 'err');
+      busy(f, true);
+      const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { nick }, emailRedirectTo: location.origin + location.pathname } });
+      busy(f, false);
+      if (error) return setErr($('#aEmail', f), sbErr(error));
+      if (data.session) { if (await sbLoadProfile(data.session)) { closeModal(); afterLogin(true); } }
+      else { closeModal(); toast(`Мы отправили письмо на <b>${esc(email)}</b> — подтвердите e-mail по ссылке и войдите`, 'info'); }
     } else {
       if (!ok) return;
-      const acc = st.accounts['e:' + email];
-      if (!acc) return setErr($('#aEmail', f), 'Аккаунт не найден — зарегистрируйтесь');
-      login('e:' + email, acc.user, false);
+      if (!sb) return toast('Нет связи с сервером — попробуйте позже', 'err');
+      busy(f, true);
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+      busy(f, false);
+      if (error) return setErr($('#aEmail', f), sbErr(error));
+      if (await sbLoadProfile(data.session)) { closeModal(); afterLogin(false); }
     }
   };
+  const busy = (f, on) => { const b = $('.au-go', f); if (b) { b.disabled = on; b.classList.toggle('busy', on); } };
   $$('#authTabs button', m).forEach(b => b.onclick = () => { if (b.dataset.tab !== tab) draw(b.dataset.tab); });
-  $('#steamBtn', m).onclick = async () => {
-    const b = $('#steamBtn', m); b.classList.add('busy'); $('.au-steam-t', b).innerHTML = '<b>Переход в Steam…</b><small>подтвердите вход</small>'; b.disabled = true;
-    await sleep(1100);
-    const acc = st.accounts['steam'];
-    login('steam', acc ? acc.user : { name: pick(['Rusher', 'Ace_Hunter', 'Clutch_King', 'RushB_Hero']) + randi(10, 99), via: 'steam', ava: 'assets/soldier.png' }, !acc);
-  };
+  // вход через Steam требует своего сервера (OpenID) — пока только e-mail
+  $('#steamBtn', m).onclick = () => toast('Вход через Steam появится в ближайшее время — пока войдите по e-mail', 'info');
   draw(tab, true);
 }
-/* аккаунты — снимки профиля в localStorage (пароли не храним: это прототип без сервера) */
-function login(key, user, isNew) {
-  if (st.user) snapshot();
-  const acc = st.accounts[key];
-  Object.assign(st, freshProfile(), acc ? acc.data : {});
-  st.user = acc ? acc.user : { ...user, id: randi(1000000, 9999999), reg: Date.now(), key };
-  st.user.key = key;
-  if (isNew) st.balance += 100;
-  snapshot(); save();
-  closeModal(); renderUser(); route();
+/* аккаунты — в базе Supabase: вход по e-mail, профиль игрока хранится на сервере */
+const SB_ERR = { 'Invalid login credentials': 'Неверный e-mail или пароль', 'Email not confirmed': 'Подтвердите e-mail по ссылке из письма', 'User already registered': 'Этот e-mail уже зарегистрирован — войдите' };
+const sbErr = e => SB_ERR[e.message] || (/rate limit|too many/i.test(e.message) ? 'Слишком много попыток — подождите минуту' : /password/i.test(e.message) ? 'Пароль слишком простой — минимум 6 символов' : 'Ошибка: ' + e.message);
+async function sbLoadProfile(session) {
+  if (!sb || !session) return false;
+  const { data: p, error } = await sb.from('profiles').select('name, ava, data, created_at').eq('id', session.user.id).single();
+  if (error || !p) { toast('Не удалось загрузить профиль — попробуйте ещё раз', 'err'); return false; }
+  Object.assign(st, freshProfile(), p.data || {});
+  st.stats = Object.assign(freshProfile().stats, st.stats || {});
+  st.inv.forEach(x => { x.n = fixName(x.n); });
+  st.user = { id: session.user.id, rid: session.user.id.slice(0, 8), name: p.name, email: session.user.email, ava: p.ava || null, reg: Date.parse(p.created_at), via: 'email', key: 'sb', sb: true };
+  try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
+  renderUser(); route();
+  jpClaim(false); jpResolveMine();
+  return true;
+}
+function afterLogin(isNew) {
   Snd.coin();
   toast(isNew ? `Добро пожаловать в RUSH CASE, <b>${esc(st.user.name)}</b>! +100 ₽ на баланс` : `С возвращением, <b>${esc(st.user.name)}</b>!`);
   if (isNew) burst(30);
 }
-function snapshot() {
-  if (!st.user) return;
-  const { balance, inv, stats, daily, promos, depBonus, socials, trade } = st;
-  st.accounts[st.user.key] = { user: st.user, data: { balance, rcoin: st.rcoin, rlog: st.rlog, inv, stats, daily, promos, depBonus, socials, trade } };
-}
-function logout() {
-  snapshot();
+async function logout() {
+  await sbPush();
+  if (sb) await sb.auth.signOut();
   Object.assign(st, freshProfile(), { user: null }); save();
   renderUser(); if (location.hash.length > 2) location.hash = '#/'; else route(); toast('Вы вышли из аккаунта', 'info');
+}
+// при загрузке сайта: восстанавливаем вход; старый локальный аккаунт (без базы) — выходим из него
+function sbInit() {
+  if (!sb) return;
+  sb.auth.getSession().then(({ data }) => {
+    if (data.session) sbLoadProfile(data.session);
+    else if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); }
+  });
+  sb.auth.onAuthStateChange((ev, session) => {
+    if (ev === 'PASSWORD_RECOVERY') openNewPass();
+    if (ev === 'SIGNED_IN' && session && (!st.user || !st.user.sb)) sbLoadProfile(session); // вход по ссылке из письма
+  });
+}
+function openNewPass() {
+  const m = modal(`<div class="dep"><h2>Новый пароль</h2><p class="dep-sub">Придумайте новый пароль для входа.</p>
+    <div class="field"><input class="inp" id="npPass" type="password" autocomplete="new-password" placeholder="Минимум 6 символов"></div>
+    <button class="btn btn-primary btn-lg btn-block" id="npGo" style="margin-top:14px">Сохранить</button></div>`, 'm-dep');
+  $('#npGo', m).onclick = async () => {
+    const v = $('#npPass', m).value; if (v.length < 6) return toast('Минимум 6 символов', 'err');
+    const { error } = await sb.auth.updateUser({ password: v });
+    if (error) return toast(sbErr(error), 'err');
+    closeModal(); toast('Пароль изменён');
+  };
 }
 
 /* =========================================================
@@ -3030,7 +3080,7 @@ function openDeposit(need = 0) {
 /* =========================================================
    СТАВКИ (джекпот): игроки ставят скины 30 с (до 20 человек), рулетка выбирает победителя
    пропорционально ставке, победитель забирает весь банк.
-   Прототип: остальные игроки — боты, раунды идут сами, пока открыт сайт.
+   Раунды и ставки общие для всех игроков (база Supabase, см. supabase/schema.sql); боты тоже пишутся в базу и видны всем.
    ========================================================= */
 const JP_TIME = 30, JP_MAX = 20, JP_SPIN = 10000;
 const JP_COLORS = ['#f3c14f', '#4ade80', '#60a5fa', '#f472b6', '#a78bfa', '#fb923c', '#22d3ee', '#ef4444', '#a3e635', '#e879f9',
@@ -3055,74 +3105,146 @@ const jpViewing = () => jp === JP[jpView] && !!$('#jp');
 const jpAfter = (fn, ms) => { const R = jp; const t = setTimeout(() => { const prev = jp; jp = R; try { fn(); } finally { jp = prev; } }, ms); R.tmr.push(t); return t; };
 const jpTotal = () => jp.players.reduce((a, p) => a + p.sum, 0);
 const jpFind = name => jp.players.find(p => p.name === name);
-function jpNewRound() {
-  jp.tmr.forEach(clearTimeout); jp.tmr = [];
-  jp.id++; jp.phase = 'wait'; jp.players = []; jp.endsAt = 0; jp.winner = null; jp.rot = 0;
-  jpRender();
-  // бот откроет раунд через несколько секунд, если никто не зашёл
-  jpAfter(() => { if (jp.phase === 'wait') jpBotJoin(); }, rand(2500, 6000));
-}
-function jpAdd(name, items, isMe, ava) {
-  let p = jpFind(name);
-  if (!p) { if (jp.players.length >= JP_MAX) return false; p = { name, items: [], sum: 0, me: isMe, ava, color: JP_COLORS[jp.players.length % JP_COLORS.length] }; jp.players.push(p); }
-  p.items.push(...items); p.sum += items.reduce((a, s) => a + s.p, 0);
-  if (jp.phase === 'wait') { jp.phase = 'open'; jp.endsAt = Date.now() + jp.cfg.time * 1000; jpAfter(jpClose, jp.cfg.time * 1000); jpBotLoop(); }
-  if (jp.players.length >= JP_MAX) jpClose();
-  jpRender(name);
-  return true;
-}
-function jpBotJoin() {
-  const used = new Set(jp.players.map(p => p.name));
-  const name = jp.cfg.nicks.filter(n => !used.has(n) && (!st.user || n !== st.user.name)).sort(() => Math.random() - .5)[0];
-  if (!name) return;
-  const pool = CATALOG.filter(s => s.p >= jp.cfg.lo && s.p <= jp.cfg.hi); // ставки ботов — в диапазоне сессии
+/* --- раунды и ставки — в базе, общие для всех игроков. Любой открытый сайт «пульсирует» сессию (jp_tick):
+   сервер двигает таймер, разыгрывает победителя и иногда добавляет бота — его видят все одинаково --- */
+let jpOff = 0; // смещение часов сервера относительно браузера
+const jpSrvNow = () => Date.now() + jpOff;
+function jpBotCandidate(R) {
+  const used = new Set(R.players.map(p => p.name));
+  const name = R.cfg.nicks.filter(n => !used.has(n) && (!st.user || n !== st.user.name)).sort(() => Math.random() - .5)[0];
+  if (!name) return null;
+  const pool = CATALOG.filter(s => s.p >= R.cfg.lo && s.p <= R.cfg.hi); // ставки ботов — в диапазоне сессии
   const n = randi(1, 4), items = [];
   for (let i = 0; i < n; i++) items.push(pool[Math.floor(Math.pow(Math.random(), 1.8) * pool.length)]);
-  jpAdd(name, items, false);
-  if (jp.phase === 'open' && jpViewing()) Snd.tone(1200 + Math.random() * 400, .06, 'triangle', .05);
+  return { name, items: items.map(s => s.name), value: Math.round(items.reduce((a, s) => a + s.p, 0) * 100) / 100 };
 }
-function jpBotLoop() {
-  if (jp.phase !== 'open') return;
-  jpAfter(() => {
-    if (jp.phase !== 'open') return;
-    const left = (jp.endsAt - Date.now()) / 1000;
-    if (left > 1.5 && jp.players.length < JP_MAX && Math.random() < (jp.players.length < 6 ? .85 : .45)) jpBotJoin();
-    jpBotLoop();
-  }, rand(1400, 3600));
+const jpWantBot = R => R.phase === 'wait' || (R.phase === 'open' && (R.endsAt - Date.now()) / 1000 > 1.5 && R.players.length < JP_MAX && Math.random() < (R.players.length < 6 ? .5 : .25));
+async function jpTickRoom(id, withBot) {
+  if (!sb) return;
+  const R = JP[id];
+  const { data, error } = await sb.rpc('jp_tick', { p_room: id, p_bot: withBot && jpWantBot(R) ? jpBotCandidate(R) : null });
+  if (error) { R.err = true; if (R === JP[jpView]) jpRender(); return; }
+  R.err = false;
+  jpOff = Date.parse(data.now) - Date.now();
+  await jpLoad(id, data.round);
 }
-function jpClose() {
-  if (jp.phase !== 'open') return;
-  jp.tmr.forEach(clearTimeout); jp.tmr = [];
-  if (jp.players.length < 2) jpBotJoin(); // рулетка с одним игроком не крутится
-  jp.phase = 'spin';
-  // победитель — пропорционально ставке
-  const total = jpTotal(); let r = Math.random() * total, w = jp.players[0];
-  for (const p of jp.players) { r -= p.sum; if (r <= 0) { w = p; break; } }
-  jp.winner = w;
-  // угол: сегменты по часовой от верха; стрелка сверху — колесо поворачиваем так, чтобы точка внутри сектора победителя оказалась наверху
-  let acc = 0; for (const p of jp.players) { p.a0 = acc / total * 360; acc += p.sum; p.a1 = acc / total * 360; }
-  const span = w.a1 - w.a0, m = Math.min(span * .2, 4);
-  const point = w.a0 + m + Math.random() * (span - 2 * m);
-  jp.rot = 360 * 5 + (360 - point);
-  jp.spinStart = Date.now();
-  jpRender(); jpSpinFx();
-  jpAfter(jpFinish, JP_SPIN + 300);
+async function jpLoad(id, round) {
+  const R = JP[id];
+  if (!round) { const { data } = await sb.from('jp_rounds').select('*').eq('room', id).neq('status', 'done').maybeSingle(); round = data; }
+  if (!round) return;
+  const { data: bets } = await sb.from('jp_bets').select('id, uid, name, ava, items, value').eq('round_id', round.id).order('id');
+  jpApply(R, round, bets || []);
 }
-function jpFinish() {
-  jp.phase = 'done';
-  const w = jp.winner, pot = jp.players.flatMap(p => p.items), total = jpTotal();
-  jp.history.unshift({ id: jp.id, name: w.name, me: w.me, ava: w.ava, sum: total, chance: w.sum / total, color: w.color, best: pot.reduce((a, s) => s.p > a.p ? s : a, pot[0]) });
-  jp.history = jp.history.slice(0, 8);
-  const meIn = jp.players.find(p => p.me);
-  st.inv.forEach(x => { if (x.st === 'bet' && x.room === jp.cfg.id) x.st = 'jp'; }); save();
+// раунд из базы → состояние сессии (тот же вид, что рисует jpRender)
+function jpApply(R, round, bets) {
+  const prev = { id: R.id, phase: R.phase, n: R.players.length };
+  const players = [];
+  for (const b of bets) {
+    let p = players.find(x => x.name === b.name);
+    if (!p) { p = { name: b.name, uid: b.uid, ava: b.ava, items: [], sum: 0, me: !!(st.user && b.uid && b.uid === st.user.id), color: JP_COLORS[players.length % JP_COLORS.length] }; players.push(p); }
+    p.items.push(...(b.items || []).map(n => SK[n]).filter(Boolean)); p.sum += +b.value;
+  }
+  R.id = round.id; R.players = players;
+  R.endsAt = round.ends_at ? Date.parse(round.ends_at) - jpOff : 0;
+  R.spinStart = round.spin_at ? Date.parse(round.spin_at) - jpOff : 0;
+  R.phase = round.status === 'open' ? 'open' : round.status === 'spin' ? (Date.now() - R.spinStart > JP_SPIN ? 'done' : 'spin') : 'wait';
+  R.winner = null; R.rot = 0;
+  if (round.winner) {
+    const w = players.find(p => p.name === round.winner), total = players.reduce((a, p) => a + p.sum, 0);
+    if (w && total) {
+      // угол: сегменты по часовой от верха; точка внутри сектора победителя (её выбрал сервер) — наверх под стрелку
+      let acc = 0; for (const p of players) { p.a0 = acc / total * 360; acc += p.sum; p.a1 = acc / total * 360; }
+      const span = w.a1 - w.a0, m = Math.min(span * .2, 4);
+      R.winner = w; R.rot = 360 * 5 + (360 - (w.a0 + m + round.w_point * (span - 2 * m)));
+    }
+  }
+  const viewing = R === JP[jpView] && !!$('#jp');
+  const prevJp = jp; jp = R;
+  try {
+    if (viewing) {
+      const fresh = players.length > prev.n && prev.id === R.id ? players[players.length - 1].name : null;
+      if (fresh && R.phase === 'open') Snd.tone(1200 + Math.random() * 400, .06, 'triangle', .05);
+      jpRender(fresh);
+      if (R.phase === 'spin' && (prev.id !== R.id || prev.phase !== 'spin')) jpSpinFx();
+    }
+    if (R.phase === 'done' && R.finished !== R.id) { if (prev.id !== R.id && !players.some(p => p.me)) R.finished = R.id; else jpFinish(R); } // чужой раунд, разыгранный до нашего прихода, — без эффектов
+  } finally { jp = prevJp; }
+  if (!viewing) jpRoomsRender();
+}
+// раунд разыгран и прокрутка закончилась: итоги один раз
+function jpFinish(R) {
+  R.finished = R.id;
+  const w = R.winner; if (!w) return;
+  const pot = R.players.flatMap(p => p.items), total = R.players.reduce((a, p) => a + p.sum, 0), viewing = R === JP[jpView] && !!$('#jp');
+  if (!R.history.some(h => h.id === R.id)) {
+    R.history.unshift({ id: R.id, name: w.name, me: w.me, ava: w.ava, sum: total, chance: w.sum / total, color: w.color, best: pot.reduce((a, s) => !a || s.p > a.p ? s : a, null) || SK[Object.keys(SK)[0]] });
+    R.history = R.history.slice(0, 8);
+  }
+  const meIn = R.players.some(p => p.me);
+  st.inv.forEach(x => { if (x.st === 'bet' && x.round === R.id) x.st = 'jp'; }); save();
   if (w.me) {
-    pot.forEach(s => giveItem(s, 'jackpot')); save();
-    if (jpViewing()) { Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(140); setTimeout(() => burst(70), 700); }
-    toast(`Сессия «${jp.cfg.t}»: вы забрали банк <b>${money(total)}</b> — ${pot.length} предм.`);
-  } else if (meIn) { if (jpViewing()) Snd.safeLose(); toast(`Сессия «${jp.cfg.t}»: банк забрал ${esc(w.name)}. Повезёт в следующем раунде!`, 'err'); }
-  else if (jpViewing()) Snd.coin();
-  jpRender();
-  jpAfter(jpNewRound, 7000);
+    jpClaim(true);
+    if (viewing) { Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(140); setTimeout(() => burst(70), 700); }
+    toast(`Сессия «${R.cfg.t}»: вы забрали банк <b>${money(total)}</b> — ${pot.length} предм.`);
+  } else if (meIn) { if (viewing) Snd.safeLose(); toast(`Сессия «${R.cfg.t}»: банк забрал ${esc(w.name)}. Повезёт в следующем раунде!`, 'err'); }
+  else if (viewing) Snd.coin();
+  if (viewing) { const prevJp = jp; jp = R; try { jpRender(); } finally { jp = prevJp; } }
+}
+// выигрыши из базы (в том числе пока игрок был не в сети) → в инвентарь
+async function jpClaim(silent) {
+  if (!sb || !st.user || !st.user.sb) return;
+  const { data, error } = await sb.rpc('jp_claim');
+  if (error || !data || !data.length) return;
+  let n = 0, sum = 0;
+  for (const p of data) { (p.items || []).forEach(nm => { if (SK[nm]) { giveItem(SK[nm], 'jackpot'); n++; } }); sum += +p.total; }
+  st.inv.forEach(x => { if (x.st === 'bet' && data.some(p => p.round_id === x.round)) x.st = 'jp'; });
+  save(); sbPush();
+  if (!silent) toast(`Пока вас не было, вы выиграли в ставках: <b>${money(sum)}</b> — ${n} предм. уже в инвентаре`);
+}
+// свои ставки в раундах, которые уже разыграны без нас (закрыли сайт во время раунда)
+async function jpResolveMine() {
+  const ids = [...new Set(st.inv.filter(x => x.st === 'bet' && x.round).map(x => x.round))];
+  if (!sb || !ids.length) return;
+  const { data } = await sb.from('jp_rounds').select('id, status').in('id', ids);
+  (data || []).forEach(r => { if (r.status !== 'open' && r.status !== 'wait') st.inv.forEach(x => { if (x.st === 'bet' && x.round === r.id) x.st = 'jp'; }); });
+  save();
+}
+// последние разыгранные раунды сессии
+async function jpLoadHistory(id) {
+  if (!sb) return;
+  const R = JP[id];
+  const { data: rounds } = await sb.from('jp_rounds').select('id, winner, winner_uid, total').eq('room', id).not('winner', 'is', null).order('id', { ascending: false }).limit(8);
+  if (!rounds || !rounds.length) return;
+  const { data: bets } = await sb.from('jp_bets').select('round_id, name, ava, items, value, id').in('round_id', rounds.map(r => r.id)).order('id');
+  R.history = rounds.map(r => {
+    const bs = (bets || []).filter(b => b.round_id === r.id), names = [...new Set(bs.map(b => b.name))], wb = bs.filter(b => b.name === r.winner);
+    const items = bs.flatMap(b => (b.items || []).map(n => SK[n]).filter(Boolean)), wsum = wb.reduce((a, b) => a + +b.value, 0);
+    return { id: r.id, name: r.winner, me: !!(st.user && r.winner_uid === st.user.id), ava: wb[0] && wb[0].ava, sum: +r.total, chance: r.total ? wsum / r.total : 0,
+      color: JP_COLORS[Math.max(0, names.indexOf(r.winner)) % JP_COLORS.length], best: items.reduce((a, s) => !a || s.p > a.p ? s : a, null) || SK[Object.keys(SK)[0]] };
+  });
+  if (R === JP[jpView] && $('#jp')) jpRender();
+}
+// живые изменения из базы: новая ставка / смена статуса раунда → перечитываем сессию
+const jpSoonT = {};
+function jpSoon(room) { if (!JP[room]) return; clearTimeout(jpSoonT[room]); jpSoonT[room] = setTimeout(() => jpLoad(room), 120); }
+let jpLive = null, jpPulse = 0, jpBeat = 0;
+function jpStart() {
+  if (!sb || jpLive) return;
+  jpLive = sb.channel('jp-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'jp_rounds' }, p => { const r = p.new && p.new.room; if (r && ($('#jp') || st.inv.some(x => x.st === 'bet' && x.room === r))) jpSoon(r); })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jp_bets' }, p => { const r = p.new && p.new.room; if (r && $('#jp')) jpSoon(r); })
+    .subscribe();
+  // пульс: на странице ставок — открытая сессия каждые 1,5 с (с ботом), остальные — каждые ~4,5 с; вне страницы — только сессии со своей ставкой
+  jpPulse = setInterval(() => {
+    jpBeat++;
+    const onPage = !!$('#jp');
+    JP_ROOMS.forEach(cfg => {
+      const mine = st.inv.some(x => x.st === 'bet' && x.room === cfg.id);
+      if (onPage ? (cfg.id === jpView || jpBeat % 3 === 0) : mine && jpBeat % 2 === 0) jpTickRoom(cfg.id, onPage);
+      // прокрутка закончилась — итоги без ожидания сервера
+      const R = JP[cfg.id]; if (R.phase === 'spin' && Date.now() - R.spinStart > JP_SPIN) { R.phase = 'done'; if (R.finished !== R.id) jpFinish(R); }
+    });
+  }, 1500);
 }
 /* звук прокрутки — как в апгрейде: храповик сейфа + сердцебиение в конце */
 function jpSpinFx() {
@@ -3207,6 +3329,7 @@ let jpTick = 0;
 function mountJackpot() {
   jp = JP[jpView];
   jpRender();
+  jpStart(); JP_ROOMS.forEach(cfg => jpTickRoom(cfg.id, cfg.id === jpView)); jpLoadHistory(jpView);
   clearInterval(jpTick);
   jpTick = setInterval(() => { if (!$('#jp')) return clearInterval(jpTick); jp = JP[jpView]; jpRenderCenter(); jpRoomsRender(); }, 250);
 }
@@ -3223,7 +3346,7 @@ function jpRoomsRender() {
       <span class="jr-st"><span>${ic.users}${R.players.length}/${JP_MAX}</span><span>${money(tot)}</span><span class="jr-t">${stt}</span></span>
     </button>`;
   }).join('');
-  $$('[data-room]', box).forEach(b => b.onclick = () => { if (b.dataset.room === jpView) return; jpView = b.dataset.room; jp = JP[jpView]; Snd.click(); const r = $('#jpRot'); if (r) delete r.dataset.spun; jpRender(); });
+  $$('[data-room]', box).forEach(b => b.onclick = () => { if (b.dataset.room === jpView) return; jpView = b.dataset.room; jp = JP[jpView]; Snd.click(); const r = $('#jpRot'); if (r) delete r.dataset.spun; jpRender(); jpTickRoom(jpView, true); if (!jp.history.length) jpLoadHistory(jpView); });
 }
 function jpRenderCenter() {
   const c = $('#jpCenter'); if (!c) return;
@@ -3253,7 +3376,8 @@ function jpRender(flash) {
   jpRenderCenter();
   // кнопка ставки
   const act = $('#jpAct');
-  if (jp.phase === 'spin' || jp.phase === 'done') act.innerHTML = `<div class="cc-note">Ставки закрыты — ${jp.phase === 'spin' ? 'идёт розыгрыш' : 'новый раунд через несколько секунд'}</div>`;
+  if (!sb || jp.err) act.innerHTML = `<div class="cc-note">Нет связи с сервером ставок — пробуем переподключиться…</div>`;
+  else if (jp.phase === 'spin' || jp.phase === 'done') act.innerHTML = `<div class="cc-note">Ставки закрыты — ${jp.phase === 'spin' ? 'идёт розыгрыш' : 'новый раунд через несколько секунд'}</div>`;
   else if (!st.user) act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и сделать ставку</button>`;
   else if (!me && jp.players.length >= JP_MAX) act.innerHTML = `<div class="cc-note">Лобби заполнено (${JP_MAX} игроков)</div>`;
   else { act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" id="jpBet">${ic.plus}${me ? 'Добавить к ставке' : 'Сделать ставку'}</button>`; $('#jpBet').onclick = jpOpenBet; }
@@ -3287,28 +3411,26 @@ function jpOpenBet() {
     $('#jpGo', m).disabled = !sel.length;
   };
   $$('[data-id]', m).forEach(el => el.onclick = () => { const id = el.dataset.id; const on = !sel.includes(id); sel = on ? [...sel, id] : sel.filter(z => z !== id); el.classList.toggle('sel', on); Snd.safeSel(on); upd(); });
-  $('#jpGo', m).onclick = () => {
+  $('#jpGo', m).onclick = async () => {
     if (jp.phase === 'spin' || jp.phase === 'done') { closeModal(); return toast('Ставки уже закрыты', 'err'); }
+    if (!sb || !st.user.sb) { closeModal(); return toast('Нет связи с сервером — войдите заново', 'err'); }
     const items = sel.map(id => st.inv.find(x => x.id === id)).filter(x => x && x.st === 'own');
     if (!items.length) return;
-    if (!jpAdd(st.user.name, items.map(x => SK[x.n]), true, st.user.ava)) { closeModal(); return toast('Лобби заполнено', 'err'); }
-    items.forEach(x => { x.st = 'bet'; x.room = jp.cfg.id; }); save();
+    const R = jp, value = Math.round(items.reduce((a, x) => a + SK[x.n].p, 0) * 100) / 100, go = $('#jpGo', m);
+    go.disabled = true; go.innerHTML = '<span class="spinner"></span>Ставка…';
+    // предметы уходят из инвентаря сразу, чтобы их нельзя было поставить дважды
+    items.forEach(x => { x.st = 'bet'; x.room = R.cfg.id; });
+    const { data, error } = await sb.rpc('jp_bet', { p_room: R.cfg.id, p_items: items.map(x => x.n), p_value: value });
+    if (error) {
+      items.forEach(x => { x.st = 'own'; delete x.room; }); save(); closeModal();
+      return toast(/full/.test(error.message) ? 'Лобби заполнено' : /closed/.test(error.message) ? 'Ставки уже закрыты — ждите следующий раунд' : 'Ставка не принята: ' + error.message, 'err');
+    }
+    items.forEach(x => { x.round = data.round; }); save(); sbPush();
     Snd.safeSel(true); Snd.coin(); closeModal();
-    toast(`Ставка принята: <b>${money(items.reduce((a, x) => a + SK[x.n].p, 0))}</b>`);
+    toast(`Ставка принята: <b>${money(value)}</b>`);
+    jpLoad(R.cfg.id);
   };
 }
-/* немного истории для живости */
-(function jpSeed() {
-  JP_ROOMS.forEach(cfg => {
-    jp = JP[cfg.id];
-    const pool = CATALOG.filter(s => s.p >= cfg.lo && s.p <= cfg.hi * 3);
-    for (let i = 0; i < 6; i++) { const best = pool[randi(0, pool.length - 1)]; jp.history.push({ id: 100 - i, name: pick(cfg.nicks), sum: Math.round(best.p * rand(1.6, 5)), chance: rand(.03, .6), color: pick(JP_COLORS), best }); }
-    jp.id = 101;
-    jpAfter(() => { if (jp.phase === 'wait') jpBotJoin(); }, rand(1500, 7000));
-  });
-  jp = JP[jpView];
-})();
-
 /* =========================================================
    ROUTER
    ========================================================= */
@@ -3359,7 +3481,7 @@ document.addEventListener('error', e => {
 }, true);
 
 /* ---------- init ---------- */
-renderHeader(); renderFooter(); initFx(); initLive(); route();
+renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit();
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
 // экран загрузки закрывается сам (index.html: window.plFinish) — по окончании загрузки или через 7 с
 })();
