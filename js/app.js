@@ -1261,12 +1261,12 @@ function pageHome() {
       <div class="sb-i"><span class="sb-ic">${ic.shield}</span><div><b>98.7%</b><span>Выплат</span></div></div>
     </div>
     <div class="home-secs">
-      ${secHead('Популярные кейсы', 'Открывают чаще всего', ic.fire, '#f3c14f', HOME_POP.length)}
-      <div class="cases-grid" id="popRow">${HOME_POP.map(caseById).filter(Boolean).map(caseCard).join('')}</div>
-      ${secHead('Новые кейсы', 'Свежие поступления', ic.star, '#ff6fb5', NEW_CASES.length)}
-      <div class="cases-grid" id="newRow">${NEW_CASES.map(caseById).filter(Boolean).map(caseCard).join('')}</div>
-      ${secHead('Бонусные кейсы', 'Открываются за R-COIN', RC_IMG, '#8be04e', casesRc().length)}
-      <div class="cases-grid" id="bonusRow">${casesRc().map(caseCard).join('')}</div>
+      <section class="cs-block" style="--bc:#f3c14f">${secHead('Популярные кейсы', 'Открывают чаще всего', ic.fire, '#f3c14f', HOME_POP.length)}
+      <div class="cases-grid" id="popRow">${HOME_POP.map(caseById).filter(Boolean).map(caseCard).join('')}</div></section>
+      <section class="cs-block" style="--bc:#ff6fb5">${secHead('Новые кейсы', 'Свежие поступления', ic.star, '#ff6fb5', NEW_CASES.length)}
+      <div class="cases-grid" id="newRow">${NEW_CASES.map(caseById).filter(Boolean).map(caseCard).join('')}</div></section>
+      <section class="cs-block" style="--bc:#8be04e">${secHead('Бонусные кейсы', 'Открываются за R-COIN', RC_IMG, '#8be04e', casesRc().length)}
+      <div class="cases-grid" id="bonusRow">${casesRc().map(caseCard).join('')}</div></section>
     </div>
     <div class="features">
       ${[['shield', 'Честно', 'Результат определяется до начала анимации — рулетка лишь показывает выпавший предмет.'], ['bolt', 'Быстрый вывод', 'Скины уходят в Steam через трейд за пару минут.'], ['gift', 'Бонусы', 'Ежедневный бонус, промокоды и кэшбэк за ранг.'], ['chat', 'Поддержка 24/7', 'Отвечаем в чате и Telegram в любое время.']]
