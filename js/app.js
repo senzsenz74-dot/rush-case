@@ -1128,27 +1128,63 @@ function pushLive(d) {
   tr.firstElementChild.classList.add('enter');
   while (tr.children.length > 40) tr.lastElementChild.remove();
 }
-function fakeDrop() {
-  const k = Math.random();
+/* Лента одинаковая у всех: «фоновые» дропы не случайны, а вычисляются из номера секунды (общий генератор с зерном) —
+   каждый браузер получает ту же последовательность; часы сверяются с сервером. Дропы реальных игроков — из базы (live_drops) в реальном времени. */
+const LIVE_P = .42; // доля секунд, в которые падает дроп (в среднем раз в ~2,4 с)
+let liveOff = 0;    // поправка часов браузера к серверу
+const liveNow = () => Date.now() + liveOff;
+const mulberry = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const LIVE_SKINS = UPG_CAT.filter(s => s.c === 'skin' || s.c === 'knife' || s.c === 'gloves'), LIVE_CON = UPG_CAT.filter(z => z.c === 'skin' && z.p > 20 && z.p < 20000);
+function fakeDropAt(sec) {
+  const R = mulberry(Math.imul(sec, 2654435761) ^ 0x5bd1e995);
+  if (R() > LIVE_P) return null;
+  const pk = arr => arr[Math.floor(R() * arr.length)], u = pk(NICKS), k = R(), ts = sec * 1000;
   // апгрейд: скин дороже ставки в 1,5–10 раз (чаще — небольшие множители)
-  if (k < .18) {
-    const x = 1.5 + 8.5 * Math.random() ** 2.2, pool = UPG_CAT.filter(s => s.c === 'skin' || s.c === 'knife' || s.c === 'gloves'), s = pool[Math.floor(pool.length * Math.random() ** 1.6)];
-    return { n: s.name, t: 'upg', x, u: pick(NICKS) };
-  }
+  if (k < .18) { const x = 1.5 + 8.5 * R() ** 2.2, sk = LIVE_SKINS[Math.floor(LIVE_SKINS.length * R() ** 1.6)]; return { n: sk.name, t: 'upg', x, u, ts }; }
   // контракт: результат от ×0,25 до ×4 к сумме дела (чаще около ×1)
-  if (k < .26) { const s = pick(UPG_CAT.filter(z => z.c === 'skin' && z.p > 20 && z.p < 20000)); return { n: s.name, t: 'con', x: .25 + 3.75 * Math.random() ** 2.5, u: pick(NICKS) }; }
-  const ws = CASES.map(x => 1 / Math.sqrt(x.price)), tw = ws.reduce((a, b) => a + b, 0);
-  let r = Math.random() * tw, c = CASES[0];
-  for (let i = 0; i < CASES.length; i++) { r -= ws[i]; if (r <= 0) { c = CASES[i]; break; } }
-  let s = roll(c.items);
-  if (Math.random() < .08) s = roll(c.items, 'fw'); // иногда показываем дроп пожирнее
-  return { n: s.name, c: c.id, u: pick(NICKS) };
+  if (k < .26) { const sk = pk(LIVE_CON); return { n: sk.name, t: 'con', x: .25 + 3.75 * R() ** 2.5, u, ts }; }
+  // кейс: только встроенные кейсы и их базовые шансы (без настроек админки) — чтобы у всех совпадало
+  const base = CASES.filter(c => !c.custom).slice().sort((x, y) => x.id < y.id ? -1 : 1), ws = base.map(x => 1 / Math.sqrt(x.price)), tw = ws.reduce((x, y) => x + y, 0);
+  let r = R() * tw, c = base[0];
+  for (let i = 0; i < base.length; i++) { r -= ws[i]; if (r <= 0) { c = base[i]; break; } }
+  const key = R() < .08 ? 'fw' : 'ch'; // иногда показываем дроп пожирнее
+  let q = R(), acc = 0, it = c.items[c.items.length - 1];
+  for (const x of c.items) { acc += key === 'ch' ? (x.ch0 != null ? x.ch0 : x.ch) : x.fw; if (q < acc) { it = x; break; } }
+  return { n: it.name, c: c.id, u, ts };
 }
+let liveSec = 0;
+const liveSeen = new Set(); // id реальных дропов, уже показанных
+function liveRealRow(r) { return { n: r.n, t: r.t === 'case' ? undefined : r.t, c: r.c, x: +r.x || 0, u: r.name, ts: Date.parse(r.ts) - liveOff, mine: !!(st.user && r.uid === st.user.id), id: r.id }; }
 function initLive() {
-  for (let i = 0; i < 60; i++) liveBuf.push(fakeDrop());
+  const now = Math.floor(liveNow() / 1000);
+  for (let sec = now; sec > now - 400 && liveBuf.length < 60; sec--) { const d = fakeDropAt(sec); if (d) liveBuf.push(d); }
+  liveSec = now;
   renderLive();
   $$('[data-live]').forEach(b => b.onclick = () => { liveFilter = b.dataset.live; $$('[data-live]').forEach(x => x.classList.toggle('on', x === b)); renderLive(); });
-  (function loop() { pushLive(fakeDrop()); setTimeout(loop, rand(1300, 3600)); })();
+  setInterval(() => { const now = Math.floor(liveNow() / 1000); if (now - liveSec > 30) liveSec = now - 30; while (liveSec < now) { liveSec++; const d = fakeDropAt(liveSec); if (d) pushLive(d); } }, 250);
+  liveSync();
+}
+// сверка часов с сервером + последние реальные дропы + подписка на новые
+async function liveSync() {
+  if (!sb) return;
+  try {
+    const t0 = Date.now(), r = await fetch(SB_URL + '/rest/v1/live_drops?select=id&limit=1', { headers: { apikey: SB_KEY } }), d = Date.parse(r.headers.get('date'));
+    if (d) { const off = d + (Date.now() - t0) / 2 - Date.now(); if (Math.abs(off) > 1500) { liveOff = off; liveBuf.length = 0; liveSec = 0; const now = Math.floor(liveNow() / 1000); for (let sec = now; sec > now - 400 && liveBuf.length < 60; sec--) { const x = fakeDropAt(sec); if (x) liveBuf.push(x); } liveSec = now; } }
+  } catch (e) { /* без сверки */ }
+  const { data } = await sb.from('live_drops').select('*').gt('ts', new Date(liveNow() - 15 * 60000).toISOString()).order('id', { ascending: false }).limit(40);
+  (data || []).forEach(r => { liveSeen.add(r.id); liveBuf.push(liveRealRow(r)); });
+  liveBuf.sort((x, y) => (y.ts || 0) - (x.ts || 0)); liveBuf.length = Math.min(liveBuf.length, 120);
+  renderLive();
+  sb.channel('live-drops').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_drops' }, p => {
+    const r = p.new; if (!r || liveSeen.has(r.id)) return; liveSeen.add(r.id);
+    if (st.user && r.uid === st.user.id) return; // свой дроп уже показан
+    pushLive(liveRealRow(r));
+  }).subscribe();
+}
+// свой дроп: сразу в ленту и в базу — его увидят все
+function liveMine(d) {
+  pushLive({ ...d, u: st.user.name, mine: true, ts: liveNow() });
+  if (sb && st.user && st.user.sb) sb.from('live_drops').insert({ uid: st.user.id, name: st.user.name, n: d.n, t: d.t || 'case', c: d.c || null, x: d.x ? Math.round(d.x * 100) / 100 : 0 }).then(() => {}, () => {});
 }
 
 /* ---------- background fx: фон-картинка с оружием (CSS) + частицы (пыль, угольки, искры из оружия) ---------- */
@@ -1839,7 +1875,7 @@ function showReveal(c, wins, given, demo) {
     </div>`).join('')}</div>`;
   $('#rl').classList.add('revealed');
   itemTilt($('#reveal'));
-  if (!demo) wins.forEach(s => pushLive({ n: s.name, c: c.id, u: st.user.name, mine: true }));
+  if (!demo) wins.forEach(s => liveMine({ n: s.name, c: c.id }));
   ccDone(c, wins, given, demo);
 }
 function ccDone(c, wins, given, demo) {
@@ -2164,7 +2200,7 @@ async function runUpgrade() {
   // победа — без надписи на колесе, сразу 3D-карточка; проигрыш — LOSE
   cEl.textContent = win ? '' : 'LOSE';
   $('#wLabel').textContent = win ? '' : 'не повезло';
-  if (win) { pushLive({ n: ts.name, t: 'upg', x: ts.p / v, u: st.user.name, mine: true }); Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
+  if (win) { liveMine({ n: ts.name, t: 'upg', x: ts.p / v }); Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
   else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); addRcoin(v * .005, 'Утешительный бонус: апгрейд'); }
   // победа — карточка выигрыша поверх апгрейда, ждём выбор игрока
   let act = null;
@@ -2548,7 +2584,7 @@ async function runContract() {
   await Promise.race([pre.decode().catch(() => {}), sleep(900)]);
   conRes = { no: caseNo, s: SK[res.name], id: got.id, sum, n: items.length, given, code: 'RC-' + String(Math.floor(100 + Math.random() * 899)), nick: conCase ? conCase.nick : st.user.name, date: conCase ? conCase.date : '' };
   conSel = []; conSigned = false; conCase = null; conBusy = false; dosOpenShown = false;
-  pushLive({ n: res.name, t: 'con', x: res.p / sum, u: st.user.name, mine: true });
+  liveMine({ n: res.name, t: 'con', x: res.p / sum });
   if (!$('#dosDesk')) return;
   conStep = 3; drawCon();
   const s = conRes.s; Snd.win(RAR[s.r].o); if (RAR[s.r].o >= 5 || s.p > sum * 1.5) burst();
