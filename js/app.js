@@ -2360,12 +2360,15 @@ function drawCon() {
   const desk = $('#dosDesk'); if (!desk) return;
   $$('#dosTabs [data-step]').forEach(b => { const n = +b.dataset.step; b.classList.toggle('on', n === conStep); b.classList.toggle('lock', (n === 2 && conSel.length < 3) || (n === 3 && !conRes)); });
   const no = $('#dosNo'); if (no) no.textContent = conStep === 3 && conRes ? conRes.no : conNo();
-  desk.className = 'dos-desk s' + conStep;
+  const enter = desk.dataset.step !== String(conStep); desk.dataset.step = conStep;
+  desk.className = 'dos-desk s' + conStep + (enter ? ' enter' : '');
+  const inv = $('#dosInv'), invTop = inv ? inv.scrollTop : 0, pageY = scrollY;
   setTimeout(() => { conLast = null; }, 0);
   if (conStep === 1) drawConEvidence(desk);
   else if (conStep === 2) drawConAgreement(desk);
   else drawConProtocol(desk);
   if (dosLampEl) desk.prepend(dosLampEl);
+  if (!enter) { const i2 = $('#dosInv'); if (i2) i2.scrollTop = invTop; if (scrollY !== pageY) scrollTo(0, pageY); }
 }
 let dosLampEl = null;
 /* ---------- лист 01: улики ---------- */
@@ -2532,7 +2535,12 @@ function drawConAgreement(desk) {
       if (!$('#dosPadWrap')) { conBusy = false; return; }
       pad.insertAdjacentHTML('beforeend', DOS_BLUE);
       Snd.play('conStamp', 1).then(ok => { if (!ok) { Snd.noise(.06, .7, 0, 900, 1); Snd.tone(110, .18, 'sine', .4, 0, 60); } });
-      setTimeout(() => { conBusy = false; runContract(); }, 700);
+      // пауза-интрига: комиссия «рассматривает» дело
+      const steps = ['Комиссия заверяет дело…', 'Сверяем улики…', 'Выносим решение…'];
+      steps.forEach((t, i) => setTimeout(() => { if (sg.isConnected) sg.innerHTML = '<span class="spinner"></span>' + t; }, 600 + i * 900));
+      pad.classList.add('judging');
+      [900, 1500, 2050, 2500, 2850].forEach((ms, i) => setTimeout(() => { if ($('#dosPadWrap')) Snd.heart(.3 + i * .08); }, ms));
+      setTimeout(() => { conBusy = false; runContract(); }, 3200);
     }, 250);
   };
 }
