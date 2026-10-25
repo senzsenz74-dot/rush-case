@@ -1108,11 +1108,86 @@ function initLive() {
   (function loop() { pushLive(fakeDrop()); setTimeout(loop, rand(1300, 3600)); })();
 }
 
-/* ---------- background fx ---------- */
+/* ---------- background fx: фон-картинка + частицы (пыль, угольки, искры от оружия) ---------- */
+const BG_W = 1672, BG_H = 940;
+// точки на картинке фона, откуда иногда сыплются искры: АК слева, Desert Eagle справа, керамбит снизу справа
+const BG_HOT = [[110, 335, -1], [1384, 93, 1], [1635, 613, 1], [93, 800, -1]];
 function initFx() {
-  let h = '<i class="orb o1"></i><i class="orb o2"></i><i class="orb o3"></i>';
-  for (let i = 0; i < 34; i++) h += `<i class="fly" style="left:${rand(0, 100)}%;top:${rand(0, 100)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 6)}s;--s:${rand(.5, 1.3)}"></i>`;
-  $('#fx').innerHTML = h;
+  const host = $('#fx');
+  host.innerHTML = '<canvas class="fx-cv" aria-hidden="true"></canvas>';
+  const cv = host.firstChild, x = cv.getContext('2d');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // светящаяся точка — рисуем один раз и дальше штампуем
+  const sprite = (r, g, b) => { const c = document.createElement('canvas'); c.width = c.height = 32; const q = c.getContext('2d'), gr = q.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gr.addColorStop(0, `rgba(255,255,240,1)`); gr.addColorStop(.18, `rgba(${r},${g},${b},.95)`); gr.addColorStop(.45, `rgba(${r},${g},${b},.28)`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    q.fillStyle = gr; q.fillRect(0, 0, 32, 32); return c; };
+  const SP_GOLD = sprite(255, 186, 72), SP_EMBER = sprite(255, 120, 30), SP_DUST = sprite(255, 236, 200);
+  let W = 0, H = 0, dpr = 1, map = null;
+  const fit = () => {
+    dpr = Math.min(1.5, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr; x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // как картинка ложится при background-size:cover — чтобы искры вылетали ровно из оружия
+    const s = Math.max(W / BG_W, H / BG_H), ox = (W - BG_W * s) / 2, oy = (H - BG_H * s) / 2;
+    map = ([px, py]) => [ox + px * s, oy + py * s];
+  };
+  fit(); addEventListener('resize', fit);
+  const side = () => Math.random() < .5 ? rand(0, W * .2) : rand(W * .8, W); // угольки — в основном по бокам, где оружие
+  // 1) пыль: медленно плавает, мерцает; три слоя глубины
+  const dust = Array.from({ length: 70 }, () => ({ x: rand(0, 1), y: rand(0, 1), z: rand(.3, 1), ph: rand(0, 6.28), sp: rand(.4, 1.1), vx: rand(-4, 4), vy: rand(-6, -1) }));
+  // 2) угольки: поднимаются снизу, покачиваются, гаснут
+  const mkEmber = (init) => ({ x: side(), y: init ? rand(0, H) : H + rand(0, 40), vy: -rand(14, 42), sw: rand(8, 22), ph: rand(0, 6.28), f: rand(.6, 1.6), s: rand(1.2, 2.8), life: 0, max: rand(7, 14) });
+  const embers = Array.from({ length: 52 }, () => mkEmber(true));
+  // 3) искры от оружия: короткая вспышка с хвостом, падают под тяжестью
+  const sparks = []; let nextBurst = performance.now() + 1500;
+  const burstAt = () => {
+    const [px, py, dir] = BG_HOT[Math.floor(Math.random() * BG_HOT.length)], [sx, sy] = map([px, py]);
+    if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) return;
+    const n = randi(7, 13);
+    for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + rand(-1.1, 1.1) + dir * .35, v = rand(60, 190);
+      sparks.push({ x: sx, y: sy, px: sx, py: sy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, max: rand(.5, 1.2) }); }
+  };
+  // лёгкий параллакс за мышью
+  let mx = 0, my = 0, tx = 0, ty = 0;
+  addEventListener('pointermove', e => { tx = (e.clientX / W - .5); ty = (e.clientY / H - .5); }, { passive: true });
+  let last = performance.now(), raf = 0;
+  const frame = now => {
+    raf = requestAnimationFrame(frame);
+    if (document.hidden) { last = now; return; }
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    mx += (tx - mx) * .04; my += (ty - my) * .04;
+    x.clearRect(0, 0, W, H);
+    x.globalCompositeOperation = 'lighter';
+    const t = now / 1000;
+    // пыль
+    for (const d of dust) {
+      d.x += d.vx * dt / W * d.z; d.y += d.vy * dt / H * d.z;
+      if (d.y < -.02) { d.y = 1.02; d.x = rand(0, 1); } if (d.x < -.02) d.x = 1.02; if (d.x > 1.02) d.x = -.02;
+      const a = (.3 + .5 * (Math.sin(t * d.sp + d.ph) * .5 + .5)) * d.z, sz = 3 + d.z * 8;
+      const px = d.x * W - mx * 18 * d.z, py = d.y * H - my * 12 * d.z;
+      x.globalAlpha = a * .8; x.drawImage(SP_DUST, px - sz / 2, py - sz / 2, sz, sz);
+    }
+    // угольки
+    for (let i = 0; i < embers.length; i++) {
+      const e = embers[i]; e.life += dt; e.y += e.vy * dt; e.ph += dt * e.f;
+      const px = e.x + Math.sin(e.ph) * e.sw - mx * 30, py = e.y - my * 20;
+      const k = e.life / e.max, a = Math.min(1, e.life * 1.5) * (1 - k) * (.6 + .4 * Math.sin(t * 9 + e.ph * 3));
+      if (k >= 1 || py < -20) { embers[i] = mkEmber(false); continue; }
+      const sz = e.s * 11; x.globalAlpha = Math.max(0, a); x.drawImage(i % 3 ? SP_GOLD : SP_EMBER, px - sz / 2, py - sz / 2, sz, sz);
+    }
+    // искры
+    if (now > nextBurst) { burstAt(); nextBurst = now + rand(1200, 3200); }
+    x.lineCap = 'round';
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i]; s.life += dt; if (s.life > s.max) { sparks.splice(i, 1); continue; }
+      s.px = s.x; s.py = s.y; s.vy += 230 * dt; s.vx *= .985; s.x += s.vx * dt; s.y += s.vy * dt;
+      const a = 1 - s.life / s.max;
+      x.globalAlpha = a; x.strokeStyle = 'rgba(255,200,110,1)'; x.lineWidth = 1.8;
+      x.beginPath(); x.moveTo(s.px - s.vx * .03, s.py - s.vy * .03); x.lineTo(s.x, s.y); x.stroke();
+      x.drawImage(SP_GOLD, s.x - 8, s.y - 8, 16, 16);
+    }
+    x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+  };
+  raf = requestAnimationFrame(frame);
 }
 function burst(n = 70) {
   const box = document.createElement('div'); box.className = 'burst';

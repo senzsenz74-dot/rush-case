@@ -2698,3 +2698,12 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 /* вкладка «Кейсы» — шире, меньше пустых полей по бокам */
 .container.cases-wide{max-width:1640px;padding:0 40px}
 @media (max-width:720px){.container.cases-wide{padding:0 16px}}
+
+/* ===== новый фон сайта: картинка с оружием по краям + частицы на canvas (закреплённый слой .fx — работает и на телефонах) ===== */
+body{background:#050403}
+body::before{display:none}
+.fx{background:
+  radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.55) 100%),
+  linear-gradient(180deg,rgba(5,4,3,.12),rgba(5,4,3,.32) 70%,rgba(5,4,3,.6)),
+  url("../assets/bg-site.webp") center/cover no-repeat #050403}
+.fx-cv{position:absolute;inset:0;width:100%;height:100%;display:block}
