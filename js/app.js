@@ -661,9 +661,9 @@ const save = () => {
 addEventListener('visibilitychange', () => { if (document.hidden) sbPush(); });
 /* журнал для статистики админки: пульс онлайна (раз в 2 мин с открытой вкладки), пополнения, выводы, открытия кейсов */
 const SID = (() => { try { let s = sessionStorage.getItem('rc.sid'); if (!s) { s = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); sessionStorage.setItem('rc.sid', s); } return s; } catch (e) { return 'x' + Math.random().toString(36).slice(2, 12); } })();
-function logEv(kind, amount = 0, won = 0) {
+function logEv(kind, amount = 0, won = 0, x = 0) {
   if (!sb) return;
-  sb.from('site_events').insert({ kind, sid: SID, uid: st.user && st.user.sb ? st.user.id : null, amount: Math.max(0, Math.round(amount * 100) / 100), won: Math.max(0, Math.round(won * 100) / 100) }).then(() => {}, () => {});
+  sb.from('site_events').insert({ kind, sid: SID, uid: st.user && st.user.sb ? st.user.id : null, amount: Math.max(0, Math.round(amount * 100) / 100), won: Math.max(0, Math.round(won * 100) / 100), ...(x ? { x: Math.round(x * 100) / 100 } : {}) }).then(() => {}, () => {});
 }
 setTimeout(() => logEv('hb'), 3000);
 setInterval(() => { if (!document.hidden) logEv('hb'); }, 120000);
@@ -982,9 +982,11 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
 const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-coco.webp':1.1321};
+// лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
+const caseThumb = c => !c.img ? '' : c.custom ? c.img : c.img.replace(/\.webp$/, '-s.webp');
 function caseArt(c, cls = '', badge = '') {
   // в витрине (без cls) — лёгкая копия картинки 440 px, на странице кейса — полная
-  const src = c.img && !cls ? c.img.replace(/\.webp$/, '-s.webp') : c.img;
+  const src = c.img && !cls ? caseThumb(c) : c.img;
   if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${src}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay](c, src) : ''}</div></div>`;
   if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${src}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
   const [m, a, b] = c.show.map(n => SK[n]);
@@ -2124,6 +2126,7 @@ async function runUpgrade() {
   if (upg.bal) setBalance(st.balance - upg.bal);
   let won = null;
   st.stats.upg++; if (win) { st.stats.upgWin++; won = giveItem(ts, 'upgrade'); }
+  logEv('upg', v, win ? ts.p : 0, ts.p / v);
   save();
   upg.busy = true; $('#upgBtn').disabled = true;
   // старт: рычаг сейфа, стрелка трогается после «клаца»
@@ -3016,6 +3019,38 @@ function applyLuck(c, luck) {
   c.items.forEach(s => { s.ch /= tot; });
   c.luck = luck;
 }
+/* кейсы, созданные в админ-панели (таблица custom_cases): шансы заданы явно, картинка — из хранилища */
+function addCustomCase(r) {
+  const items = (r.items || []).map(it => SK[it.n] && { s: SK[it.n], ch: +it.ch }).filter(x => x && x.ch > 0);
+  if (items.length < 2) return null;
+  const tot = items.reduce((a, x) => a + x.ch, 0), fwRaw = items.map(x => Math.sqrt(x.ch / tot)), fs = fwRaw.reduce((a, b) => a + b, 0);
+  const c = { id: r.id, name: r.name, price: +r.price, img: r.img, th: { a: r.accent || '#f5c76b' }, custom: true, sub: r.sub || '', tag: 'Новинка', tagIc: 'star',
+    items: items.map((x, i) => ({ ...x.s, ch: x.ch / tot, fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p) };
+  c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
+  c.show = c.items.slice(0, 3).map(s => s.name);
+  const i = CASES.findIndex(x => x.id === c.id); if (i >= 0) CASES.splice(i, 1);
+  CASES.push(c); CASES.sort((a, b) => a.price - b.price);
+  CASE_BLOCKS.forEach(b => { b.ids = b.ids.filter(x => x !== c.id); });
+  const bl = CASE_BLOCKS.find(b => b.id === r.block && !b.rc) || CASE_BLOCKS[0]; bl.ids.push(c.id);
+  const ni = NEW_CASES.indexOf(c.id); if (ni >= 0) NEW_CASES.splice(ni, 1);
+  if (r.is_new) NEW_CASES.unshift(c.id);
+  return c;
+}
+let customCaseRows = [];
+async function loadCustomCases() {
+  if (!sb) return;
+  const { data, error } = await sb.from('custom_cases').select('*').order('created_at');
+  if (error || !data) return;
+  customCaseRows = data;
+  data.forEach(addCustomCase);
+  // открыта страница нового кейса по прямой ссылке — до загрузки его не было
+  if (location.hash.startsWith('#/case/') && !$('#cc') && !spinning) route();
+}
+function removeCustomCase(id) {
+  const i = CASES.findIndex(x => x.id === id && x.custom); if (i >= 0) CASES.splice(i, 1);
+  CASE_BLOCKS.forEach(b => { b.ids = b.ids.filter(x => x !== id); });
+  const ni = NEW_CASES.indexOf(id); if (ni >= 0) NEW_CASES.splice(ni, 1);
+}
 async function loadCaseSettings() {
   if (!sb) return;
   const { data, error } = await sb.from('case_settings').select('id, disabled, luck');
@@ -3040,7 +3075,7 @@ async function logout() {
 // при загрузке сайта: восстанавливаем вход; старый локальный аккаунт (без базы) — выходим из него
 function sbInit() {
   if (!sb) return;
-  loadCaseSettings();
+  loadCustomCases().then(loadCaseSettings);
   sb.auth.getSession().then(({ data }) => {
     if (data.session) sbLoadProfile(data.session);
     else if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); }
@@ -3540,7 +3575,7 @@ async function admDash(box) {
       ${kpi('Сумма пополнений', money(dep), 'за всё время · тестовые', '#4ade80', ic.wallet || ic.coin)}
       ${kpi('Выведено в Steam', money(out), `${fmt(outN)} предм.`, '#f472b6', ic.steam)}
       ${kpi('Чистая прибыль', (profit < 0 ? '−' : '') + money(Math.abs(profit)), 'пополнения − выведено − балансы − скины игроков', profit >= 0 ? '#4ade80' : '#ff5d5d', ic.trend, profit >= 0 ? 'pos' : 'neg')}
-      <div class="adm-kpi best" style="--ac:#f5c76b">${best ? `<img src="${best.c.img.replace(/\.webp$/, '-s.webp')}" alt=""><span class="ak-t">Самый дающий кейс</span><b>${esc(best.c.name)}</b><small>отдаёт ${pctS(best.rtp)} · открыт ${fmt(best.n)} раз${best.est ? ' · оценка' : ''}</small>` : `<span class="ak-ic">${ic.box}</span><span class="ak-t">Самый дающий кейс</span><b>—</b><small>пока нет открытий</small>`}</div>
+      <div class="adm-kpi best" style="--ac:#f5c76b">${best ? `<img src="${caseThumb(best.c)}" alt=""><span class="ak-t">Самый дающий кейс</span><b>${esc(best.c.name)}</b><small>отдаёт ${pctS(best.rtp)} · открыт ${fmt(best.n)} раз${best.est ? ' · оценка' : ''}</small>` : `<span class="ak-ic">${ic.box}</span><span class="ak-t">Самый дающий кейс</span><b>—</b><small>пока нет открытий</small>`}</div>
     </div>
     <div class="adm-tiles">
       ${tile('Игроков', fmt(s.users), `+${fmt(s.new24)} за сутки`, '#f5c76b')}
@@ -3561,7 +3596,7 @@ async function admDash(box) {
     </div>
     <div class="adm-panel"><div class="adm-ph"><h3>Кейсы: сколько отдают</h3><p>Факт по открытиям игроков: «отдаёт» = стоимость выпавшего ÷ потрачено. Больше 100% — кейс в минусе для сайта.</p></div>
       ${rows.length ? `<div class="adm-ct"><div class="act-h"><span>Кейс</span><span>Открыто</span><span>Потрачено</span><span>Выдано</span><span>Отдаёт</span><span>Прибыль</span></div>
-        ${rows.map(r => `<div class="act-r"><span class="act-c"><img src="${r.c.img.replace(/\.webp$/, '-s.webp')}" alt="">${esc(r.c.name)}${r.est ? '<em>оценка</em>' : ''}</span><span>${fmt(r.n)}</span><span>${money(r.spent)}</span><span>${money(r.won)}</span>
+        ${rows.map(r => `<div class="act-r"><span class="act-c"><img src="${caseThumb(r.c)}" alt="">${esc(r.c.name)}${r.est ? '<em>оценка</em>' : ''}</span><span>${fmt(r.n)}</span><span>${money(r.spent)}</span><span>${money(r.won)}</span>
           <span class="act-rtp ${r.rtp > 1 ? 'neg' : ''}"><i style="width:${Math.min(100, r.rtp * 50).toFixed(0)}%"></i>${pctS(r.rtp)}</span><span class="${r.spent - r.won < 0 ? 'neg' : 'pos'}">${(r.spent - r.won < 0 ? '−' : '+') + money(Math.abs(r.spent - r.won))}</span></div>`).join('')}</div>`
         : '<div class="empty">Пока нет открытий</div>'}</div>`;
 }
@@ -3617,6 +3652,33 @@ async function admStatsLoad(f, t) {
       <div class="adm-tile" style="--ac:#22d3ee"><span>Начислено админом</span><b>${money(+T.grants)}</b><small>за период</small></div>
       <div class="adm-tile" style="--ac:#a78bfa"><span>Средний чек</span><b>${T.depN ? money(+T.dep / T.depN) : '—'}</b><small>на одно пополнение</small></div>
       <div class="adm-tile" style="--ac:#facc15"><span>Прибыль с кейсов</span><b>${(+T.spent - +T.won < 0 ? '−' : '') + money(Math.abs(+T.spent - +T.won))}</b><small>потрачено − выдано</small></div>
+    </div>
+    <div id="astUpg"><div class="adm-load"><span class="spinner"></span>Апгрейд…</div></div>`;
+  admUpgLoad(f, t, hours, lbl);
+}
+/* апгрейд за период: сколько, % побед, ставки и выдано, прибыль, по множителям */
+async function admUpgLoad(f, t, hours, lbl) {
+  const { data: d, error } = await sb.rpc('admin_upg', { p_from: f.toISOString(), p_to: t.toISOString(), p_bucket: hours ? 'hour' : 'day' });
+  const box = $('#astUpg'); if (!box) return;
+  if (error) return (box.innerHTML = `<h3 class="ast-h">${ic.up}Апгрейд</h3>` + admErr(error) + '<div class="empty" style="margin-top:8px">Запустите supabase/admin2.sql в Supabase.</div>');
+  const T = d.total, S = d.series || [], pr = +T.stake - +T.won, wr = T.n ? T.wins / T.n : 0;
+  const kpi = (t_, v, sub, ac, cls = '') => `<div class="adm-kpi ${cls}" style="--ac:${ac}"><span class="ak-t">${t_}</span><b>${v}</b><small>${sub}</small></div>`;
+  const band = lo => lo === 20 ? 'x20+' : `x${String(lo).replace('.', ',')}–${{ 1: '1,5', 1.5: '2', 2: '3', 3: '5', 5: '10', 10: '20' }[lo]}`;
+  box.innerHTML = `<h3 class="ast-h">${ic.up}Апгрейд</h3>
+    <div class="adm-kpis">
+      ${kpi('Апгрейдов', fmt(T.n), `${fmt(T.players)} игроков · средний множитель ×${String(T.avgX).replace('.', ',')}`, '#22d3ee')}
+      ${kpi('Побед', pctS(wr), `${fmt(T.wins)} успешных из ${fmt(T.n)}`, '#4ade80')}
+      ${kpi('Поставлено / выдано', money(+T.stake), `выдано скинов на ${money(+T.won)}${+T.stake ? ' · отдаёт ' + pctS(+T.won / +T.stake) : ''}`, '#f5c76b')}
+      ${kpi('Прибыль с апгрейда', (pr < 0 ? '−' : '') + money(Math.abs(pr)), `крупнейший выигрыш ${money(+T.maxWin)}${+T.maxX ? ' · ×' + (+T.maxX).toFixed(1).replace('.', ',') : ''}`, pr >= 0 ? '#4ade80' : '#ff5d5d', pr >= 0 ? 'pos' : 'neg')}
+    </div>
+    <div class="adm-grid2">
+      <div class="adm-panel"><div class="adm-ph"><h3>Апгрейд по ${hours ? 'часам' : 'дням'}</h3><div class="ast-leg"><i style="--c:#f5c76b"></i>поставлено<i style="--c:#4ade80"></i>выдано</div></div>
+        ${admBars(S, [['stake', '#f5c76b'], ['won', '#4ade80']], lbl)}</div>
+      <div class="adm-panel"><div class="adm-ph"><h3>По множителям</h3></div>
+        ${(d.byX || []).length ? `<div class="adm-ct"><div class="act-h aux"><span>Множитель</span><span>Попыток</span><span>Побед</span><span>Отдаёт</span><span>Прибыль</span></div>
+          ${d.byX.map(r => { const p = +r.stake - +r.won, rt = +r.stake ? +r.won / +r.stake : 0; return `<div class="act-r aux"><span class="act-c">${band(+r.lo)}</span><span>${fmt(r.n)}</span><span>${pctS(r.n ? r.wins / r.n : 0)}</span>
+            <span class="act-rtp ${rt > 1 ? 'neg' : ''}"><i style="width:${Math.min(100, rt * 50).toFixed(0)}%"></i>${pctS(rt)}</span><span class="${p < 0 ? 'neg' : 'pos'}">${(p < 0 ? '−' : '+') + money(Math.abs(p))}</span></div>`; }).join('')}</div>`
+          : '<div class="empty">Нет апгрейдов за период</div>'}</div>
     </div>`;
 }
 // линейный график (SVG): несколько рядов
@@ -3645,8 +3707,8 @@ function admCases(box) {
   const row = c => {
     const l = c.luck || 1;
     return `<div class="adm-case${c.disabled ? ' off' : ''}" data-id="${c.id}">
-      <img src="${c.img ? c.img.replace(/\.webp$/, '-s.webp') : ''}" alt="" loading="lazy">
-      <div class="ac-n"><b>${esc(c.name)}</b><span>${c.rc ? c.price + " R-COIN" : money(c.price)} · ${c.items.length} предм.</span></div>
+      <img src="${caseThumb(c)}" alt="" loading="lazy">
+      <div class="ac-n"><b>${esc(c.name)}${c.custom ? ' <i class="ac-own">из панели</i>' : ''}</b><span>${c.rc ? c.price + " R-COIN" : money(c.price)} · ${c.items.length} предм.</span>${c.custom ? `<span class="ac-acts"><button class="ac-edit">${ic.edit || '✎'}Изменить</button><button class="ac-del">Удалить</button></span>` : ''}</div>
       <div class="ac-m"><span>Окупаемость</span><b class="ac-rtp">${pctS(caseRtp(c))}</b></div>
       <div class="ac-m"><span>Дороже кейса</span><b class="ac-win">${pctS(caseWin(c))}</b></div>
       <div class="ac-luck"><span>Удача <b class="ac-lv">×${l.toFixed(2)}</b></span><input type="range" min="0.5" max="3" step="0.05" value="${l}" class="ac-r"></div>
@@ -3654,10 +3716,18 @@ function admCases(box) {
       <button class="btn btn-primary btn-sm ac-save" disabled>Сохранить</button>
     </div>`;
   };
-  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><p>«Удача» умножает шанс всех предметов дороже кейса (остальные — пропорционально реже). Окупаемость пересчитывается сразу; у игроков — после обновления страницы.</p></div>
+  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><button class="btn btn-primary btn-sm" id="acNew">${ic.plus}Создать кейс</button><p>«Удача» умножает шанс всех предметов дороже кейса (остальные — пропорционально реже). Окупаемость пересчитывается сразу; у игроков — после обновления страницы.</p></div>
     <div class="adm-cases">${CASES.map(row).join('')}</div></div>`;
+  $('#acNew', box).onclick = () => admCaseEditor(null, () => admCases(box));
   $$('.adm-case', box).forEach(el => {
     const c = caseById(el.dataset.id), r = $('.ac-r', el), sw = $('.ac-open', el), save = $('.ac-save', el);
+    const ed = $('.ac-edit', el); if (ed) ed.onclick = () => admCaseEditor(customCaseRows.find(x => x.id === c.id), () => admCases(box));
+    const dl = $('.ac-del', el); if (dl) dl.onclick = async () => {
+      if (!confirm(`Удалить кейс «${c.name}»? Игроки больше не смогут его открыть (уже выпавшие скины останутся).`)) return;
+      const { error } = await sb.from('custom_cases').delete().eq('id', c.id);
+      if (error) return toast('Не удалено: ' + error.message, 'err');
+      removeCustomCase(c.id); customCaseRows = customCaseRows.filter(x => x.id !== c.id); toast(`Кейс «${esc(c.name)}» удалён`); admCases(box);
+    };
     const preview = () => {
       const was = c.luck || 1; applyLuck(c, +r.value);
       $('.ac-lv', el).textContent = '×' + (+r.value).toFixed(2); $('.ac-rtp', el).textContent = pctS(caseRtp(c)); $('.ac-win', el).textContent = pctS(caseWin(c));
@@ -3676,6 +3746,111 @@ function admCases(box) {
       toast(`«${esc(c.name)}»: ${c.disabled ? 'закрыт' : 'открыт'}, удача ×${(+r.value).toFixed(2)}, окупаемость ${pctS(caseRtp(c))}`);
     };
   });
+}
+/* ---------- редактор кейса: создание / изменение кейса прямо из панели ---------- */
+function admCaseEditor(row, done) {
+  const edit = !!row;
+  const E = { id: row ? row.id : '', name: row ? row.name : '', price: row ? +row.price : 100, img: row ? row.img : '', accent: row ? row.accent : '#f5c76b',
+    block: row ? row.block : 'pop', isNew: row ? row.is_new : true, sub: row ? row.sub || '' : '', rtp: 80,
+    items: row ? row.items.filter(it => SK[it.n]).map(it => ({ n: SK[it.n].name, ch: +it.ch * 100 })).filter((x, i, A) => A.findIndex(y => y.n === x.n) === i) : [] };
+  const blocks = CASE_BLOCKS.filter(b => !b.rc);
+  const m = modal(`<div class="ced">
+    <h2>${edit ? 'Изменить кейс' : 'Новый кейс'}</h2>
+    <div class="ced-grid">
+      <div class="ced-left">
+        <label class="ced-img" id="cedImgBox">${E.img ? `<img src="${esc(E.img)}" alt="">` : `<span>${ic.plus}Загрузить картинку<small>PNG/WebP с прозрачным фоном</small></span>`}<input type="file" id="cedFile" accept="image/png,image/webp,image/jpeg" hidden></label>
+        <div class="field"><label>Или ссылка на картинку</label><input class="inp" id="cedImg" value="${esc(E.img)}" placeholder="https://…"></div>
+      </div>
+      <div class="ced-right">
+        <div class="row2"><div class="field"><label>ID (латиница)</label><input class="inp" id="cedId" value="${esc(E.id)}" placeholder="my_case" ${edit ? 'disabled' : ''}></div>
+          <div class="field"><label>Название</label><input class="inp" id="cedName" value="${esc(E.name)}" placeholder="ЗОЛОТОЙ ДРАКОН" maxlength="30"></div></div>
+        <div class="row2"><div class="field"><label>Цена, ₽</label><input class="inp" id="cedPrice" type="number" min="1" step="1" value="${E.price}"></div>
+          <div class="field"><label>Раздел</label><select class="inp" id="cedBlock">${blocks.map(b => `<option value="${b.id}"${b.id === E.block ? ' selected' : ''}>${b.t}</option>`).join('')}</select></div></div>
+        <div class="row2"><div class="field"><label>Цвет подсветки</label><input class="inp ced-color" id="cedAccent" type="color" value="${esc(E.accent)}"></div>
+          <label class="check ced-new"><input type="checkbox" id="cedNew"${E.isNew ? ' checked' : ''}><span>Метка «НОВОЕ»</span></label></div>
+        <div class="field"><label>Описание (необязательно)</label><input class="inp" id="cedSub" value="${esc(E.sub)}" maxlength="140" placeholder="Например: только ножи от 5 000 ₽"></div>
+      </div>
+    </div>
+    <div class="ced-items">
+      <div class="ced-ih"><h3>Предметы</h3><div class="search"><input class="inp" id="cedQ" placeholder="Найти скин в каталоге: AK-47, Karambit, Азимов…" autocomplete="off">${ic.search}</div></div>
+      <div class="ced-found" id="cedFound"></div>
+      <div class="ced-list" id="cedList"></div>
+      <div class="ced-sum" id="cedSum"></div>
+    </div>
+    <div class="ced-foot"><button class="btn btn-ghost" id="cedCancel">Отмена</button><button class="btn btn-primary btn-lg" id="cedSave">${edit ? 'Сохранить изменения' : 'Создать кейс'}</button></div>
+  </div>`, 'm-ced');
+  const v = id => $('#' + id, m);
+  const price = () => +v('cedPrice').value || 0;
+  // поиск скинов по каталогу
+  v('cedQ').oninput = () => {
+    const q = v('cedQ').value.trim().toLowerCase(), box = v('cedFound');
+    if (q.length < 2) return (box.innerHTML = '');
+    const res = UPG_CAT.filter(s => s.name.toLowerCase().includes(q) && !E.items.some(x => x.n === s.name)).slice(0, 24);
+    box.innerHTML = res.length ? res.map(s => `<button class="ced-fi r-${s.r}" data-n="${esc(s.name)}"><img src="${imgUrl(s, 's')}" alt=""><span>${esc(s.name)}</span><b>${money(s.p)}</b></button>`).join('') : '<div class="empty">Ничего не найдено</div>';
+    $$('[data-n]', box).forEach(b => b.onclick = () => { E.items.push({ n: b.dataset.n, ch: 0 }); b.remove(); draw(); });
+  };
+  const draw = () => {
+    E.items.sort((a, b) => SK[b.n].p - SK[a.n].p);
+    v('cedList').innerHTML = E.items.length ? `<div class="ced-row ced-h"><span>Предмет</span><span>Цена</span><span>Шанс, %</span><span></span></div>` + E.items.map((it, i) => { const s = SK[it.n]; return `<div class="ced-row r-${s.r}${s.p >= price() ? ' up' : ''}">
+      <span class="ced-it"><img src="${imgUrl(s, 's')}" alt="">${esc(s.name)}</span><b>${money(s.p)}</b>
+      <input class="inp" type="number" min="0" step="0.001" value="${+(+it.ch).toFixed(4)}" data-i="${i}"><button class="ced-x" data-x="${i}" title="Убрать">×</button></div>`; }).join('')
+      : '<div class="empty">Добавьте предметы через поиск выше (минимум 3)</div>';
+    $$('[data-i]', m).forEach(inp => inp.oninput = () => { E.items[+inp.dataset.i].ch = +inp.value || 0; sum(); });
+    $$('[data-x]', m).forEach(b => b.onclick = () => { E.items.splice(+b.dataset.x, 1); draw(); });
+    sum();
+  };
+  const sum = () => {
+    const tot = E.items.reduce((a, x) => a + x.ch, 0), p = price();
+    const ev = tot ? E.items.reduce((a, x) => a + x.ch / tot * SK[x.n].p, 0) : 0, win = tot ? E.items.reduce((a, x) => a + (SK[x.n].p >= p ? x.ch / tot : 0), 0) : 0;
+    const rtp = p ? ev / p : 0;
+    v('cedSum').innerHTML = `<div class="ced-auto"><span>Окупаемость</span><input class="inp" id="cedRtp" type="number" min="10" max="150" step="1" value="${E.rtp}"><span>%</span><button class="btn btn-dark btn-sm" id="cedCalc">Рассчитать шансы</button></div>
+      <div class="ced-m"><span>Сумма шансов</span><b class="${Math.abs(tot - 100) > .01 ? 'warn' : ''}">${tot.toFixed(3).replace('.', ',')}%</b></div>
+      <div class="ced-m"><span>Окупаемость</span><b class="${rtp > 1 ? 'neg' : ''}">${tot ? pctS(rtp) : '—'}</b></div>
+      <div class="ced-m"><span>Дороже кейса</span><b>${tot ? pctS(win) : '—'}</b></div>`;
+    v('cedRtp').oninput = () => { E.rtp = +v('cedRtp').value || 80; };
+    v('cedCalc').onclick = () => {
+      if (E.items.length < 2) return toast('Добавьте хотя бы 2 предмета', 'err');
+      const its = E.items.map(x => SK[x.n]), target = price() * E.rtp / 100;
+      if (target < Math.min(...its.map(s => s.p)) || target > Math.max(...its.map(s => s.p))) return toast('Такую окупаемость не получить из этих предметов — добавьте дешевле или дороже', 'err');
+      const ch = solveChances(its, target); E.items.forEach((x, i) => { x.ch = ch[i] * 100; }); draw();
+    };
+  };
+  v('cedPrice').oninput = draw;
+  // картинка: загрузка в хранилище Supabase или ссылка
+  const setImg = url => { E.img = url; v('cedImg').value = url; v('cedImgBox').innerHTML = `<img src="${esc(url)}" alt=""><input type="file" id="cedFile" accept="image/png,image/webp,image/jpeg" hidden>`; bindFile(); };
+  const bindFile = () => { v('cedFile').onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    if (file.size > 5e6) return toast('Картинка больше 5 МБ', 'err');
+    const box = v('cedImgBox'); box.classList.add('busy');
+    const path = `${(v('cedId').value || 'case').replace(/[^a-z0-9_-]/gi, '')}-${Date.now()}.${(file.name.split('.').pop() || 'png').toLowerCase()}`;
+    const { error } = await sb.storage.from('case-img').upload(path, file, { upsert: true, contentType: file.type });
+    box.classList.remove('busy');
+    if (error) return toast('Не загружено: ' + error.message, 'err');
+    setImg(sb.storage.from('case-img').getPublicUrl(path).data.publicUrl);
+  }; };
+  bindFile();
+  v('cedImg').onchange = () => { const u = v('cedImg').value.trim(); if (u) setImg(u); };
+  v('cedCancel').onclick = closeModal;
+  v('cedSave').onclick = async () => {
+    const id = v('cedId').value.trim().toLowerCase(), name = v('cedName').value.trim(), p = price(), tot = E.items.reduce((a, x) => a + x.ch, 0);
+    if (!/^[a-z0-9_-]{2,32}$/.test(id)) return toast('ID: 2–32 символа, латиница, цифры, _ и -', 'err');
+    if (!edit && caseById(id)) return toast('Кейс с таким ID уже есть', 'err');
+    if (!name) return toast('Введите название', 'err');
+    if (!(p > 0)) return toast('Введите цену', 'err');
+    if (!E.img) return toast('Добавьте картинку кейса', 'err');
+    if (E.items.length < 3) return toast('Нужно минимум 3 предмета', 'err');
+    if (!(tot > 0) || E.items.some(x => !(x.ch > 0))) return toast('У каждого предмета должен быть шанс больше 0 — или нажмите «Рассчитать шансы»', 'err');
+    const rec = { id, name, price: p, img: E.img, accent: v('cedAccent').value, block: v('cedBlock').value, is_new: v('cedNew').checked, sub: v('cedSub').value.trim() || null,
+      items: E.items.map(x => ({ n: x.n, ch: Math.round(x.ch / tot * 1e8) / 1e8 })), updated_at: new Date().toISOString() };
+    const b = v('cedSave'); b.disabled = true; b.innerHTML = '<span class="spinner"></span>Сохраняем…';
+    const { error } = await sb.from('custom_cases').upsert(rec);
+    if (error) { b.disabled = false; b.textContent = edit ? 'Сохранить изменения' : 'Создать кейс'; return toast('Не сохранено: ' + error.message, 'err'); }
+    customCaseRows = customCaseRows.filter(x => x.id !== id).concat(rec);
+    const c = addCustomCase(rec);
+    const st_ = (await sb.from('case_settings').select('disabled, luck').eq('id', id).maybeSingle()).data; if (c && st_) { c.disabled = st_.disabled; applyLuck(c, +st_.luck || 1); }
+    closeModal(); toast(`Кейс «${esc(name)}» ${edit ? 'обновлён' : 'создан'} — уже на сайте`); done && done();
+  };
+  draw();
 }
 /* ---------- игроки: поиск, начисление баланса ---------- */
 let admQ = '';
