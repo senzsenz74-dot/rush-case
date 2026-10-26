@@ -2770,17 +2770,8 @@ body{background:
   url("../assets/bg-hd.webp") center top/var(--bgw) auto no-repeat,
   url("../assets/bg-hd2.webp") center var(--bgh)/var(--bgw) auto repeat-y,
   #050403}
-/* AVIF — без квадратов сжатия в тёмных местах (webp оставлен для старых браузеров) */
-body{background-image:
-  linear-gradient(180deg,transparent,rgba(5,4,3,.85) 50%,transparent),
-  linear-gradient(180deg,rgba(5,4,3,.1),rgba(5,4,3,.3) 75%,rgba(5,4,3,.55)),
-  image-set(url("../assets/bg-hd.avif") type("image/avif"),url("../assets/bg-hd.webp") type("image/webp")),
-  image-set(url("../assets/bg-hd2.avif") type("image/avif"),url("../assets/bg-hd2.webp") type("image/webp"))}
 body::before{display:none}
-/* поверх фона — векторное зерно (SVG-шум рисуется в разрешении экрана, не «пикселит») и затемнение краёв */
-.fx{background:
-  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .9 0 0 0 0 .75 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") 0 0/180px 180px,
-  radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.5) 100%)}
+.fx{background:radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.5) 100%)}
 .fx-cv{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block}
 
 /* ===== окно входа v2: арт слева, форма с плавающими подписями и анимациями ===== */
