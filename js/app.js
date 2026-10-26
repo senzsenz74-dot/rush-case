@@ -3091,8 +3091,8 @@ function openAuth(tab = 'login') {
   };
   const busy = (f, on) => { const b = $('.au-go', f); if (b) { b.disabled = on; b.classList.toggle('busy', on); } };
   $$('#authTabs button', m).forEach(b => b.onclick = () => { if (b.dataset.tab !== tab) draw(b.dataset.tab); });
-  // вход через Steam требует своего сервера (OpenID) — пока только e-mail
-  $('#steamBtn', m).onclick = () => toast('Вход через Steam появится в ближайшее время — пока войдите по e-mail', 'info');
+  // вход через Steam: серверная функция Supabase steam-auth (OpenID) → обратно на сайт с одноразовым токеном
+  $('#steamBtn', m).onclick = () => { const b = $('#steamBtn', m); b.classList.add('busy'); $('.au-steam-t', b).innerHTML = '<b>Переход в Steam…</b><small>войдите на странице Steam</small>'; location.href = SB_URL + '/functions/v1/steam-auth?start=1&ret=' + encodeURIComponent(location.origin + location.pathname); };
   draw(tab, true);
 }
 /* аккаунты — в базе Supabase: вход по e-mail, профиль игрока хранится на сервере */
@@ -3105,7 +3105,7 @@ async function sbLoadProfile(session) {
   Object.assign(st, freshProfile(), p.data || {});
   st.stats = Object.assign(freshProfile().stats, st.stats || {});
   st.inv.forEach(x => { x.n = fixName(x.n); });
-  st.user = { id: session.user.id, rid: session.user.id.slice(0, 8), name: p.name, email: session.user.email, ava: p.ava || null, reg: Date.parse(p.created_at), via: 'email', key: 'sb', sb: true, admin: !!p.is_admin, pid: p.pid || null, luck: +p.luck || 1 };
+  st.user = { id: session.user.id, rid: session.user.id.slice(0, 8), name: p.name, email: session.user.email, ava: p.ava || null, reg: Date.parse(p.created_at), via: p.steamid ? 'steam' : 'email', steamid: p.steamid || null, key: 'sb', sb: true, admin: !!p.is_admin, pid: p.pid || null, luck: +p.luck || 1 };
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
   renderUser(); route();
   jpClaim(false); jpResolveMine(); claimGrants();
@@ -3201,6 +3201,11 @@ async function logout() {
 // при загрузке сайта: восстанавливаем вход; старый локальный аккаунт (без базы) — выходим из него
 function sbInit() {
   if (!sb) return;
+  // возврат со входа через Steam: ?steam_token=… → сессия; ?steam_error=… → сообщение
+  const qs = new URLSearchParams(location.search), stTok = qs.get('steam_token'), stErr = qs.get('steam_error');
+  if (stTok || stErr) history.replaceState(null, '', location.pathname + location.hash);
+  if (stErr) setTimeout(() => toast(stErr === 'cancel' ? 'Вход через Steam отменён' : 'Не удалось войти через Steam — попробуйте ещё раз', 'err'), 600);
+  if (stTok) { sb.auth.verifyOtp({ token_hash: stTok, type: 'magiclink' }).then(({ data, error }) => { if (error || !data.session) return toast('Не удалось войти через Steam: ' + (error ? error.message : 'нет сессии'), 'err'); sbLoadProfile(data.session).then(ok => ok && afterLogin(false)); }); }
   loadCustomCases().then(loadCaseSettings);
   sb.auth.getSession().then(({ data }) => {
     if (data.session) sbLoadProfile(data.session);
