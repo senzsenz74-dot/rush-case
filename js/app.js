@@ -2745,7 +2745,6 @@ function pageBonus() {
     <div class="page-head bn-head"><div><h1>Бонусы</h1><p>Бесплатный баланс каждый день, промокоды и награды за подписки.</p></div><div class="bn-ready" id="bnReady"></div></div>
     <div class="bn-grid">
       <article class="bn-card bn-daily">
-        <img class="bn-soldier" src="assets/soldier.png" alt="" aria-hidden="true">
         <header class="bn-h"><span class="bn-ic gold">${ic.gift}</span><div><h3>Ежедневный бонус</h3><p>Раз в 24 часа — от 5 до 250 ₽ на баланс</p></div></header>
         <div class="daily-reel bn-reel"><div class="strip" id="dailyStrip"><div class="track">${Array.from({ length: 12 }, () => coinCard(pickDaily())).join('')}</div></div><div class="rl-marker"></div></div>
         <div class="bn-act">

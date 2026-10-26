@@ -3199,7 +3199,6 @@ html{overflow-x:clip}
 .bn-ic.gold{background:var(--g-gold);color:var(--ink);border:0;box-shadow:0 12px 26px -12px rgba(245,199,107,.8)}
 /* ежедневный */
 .bn-daily{border-color:rgba(245,199,107,.3);background:radial-gradient(70% 55% at 88% 0%,rgba(245,199,107,.2),transparent 70%),radial-gradient(60% 50% at 0% 100%,rgba(214,120,40,.14),transparent 70%),linear-gradient(180deg,#151311,#0a0908);box-shadow:0 40px 80px -50px rgba(245,199,107,.45)}
-.bn-soldier{position:absolute;right:14px;top:6px;height:118px;z-index:0;opacity:.95;filter:drop-shadow(0 10px 20px rgba(0,0,0,.6));pointer-events:none}
 .bn-reel{margin:0 0 20px;padding:10px 0;border-radius:20px;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.3));border:1px solid rgba(245,199,107,.18);box-shadow:inset 0 10px 30px rgba(0,0,0,.5)}
 .bn-reel .coin-card{flex-basis:118px;height:118px;border-radius:16px}
 .bn-reel .coin-card .coin{width:48px;height:48px;font-size:16px}
@@ -3264,8 +3263,7 @@ html{overflow-x:clip}
 @media (max-width:760px){
   .bn-side{grid-template-columns:1fr}
   .bn-card{padding:20px 16px;border-radius:20px}
-  .bn-soldier{height:84px;right:6px;top:4px}
-  .bn-h{padding-right:70px}
+
   .bn-side .bn-h{padding-right:0}
   .bn-act .btn{min-width:0;width:100%}
   .bn-odds{grid-template-columns:repeat(4,1fr)}
@@ -3279,5 +3277,4 @@ html{overflow-x:clip}
 .bn-facts div{padding:14px 16px;border-radius:14px;background:rgba(0,0,0,.25);border:1px solid var(--stroke)}
 .bn-facts span{display:block;font-size:11px;font-weight:800;color:var(--txt3);text-transform:uppercase;letter-spacing:.1em}
 .bn-facts b{display:block;font:800 18px var(--ff-h);margin-top:4px;background:var(--g-gold-txt);-webkit-background-clip:text;background-clip:text;color:transparent}
-.bn-soldier{height:96px;top:2px}
-@media (max-width:760px){.bn-facts{grid-template-columns:1fr 1fr 1fr;gap:6px}.bn-facts div{padding:10px}.bn-facts b{font-size:14px}.bn-soldier{height:76px}}
+@media (max-width:760px){.bn-facts{grid-template-columns:1fr 1fr 1fr;gap:6px}.bn-facts div{padding:10px}.bn-facts b{font-size:14px}}
