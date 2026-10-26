@@ -648,6 +648,7 @@ const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'stats', 'daily', 'promos'
 let sbSaveT = 0;
 // профиль пишется в базу с задержкой (пачкой), локально — сразу
 async function sbPush() {
+  return; // профиль (баланс, инвентарь, бонусы) меняет только сервер — см. supabase/server.sql
   clearTimeout(sbSaveT);
   if (!sb || !st.user || !st.user.sb) return;
   const data = {}; PROF_KEYS.forEach(k => { data[k] = st[k]; }); data.rlog = (st.rlog || []).slice(0, 60);
@@ -656,8 +657,34 @@ async function sbPush() {
 }
 const save = () => {
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
-  if (sb && st.user && st.user.sb) { clearTimeout(sbSaveT); sbSaveT = setTimeout(sbPush, 1200); }
 };
+/* ответ сервера → состояние сайта: баланс (с анимацией), R-COIN, инвентарь, статистика, бонусы */
+function sbApply(d) {
+  if (!d) return;
+  const bal = +d.balance || 0;
+  PROF_KEYS.forEach(k => { if (k !== 'balance' && d[k] !== undefined) st[k] = d[k]; });
+  st.stats = Object.assign(freshProfile().stats, st.stats || {});
+  st.inv.forEach(x => { x.n = fixName(x.n); });
+  setBalance(bal);
+  const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin || 0);
+}
+const SRV_ERR = { 'not enough balance': 'Недостаточно средств', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
+  'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку',
+  'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка',
+  'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
+// вызов серверной функции: при ошибке — понятное сообщение и null
+async function srv(fn, args) {
+  if (!sb || !st.user || !st.user.sb) { toast('Войдите в аккаунт', 'err'); return null; }
+  const { data, error } = await sb.rpc(fn, args || {});
+  if (error) { const k = Object.keys(SRV_ERR).find(k => error.message.includes(k)); toast(k ? SRV_ERR[k] : 'Ошибка сервера: ' + error.message, 'err'); return null; }
+  if (data && data.data) sbApply(data.data);
+  return data || {};
+}
+async function sbRefresh() {
+  if (!sb || !st.user || !st.user.sb) return;
+  const { data } = await sb.from('profiles').select('data, luck').eq('id', st.user.id).maybeSingle();
+  if (data) { sbApply(Object.assign(freshProfile(), data.data || {})); if (data.luck != null) st.user.luck = +data.luck; }
+}
 addEventListener('visibilitychange', () => { if (document.hidden) sbPush(); });
 /* журнал для статистики админки: пульс онлайна (раз в 2 мин с открытой вкладки), пополнения, выводы, открытия кейсов */
 const SID = (() => { try { let s = sessionStorage.getItem('rc.sid'); if (!s) { s = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); sessionStorage.setItem('rc.sid', s); } return s; } catch (e) { return 'x' + Math.random().toString(36).slice(2, 12); } })();
@@ -681,14 +708,15 @@ function giveItem(s, from) {
   if (!st.stats.best || !SK[st.stats.best] || s.p > SK[st.stats.best].p) st.stats.best = s.name;
   return it;
 }
-function sellItem(id, silent) {
-  const it = st.inv.find(x => x.id === id);
-  if (!it || it.st !== 'own') return 0;
-  it.st = 'sold'; const p = SK[it.n].p;
-  setBalance(st.balance + p);
+async function sellItems(ids, silent) {
+  ids = ids.filter(id => { const it = st.inv.find(x => x.id === id); return it && it.st === 'own'; });
+  if (!ids.length) return 0;
+  const r = await srv('sell_items', { p_ids: ids }); if (!r) return 0;
+  const p = +r.sum || 0;
   if (!silent) { Snd.coin(); toast(`Продано: <b>+${money(p)}</b>`); }
   return p;
 }
+const sellItem = (id, silent) => sellItems([id], silent);
 
 /* ---------- sound (WebAudio, без файлов) ---------- */
 const Snd = {
@@ -1206,7 +1234,7 @@ async function liveSync() {
 // свой дроп: сразу в ленту и в базу — его увидят все
 function liveMine(d) {
   pushLive({ ...d, u: st.user.name, mine: true, ts: liveNow() });
-  if (sb && st.user && st.user.sb) sb.from('live_drops').insert({ uid: st.user.id, name: st.user.name, n: d.n, t: d.t || 'case', c: d.c || null, x: d.x ? Math.round(d.x * 100) / 100 : 0 }).then(() => {}, () => {});
+  if (false) sb.from('live_drops').insert({ uid: st.user.id, name: st.user.name, n: d.n, t: d.t || 'case', c: d.c || null, x: d.x ? Math.round(d.x * 100) / 100 : 0 }).then(() => {}, () => {});
 }
 
 /* ---------- background fx: фон-картинка с оружием (CSS) + частицы (пыль, угольки, искры из оружия) ---------- */
@@ -1734,24 +1762,20 @@ async function openCase(c, demo) {
     if (c.rc) { if ((st.rcoin || 0) < cost) return toast(`Не хватает ${rc(cost - (st.rcoin || 0))} R-COIN — они начисляются за открытия кейсов`, 'err'); }
     else if (st.balance < cost) return openDeposit(cost - st.balance);
   }
-  resetRoulette();
-  const pool = demo ? null : luckItems(c), wins = Array.from({ length: n }, () => demo ? rollDemo(c) : roll(pool));
-  wins.forEach(s => { new Image().src = imgUrl(s, 'l'); }); // большие картинки грузим, пока крутится рулетка
-  let given = [];
-  if (!demo) {
-    if (c.rc) spendRcoin(cost, `Кейс «${c.name}»${n > 1 ? ' ×' + n : ''}`); else setBalance(st.balance - cost);
-    // денежный дроп — сразу на баланс (в инвентарь не попадает)
-    given = wins.map(s => s.cash ? { id: uid(), n: s.name, st: 'cash' } : giveItem(s, c.id));
-    const cash = wins.reduce((a, s) => a + (s.cash || 0), 0); if (cash) setBalance(st.balance + cash);
-    st.stats.opened += n; if (!c.rc) st.stats.spent += cost;
-    // учёт по кейсу (для админки): открыто, потрачено, выдано (стоимость дропа)
-    const cs = (st.stats.cs = st.stats.cs || {}), k = cs[c.id] = cs[c.id] || { n: 0, spent: 0, won: 0 };
-    const wonV = wins.reduce((a, s) => a + (s.cash || s.p || 0), 0);
-    k.n += n; k.spent += cost; k.won += wonV;
-    save();
-    if (!c.rc) logEv('open', cost, wonV);
-    if (!c.rc) addRcoin(cost * RCOIN_RATE(c), `Кейс «${c.name}»${n > 1 ? ' ×' + n : ''}`);
+  let wins, given = [];
+  if (demo) wins = Array.from({ length: n }, () => rollDemo(c));
+  else {
+    // выпадение решает сервер: он же списывает деньги, выдаёт предметы, R-COIN и статистику
+    spinning = true;
+    const r = await srv('open_case', { p_case: c.id, p_n: n });
+    spinning = false;
+    if (!r) return;
+    wins = r.drops.map(d => SK[d.n]).filter(Boolean);
+    if (wins.length !== n) return toast('Ошибка выдачи — обновите страницу', 'err');
+    given = r.drops.map(d => d.cash ? { id: uid(), n: d.n, st: 'cash' } : (st.inv.find(x => x.id === d.id) || { id: d.id, n: d.n, st: 'own' }));
   }
+  resetRoulette();
+  wins.forEach(s => { new Image().src = imgUrl(s, 'l'); }); // большие картинки грузим, пока крутится рулетка
   spinning = true;
   const my = ++spinId;
   const rl = $('#rl'), box = $('#strips');
@@ -1897,7 +1921,7 @@ function showReveal(c, wins, given, demo) {
     </div>`).join('')}</div>`;
   $('#rl').classList.add('revealed');
   itemTilt($('#reveal'));
-  if (!demo) wins.forEach(s => liveMine({ n: s.name, c: c.id }));
+  if (!demo && !c.rc) wins.filter(s => !s.cash).forEach(s => liveMine({ n: s.name, c: c.id }));
   ccDone(c, wins, given, demo);
 }
 function ccDone(c, wins, given, demo) {
@@ -1920,12 +1944,12 @@ function ccDone(c, wins, given, demo) {
         </div>
         ${left ? '<div class="cc-note">Предметы уже в вашем <b>профиле</b> — их можно продать или вывести в Steam позже.</div>' : ''}`;
       const sa = $('#sellAll');
-      if (sa) sa.onclick = () => { let t = 0; live().forEach(g => { t += sellItem(g.id, true); }); Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); back(); };
+      if (sa) sa.onclick = async () => { sa.disabled = true; const t = await sellItems(live().map(g => g.id), true); if (t) { Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); } back(); };
       const tu = $('#toUpg'); if (tu) tu.onclick = () => { upg.sel = live().map(g => g.id); upg.bal = 0; upg.to = null; upg.mult = 0; upg.autoX2 = true; location.hash = '#/upgrade'; };
       $('#againBtn').onclick = again; const bb = $('#backBtn'); if (bb) bb.onclick = back;
     };
     const markSold = () => given.forEach(g => { if (g.st !== 'own') { const el = $(`.rv-card[data-id="${g.id}"]`); if (el) { el.classList.add('rv-sold'); const b = $('[data-sellone]', el); if (b) b.outerHTML = '<div class="rv-rar" style="color:var(--txt3)">Продано</div>'; } } });
-    $$('[data-sellone]').forEach(b => b.onclick = () => { sellItem(b.dataset.sellone); if (!live().length) return back(); markSold(); draw(); });
+    $$('[data-sellone]').forEach(b => b.onclick = async () => { b.disabled = true; await sellItem(b.dataset.sellone); given.forEach(g => { const x = st.inv.find(y => y.id === g.id); if (x) g.st = x.st; }); if (!live().length) return back(); markSold(); draw(); });
     draw();
     return;
   }
@@ -2184,15 +2208,12 @@ async function runUpgrade() {
   if (!v) return toast('Выберите скины для ставки или добавьте баланс', 'err');
   if (!ts) return toast('Выберите желаемый скин', 'err');
   if (upg.bal > st.balance) return openDeposit(upg.bal - st.balance);
-  const ch = upgChance(v, ts), win = Math.random() < ch;
-  // ставка списывается сразу (как на сервере)
-  items.forEach(x => { x.st = 'upg'; });
-  if (upg.bal) setBalance(st.balance - upg.bal);
-  let won = null;
-  st.stats.upg++; if (win) { st.stats.upgWin++; won = giveItem(ts, 'upgrade'); }
-  logEv('upg', v, win ? ts.p : 0, ts.p / v);
-  save();
   upg.busy = true; $('#upgBtn').disabled = true;
+  // результат решает сервер (шанс, удача, списание ставки, выдача, R-COIN за проигрыш)
+  const r = await srv('upgrade', { p_ids: items.map(x => x.id), p_bal: upg.bal, p_target: ts.name });
+  if (!r) { upg.busy = false; $('#upgBtn').disabled = false; upg.sel = []; drawUpg(); return; }
+  const ch = +r.chance, win = !!r.win;
+  let won = win ? st.inv.find(x => x.id === r.id) || null : null;
   // старт: рычаг сейфа, стрелка трогается после «клаца»
   const F = !!st.upgFast; // быстрая прокрутка: ~2 с вместо ~9, без сердцебиения
   Snd.safeStart();
@@ -2229,7 +2250,7 @@ async function runUpgrade() {
   cEl.textContent = win ? '' : 'LOSE';
   $('#wLabel').textContent = win ? '' : 'не повезло';
   if (win) { liveMine({ n: ts.name, t: 'upg', x: ts.p / v }); Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
-  else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); addRcoin(v * .005, 'Утешительный бонус: апгрейд'); }
+  else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); }
   // победа — карточка выигрыша поверх апгрейда, ждём выбор игрока
   let act = null;
   if (win) act = await upgWinCard(ts);
@@ -2622,16 +2643,12 @@ async function runContract() {
   if (!st.user) return openAuth('login');
   const items = conItems(); if (items.length < 3) return toast('Добавьте минимум 3 предмета', 'err');
   if (items.some(x => x.st !== 'own')) { conSel = []; conSigned = false; conStep = 1; drawCon(); return toast('Часть предметов уже недоступна — соберите дело заново', 'err'); }
-  const sum = items.reduce((a, x) => a + SK[x.n].p, 0), caseNo = conNo();
-  let pool = CATALOG.filter(s => s.p >= sum * .25 && s.p <= sum * 4);
-  if (pool.length < 4) pool = CATALOG.slice().sort((a, b) => Math.abs(Math.log(a.p / sum)) - Math.abs(Math.log(b.p / sum))).slice(0, 8);
-  const ch = solveChances(pool, sum * .9);
-  const res = roll(pool.map((s, i) => ({ ...s, ch: ch[i] })));
-  const given = items.map(x => SK[x.n]);
-  items.forEach(x => { x.st = 'con'; });
-  const got = giveItem(SK[res.name], 'contract');
-  st.stats.con++; save();
+  const caseNo = conNo(), given = items.map(x => SK[x.n]);
   conBusy = true;
+  // результат решает сервер: забирает предметы, выдаёт скин
+  const r = await srv('contract', { p_ids: items.map(x => x.id) });
+  if (!r || !SK[r.n]) { conBusy = false; conSel = []; conSigned = false; conCase = null; conStep = 1; drawCon(); return; }
+  const res = SK[r.n], got = { id: r.id }, sum = +r.sum;
   const b = $('#dosClose'); if (b) { b.disabled = true; b.innerHTML = '<span class="spinner"></span>Комиссия рассматривает дело…'; }
   const pre = new Image(); pre.src = imgUrl(res, 'l');
   await Promise.race([pre.decode().catch(() => {}), sleep(900)]);
@@ -2685,7 +2702,7 @@ function drawConProtocol(desk) {
   </div>`;
   const newCase = () => { conRes = null; conStep = 1; drawCon(); };
   $('#dosNew').onclick = newCase;
-  const sl = $('#dosSell'); if (sl) sl.onclick = () => { sellItem(R.id); drawCon(); };
+  const sl = $('#dosSell'); if (sl) sl.onclick = async () => { sl.disabled = true; await sellItem(R.id); drawCon(); };
   const up = $('#dosUpg'); if (up) up.onclick = () => { upg.sel = [R.id]; upg.bal = 0; upg.to = null; upg.mult = 0; upg.autoX2 = true; conRes = null; conStep = 1; location.hash = '#/upgrade'; };
 }
 
@@ -2748,15 +2765,17 @@ function mountBonus() {
   btn.onclick = async () => {
     if (!st.user) return openAuth('reg');
     if (dailyLeft()) return;
-    const prize = pickDaily();
-    st.daily = Date.now(); save();
     btn.dataset.busy = '1'; btn.disabled = true;
+    const bal0 = st.balance, r = await srv('claim_daily');
+    if (!r) { delete btn.dataset.busy; upd(); return; }
+    const prize = DAILY.find(d => d.v === +r.v) || DAILY[0];
+    setBalance(bal0); // показываем прибавку после прокрутки
     const strip = $('#dailyStrip');
     strip.classList.remove('done');
     strip.innerHTML = `<div class="track">${Array.from({ length: 40 }, (_, i) => coinCard(i === 34 ? prize : pickDaily(), i === 34)).join('')}</div>`;
     await sleep(50);
     await spinStrip(strip, 4200, true);
-    setBalance(st.balance + prize.v);
+    setBalance(bal0 + prize.v);
     Snd.win(RAR[prize.r].o); Snd.coin(); if (prize.v >= 100) burst();
     toast(`Ежедневный бонус: <b>+${money(prize.v)}</b>`);
     delete btn.dataset.busy; upd();
@@ -2770,10 +2789,9 @@ function mountBonus() {
     if (!p) { inp.classList.add('err'); return toast('Промокод не найден', 'err'); }
     inp.classList.remove('err');
     if (st.promos.includes(code)) return toast('Этот промокод уже активирован', 'err');
-    st.promos.push(code);
-    if (p.t === 'bal') { setBalance(st.balance + p.v); Snd.coin(); toast(`Промокод активирован: <b>+${money(p.v)}</b>`); }
-    else { st.depBonus = p.v; save(); toast(`Бонус <b>+${p.v}%</b> применится к следующему пополнению`); }
-    inp.value = '';
+    srv('use_promo', { p_code: code }).then(r => { if (!r) return;
+      if (r.t === 'bal') { Snd.coin(); toast(`Промокод активирован: <b>+${money(+r.v)}</b>`); } else toast(`Бонус <b>+${r.v}%</b> применится к следующему пополнению`);
+      inp.value = ''; });
   };
   // соцсети
   const drawSoc = () => {
@@ -2784,7 +2802,7 @@ function mountBonus() {
       if (!b.dataset.state) { b.dataset.state = 'sub'; b.textContent = 'Проверить'; b.classList.replace('btn-dark', 'btn-accent'); return toast('Подпишитесь и нажмите «Проверить»', 'info'); }
       b.dataset.state = 'check'; b.innerHTML = '<span class="spinner"></span>';
       await sleep(1300);
-      st.socials.push(b.dataset.soc); setBalance(st.balance + 10); Snd.coin(); toast('Подписка подтверждена: <b>+10 ₽</b>');
+      const r = await srv('claim_social', { p_k: b.dataset.soc }); if (r) { Snd.coin(); toast('Подписка подтверждена: <b>+10 ₽</b>'); }
       if ($('#socList')) drawSoc();
     });
   };
@@ -2874,7 +2892,7 @@ function drawPf() {
     $('#tradeSave').onclick = () => {
       const v = $('#tradeInp').value.trim();
       if (!/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/.test(v)) { $('#tradeInp').classList.add('err'); return toast('Неверный формат трейд-ссылки', 'err'); }
-      $('#tradeInp').classList.remove('err'); st.trade = v; save(); toast('Трейд-ссылка сохранена');
+      $('#tradeInp').classList.remove('err'); srv('save_trade', { p_trade: v }).then(r => { if (r) toast('Трейд-ссылка сохранена'); });
     };
     const sa = $('#sellAllInv');
     if (sa) sa.onclick = () => {
@@ -2882,9 +2900,9 @@ function drawPf() {
       const m = modal(`<div class="wd confirm"><h2>Продать всё?</h2><p>${items.length} ${plural(items.length, 'предмет', 'предмета', 'предметов')} на сумму <b>${money(total)}</b> будут проданы, деньги придут на баланс. Отменить это действие нельзя.</p>
         <div class="cc-btns"><button class="btn btn-dark btn-lg" id="cfNo">Отмена</button><button class="btn btn-primary btn-lg" id="cfYes">${ic.coin}Подтвердить</button></div></div>`, 'm-wd');
       $('#cfNo', m).onclick = closeModal;
-      $('#cfYes', m).onclick = () => { let t = 0; own().forEach(x => { t += sellItem(x.id, true); }); Snd.coin(); closeModal(); toast(`Продано на <b>+${money(t)}</b>`); drawPf(); };
+      $('#cfYes', m).onclick = async () => { closeModal(); const t = await sellItems(own().map(x => x.id), true); if (t) { Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); } drawPf(); };
     };
-    $$('[data-sell]', body).forEach(b => b.onclick = () => { sellItem(b.dataset.sell); drawPf(); });
+    $$('[data-sell]', body).forEach(b => b.onclick = async () => { b.disabled = true; await sellItem(b.dataset.sell); drawPf(); });
     $$('[data-wd]', body).forEach(b => b.onclick = () => withdraw(b.dataset.wd));
   } else if (pfTab === 'stats') {
     const S = st.stats, all = st.inv.filter(x => SK[x.n]), val = x => SK[x.n].p;
@@ -2938,9 +2956,10 @@ function withdraw(id) {
   if (!st.trade) { const ti = $('#tradeInp'); if (ti) { ti.classList.add('err'); ti.focus(); } return toast('Сначала укажите трейд-ссылку Steam', 'err'); }
   const s = SK[it.n];
   const m = modal(`<div class="wd r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><h2>Вывод предмета</h2><p>${esc(s.name)} · ${money(s.p)}<br>Бот отправит обмен на вашу трейд-ссылку. Примите его в течение 10 минут.</p><button class="btn btn-primary btn-lg btn-block" id="wdGo">${ic.send}Вывести в Steam</button></div>`, 'm-wd');
-  $('#wdGo', m).onclick = () => {
-    it.st = 'pend'; save(); logEv('out', s.p); closeModal(); drawPf(); toast('Бот готовит обмен…', 'info');
-    setTimeout(() => { it.st = 'out'; save(); toast(`Обмен отправлен: <b>${esc(s.name)}</b>. Примите его в Steam`); if ($('#pfBody')) drawPf(); }, 4000);
+  $('#wdGo', m).onclick = async () => {
+    const b = $('#wdGo', m); b.disabled = true; b.innerHTML = '<span class="spinner"></span>Бот готовит обмен…';
+    const r = await srv('withdraw', { p_id: id }); closeModal(); if ($('#pfBody')) drawPf();
+    if (r) toast(`Обмен отправлен: <b>${esc(s.name)}</b>. Примите его в Steam`);
   };
 }
 
@@ -3093,7 +3112,7 @@ async function claimGrants() {
   const { data, error } = await sb.rpc('claim_grants');
   if (error || !data || !data.length) return;
   const sum = data.reduce((a, g) => a + +g.amount, 0);
-  setBalance(st.balance + sum); sbPush();
+  await sbRefresh();
   toast(sum > 0 ? `Администрация начислила вам <b>+${money(sum)}</b>${data[0].note ? ' — ' + esc(data[0].note) : ''}` : `Списание с баланса: <b>${money(sum)}</b>`, sum > 0 ? undefined : 'err');
   if (sum > 0) { Snd.coin(); burst(30); }
 }
@@ -3226,7 +3245,7 @@ function openDeposit(need = 0) {
     <div class="dep-total"><div>К зачислению<b id="depTotal"></b><span id="depBonusTxt"></span></div><button class="btn btn-primary btn-xl" id="depGo"></button></div>
     <p class="dep-note">Тестовый режим: реальная оплата не проводится, баланс пополняется сразу. Перед запуском подключите платёжный шлюз.</p>
   </div>`, 'm-dep');
-  let bonus = st.depBonus || 0;
+  let bonus = st.depBonus || 0, depCode = null;
   const draw = () => {
     $$('.method', m).forEach(b => b.classList.toggle('on', b.dataset.m === method));
     $$('.amounts button', m).forEach(b => b.classList.toggle('on', +b.dataset.a === amount));
@@ -3245,18 +3264,16 @@ function openDeposit(need = 0) {
     const code = $('#depPromo', m).value.trim().toUpperCase(), p = PROMOS[code];
     if (!p || p.t !== 'dep') return toast('Промокод для пополнения не найден', 'err');
     if (st.promos.includes(code) && !st.depBonus) return toast('Этот промокод уже использован', 'err');
-    if (!st.promos.includes(code)) st.promos.push(code);
-    bonus = st.depBonus = p.v; save(); draw(); toast(`Промокод применён: <b>+${p.v}%</b>`);
+    depCode = code; bonus = p.v; draw(); toast(`Промокод применён: <b>+${p.v}%</b> — начислится при пополнении`);
   };
   $('#depGo', m).onclick = async () => {
     if (amount < 100) return toast('Минимальная сумма — 100 ₽', 'err');
     const total = draw(), b = $('#depGo', m);
     b.innerHTML = '<span class="spinner"></span>Обработка…'; b.disabled = true;
-    await sleep(900);
-    st.depBonus = 0; st.stats.dep += amount; logEv('dep', amount);
-    setBalance(st.balance + total); Snd.file('assets/sounds/deposit.wav'); closeModal();
-    addRcoin(amount * .005, `Пополнение на ${money(amount)}`);
-    toast(`Баланс пополнен на <b>+${money(total)}</b>`);
+    const r = await srv('deposit_test', { p_amount: amount, p_promo: depCode });
+    if (!r) { b.disabled = false; draw(); return; }
+    Snd.file('assets/sounds/deposit.wav'); closeModal();
+    toast(`Баланс пополнен на <b>+${money(+r.total)}</b>`);
     if (total >= 1000) burst(26);
     route();
   };
@@ -3382,9 +3399,8 @@ async function jpClaim(silent) {
   const { data, error } = await sb.rpc('jp_claim');
   if (error || !data || !data.length) return;
   let n = 0, sum = 0;
-  for (const p of data) { (p.items || []).forEach(nm => { if (SK[nm]) { giveItem(SK[nm], 'jackpot'); n++; } }); sum += +p.total; }
-  st.inv.forEach(x => { if (x.st === 'bet' && data.some(p => p.round_id === x.round)) x.st = 'jp'; });
-  save(); sbPush();
+  for (const p of data) { n += (p.items || []).length; sum += +p.total; }
+  await sbRefresh(); // предметы выигрыша сервер уже положил в инвентарь
   if (!silent) toast(`Пока вас не было, вы выиграли в ставках: <b>${money(sum)}</b> — ${n} предм. уже в инвентаре`);
 }
 // свои ставки в раундах, которые уже разыграны без нас (закрыли сайт во время раунда)
@@ -3604,14 +3620,8 @@ function jpOpenBet() {
     if (!items.length) return;
     const R = jp, value = Math.round(items.reduce((a, x) => a + SK[x.n].p, 0) * 100) / 100, go = $('#jpGo', m);
     go.disabled = true; go.innerHTML = '<span class="spinner"></span>Ставка…';
-    // предметы уходят из инвентаря сразу, чтобы их нельзя было поставить дважды
-    items.forEach(x => { x.st = 'bet'; x.room = R.cfg.id; });
-    const { data, error } = await sb.rpc('jp_bet', { p_room: R.cfg.id, p_items: items.map(x => x.n), p_value: value });
-    if (error) {
-      items.forEach(x => { x.st = 'own'; delete x.room; }); save(); closeModal();
-      return toast(/full/.test(error.message) ? 'Лобби заполнено' : /closed/.test(error.message) ? 'Ставки уже закрыты — ждите следующий раунд' : 'Ставка не принята: ' + error.message, 'err');
-    }
-    items.forEach(x => { x.round = data.round; }); save(); sbPush();
+    const data = await srv('jp_bet', { p_room: R.cfg.id, p_ids: items.map(x => x.id) });
+    if (!data) { closeModal(); return; }
     Snd.safeSel(true); Snd.coin(); closeModal();
     toast(`Ставка принята: <b>${money(value)}</b>`);
     jpLoad(R.cfg.id);
@@ -3631,8 +3641,26 @@ function pageAdmin() {
     <div id="admBody"></div>
   </section>`;
 }
+/* каталог цен и составы встроенных кейсов → на сервер (выпадение считает сервер по этим данным); грузим, если на сайте что-то поменялось */
+async function admSync(force) {
+  const cat = Object.keys(SK).map(k => [k, Math.round(SK[k].p * 100) / 100, SK[k].c || 'skin']).filter(x => x[1] > 0);
+  const cases = CASES.filter(c => !c.custom).map(c => ({ id: c.id, price: c.price, rc: !!c.rc, rate: c.rc ? 0 : RCOIN_RATE(c), items: c.items.map(x => ({ n: x.name, ch: x.ch0 != null ? x.ch0 : x.ch })) }));
+  const str = JSON.stringify(cases) + cat.length + cat.reduce((a, x) => a + x[1], 0).toFixed(2);
+  let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  const ver = (h >>> 0).toString(36);
+  const { data: m } = await sb.from('srv_meta').select('v').eq('k', 'version').maybeSingle();
+  if (!force && m && m.v === ver) return;
+  const t = toast('Загружаем на сервер каталог цен и кейсы…', 'info');
+  for (let i = 0; i < cat.length; i += 1500) {
+    const last = i + 1500 >= cat.length;
+    const { error } = await sb.rpc('admin_sync', { p_catalog: cat.slice(i, i + 1500), p_cases: last ? cases : null, p_version: last ? ver : null });
+    if (error) return toast('Синхронизация не удалась: ' + error.message + ' — запустите supabase/server.sql', 'err');
+  }
+  toast(`Сервер обновлён: ${fmt(cat.length)} предметов, ${cases.length} кейсов`);
+}
 function mountAdmin() {
   if (!$('#adm')) return;
+  if (sb) admSync();
   $$('#admTabs [data-t]').forEach(b => b.onclick = () => { admTab = b.dataset.t; $$('#admTabs [data-t]').forEach(x => x.classList.toggle('on', x === b)); admDraw(); });
   admDraw();
 }
