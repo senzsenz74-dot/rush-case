@@ -3862,9 +3862,21 @@ function admCases(box) {
       <button class="btn btn-primary btn-sm ac-save" disabled>Сохранить</button>
     </div>`;
   };
-  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><button class="btn btn-primary btn-sm" id="acNew">${ic.plus}Создать кейс</button><p>«Удача» умножает шанс всех предметов дороже кейса (остальные — пропорционально реже). Окупаемость пересчитывается сразу; у игроков — после обновления страницы.</p></div>
+  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="btn btn-ghost btn-sm" id="acCloseAll">Закрыть все</button><button class="btn btn-ghost btn-sm" id="acOpenAll">Открыть все</button><button class="btn btn-primary btn-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Удача» умножает шанс всех предметов дороже кейса (остальные — пропорционально реже). Окупаемость пересчитывается сразу; у игроков — после обновления страницы.</p></div>
     <div class="adm-cases">${CASES.map(row).join('')}</div></div>`;
   $('#acNew', box).onclick = () => admCaseEditor(null, () => admCases(box));
+  // все кейсы разом: удача у каждого остаётся своя
+  const setAll = async (off, btn) => {
+    if (off && !confirm('Закрыть все кейсы? Игроки не смогут их открывать, пока вы не откроете обратно.')) return;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    const now = new Date().toISOString();
+    const { error } = await sb.from('case_settings').upsert(CASES.map(c => ({ id: c.id, disabled: off, luck: c.luck || 1, updated_at: now, updated_by: st.user.id })));
+    if (error) { btn.disabled = false; btn.textContent = off ? 'Закрыть все' : 'Открыть все'; return toast('Не сохранено: ' + error.message, 'err'); }
+    CASES.forEach(c => { c.disabled = off; });
+    toast(off ? `Закрыто кейсов: ${CASES.length}` : `Открыто кейсов: ${CASES.length}`); admCases(box);
+  };
+  $('#acCloseAll', box).onclick = e => setAll(true, e.currentTarget);
+  $('#acOpenAll', box).onclick = e => setAll(false, e.currentTarget);
   $$('.adm-case', box).forEach(el => {
     const c = caseById(el.dataset.id), r = $('.ac-r', el), sw = $('.ac-open', el), save = $('.ac-save', el);
     const ed = $('.ac-edit', el); if (ed) ed.onclick = () => admCaseEditor(customCaseRows.find(x => x.id === c.id), () => admCases(box));
