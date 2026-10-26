@@ -2733,39 +2733,47 @@ const DAILY = [{ v: 5, w: 30, r: 'milspec' }, { v: 10, w: 26, r: 'milspec' }, { 
 const DAILY_MS = 24 * 3600 * 1000;
 const dailyLeft = () => Math.max(0, (st.daily || 0) + DAILY_MS - Date.now());
 const dailyText = () => { const s = Math.ceil(dailyLeft() / 1000); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
-const PROMOS = { WELCOME: { t: 'bal', v: 50, d: '+50 ₽ на баланс' }, RUSH35: { t: 'dep', v: 35, d: '+35% к следующему пополнению' }, GLHF: { t: 'bal', v: 30, d: '+30 ₽ на баланс' } };
-const SOCIALS = [{ k: 'tg', n: 'Telegram-канал', i: 'tg' }, { k: 'vk', n: 'Группа ВКонтакте', i: 'vk' }, { k: 'yt', n: 'YouTube-канал', i: 'yt' }];
+/* промокоды проверяет сервер (таблица promo_codes) — на сайте список не нужен */
+// u — ссылка на соцсеть: если указана, «Подписаться» открывает её в новой вкладке
+const SOCIALS = [{ k: 'tg', n: 'Telegram-канал', i: 'tg', c: '#2aabee', u: '' }, { k: 'vk', n: 'Группа ВКонтакте', i: 'vk', c: '#2787f5', u: '' }, { k: 'yt', n: 'YouTube-канал', i: 'yt', c: '#ff3b3b', u: '' }];
+const SOC_BONUS = 10;
+const bonusReady = () => (st.user && !dailyLeft() ? 1 : 0) + SOCIALS.filter(x => !(st.socials || []).includes(x.k)).length;
 function pageBonus() {
   const rk = rankOf(st.stats.spent);
   const dw = DAILY.reduce((a, d) => a + d.w, 0);
-  return `<section class="container bonus">
-    <div class="page-head"><h1>Бонусы</h1><p>Бесплатный баланс каждый день, промокоды, подписки и кэшбэк за ранг. Чем чаще заходишь — тем больше получаешь.</p></div>
-    <div class="bonus-grid">
-      <div class="bcard daily">
-        <img class="soldier" src="assets/soldier.png" alt="">
-        <h3>${ic.gift}Ежедневный бонус</h3>
-        <p>Раз в 24 часа крутите барабан и забирайте от 5 до 250 ₽ на баланс.</p>
-        <div class="daily-reel"><div class="strip" id="dailyStrip"><div class="track">${Array.from({ length: 12 }, () => coinCard(pickDaily())).join('')}</div></div><div class="rl-marker"></div></div>
-        <div class="daily-foot"><button class="btn btn-primary btn-lg" id="dailyBtn">Крутить</button><div class="daily-timer" id="dailyTimer"></div></div>
-        <div class="daily-table">${DAILY.map(d => `<div class="r-${d.r}" style="border-bottom:2px solid var(--rc)"><b>${d.v} ₽</b>${(d.w / dw * 100).toFixed(1)}%</div>`).join('')}</div>
-      </div>
-      <div class="bcard">
-        <h3>${ic.star}Промокод</h3>
-        <p>Введите промокод, чтобы получить бонус на баланс или к пополнению.</p>
-        <div class="inp-row"><input class="inp" id="promoInp" placeholder="Например, WELCOME" autocomplete="off" style="text-transform:uppercase"><button class="btn btn-accent" id="promoBtn">Активировать</button></div>
-        <div class="hint">Для теста: ${Object.entries(PROMOS).map(([k, p]) => `<b data-fill="${k}">${k}</b> — ${p.d}`).join(', ')}</div>
-      </div>
-      <div class="bcard">
-        <h3>${ic.send}Подписки</h3>
-        <p>+10 ₽ на баланс за подписку на каждую нашу соцсеть.</p>
-        <div class="soc-list" id="socList"></div>
+  return `<section class="container bonus bn">
+    <div class="page-head bn-head"><div><h1>Бонусы</h1><p>Бесплатный баланс каждый день, промокоды и награды за подписки.</p></div><div class="bn-ready" id="bnReady"></div></div>
+    <div class="bn-grid">
+      <article class="bn-card bn-daily">
+        <img class="bn-soldier" src="assets/soldier.png" alt="" aria-hidden="true">
+        <header class="bn-h"><span class="bn-ic gold">${ic.gift}</span><div><h3>Ежедневный бонус</h3><p>Раз в 24 часа — от 5 до 250 ₽ на баланс</p></div></header>
+        <div class="daily-reel bn-reel"><div class="strip" id="dailyStrip"><div class="track">${Array.from({ length: 12 }, () => coinCard(pickDaily())).join('')}</div></div><div class="rl-marker"></div></div>
+        <div class="bn-act">
+          <button class="btn btn-primary btn-xl" id="dailyBtn">${ic.gift}<span>Крутить барабан</span></button>
+          <div class="bn-timer" id="dailyTimer"><div class="bn-tt"><span id="dailyLbl"></span><b id="dailyVal"></b></div><div class="bn-bar"><i id="dailyBar"></i></div></div>
+        </div>
+        <div class="bn-odds-h">Шансы</div>
+        <div class="bn-odds">${DAILY.map(d => `<div class="bn-odd r-${d.r}"><b>${d.v} ₽</b><span>${(d.w / dw * 100).toFixed(1).replace('.', ',')}%</span><i style="width:${Math.max(6, d.w / DAILY[0].w * 100)}%"></i></div>`).join('')}</div>
+        <div class="bn-facts"><div><span>Главный приз</span><b>250 ₽</b></div><div><span>В среднем</span><b>≈ ${money(Math.round(DAILY.reduce((t, d) => t + d.v * d.w, 0) / dw))}</b></div><div><span>Обновление</span><b>каждые 24 ч</b></div></div>
+      </article>
+      <div class="bn-side">
+        <article class="bn-card bn-promo">
+          <header class="bn-h"><span class="bn-ic">${ic.star}</span><div><h3>Промокод</h3><p>Бонус на баланс или к пополнению</p></div></header>
+          <div class="bn-ticket"><input id="promoInp" placeholder="ВВЕДИТЕ КОД" autocomplete="off" spellcheck="false" maxlength="24"><button class="btn btn-primary" id="promoBtn">Активировать</button></div>
+          <div class="bn-used" id="promoUsed"></div>
+          <p class="bn-note">Промокоды выдаём в Telegram, ВКонтакте и на стримах партнёров.</p>
+        </article>
+        <article class="bn-card bn-soc">
+          <header class="bn-h"><span class="bn-ic">${ic.send}</span><div><h3>Подписки</h3><p>+${SOC_BONUS} ₽ на баланс за каждую соцсеть</p></div></header>
+          <div class="bn-prog"><div><span id="socCnt"></span><b id="socSum"></b></div><div class="bn-bar"><i id="socBar"></i></div></div>
+          <div class="bn-socs" id="socList"></div>
+        </article>
       </div>
     </div>
-    <div class="bcard" style="margin-top:20px">
-      <h3>${ic.user}Пригласи друга</h3>
-      <p>Получайте 5% от пополнений приглашённых друзей, а друг получит +50 ₽ при регистрации.</p>
-      <div class="inp-row"><input class="inp" readonly value="https://rushcase.gg/r/${st.user ? st.user.rid || st.user.id : 'XXXXXX'}"><button class="btn btn-dark" data-act="copy" data-copy="https://rushcase.gg/r/${st.user ? st.user.rid || st.user.id : 'XXXXXX'}">${ic.copy}Копировать</button></div>
-    </div>
+    <article class="bn-card bn-ref">
+      <span class="bn-ic">${ic.users}</span>
+      <div><h3>Пригласи друга <em class="bn-soon">Скоро</em></h3><p>Реферальная программа: 5% от пополнений друзей вам, +50 ₽ другу при регистрации. Запустим вместе с онлайн-оплатой.</p></div>
+    </article>
     ${secTitle('Ранги')}
     <div class="ranks">${RANKS.map((r, i) => `<div class="rank${i === rk.i && st.user ? ' cur' : ''}${i > rk.i ? ' locked' : ''}">${rankIcon(r, i)}<h4>${r.n}</h4><small>от ${money(r.min)} в кейсах</small><span class="cb">${r.cb ? 'Кэшбэк ' + r.cb + '%' : 'Старт'}</span></div>`).join('')}</div>
   </section>`;
@@ -2773,19 +2781,25 @@ function pageBonus() {
 function pickDaily() { const t = DAILY.reduce((a, d) => a + d.w, 0); let r = Math.random() * t; for (const d of DAILY) { r -= d.w; if (r <= 0) return d; } return DAILY[0]; }
 const coinCard = (d, win) => `<div class="coin-card r-${d.r}${win ? ' is-win' : ''}"><span class="coin">₽</span><b>${d.v} ₽</b></div>`;
 function mountBonus() {
-  const btn = $('#dailyBtn'), timer = $('#dailyTimer');
+  const btn = $('#dailyBtn');
+  const ready = () => { const n = bonusReady(), e = $('#bnReady'); if (!e) return; e.innerHTML = n ? `<i></i>Доступно сейчас: <b>${n}</b>` : `${ic.check}Всё собрано — заходите завтра`; e.classList.toggle('all', !n); };
   const upd = () => {
     if (!btn.isConnected) return;
-    const left = dailyLeft();
+    const left = st.user ? dailyLeft() : 0;
+    $('#dailyBar').style.width = (left ? (1 - left / DAILY_MS) * 100 : 100).toFixed(2) + '%';
+    $('#dailyTimer').classList.toggle('on', !left);
+    $('#dailyLbl').textContent = left ? 'Следующий через' : 'Бонус доступен';
+    $('#dailyVal').textContent = left ? dailyText() : 'сейчас';
     if (btn.dataset.busy) return;
     btn.disabled = !!left;
-    timer.innerHTML = left ? `${ic.clock}Следующий через <b>${dailyText()}</b>` : `${ic.check}<span style="color:var(--lime)">Доступно сейчас</span>`;
+    $('span', btn).textContent = !st.user ? 'Войти и крутить' : left ? 'Уже получен сегодня' : 'Крутить барабан';
+    ready();
   };
   upd(); every(upd, 1000);
   btn.onclick = async () => {
     if (!st.user) return openAuth('reg');
     if (dailyLeft()) return;
-    btn.dataset.busy = '1'; btn.disabled = true;
+    btn.dataset.busy = '1'; btn.disabled = true; $('span', btn).textContent = 'Крутим…';
     const bal0 = st.balance, r = await srv('claim_daily');
     if (!r) { delete btn.dataset.busy; upd(); return; }
     const prize = DAILY.find(d => d.v === +r.v) || DAILY[0];
@@ -2800,30 +2814,42 @@ function mountBonus() {
     toast(`Ежедневный бонус: <b>+${money(prize.v)}</b>`);
     delete btn.dataset.busy; upd();
   };
-  // промокоды
-  const inp = $('#promoInp');
-  $$('[data-fill]').forEach(b => b.onclick = () => { inp.value = b.dataset.fill; inp.focus(); });
-  $('#promoBtn').onclick = () => {
+  // промокоды — проверяет сервер
+  const inp = $('#promoInp'), pbtn = $('#promoBtn');
+  const drawUsed = () => { const u = st.user ? st.promos || [] : []; $('#promoUsed').innerHTML = u.length ? `<span>Активированы:</span>${u.map(c => `<em>${ic.check}${esc(c)}</em>`).join('')}` : ''; };
+  inp.oninput = () => { inp.value = inp.value.toUpperCase().replace(/\s+/g, ''); inp.parentElement.classList.remove('err', 'ok'); };
+  inp.onkeydown = e => { if (e.key === 'Enter') pbtn.click(); };
+  pbtn.onclick = async () => {
     if (!st.user) return openAuth('login');
-    const code = inp.value.trim().toUpperCase(), p = PROMOS[code];
-    if (!p) { inp.classList.add('err'); return toast('Промокод не найден', 'err'); }
-    inp.classList.remove('err');
-    if (st.promos.includes(code)) return toast('Этот промокод уже активирован', 'err');
-    srv('use_promo', { p_code: code }).then(r => { if (!r) return;
-      if (r.t === 'bal') { Snd.coin(); toast(`Промокод активирован: <b>+${money(+r.v)}</b>`); } else toast(`Бонус <b>+${r.v}%</b> применится к следующему пополнению`);
-      inp.value = ''; });
+    const code = inp.value.trim().toUpperCase(), box = inp.parentElement;
+    if (!code) { box.classList.add('err'); return inp.focus(); }
+    pbtn.disabled = true; pbtn.innerHTML = '<span class="spinner"></span>';
+    const r = await srv('use_promo', { p_code: code });
+    pbtn.disabled = false; pbtn.textContent = 'Активировать';
+    if (!r) { box.classList.add('err'); return; }
+    box.classList.add('ok'); inp.value = '';
+    if (r.t === 'bal') { Snd.coin(); toast(`Промокод активирован: <b>+${money(+r.v)}</b>`); } else toast(`Бонус <b>+${r.v}%</b> применится к следующему пополнению`);
+    drawUsed(); ready();
   };
+  drawUsed();
   // соцсети
   const drawSoc = () => {
-    $('#socList').innerHTML = SOCIALS.map(s => `<div class="soc"><span class="si">${ic[s.i]}</span><div>${s.n}<small>+10 ₽ на баланс</small></div>${st.socials.includes(s.k) ? `<span class="done">${ic.check}Получено</span>` : `<button class="btn btn-dark btn-sm" data-soc="${s.k}">Подписаться</button>`}</div>`).join('');
+    const got = SOCIALS.filter(x => (st.socials || []).includes(x.k)).length;
+    $('#socCnt').textContent = `Выполнено ${got} из ${SOCIALS.length}`;
+    $('#socSum').textContent = `+${got * SOC_BONUS} из ${SOCIALS.length * SOC_BONUS} ₽`;
+    $('#socBar').style.width = (got / SOCIALS.length * 100) + '%';
+    $('#socList').innerHTML = SOCIALS.map(s => { const ok = (st.socials || []).includes(s.k); return `<div class="bn-s${ok ? ' ok' : ''}" style="--c:${s.c}"><span class="bn-si">${ic[s.i]}</span><div><b>${s.n}</b><small>+${SOC_BONUS} ₽ на баланс</small></div>${ok ? `<span class="bn-done">${ic.check}Получено</span>` : `<button class="btn btn-dark btn-sm" data-soc="${s.k}">Подписаться</button>`}</div>`; }).join('');
     $$('[data-soc]').forEach(b => b.onclick = async () => {
       if (!st.user) return openAuth('login');
       if (b.dataset.state === 'check') return;
-      if (!b.dataset.state) { b.dataset.state = 'sub'; b.textContent = 'Проверить'; b.classList.replace('btn-dark', 'btn-accent'); return toast('Подпишитесь и нажмите «Проверить»', 'info'); }
+      if (!b.dataset.state) {
+        const s = SOCIALS.find(x => x.k === b.dataset.soc); if (s.u) window.open(s.u, '_blank', 'noopener');
+        b.dataset.state = 'sub'; b.textContent = 'Проверить'; b.classList.replace('btn-dark', 'btn-primary'); return toast('Подпишитесь и нажмите «Проверить»', 'info');
+      }
       b.dataset.state = 'check'; b.innerHTML = '<span class="spinner"></span>';
       await sleep(1300);
-      const r = await srv('claim_social', { p_k: b.dataset.soc }); if (r) { Snd.coin(); toast('Подписка подтверждена: <b>+10 ₽</b>'); }
-      if ($('#socList')) drawSoc();
+      const r = await srv('claim_social', { p_k: b.dataset.soc }); if (r) { Snd.coin(); toast(`Подписка подтверждена: <b>+${SOC_BONUS} ₽</b>`); }
+      if ($('#socList')) { drawSoc(); ready(); }
     });
   };
   drawSoc();
