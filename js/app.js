@@ -22,7 +22,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const pct = v => { const x = v * 100; return (x >= 1 ? x.toFixed(2) : x >= .01 ? x.toFixed(3) : x.toFixed(4)).replace('.', ',') + '%'; };
 const CDN = 'https://community.cloudflare.steamstatic.com/economy/image/';
 /* картинки скинов лежат локально: assets/skins/<k>-m.webp (256×192) и -l.webp (512×384); Steam — запасной вариант */
-const imgUrl = (s, size = 'm') => s.img ? s.img : s.u ? `https://community.steamstatic.com/economy/image/${s.u}/${size === 'l' ? '512fx384f' : '256fx192f'}` : `assets/skins/${s.k}-${size === 'l' ? 'l' : 'm'}.webp`;
+const imgUrl = (s, size = 'm') => s.img ? s.img : s.u ? `https://community.steamstatic.com/economy/image/${s.u}/${size === 'l' ? '512fx384f' : size === 'xs' ? '128fx96f' : '256fx192f'}` : `assets/skins/${s.k}-${size === 'l' ? 'l' : 'm'}.webp`;
 const pad = n => String(n).padStart(2, '0');
 
 /* ---------- icons ---------- */
@@ -763,10 +763,12 @@ const Snd = {
   /* отщёлкивание замка кейса: два металлических щелчка + удар защёлки + скрип крышки */
   /* звук замка — ваш файл, переработанный (assets/sounds/lock.wav); декодируем заранее, чтобы не было задержки */
   bufs: {},
-  preload(name, url) { fetch(url).then(r => r.arrayBuffer()).then(ab => { this.bufs[name] = ab; }).catch(() => {}); },
+  urls: {},
+  preload(name, url, now) { this.urls[name] = url; if (now) this.warm([name]); },
+  warm(names) { names.forEach(n => { const u = this.urls[n]; if (!u || this.bufs[n] || this.urls['_' + n]) return; this.urls['_' + n] = 1; fetch(u).then(r => r.arrayBuffer()).then(ab => { this.bufs[n] = ab; }).catch(() => { delete this.urls['_' + n]; }); }); },
   async play(name, vol = 1, rate = 1) {
     if (!st.sound) return false; const a = this.a; if (!a) return false; vol *= this.kk;
-    let b = this.bufs[name]; if (!b) return false;
+    let b = this.bufs[name]; if (!b) { this.warm([name]); return false; }
     if (b instanceof ArrayBuffer) { try { b = this.bufs[name] = await a.decodeAudioData(b); } catch (e) { return false; } }
     const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; s.playbackRate.value = rate; g.gain.value = vol; s.connect(g); g.connect(a.destination); s.start(); return true;
   },
@@ -774,7 +776,7 @@ const Snd = {
   penSrc: null, penG: null, penT: 0,
   async pen(level) {
     if (!st.sound) return; const a = this.a; if (!a) return;
-    let b = this.bufs.conPen; if (!b) return;
+    let b = this.bufs.conPen; if (!b) { this.warm(['conPen']); return; }
     if (b instanceof ArrayBuffer) { if (this.penDec) return; this.penDec = 1; try { b = this.bufs.conPen = await a.decodeAudioData(b); } catch (e) { return; } finally { this.penDec = 0; } }
     const t = a.currentTime;
     if (!this.penSrc) {
@@ -790,11 +792,11 @@ const Snd = {
     this.penSrc = null; this.penG = null;
   },
   /* персональные звуки кейса: грузятся при заходе на его страницу; ключ буфера — url */
-  preloadSet(set) { Object.values(set || {}).forEach(u => { if (!this.bufs[u]) this.preload(u, u); }); },
+  preloadSet(set) { Object.values(set || {}).forEach(u => { if (!this.bufs[u]) this.preload(u, u, true); }); },
   /* как play, но возвращает управление: stop(fadeSec) — плавно остановить */
   async playCtl(name, vol = 1) {
     if (!st.sound) return null; const a = this.a; if (!a) return null;
-    let b = this.bufs[name]; if (!b) return null;
+    let b = this.bufs[name]; if (!b) { this.warm([name]); return null; }
     if (b instanceof ArrayBuffer) { try { b = this.bufs[name] = await a.decodeAudioData(b); } catch (e) { return null; } }
     const src = a.createBufferSource(), g = a.createGain(); src.buffer = b; g.gain.value = vol; src.connect(g); g.connect(a.destination); src.start();
     return { stop(fade = .25) { const t = a.currentTime; try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + fade); src.stop(t + fade + .02); } catch (e) {} } };
@@ -1166,7 +1168,7 @@ const liveHtml = d => {
   const href = d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
   const src = d.t === 'upg' ? `Апгрейд ×${d.x.toFixed(d.x < 10 ? 1 : 0)}` : d.t === 'con' ? `Контракт ×${d.x.toFixed(1)}` : c ? 'Кейс «' + c.name + '»' : d.c;
   const tag = d.t === 'upg' ? `<span class="ld-t upg">${ic.up}</span>` : d.t === 'con' ? `<span class="ld-t con">${LD_DOC}</span>` : '';
-  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${href}" title="${esc(s.name)}">${tag}<img src="${imgUrl(s, 's')}" alt="" loading="lazy"><span class="ld-f">${esc(s.f)}</span><span class="ld-w">${esc(s.w)}</span><span class="ld-u"><small>${esc(src)}</small>${esc(d.u)}</span></a>`;
+  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${href}" title="${esc(s.name)}">${tag}<img src="${imgUrl(s, 'xs')}" alt="" loading="lazy" decoding="async"><span class="ld-f">${esc(s.f)}</span><span class="ld-w">${esc(s.w)}</span><span class="ld-u"><small>${esc(src)}</small>${esc(d.u)}</span></a>`;
 };
 const liveOk = d => liveFilter === 'all' || SK[d.n].p >= 1000;
 function renderLive() { $('#liveTrack').innerHTML = liveBuf.filter(liveOk).slice(0, 40).map(liveHtml).join(''); }
@@ -1710,6 +1712,7 @@ function frameSmoke() {
   requestAnimationFrame(tick);
 }
 function mountCase(id) {
+  Snd.warm(['lock', 'tick']);
   setTimeout(frameSmoke, 50);
   const c = caseById(id); if (!c) return;
   if (c.snd) Snd.preloadSet(c.snd);
@@ -2052,6 +2055,7 @@ function pageUpgrade() {
 }
 const mcard = (s, attrs = '', extra = '') => `<div class="mcard r-${s.r}" ${attrs}>${extra}<img src="${imgUrl(s, 's')}" alt="" loading="lazy"><div class="mc-w">${esc(s.w)}</div><div class="mc-f">${esc(s.f)}</div><div class="mc-p">${money(s.p)}</div></div>`;
 function mountUpgrade() {
+  Snd.warm(['upgWin', 'safe1', 'safe2', 'safe3', 'tick']);
   upg.busy = false;
   $('#upgFastChk').onchange = e => { st.upgFast = e.target.checked; save(); };
   $$('#upgSort button').forEach(b => b.onclick = () => { upg.sort = b.dataset.s; drawTargets(); });
@@ -2358,6 +2362,7 @@ function pageContracts() {
   </section>`;
 }
 function mountContracts() {
+  Snd.warm(['conOpen', 'conAdd', 'conSign', 'conStamp', 'conHover', 'conPen']);
   dosOpenShown = false;
   conBusy = false;
   conSel = conSel.filter(id => st.inv.find(x => x.id === id && x.st === 'own'));
@@ -3529,6 +3534,7 @@ function pageJackpot() {
 }
 let jpTick = 0;
 function mountJackpot() {
+  Snd.warm(['safe1', 'safe2', 'safe3', 'upgWin']);
   jp = JP[jpView];
   jpRender();
   jpStart(); JP_ROOMS.forEach(cfg => jpTickRoom(cfg.id, cfg.id === jpView)); jpLoadHistory(jpView);

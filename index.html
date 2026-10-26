@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/logo.webp">
 <link rel="preload" as="image" href="assets/rcoin.webp">
-<link rel="stylesheet" href="css/style.css?v=202610261757">
+<link rel="stylesheet" href="css/style.css?v=202610261804">
 </head>
 <body>
 <div id="preloader" role="progressbar" aria-label="Загрузка RUSH CASE" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
@@ -39,7 +39,7 @@
   </div>
 </div>
 <script>
-/* экран загрузки: прогресс по реальной загрузке (шрифты, логотип, баннер, кейсы, window.load), минимум ~1.4 с, максимум 7 с */
+/* экран загрузки: прогресс по реальной загрузке (шрифты, логотип, баннер, кейсы, window.load), минимум ~1.4 с, максимум 4,5 с */
 (function () {
   var pre = document.getElementById('preloader'); if (!pre) return;
   var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -52,11 +52,12 @@
   dust.innerHTML = html;
   var prog = pre.querySelector('.pl-prog'), glow = pre.querySelector('.pl-prog-glow'), head = pre.querySelector('.pl-head'), pctEl = document.getElementById('plPct');
   var assets = ['assets/logo.webp', 'assets/hero-banner.webp', 'assets/case-sifon-s.webp', 'assets/case-alt-s.webp', 'assets/case-frog-s.webp', 'assets/case-s1mple-s.webp', 'assets/case-cotton-s.webp', 'assets/case-zont-s.webp', 'assets/case-orange-s.webp', 'assets/case-premium-s.webp'];
-  var total = assets.length + 2, got = 0, loaded = false, finished = false, shown = 0, t0 = performance.now();
+  var total = assets.length + 1, got = 0, loaded = true, finished = false, shown = 0, t0 = performance.now();
   var bump = function () { got++; };
   assets.forEach(function (u) { var im = new Image(); im.onload = im.onerror = bump; im.src = u; });
   (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(bump, bump);
-  window.addEventListener('load', function () { loaded = true; bump(); });
+  // полную загрузку страницы (звуки, видео, картинки Steam) не ждём — только логотип, баннер, кейсы и шрифты; страховка — 4,5 с
+  setTimeout(function () { finish(); }, 4500);
   function set(p) {
     var v = Math.max(0, Math.min(100, p));
     prog.setAttribute('stroke-dasharray', v.toFixed(2) + ' 100'); glow.setAttribute('stroke-dasharray', v.toFixed(2) + ' 100');
@@ -79,7 +80,7 @@
     shown += (Math.min(target, cap) - shown) * .12;
     if (shown < Math.min(target, cap) && Math.min(target, cap) - shown < .4) shown = Math.min(target, cap);
     set(shown);
-    if ((loaded && shown >= 99.6) || el > 7000) return finish();
+    if (shown >= 99.6 || el > 4500) return finish();
     requestAnimationFrame(tick);
   })(t0);
 })();
@@ -102,9 +103,9 @@
 <div id="toasts" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="js/skins.js?v=202610261757"></script>
-<script src="js/wears.js?v=202610261757"></script>
-<script src="js/extra.js?v=202610261757"></script>
-<script src="js/app.js?v=202610261757"></script>
+<script src="js/skins.js?v=202610261804"></script>
+<script src="js/wears.js?v=202610261804"></script>
+<script src="js/extra.js?v=202610261804"></script>
+<script src="js/app.js?v=202610261804"></script>
 </body>
 </html>
