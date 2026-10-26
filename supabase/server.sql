@@ -202,10 +202,10 @@ begin
   m := public._mark(d->'inv', p_ids, 'con');
   if (m->>'n')::int <> array_length(p_ids, 1) then raise exception 'items unavailable'; end if;
   s := (m->>'sum')::numeric;
-  create temp table if not exists _pool (n text, p double precision) on commit drop; delete from _pool;
+  create temp table if not exists _pool (n text, p double precision) on commit drop; delete from _pool where true;
   insert into _pool select n, p from public.catalog where c <> 'cash' and p >= s * 0.25 and p <= s * 4;
   if (select count(*) from _pool) < 4 then
-    delete from _pool; insert into _pool select n, p from public.catalog where c <> 'cash' and p > 0 order by abs(ln(p / s)) limit 8;
+    delete from _pool where true; insert into _pool select n, p from public.catalog where c <> 'cash' and p > 0 order by abs(ln(p / s)) limit 8;
   end if;
   -- веса ~ p^-k, k подбирается так, чтобы средний выигрыш = 90% суммы контракта
   for i in 1..60 loop
