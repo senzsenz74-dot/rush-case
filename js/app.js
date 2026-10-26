@@ -111,7 +111,7 @@ for (const [name, d] of Object.entries(window.SKINS)) {
 const CATALOG = ITEMS.slice().sort((a, b) => a.p - b.p);
 /* денежный дроп бонусных кейсов: сразу зачисляется на рублёвый баланс, в инвентарь не попадает */
 [50, 100, 200, 300].forEach(v => { SK[`${v} ₽ на баланс`] = { name: `${v} ₽ на баланс`, w: 'На баланс', f: `+${v} ₽`, r: v >= 300 ? 'rare' : v >= 200 ? 'covert' : v >= 100 ? 'classified' : 'restricted', p: v, c: 'cash', cash: v, img: `assets/cash-${v}.webp` }; });
-/* предметы с market.csgo.com: ножи, перчатки, наклейки, граффити, значки, агенты, ширп — участвуют только в апгрейде */
+/* доп. предметы (цены Lis-Skins, tools/lis-sync.js): ножи, перчатки, StatTrak, наклейки, граффити, значки, нашивки, брелоки, музыка, агенты, ширп */
 const STEAM_IMG = 'https://community.steamstatic.com/economy/image/';
 const CAT_SKIN = 'skin';
 CATALOG.forEach(s => { s.c = CAT_SKIN; });
@@ -122,7 +122,7 @@ CATALOG.forEach(s => { s.c = CAT_SKIN; });
   if (typeof p === 'object') addWears(s, p, true); else addItem(s);
 });
 const UPG_CAT = ITEMS.slice().sort((a, b) => a.p - b.p);
-const UPG_TABS = [['all', 'Все'], ['skin', 'Скины'], ['knife', 'Ножи'], ['gloves', 'Перчатки'], ['agent', 'Агенты'], ['sticker', 'Наклейки'], ['graffiti', 'Граффити'], ['pin', 'Значки'], ['junk', 'Ширп']];
+const UPG_TABS = [['all', 'Все'], ['skin', 'Скины'], ['knife', 'Ножи'], ['gloves', 'Перчатки'], ['agent', 'Агенты'], ['sticker', 'Наклейки'], ['graffiti', 'Граффити'], ['pin', 'Значки'], ['patch', 'Нашивки'], ['charm', 'Брелоки'], ['music', 'Музыка'], ['junk', 'Ширп']];
 
 /* шансы: веса ~ price^-k, k подбирается так, чтобы матожидание = цена * RTP */
 function solveChances(items, target) {
@@ -404,7 +404,7 @@ const CASES = [
     exact: [
       ['Nova | Mandrel', 'FN', .1512], ['Tec-9 | Citric Acid', 'FN', .1176], ['XM1014 | XoooM', 'FN', .0924],
       ['P250 | Re.built', 'FT', .0756], ['P2000 | Grip Tape', 'BS', .0756], ['AUG | Tom Cat', 'BS', .074172],
-      ['Desert Eagle | Oxide Blaze', 'FT', .0672], ['Glock-18 | Glockingbird', 'BS', .0588], ['USP-S | Torque', 'FT', .0588],
+      ['Desert Eagle | Oxide Blaze', 'FT', .0672], ['Glock-18 | Glockingbird', 'BS', .0588], ['USP-S | Torque', 'MW', .0588],
       ['Five-SeveN | Kami', 'MW', .042, 'restricted'], ['MP7 | Nemesis', 'FT', .0252, 'classified'],
       ['M4A1-S | Golden Coil', 'BS', .00084, 'covert'], ['MP9 | Bulldozer', 'BS', .00042, 'rare'], ['AK-47 | Fuel Injector', 'BS', .000168, 'rare'],
       ['Negev | Bulkhead', 'MW', .0499], ['MAC-10 | Acid Hex', 'FN', .04], ['Sawed-Off | Yorick', 'WW', .025],
@@ -555,7 +555,12 @@ const CASES = [
         c.exactCh[it.name] = (c.exactCh[it.name] || 0) + ch; if (r) c.exactR[it.name] = r; return it.name;
       });
       c.items = [...new Set(c.items)];
-      const tot = Object.values(c.exactCh).reduce((a, b) => a + b, 0); for (const n in c.exactCh) c.exactCh[n] /= tot;
+      // цены меняются (синхронизация с Lis-Skins) — таблицу наклоняем (шанс × p^t), чтобы окупаемость осталась c.rtp
+      const ps = c.items.map(n => SK[n].p), base = c.items.map(n => c.exactCh[n]);
+      const tilt = t => { const w = base.map((b, i) => b * ps[i] ** t), s = w.reduce((a, b) => a + b, 0); return w.map(x => x / s); };
+      const ev = t => tilt(t).reduce((a, w, i) => a + w * ps[i], 0);
+      let a = -3, b = 3; for (let i = 0; i < 60; i++) { const m = (a + b) / 2; if (ev(m) < c.price * c.rtp) a = m; else b = m; }
+      tilt((a + b) / 2).forEach((w, i) => { c.exactCh[c.items[i]] = w; });
       return;
     }
     if (c.bonusSet) return buildBonus(c);
