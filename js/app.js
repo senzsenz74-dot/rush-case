@@ -2198,9 +2198,9 @@ function drawTargets() {
   if (upg.mult && v) {
     const want = v * upg.mult, near = list.filter(s => s.p >= want * .88 && s.p <= want * 1.12);
     list = near.length >= 3 ? near : list.slice().sort((a, z) => Math.abs(Math.log(a.p / want)) - Math.abs(Math.log(z.p / want))).slice(0, 12).sort((a, z) => a.p - z.p);
-    if (upg.sort === 'desc') list.reverse();
   }
   $$('.mults button').forEach(x => x.classList.toggle('on', +x.dataset.m === upg.mult));
+  $$('#upgSort button').forEach(b => b.classList.toggle('on', b.dataset.s === upg.sort));
   if (upg.sort === 'desc') list = list.slice().reverse();
   const total = list.length, LIMIT = 240;
   if (total > LIMIT) { const k = upg.to ? list.findIndex(s => s.name === upg.to) : -1; const st0 = k >= LIMIT ? Math.max(0, k - Math.floor(LIMIT / 2)) : 0; list = list.slice(st0, st0 + LIMIT); }
