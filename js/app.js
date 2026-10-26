@@ -2038,12 +2038,7 @@ function mountUpgrade() {
     const v = upgValue(); if (!v) return toast('Сначала соберите ставку', 'err');
     if (upg.mult === +b.dataset.m) { upg.mult = 0; Snd.safeSel(false); return drawUpg(); } // повторный клик — сбросить фильтр
     upg.mult = +b.dataset.m; upg.cat = 'all';
-    const want = v * +b.dataset.m;
-    // случайный предмет из ВСЕХ категорий с ценой около нужного множителя (±12%), независимо от выбранной вкладки
-    const pool = UPG_CAT.filter(s => s.p > v * 1.05);
-    let near = pool.filter(s => s.p >= want * .88 && s.p <= want * 1.12);
-    if (near.length < 3) near = pool.slice().sort((a, z) => Math.abs(Math.log(a.p / want)) - Math.abs(Math.log(z.p / want))).slice(0, 12);
-    const best = near[Math.floor(Math.random() * near.length)];
+    const best = upgPickMult(v, upg.mult);
     if (best) { upg.to = best.name; upg.cat = best.c; upg.focus = true; upg.q = ''; const q = $('#upgQ'); if (q) q.value = ''; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x.dataset.cat === upg.cat)); Snd.safeSel(true); drawUpg(); }
   });
   $('#upgAll').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.sel = own().map(x => x.id); Snd.safeSel(true); drawUpg(); };
@@ -2081,10 +2076,21 @@ function stakeSlot(items, v) {
   const n = items.length;
   return head + `<div class="us-stack">${tiles}</div><div class="us-name"><span>${n} ${plural(n, 'скин', 'скина', 'скинов')}${upg.bal ? ' + баланс' : ''}</span>Сумма ставки</div><div class="us-price">${money(v)}</div>`;
 }
+// случайный предмет из ВСЕХ категорий с ценой около v × m (±12%); если таких мало — ближайшие по цене
+function upgPickMult(v, m) {
+  const want = v * m, pool = UPG_CAT.filter(s => s.p > v * 1.05);
+  let near = pool.filter(s => s.p >= want * .88 && s.p <= want * 1.12);
+  if (near.length < 3) near = pool.slice().sort((a, z) => Math.abs(Math.log(a.p / want)) - Math.abs(Math.log(z.p / want))).slice(0, 12);
+  return near[Math.floor(Math.random() * near.length)] || null;
+}
 function drawUpg() {
   upg.sel = upg.sel.filter(id => st.inv.find(x => x.id === id && x.st === 'own'));
   upg.bal = st.user ? clamp(Math.round(upg.bal), 0, st.balance) : 0;
   const items = upgItems(), v = upgValue();
+  if (upg.mult && v && !upg.busy) {
+    const x = upg.to ? SK[upg.to].p / v : 0;
+    if (!x || Math.abs(Math.log(x / upg.mult)) > Math.log(1.15)) { const b = upgPickMult(v, upg.mult); upg.to = b ? b.name : null; if (b) { upg.cat = b.c; upg.focus = true; } }
+  }
   if (upg.to && SK[upg.to].p <= v * 1.05) upg.to = null;
   $$('#upgSort button').forEach(b => b.classList.toggle('on', b.dataset.s === upg.sort));
   // слот ставки
@@ -2167,7 +2173,7 @@ function drawTargets() {
   if (total > LIMIT) { const k = upg.to ? list.findIndex(s => s.name === upg.to) : -1; const st0 = k >= LIMIT ? Math.max(0, k - Math.floor(LIMIT / 2)) : 0; list = list.slice(st0, st0 + LIMIT); }
   $('#upgCnt') && ($('#upgCnt').textContent = total > LIMIT ? `показано ${LIMIT} из ${fmt(total)} — уточните поиск` : `${fmt(total)} предм.`);
   box.innerHTML = list.length ? list.map(s => mcard(s, `data-t="${esc(s.name)}"`, v ? `<span class="mc-x">${pctTxt(upgChance(v, s))}</span>` : '')).join('') : `<div class="empty">${ic.search}Ничего не найдено</div>`;
-  $$('[data-t]', box).forEach(el => { if (el.dataset.t === upg.to) el.classList.add('sel'); el.onclick = () => { if (upg.busy) return; upg.to = el.dataset.t; Snd.safeSel(true); drawUpg(); }; });
+  $$('[data-t]', box).forEach(el => { if (el.dataset.t === upg.to) el.classList.add('sel'); el.onclick = () => { if (upg.busy) return; upg.to = el.dataset.t; const x = SK[upg.to].p / (v || 1); if (upg.mult && Math.abs(Math.log(x / upg.mult)) > Math.log(1.15)) upg.mult = 0; Snd.safeSel(true); drawUpg(); }; });
   // после выбора множителем — прокручиваем список к выбранному предмету
   if (upg.focus) { upg.focus = false; const el = $('[data-t].sel', box); if (el) box.scrollTop = el.offsetTop - box.clientHeight / 2 + el.offsetHeight / 2; }
 }
@@ -3099,7 +3105,7 @@ async function syncLuck() {
 }
 setInterval(syncLuck, 30000);
 /* личная удача игрока (из админки): ×шанс предметов дороже кейса, остальные пропорционально; у апгрейда — ×шанс, показанный игроку */
-const myLuck = () => (st.user && st.user.luck) || 1;
+const myLuck = () => clamp((st.user && st.user.luck) || 1, .1, 5);
 const luckItems = c => {
   const L = myLuck(); if (L === 1) return c.items;
   const its = c.items.map(s => ({ ...s, ch: s.ch * (s.p >= c.price ? L : 1) })), tot = its.reduce((a, s) => a + s.ch, 0);
