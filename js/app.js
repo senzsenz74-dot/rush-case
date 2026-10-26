@@ -1584,20 +1584,17 @@ function mountCases() {
 /* =========================================================
    ТОП ИГРОКОВ
    ========================================================= */
+/* только реальные игроки: сервер считает сумму дропов (кейсы, апгрейды, контракты) за период — supabase/top.sql */
 let topPeriod = 'week';
-function topData(period) {
-  let h = { week: 7, month: 30, all: 365 }[period];
-  const R = () => { h = (h + 0x6D2B79F5) | 0; let t = Math.imul(h ^ (h >>> 15), 1 | h); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const mult = { week: 1, month: 3.6, all: 22 }[period];
-  const pricey = CATALOG.filter(s => s.p >= 3000);
-  const names = NICKS.slice().sort(() => R() - .5).slice(0, 25);
-  let won = 420000 * mult * (0.9 + R() * .2);
-  return names.map(n => {
-    won *= 0.8 + R() * .12;
-    const opened = Math.round(won / (90 + R() * 160));
-    const best = pricey[Math.floor(Math.pow(R(), .6) * pricey.length)];
-    return { n, won: Math.round(won / 10) * 10, opened, best };
-  });
+const topCache = {};
+async function topData(period) {
+  const c = topCache[period];
+  if (c && Date.now() - c.t < 60000) return c.d;
+  if (!sb) return { list: [], me: null, total: 0 };
+  const { data, error } = await sb.rpc('top_players', { p_period: period });
+  if (error) throw error;
+  topCache[period] = { t: Date.now(), d: data };
+  return data;
 }
 function pageTop() {
   return `<section class="container">
@@ -1610,29 +1607,43 @@ function mountTop() {
   $$('#topSeg button').forEach(b => b.onclick = () => { topPeriod = b.dataset.p; drawTop(); });
   drawTop();
 }
-function drawTop() {
+async function drawTop() {
   $$('#topSeg button').forEach(b => b.classList.toggle('on', b.dataset.p === topPeriod));
-  const list = topData(topPeriod);
-  const pod = [list[1], list[0], list[2]];
-  const medal = ['silver', 'gold', 'bronze'], place = [2, 1, 3];
-  const me = st.user ? { won: st.stats.spent, pos: list.filter(x => x.won > st.stats.spent).length + 1 } : null;
-  $('#topBody').innerHTML = `
-    <div class="podium">${pod.map((p, i) => `
-      <div class="pod pod-${medal[i]}">
+  const box = $('#topBody'), period = topPeriod;
+  if (!topCache[period]) box.innerHTML = `<div class="top-load"><span class="spinner"></span>Загружаем рейтинг…</div>`;
+  let data;
+  try { data = await topData(period); } catch (e) { if (topPeriod === period) box.innerHTML = `<div class="top-empty"><b>Рейтинг не загрузился</b><span>Проверьте соединение и обновите страницу.</span></div>`; return; }
+  if (topPeriod !== period || !$('#topBody')) return; // пока грузили — переключили период или ушли со страницы
+  const list = data.list || [], me = data.me;
+  const best = p => SK[p.best] || null;
+  const bestHtml = (p, cls) => { const s = best(p); return s ? `<div class="${cls} r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><span>${esc(s.name)}</span></div>` : `<div class="${cls} none"><span>—</span></div>`; };
+  const pod = [list[1], list[0], list[2]], medal = ['silver', 'gold', 'bronze'], place = [2, 1, 3];
+  const perTxt = { week: 'за неделю', month: 'за месяц', all: 'за всё время' }[period];
+  box.innerHTML = `
+    <div class="podium">${pod.map((p, i) => p ? `
+      <div class="pod pod-${medal[i]}${p.me ? ' is-me' : ''}">
         ${place[i] === 1 ? `<span class="pod-crown">${ic.crown}</span>` : ''}
         <span class="pod-place">${place[i]}</span>
-        ${ava({ name: p.n }, 'xl')}
-        <b class="pod-name">${esc(p.n)}</b>
-        <span class="pod-won">${money(p.won)}</span>
-        <div class="pod-best r-${p.best.r}"><img src="${imgUrl(p.best, 'm')}" alt=""><span>${esc(p.best.name)}</span></div>
+        ${ava({ name: p.name, ava: p.ava }, 'xl')}
+        <b class="pod-name">${esc(p.name)}${p.me ? ' <i class="tt-you">вы</i>' : ''}</b>
+        <span class="pod-won">${money(+p.won)}</span>
+        <span class="pod-sub">${fmt(p.opened)} ${plural(p.opened, 'кейс', 'кейса', 'кейсов')}</span>
+        ${bestHtml(p, 'pod-best')}
+      </div>` : `
+      <div class="pod pod-${medal[i]} pod-free">
+        <span class="pod-place">${place[i]}</span>
+        <span class="pod-q">?</span>
+        <b class="pod-name">Свободное место</b>
+        <span class="pod-sub">Откройте кейсы ${perTxt}, чтобы занять его</span>
       </div>`).join('')}</div>
-    <div class="top-table">
+    ${list.length > 3 ? `<div class="top-table">
       <div class="tt-row tt-h"><span>#</span><span>Игрок</span><span>Кейсов</span><span>Лучший дроп</span><span>Выиграно</span></div>
-      ${list.slice(3).map((p, i) => `<div class="tt-row"><span class="tt-pl">${i + 4}</span><span class="tt-u">${ava({ name: p.n }, 'xs')}${esc(p.n)}</span><span>${fmt(p.opened)}</span>
-        <span class="tt-best r-${p.best.r}"><img src="${imgUrl(p.best, 'm')}" alt="">${esc(p.best.name)}</span><span class="tt-won">${money(p.won)}</span></div>`).join('')}
-    </div>
-    ${me ? `<div class="top-me">${ava(st.user, 'xs')}<b>Ваше место: #${me.pos}</b><span>Открыто кейсов на ${money(me.won)}</span><a class="btn btn-primary btn-sm" href="#/cases">Подняться выше</a></div>`
-      : `<div class="top-me"><b>Хотите в топ?</b><span>Войдите и открывайте кейсы — рейтинг обновляется каждый день.</span><button class="btn btn-primary btn-sm" data-act="login">${ic.login}Войти</button></div>`}`;
+      ${list.slice(3).map(p => { const s = best(p); return `<div class="tt-row${p.me ? ' is-me' : ''}"><span class="tt-pl">${p.pos}</span><span class="tt-u">${ava({ name: p.name, ava: p.ava }, 'xs')}${esc(p.name)}${p.me ? ' <i class="tt-you">вы</i>' : ''}</span><span>${fmt(p.opened)}</span>
+        ${s ? `<span class="tt-best r-${s.r}"><img src="${imgUrl(s, 'm')}" alt="">${esc(s.name)}</span>` : '<span class="tt-best none">—</span>'}<span class="tt-won">${money(+p.won)}</span></div>`; }).join('')}
+    </div>` : ''}
+    ${!list.length ? `<div class="top-empty"><b>Рейтинг ${perTxt} пока пуст</b><span>Первый, кто откроет кейс, окажется на вершине.</span></div>` : ''}
+    ${st.user ? `<div class="top-me">${ava(st.user, 'xs')}${me ? `<b>Ваше место: #${me.pos}</b><span>Выиграно ${perTxt}: ${money(+me.won)}</span>` : `<b>Вас пока нет в рейтинге</b><span>Откройте кейс — и вы попадёте в топ ${perTxt}</span>`}<a class="btn btn-primary btn-sm" href="#/cases">${me && me.pos === 1 ? 'Удержать первое место' : 'Подняться выше'}</a></div>`
+      : `<div class="top-me"><b>Хотите в топ?</b><span>Войдите и открывайте кейсы — рейтинг считается по реальным выигрышам.</span><button class="btn btn-primary btn-sm" data-act="login">${ic.login}Войти</button></div>`}`;
 }
 
 /* =========================================================

@@ -3162,3 +3162,15 @@ html{overflow-x:clip}
 @keyframes dosJudge{50%{filter:brightness(1.08) drop-shadow(0 0 14px rgba(31,79,179,.35))}}
 /* протокол: подпись — рисунок, оставленный игроком */
 .dprot-sigimg{display:inline-block;vertical-align:middle;height:46px;max-width:220px;object-fit:contain;margin:-8px 0 -6px 6px;mix-blend-mode:multiply}
+/* топ игроков: реальные игроки, свободные места, «вы» */
+.top-load,.top-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:40px 20px;margin-top:18px;border-radius:16px;border:1px dashed var(--stroke2);color:var(--txt2);font-size:13.5px;text-align:center}
+.top-load{flex-direction:row;justify-content:center;gap:10px;font-weight:700}
+.top-empty b{font-size:16px;color:var(--txt)}
+.pod-sub{margin-top:4px;font-size:12px;font-weight:700;color:var(--txt3)}
+.pod-free{opacity:.6;border-style:dashed;background:linear-gradient(180deg,#121110,#0b0b0b);box-shadow:none}
+.pod-free .pod-sub{max-width:200px;line-height:1.4}
+.pod-q{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;font:900 34px var(--ff-h);color:var(--txt3);border:2px dashed var(--stroke2)}
+.pod.is-me{box-shadow:0 0 0 2px rgba(74,222,128,.55),0 30px 60px -30px rgba(74,222,128,.45)}
+.pod-best.none,.tt-best.none{border-left-color:var(--stroke);color:var(--txt3)}
+.tt-row.is-me{background:linear-gradient(90deg,rgba(74,222,128,.1),transparent 60%)}
+.tt-you{font-style:normal;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:2px 6px;border-radius:5px;background:rgba(74,222,128,.15);color:#4ade80;margin-left:6px;vertical-align:middle}
