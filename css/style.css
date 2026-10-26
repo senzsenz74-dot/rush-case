@@ -2761,12 +2761,17 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 @media (max-width:720px){.container.cases-wide{padding:0 16px}}
 
 /* ===== фон сайта: картинка с оружием по краям (закреплена на весь экран, с затемнением), поверх — частицы и искры из оружия ===== */
-body{background:#050403}
+/* прокручивается вместе со страницей: сверху — картинка с оружием (×2, резкая), крупнее экрана на 16% — оружие по краям;
+   ниже — фон без оружия (плитка без швов), стык прикрыт мягкой полосой. Частицы и затемнение краёв — закреплённый слой .fx */
+:root{--bgw:calc(max(100vw,100vh * 1.7787) * 1.16);--bgh:calc(var(--bgw) * .5622)}
+body{background:
+  linear-gradient(180deg,transparent,rgba(5,4,3,.85) 50%,transparent) center calc(var(--bgh) - 220px)/100% 440px no-repeat,
+  linear-gradient(180deg,rgba(5,4,3,.1),rgba(5,4,3,.3) 75%,rgba(5,4,3,.55)) center top/100% var(--bgh) no-repeat,
+  url("../assets/bg-hd.webp") center top/var(--bgw) auto no-repeat,
+  url("../assets/bg-hd2.webp") center var(--bgh)/var(--bgw) auto repeat-y,
+  #050403}
 body::before{display:none}
-.fx{background:
-  radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.55) 100%),
-  linear-gradient(180deg,rgba(5,4,3,.12),rgba(5,4,3,.32) 70%,rgba(5,4,3,.6)),
-  url("../assets/bg-site.webp") center/cover no-repeat #050403}
+.fx{background:radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.5) 100%)}
 .fx-cv{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block}
 
 /* ===== окно входа v2: арт слева, форма с плавающими подписями и анимациями ===== */
@@ -2963,7 +2968,6 @@ html{overflow-x:clip}
 .tr .h3-btns .btn{height:4.1cqw;min-height:30px;padding:0 1.7cqw;font-size:max(10px,1.12cqw);border-radius:.9cqw;gap:.7cqw}
 .tr .h3-btns .btn svg{width:max(13px,1.5cqw);height:max(13px,1.5cqw)}
 /* фон крупнее на 16% — оружие уходит к краям экрана и не заходит на кейсы (центр картинки пустой) */
-.fx{background-size:auto,auto,calc(max(100vw,100vh * 1.7787) * 1.16) auto}
 
 /* ===== админ-панель ===== */
 .adm{padding-top:26px}

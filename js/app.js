@@ -1262,10 +1262,9 @@ function initFx() {
   const fit = () => {
     dpr = Math.min(1.5, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
     cv.width = W * dpr; cv.height = H * dpr; x.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // как картинка ложится при background-size:cover — чтобы искры вылетали ровно из оружия
-    // как картинка ложится при background-size:cover — чтобы искры вылетали ровно из оружия
-    const s = Math.max(W / BG_W, H / BG_H) * BG_ZOOM, ox = (W - BG_W * s) / 2, oy = (H - BG_H * s) / 2;
-    map = ([px, py]) => [ox + px * s, oy + py * s];
+    // как картинка ложится на фон страницы (ширина --bgw, сверху по центру, прокручивается) — чтобы искры вылетали ровно из оружия
+    const s = Math.max(W, H * BG_W / BG_H) * BG_ZOOM / BG_W, ox = (W - BG_W * s) / 2;
+    map = ([px, py]) => [ox + px * s, py * s - scrollY];
   };
   fit(); addEventListener('resize', fit);
   const side = () => Math.random() < .5 ? rand(0, W * .2) : rand(W * .8, W); // угольки — в основном по бокам, где оружие

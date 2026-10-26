@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/logo.webp">
 <link rel="preload" as="image" href="assets/rcoin.webp">
-<link rel="stylesheet" href="css/style.css?v=202610270040">
+<link rel="stylesheet" href="css/style.css?v=202610270120">
 </head>
 <body>
 <div id="preloader" role="progressbar" aria-label="Загрузка RUSH CASE" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
@@ -51,7 +51,7 @@
   }
   dust.innerHTML = html;
   var prog = pre.querySelector('.pl-prog'), glow = pre.querySelector('.pl-prog-glow'), head = pre.querySelector('.pl-head'), pctEl = document.getElementById('plPct');
-  var assets = ['assets/logo.webp', 'assets/hero-banner.webp', 'assets/case-sifon-s.webp', 'assets/case-alt-s.webp', 'assets/case-frog-s.webp', 'assets/case-s1mple-s.webp', 'assets/case-cotton-s.webp', 'assets/case-zont-s.webp', 'assets/case-orange-s.webp', 'assets/case-premium-s.webp'];
+  var assets = ['assets/logo.webp', 'assets/bg-hd.webp', 'assets/hero-banner.webp', 'assets/case-sifon-s.webp', 'assets/case-alt-s.webp', 'assets/case-frog-s.webp', 'assets/case-s1mple-s.webp', 'assets/case-cotton-s.webp', 'assets/case-zont-s.webp', 'assets/case-orange-s.webp', 'assets/case-premium-s.webp'];
   var total = assets.length + 1, got = 0, loaded = true, finished = false, shown = 0, t0 = performance.now();
   var bump = function () { got++; };
   assets.forEach(function (u) { var im = new Image(); im.onload = im.onerror = bump; im.src = u; });
@@ -103,9 +103,9 @@
 <div id="toasts" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="js/skins.js?v=202610270040"></script>
-<script src="js/wears.js?v=202610270040"></script>
-<script src="js/extra.js?v=202610270040"></script>
-<script src="js/app.js?v=202610270040"></script>
+<script src="js/skins.js?v=202610270120"></script>
+<script src="js/wears.js?v=202610270120"></script>
+<script src="js/extra.js?v=202610270120"></script>
+<script src="js/app.js?v=202610270120"></script>
 </body>
 </html>
