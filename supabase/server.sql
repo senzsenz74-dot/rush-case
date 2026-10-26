@@ -246,24 +246,13 @@ begin
 end $$;
 
 -- ---------- пополнение (ТЕСТОВОЕ: без оплаты; заменить на вебхук платёжки) ----------
+-- пополнение без кассы выключено (supabase/deposit_off.sql): баланс начисляет только админ (admin_grant)
 create or replace function public.deposit_test(p_amount numeric, p_promo text default null) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare d jsonb := public._me(); bonus numeric; pr record; total numeric;
 begin
-  if p_amount is null or p_amount < 100 or p_amount > 1000000 then raise exception 'bad amount'; end if;
-  bonus := coalesce((d->>'depBonus')::numeric, 0);
-  if p_promo is not null and p_promo <> '' then
-    select * into pr from public.promo_codes where code = upper(p_promo) and t = 'dep';
-    if found and not (d->'promos' ? pr.code) then bonus := greatest(bonus, pr.v); d := jsonb_set(d, '{promos}', (d->'promos') || to_jsonb(pr.code)); end if;
-  end if;
-  total := round(p_amount * (1 + bonus / 100), 2);
-  d := public._bal(jsonb_set(d, '{depBonus}', '0'), total);
-  d := public._stat(d, 'dep', p_amount);
-  d := public._rc(d, p_amount * 0.005, 'Пополнение');
-  perform public._ev('dep', p_amount);
-  perform public._save(d);
-  return jsonb_build_object('total', total, 'bonus', bonus, 'data', d);
+  raise exception 'payments disabled';
 end $$;
+revoke execute on function public.deposit_test(numeric, text) from authenticated, anon, public;
 
 -- ---------- бонусы ----------
 create or replace function public.claim_daily() returns jsonb
@@ -396,4 +385,4 @@ end $$;
 -- ---------- права ----------
 revoke all on function public._me(), public._save(jsonb), public._live(text, text, text, numeric), public._ev(text, numeric, numeric, numeric) from public, anon, authenticated;
 grant execute on function public.open_case(text, int), public.sell_items(text[]), public.upgrade(text[], numeric, text), public.contract(text[]), public.withdraw(text),
-  public.save_trade(text), public.deposit_test(numeric, text), public.claim_daily(), public.use_promo(text), public.claim_social(text), public.admin_sync(jsonb, jsonb, text) to authenticated;
+  public.save_trade(text), public.claim_daily(), public.use_promo(text), public.claim_social(text), public.admin_sync(jsonb, jsonb, text) to authenticated;

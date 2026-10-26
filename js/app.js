@@ -673,7 +673,7 @@ function sbApply(d) {
   setBalance(bal);
   const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin || 0);
 }
-const SRV_ERR = { 'not enough balance': 'Недостаточно средств', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
+const SRV_ERR = { 'not enough balance': 'Недостаточно средств', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
   'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку',
   'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка',
   'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
@@ -3244,54 +3244,68 @@ const METHODS = [
   { k: 'skins', t: 'Скины CS2', s: '+10% к сумме', i: 'knife', tag: '+10%' },
   { k: 'wallet', t: 'Электронный кошелёк', s: 'ЮMoney и др.', i: 'wallet' },
 ];
+/* касса не подключена: онлайн-оплаты нет, баланс пополняет администратор (админ-панель → Игроки → начислить).
+   Игрок собирает заявку (ID + сумма) и отправляет её в поддержку. Касса подключится — здесь снова будет оплата через шлюз */
+const SUPPORT = { mail: 'support@rushcase.gg', tg: '' }; // tg — ник поддержки в Telegram без @ (появится кнопка)
 function openDeposit(need = 0) {
   if (!st.user) return openAuth('login');
-  let amount = Math.max(100, Math.ceil((need || 500) / 50) * 50), method = 'sbp';
-  const m = modal(`<div class="dep">
-    <h2>Пополнение баланса <small>ТЕСТ</small></h2>
-    <p class="dep-sub">${need ? `Не хватает <b style="color:var(--lime)">${money(need)}</b> для открытия.` : 'Выберите способ оплаты и сумму.'} Минимальная сумма — 100 ₽.</p>
-    <div class="dep-label">Способ оплаты</div>
-    <div class="methods">${METHODS.map(x => `<button class="method" data-m="${x.k}">${x.tag ? `<span class="tagb">${x.tag}</span>` : ''}<span class="mi">${ic[x.i]}</span><span><b>${x.t}</b><small>${x.s}</small></span></button>`).join('')}</div>
-    <div class="dep-label">Сумма</div>
-    <div class="dep-amt"><input class="inp" id="depAmt" type="number" min="100" step="50" value="${amount}"><span>₽</span></div>
-    <div class="amounts">${[300, 500, 1000, 2500, 5000, 10000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
-    <div class="dep-label">Промокод</div>
-    <div class="inp-row"><input class="inp" id="depPromo" placeholder="RUSH35" style="text-transform:uppercase" autocomplete="off"><button class="btn btn-dark" id="depPromoBtn">Применить</button></div>
-    <div class="dep-total"><div>К зачислению<b id="depTotal"></b><span id="depBonusTxt"></span></div><button class="btn btn-primary btn-xl" id="depGo"></button></div>
-    <p class="dep-note">Тестовый режим: реальная оплата не проводится, баланс пополняется сразу. Перед запуском подключите платёжный шлюз.</p>
+  let amount = Math.max(100, Math.ceil((need || 500) / 50) * 50);
+  const id = st.user.pid || st.user.rid || st.user.id;
+  const req = () => `Пополнение RUSH CASE\nID игрока: ${id}\nНик: ${st.user.name}\nСумма: ${fmt(amount)} ₽`;
+  const m = modal(`<div class="dpx">
+    <div class="dpx-head">
+      <span class="dpx-ico">${ic.wallet}</span>
+      <div><h2>Пополнение баланса</h2><p>${need ? `Для открытия не хватает <b>${money(need)}</b>` : 'Баланс сейчас пополняется через поддержку'}</p></div>
+      <div class="dpx-bal"><small>На балансе</small><b>${money(st.balance)}</b></div>
+    </div>
+    <div class="dpx-off"><i class="dpx-dot"></i><div><b>Онлайн-оплата скоро</b><span>Подключаем платёжную систему. Пока баланс зачисляет администратор — отправьте заявку в поддержку, обычно это занимает несколько минут.</span></div></div>
+    <div class="dpx-grid">
+      <section class="dpx-card">
+        <div class="dpx-step"><i>1</i>Сумма пополнения</div>
+        <div class="dep-amt"><input class="inp" id="depAmt" type="number" min="100" step="50" value="${amount}" inputmode="numeric"><span>₽</span></div>
+        <div class="amounts">${[300, 500, 1000, 2500, 5000, 10000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
+        <div class="dpx-step"><i>2</i>Заявка для поддержки</div>
+        <div class="dpx-req"><div><span>ID игрока</span><b>${esc(id)}</b></div><div><span>Ник</span><b>${esc(st.user.name)}</b></div><div><span>Сумма</span><b id="depReqAmt"></b></div></div>
+        <div class="dpx-acts">
+          <button class="btn btn-primary btn-lg" id="depCopy">${ic.copy}Скопировать заявку</button>
+          ${SUPPORT.tg ? `<a class="btn btn-dark btn-lg" id="depTg" href="https://t.me/${SUPPORT.tg}" target="_blank" rel="noopener">${ic.tg}Telegram</a>` : ''}
+          <a class="btn btn-dark btn-lg" id="depMail">${ic.send}Написать на почту</a>
+        </div>
+        <p class="dpx-hint" id="depHint">Минимальная сумма — 100 ₽</p>
+      </section>
+      <aside class="dpx-how">
+        <div class="dpx-step"><i>3</i>Что дальше</div>
+        <ol>
+          <li><b>Отправьте заявку</b><span>Вставьте скопированный текст в сообщение поддержке.</span></li>
+          <li><b>Оплатите по реквизитам</b><span>Поддержка пришлёт удобный способ оплаты.</span></li>
+          <li><b>Баланс зачислится сам</b><span>Обновится на сайте автоматически — ничего нажимать не нужно.</span></li>
+        </ol>
+      </aside>
+    </div>
+    <div class="dpx-soon">
+      <div class="dpx-soon-h">Способы оплаты <span>появятся после подключения кассы</span></div>
+      <div class="dpx-methods">${METHODS.map(x => `<div class="dpx-m"><span class="mi">${ic[x.i]}</span><span><b>${x.t}</b><small>${x.s}</small></span><em>Скоро</em></div>`).join('')}</div>
+    </div>
   </div>`, 'm-dep');
-  let bonus = st.depBonus || 0, depCode = null;
   const draw = () => {
-    $$('.method', m).forEach(b => b.classList.toggle('on', b.dataset.m === method));
+    const ok = amount >= 100 && amount <= 1000000;
     $$('.amounts button', m).forEach(b => b.classList.toggle('on', +b.dataset.a === amount));
-    const extra = (bonus + (method === 'skins' ? 10 : 0)) / 100, fee = method === 'intl' ? .03 : 0;
-    const total = Math.round(amount * (1 + extra) - amount * fee);
-    $('#depTotal', m).textContent = money(total);
-    $('#depBonusTxt', m).innerHTML = [bonus ? `<em>+${bonus}% промокод</em>` : '', method === 'skins' ? '<em>+10% за скины</em>' : '', fee ? 'комиссия 3%' : ''].filter(Boolean).join(' · ');
-    $('#depGo', m).innerHTML = `${ic.wallet}Пополнить на ${money(amount)}`;
-    $('#depGo', m).disabled = amount < 100;
-    return total;
+    $('#depReqAmt', m).textContent = ok ? money(amount) : '—';
+    $('#depCopy', m).disabled = !ok;
+    $('#depMail', m).href = ok ? `mailto:${SUPPORT.mail}?subject=${encodeURIComponent('Пополнение баланса — ID ' + id)}&body=${encodeURIComponent(req())}` : '#';
+    $('#depMail', m).classList.toggle('dis', !ok);
+    $('#depHint', m).classList.toggle('err', !ok);
   };
-  $$('.method', m).forEach(b => b.onclick = () => { method = b.dataset.m; draw(); });
   $$('.amounts button', m).forEach(b => b.onclick = () => { amount = +b.dataset.a; $('#depAmt', m).value = amount; draw(); });
   $('#depAmt', m).oninput = e => { amount = Math.max(0, Math.round(+e.target.value || 0)); draw(); };
-  $('#depPromoBtn', m).onclick = () => {
-    const code = $('#depPromo', m).value.trim().toUpperCase(), p = PROMOS[code];
-    if (!p || p.t !== 'dep') return toast('Промокод для пополнения не найден', 'err');
-    if (st.promos.includes(code) && !st.depBonus) return toast('Этот промокод уже использован', 'err');
-    depCode = code; bonus = p.v; draw(); toast(`Промокод применён: <b>+${p.v}%</b> — начислится при пополнении`);
+  $('#depCopy', m).onclick = async () => {
+    try { await navigator.clipboard.writeText(req()); }
+    catch (e) { const ta = document.createElement('textarea'); ta.value = req(); document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e2) { /* ignore */ } ta.remove(); }
+    const b = $('#depCopy', m); b.innerHTML = `${ic.check}Заявка скопирована`; b.classList.add('done');
+    toast('Заявка скопирована — отправьте её в поддержку');
+    setTimeout(() => { b.innerHTML = `${ic.copy}Скопировать заявку`; b.classList.remove('done'); }, 2500);
   };
-  $('#depGo', m).onclick = async () => {
-    if (amount < 100) return toast('Минимальная сумма — 100 ₽', 'err');
-    const total = draw(), b = $('#depGo', m);
-    b.innerHTML = '<span class="spinner"></span>Обработка…'; b.disabled = true;
-    const r = await srv('deposit_test', { p_amount: amount, p_promo: depCode });
-    if (!r) { b.disabled = false; draw(); return; }
-    Snd.file('assets/sounds/deposit.wav'); closeModal();
-    toast(`Баланс пополнен на <b>+${money(+r.total)}</b>`);
-    if (total >= 1000) burst(26);
-    route();
-  };
+  $('#depMail', m).onclick = e => { if (amount < 100) e.preventDefault(); };
   draw();
 }
 
