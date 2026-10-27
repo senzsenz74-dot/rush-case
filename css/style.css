@@ -1786,7 +1786,7 @@ img.rc-ic.big{width:72px;height:72px;filter:drop-shadow(0 0 16px rgba(246,198,80
 .ld.ld-gold img{filter:drop-shadow(0 4px 6px rgba(60,30,0,.55))}
 @media (prefers-reduced-motion:reduce){.ld.ld-gold::after{animation:none}}
 /* выпавший предмет: 3D-наклон за курсором — курсор-подсказка и плавность */
-.rv-card .rv-imgw{cursor:grab;transform-style:preserve-3d}
+.rv-card .rv-imgw{transform-style:preserve-3d}
 .rv-card .rv-imgw img{will-change:transform,filter;transform-origin:50% 50%}
 @media (prefers-reduced-motion:reduce){.rv-card .rv-imgw img{transform:none!important}}
 /* блики на выпавшем предмете: слой по силуэту предмета, поворачивается вместе с ним */

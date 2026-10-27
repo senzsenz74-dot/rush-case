@@ -1908,16 +1908,12 @@ function spinStrip(strip, dur, withSound) {
     };
   });
 }
-/* выпавший предмет можно покрутить курсором в 3D (как карточку выигрыша в апгрейде) — двигается только сам предмет;
-   тень уходит в противоположную сторону, без курсора — лёгкое покачивание */
+/* выпавший предмет сам плавно покачивается в 3D (мышью не двигается); тень уходит в противоположную сторону */
 function itemTilt(root) {
   $$('.rv-imgw', root).forEach((w, i) => {
     const img = $('img', w); if (!img) return;
-    // один предмет — крутится от курсора в любом месте окна результата; несколько — каждый от своей карточки
-    const zone = w.closest('.rv-inner.one') ? (root.closest('.rl-framed') || root.closest('.rl') || root) : (w.closest('.rv-card') || w), t0 = performance.now() + i * 900;
-    let tx = 0, ty = 0, rx = 0, ry = 0, hover = false, energy = 0;
-    zone.addEventListener('pointermove', e => { const q = w.getBoundingClientRect(); tx = (clamp((e.clientX - q.left) / q.width, 0, 1) - .5) * 56; ty = -(clamp((e.clientY - q.top) / q.height, 0, 1) - .5) * 40; hover = true; });
-    zone.addEventListener('pointerleave', () => { hover = false; });
+    const t0 = performance.now() + i * 900, hover = false;
+    let tx = 0, ty = 0, rx = 0, ry = 0, energy = 0;
     // блики: canvas поверх предмета, повёрнутый вместе с ним; полоса света и искорки обрезаются по силуэту
     // (картинки Steam без CORS нельзя взять в CSS-маску, а нарисовать на canvas и обрезать режимом destination-in — можно)
     const fx = document.createElement('canvas'); fx.className = 'it-fx'; fx.setAttribute('aria-hidden', 'true');
