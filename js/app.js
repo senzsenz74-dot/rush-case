@@ -74,6 +74,7 @@ const ic = {
   vk: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.8 17.5c-5.9 0-9.3-4-9.4-10.8h3c.1 5 2.3 7.1 4 7.5V6.7h2.8v4.3c1.7-.2 3.5-2.1 4.1-4.3h2.8c-.5 2.6-2.4 4.5-3.8 5.3 1.4.7 3.6 2.4 4.4 5.5h-3.1c-.6-2-2.2-3.6-4.4-3.8v3.8z"/></svg>`,
   yt: sv('<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="currentColor"/>'),
   ds: sv('<path d="M8 7c-2 .3-3.5 1-3.5 1S2 12 2 17c1.5 1.5 4 2 4 2l1-2M16 7c2 .3 3.5 1 3.5 1S22 12 22 17c-1.5 1.5-4 2-4 2l-1-2M7 16c3 1.5 7 1.5 10 0M8 7.5c2.5-.8 5.5-.8 8 0"/><circle cx="9" cy="12.5" r="1.2"/><circle cx="15" cy="12.5" r="1.2"/>'),
+  edit: sv('<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
   steam: sv('<circle cx="12" cy="12" r="9.5"/><circle cx="15.5" cy="9" r="2.6"/><circle cx="8.5" cy="15.5" r="2"/><path d="M10.3 14.6l3-3.6"/>'),
 };
 
@@ -649,7 +650,7 @@ try {
 /* ---------- база Supabase: аккаунты, профиль, общие ставки ---------- */
 const SB_URL = 'https://gkeexoyrxnsarosymdyp.supabase.co', SB_KEY = 'sb_publishable_oczOEZFsdpzmwq8FB4Of_Q_A_JSZ3zt'; // публичный ключ — ему место в коде
 const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
-const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade'];
+const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade', 'umults'];
 let sbSaveT = 0;
 // профиль пишется в базу с задержкой (пачкой), локально — сразу
 async function sbPush() {
@@ -673,7 +674,7 @@ function sbApply(d) {
   setBalance(bal);
   const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin || 0);
 }
-const SRV_ERR = { 'not enough balance': 'Недостаточно средств', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
+const SRV_ERR = { 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
   'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку',
   'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка',
   'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
@@ -1983,7 +1984,8 @@ const upgItems = () => upg.sel.map(id => st.inv.find(x => x.id === id && x.st ==
 function upgValue() { return upgItems().reduce((a, x) => a + SK[x.n].p, 0) + upg.bal; }
 // шанс апгрейда: до x20 — честные 92% от отношения сумм; дальше резко падает (x50 ≈ 0,12%, x100 ≈ 0,007%, x500 ≈ 0,00001%) — x500/x1000 практически не выпадают
 const UPG_SOFT = 20;
-const upgChance = (v, t) => { if (!v || !t) return 0; const x = t.p / v; return Math.min(.8, .92 / x * (x > UPG_SOFT ? (UPG_SOFT / x) ** 3 : 1) * myLuck()); };
+const UPG_MAX = .75; // максимальный шанс апгрейда (как на сервере)
+const upgChance = (v, t) => { if (!v || !t) return 0; const x = t.p / v; return Math.min(UPG_MAX, .92 / x * (x > UPG_SOFT ? (UPG_SOFT / x) ** 3 : 1) * myLuck()); };
 /* процент шанса: мелкие значения — без округления в ноль (0,0000118%) */
 const pctTxt = ch => { const p = ch * 100; if (p < 1e-6) return '<0,000001%'; const d = p >= 10 ? 1 : p >= 1 ? 2 : Math.min(12, 1 - Math.floor(Math.log10(p))); return p.toFixed(d).replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1').replace('.', ',') + '%'; };
 /* дуга шанса по центру снизу кольца */
@@ -1993,7 +1995,11 @@ function arcPath(span) {
   const [x1, y1] = pt(90 - span / 2), [x2, y2] = pt(90 + span / 2);
   return `M${x1.toFixed(2)} ${y1.toFixed(2)}A${ARC_R} ${ARC_R} 0 ${span > 180 ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
-const chanceColor = ch => `hsl(${Math.round(clamp(ch / .8, 0, 1) * 120)} 85% 60%)`;
+const chanceColor = ch => `hsl(${Math.round(clamp(ch / UPG_MAX, 0, 1) * 120)} 85% 60%)`;
+/* кнопки множителей: стандартные или свои (6 штук, x1.2–x20) — свои хранятся в профиле (save_umults) */
+const UPG_DEF_MULTS = [1.5, 2, 2.5, 3, 5, 10];
+const upgMults = () => Array.isArray(st.umults) && st.umults.length === 6 ? st.umults.map(Number) : UPG_DEF_MULTS;
+const multTxt = m => 'x' + String(+(+m).toFixed(1)).replace('.', ',');
 const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c; };
 function pageUpgrade() {
   return `<section class="container upg">
@@ -2049,7 +2055,7 @@ function pageUpgrade() {
           <div class="w-center"><b id="wChance">0%</b><span id="wLabel">шанс</span></div>
         </div>
         <label class="switch upg-fast"><input type="checkbox" id="upgFastChk"${st.upgFast ? ' checked' : ''}><i></i>Быстрая прокрутка</label>
-        <div class="mults">${[1.5, 2, 2.5, 3, 5, 10].map(m => `<button data-m="${m}">x${m}</button>`).join('')}</div>
+        <div class="mults" id="upgMults"></div>
         <button class="btn btn-primary btn-xl" id="upgBtn">${ic.up}Апгрейд</button>
       </div>
       <div class="upg-slot" id="upgTo"></div>
@@ -2076,14 +2082,7 @@ function mountUpgrade() {
   $$('#upgSort button').forEach(b => b.onclick = () => { upg.sort = b.dataset.s; drawTargets(); });
   $('#upgQ').oninput = e => { upg.q = e.target.value.trim().toLowerCase(); drawTargets(); };
   $$('#upgCats [data-cat]').forEach(b => { b.classList.toggle('on', b.dataset.cat === upg.cat); b.onclick = () => { upg.cat = b.dataset.cat; upg.mult = 0; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x === b)); drawTargets(); }; });
-  $$('.mults button').forEach(b => b.onclick = () => {
-    if (upg.busy) return;
-    const v = upgValue(); if (!v) return toast('Сначала соберите ставку', 'err');
-    if (upg.mult === +b.dataset.m) { upg.mult = 0; Snd.safeSel(false); return drawUpg(); } // повторный клик — сбросить фильтр
-    upg.mult = +b.dataset.m; upg.cat = 'all';
-    const best = upgPickMult(v, upg.mult);
-    if (best) { upg.to = best.name; upg.cat = best.c; upg.focus = true; upg.q = ''; const q = $('#upgQ'); if (q) q.value = ''; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x.dataset.cat === upg.cat)); Snd.safeSel(true); drawUpg(); }
-  });
+  upg.editMults = false; drawMults();
   $('#upgAll').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.sel = own().map(x => x.id); Snd.safeSel(true); drawUpg(); };
   $('#upgClr').onclick = () => { if (upg.busy) return; upg.sel = []; upg.bal = 0; drawUpg(); };
   const pop = $('#upgBalPop');
@@ -2101,8 +2100,54 @@ function mountUpgrade() {
   upg.rot = 0; $('#wPtr').style.transform = 'rotate(0deg)';
   drawUpg();
   // пришли из кейса кнопкой «В апгрейд» — сразу цель по x2
-  if (upg.autoX2) { upg.autoX2 = false; if (upg.sel.length) $('.mults [data-m="2"]')?.click(); }
+  if (upg.autoX2) { upg.autoX2 = false; if (upg.sel.length) setMult(2); }
 }
+/* выбор множителя: фильтр списка + автовыбор предмета около ставки × m; повторный клик — сброс */
+function setMult(m) {
+  if (upg.busy) return;
+  const v = upgValue(); if (!v) return toast('Сначала соберите ставку', 'err');
+  if (upg.mult === m) { upg.mult = 0; Snd.safeSel(false); return drawUpg(); }
+  upg.mult = m; upg.cat = 'all';
+  const best = upgPickMult(v, m);
+  if (best) { upg.to = best.name; upg.cat = best.c; upg.focus = true; upg.q = ''; const q = $('#upgQ'); if (q) q.value = ''; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x.dataset.cat === upg.cat)); Snd.safeSel(true); drawUpg(); }
+}
+function drawMults() {
+  const box = $('#upgMults'); if (!box) return;
+  const ms = upgMults();
+  if (!upg.editMults) {
+    box.classList.remove('editing');
+    box.innerHTML = ms.map(m => `<button data-m="${m}">${multTxt(m)}</button>`).join('') + `<button class="mult-edit" id="multEdit" title="Свои множители" aria-label="Настроить свои множители">${ic.edit}</button>`;
+    $$('[data-m]', box).forEach(b => { b.classList.toggle('on', +b.dataset.m === upg.mult); b.onclick = () => setMult(+b.dataset.m); });
+    $('#multEdit').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.editMults = true; drawMults(); };
+    return;
+  }
+  box.classList.add('editing');
+  box.innerHTML = `<div class="me-h">Свои множители <small>от x1,2 до x20</small></div>
+    <div class="me-row">${ms.map((m, i) => `<label class="me-in"><i>x</i><input type="number" min="1.2" max="20" step="0.1" value="${+(+m).toFixed(1)}" data-i="${i}" inputmode="decimal" aria-label="Множитель ${i + 1}"></label>`).join('')}</div>
+    <div class="me-f"><button class="btn btn-ghost btn-sm" id="meDef">Стандартные</button><button class="btn btn-dark btn-sm" id="meCancel">Отмена</button><button class="btn btn-primary btn-sm" id="meSave">Сохранить</button></div>`;
+  const inputs = $$('input', box);
+  inputs.forEach(i => { i.oninput = () => i.parentElement.classList.remove('err'); i.onkeydown = e => { if (e.key === 'Enter') $('#meSave').click(); }; });
+  inputs[0].focus(); inputs[0].select();
+  const store = async arr => {
+    const b = $('#meSave'); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+    const r = await srv('save_umults', { p_m: arr });
+    if (!r) { b.disabled = false; b.textContent = 'Сохранить'; return; }
+    if (!arr.length) st.umults = null;
+    if (upg.mult && !upgMults().includes(upg.mult)) upg.mult = 0;
+    upg.editMults = false; drawMults(); drawTargets();
+    toast(arr.length ? 'Ваши множители сохранены' : 'Вернули стандартные множители');
+  };
+  $('#meCancel').onclick = () => { upg.editMults = false; drawMults(); };
+  $('#meDef').onclick = () => store([]);
+  $('#meSave').onclick = () => {
+    let ok = true;
+    const arr = inputs.map(i => { const v = Math.round(parseFloat(String(i.value).replace(',', '.')) * 10) / 10; if (!(v >= 1.2 && v <= 20)) { ok = false; i.parentElement.classList.add('err'); } return v; });
+    if (!ok) return toast('Множитель — от x1,2 до x20', 'err');
+    store([...new Set(arr)].length === 6 ? arr.slice().sort((a, b) => a - b) : arr);
+  };
+}
+/* «витрина»: луч прожектора цвета редкости и подиум под предметом */
+const UPG_STAGE = '<i class="us-beam" aria-hidden="true"></i><i class="us-pod" aria-hidden="true"></i><i class="us-corners" aria-hidden="true"></i>';
 function stakeSlot(items, v) {
   if (!items.length && !upg.bal) return `<span class="us-label">Ваша ставка</span><div class="us-empty"><div class="plus">${ic.plus}</div>Выберите один или несколько скинов ниже и/или добавьте баланс</div>`;
   const head = `<span class="us-label">Ваша ставка</span><button class="us-x" id="fromX" aria-label="Очистить ставку">${ic.close}</button>`;
@@ -2141,13 +2186,13 @@ function drawUpg() {
   items.forEach(x => { const r = SK[x.n].r; if (!top || RAR[r].o > RAR[top].o) top = r; });
   const from = $('#upgFrom');
   from.className = 'upg-slot' + (top ? ' r-' + top : '');
-  from.innerHTML = stakeSlot(items, v);
+  from.innerHTML = UPG_STAGE + stakeSlot(items, v);
   const fx = $('#fromX'); if (fx) fx.onclick = () => { if (upg.busy) return; upg.sel = []; upg.bal = 0; drawUpg(); };
   // слот цели
   const to = $('#upgTo'), ts = upg.to && SK[upg.to];
   to.className = 'upg-slot' + (ts ? ' r-' + ts.r : '');
-  to.innerHTML = ts ? `<span class="us-label">Вы получите</span><button class="us-x" id="toX" aria-label="Убрать">${ic.close}</button><img src="${imgUrl(ts, 'l')}" alt=""><div class="us-name"><span>${esc(ts.w)}</span>${esc(ts.f)}</div><div class="us-price">${money(ts.p)}</div>`
-    : `<span class="us-label">Вы получите</span><div class="us-empty"><div class="plus">${ic.star}</div>Выберите желаемый скин справа</div>`;
+  to.innerHTML = UPG_STAGE + (ts ? `<span class="us-label">Вы получите</span><button class="us-x" id="toX" aria-label="Убрать">${ic.close}</button><img src="${imgUrl(ts, 'l')}" alt=""><div class="us-name"><span>${esc(ts.w)}</span>${esc(ts.f)}</div><div class="us-price">${money(ts.p)}</div>`
+    : `<span class="us-label">Вы получите</span><div class="us-empty"><div class="plus">${ic.star}</div>Выберите желаемый скин справа</div>`);
   if (ts) $('#toX').onclick = () => { if (upg.busy) return; upg.to = null; drawUpg(); };
   // колесо
   const ch = upgChance(v, ts);
@@ -2209,7 +2254,7 @@ function drawTargets() {
     const want = v * upg.mult, near = list.filter(s => s.p >= want * .88 && s.p <= want * 1.12);
     list = near.length >= 3 ? near : list.slice().sort((a, z) => Math.abs(Math.log(a.p / want)) - Math.abs(Math.log(z.p / want))).slice(0, 12).sort((a, z) => a.p - z.p);
   }
-  $$('.mults button').forEach(x => x.classList.toggle('on', +x.dataset.m === upg.mult));
+  $$('#upgMults [data-m]').forEach(x => x.classList.toggle('on', +x.dataset.m === upg.mult));
   $$('#upgSort button').forEach(b => b.classList.toggle('on', b.dataset.s === upg.sort));
   if (upg.sort === 'desc') list = list.slice().reverse();
   const total = list.length, LIMIT = 240;
@@ -2285,7 +2330,7 @@ async function runUpgrade() {
   upg.sel = []; upg.bal = 0;
   upg.to = win ? null : upg.to;
   // «Апгрейднуть»: выигранный предмет сразу в ставку, по умолчанию — x2
-  if (act === 'again' && won && won.st === 'own') { upg.sel = [won.id]; drawUpg(); $('.mults [data-m="2"]')?.click(); return; }
+  if (act === 'again' && won && won.st === 'own') { upg.sel = [won.id]; drawUpg(); setMult(2); return; }
   drawUpg();
 }
 /* 3D-карточка выигрыша поверх апгрейда: наклон за курсором (без курсора — плавное покачивание),

@@ -178,7 +178,7 @@ begin
   if v <= 0 then raise exception 'empty stake'; end if;
   if tp <= v * 1.05 then raise exception 'target too cheap'; end if;
   x := tp / v;
-  ch := least(0.8, 0.92 / x * (case when x > 20 then power(20 / x, 3) else 1 end) * public._luck());
+  ch := least(0.75, 0.92 / x * (case when x > 20 then power(20 / x, 3) else 1 end) * public._luck());
   win := random() < ch;
   d := public._bal(jsonb_set(d, '{inv}', m->'inv'), -p_bal);
   d := public._stat(d, 'upg', 1);
@@ -386,3 +386,21 @@ end $$;
 revoke all on function public._me(), public._save(jsonb), public._live(text, text, text, numeric), public._ev(text, numeric, numeric, numeric) from public, anon, authenticated;
 grant execute on function public.open_case(text, int), public.sell_items(text[]), public.upgrade(text[], numeric, text), public.contract(text[]), public.withdraw(text),
   public.save_trade(text), public.claim_daily(), public.use_promo(text), public.claim_social(text), public.admin_sync(jsonb, jsonb, text) to authenticated;
+
+-- свои множители: 6 значений от 1.2 до 20 (шаг 0.1); пустой массив — вернуть стандартные
+create or replace function public.save_umults(p_m numeric[]) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare d jsonb := public._me(); v numeric; res numeric[] := '{}';
+begin
+  if coalesce(array_length(p_m, 1), 0) = 0 then d := d - 'umults'; perform public._save(d); return jsonb_build_object('data', d); end if;
+  if array_length(p_m, 1) <> 6 then raise exception 'bad mults'; end if;
+  foreach v in array p_m loop
+    if v is null or v < 1.2 or v > 20 then raise exception 'bad mults'; end if;
+    res := res || round(v, 1);
+  end loop;
+  d := jsonb_set(d, '{umults}', to_jsonb(res));
+  perform public._save(d);
+  return jsonb_build_object('data', d);
+end $$;
+revoke execute on function public.save_umults(numeric[]) from public, anon;
+grant execute on function public.save_umults(numeric[]) to authenticated;

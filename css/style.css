@@ -3278,3 +3278,92 @@ html{overflow-x:clip}
 .bn-facts span{display:block;font-size:11px;font-weight:800;color:var(--txt3);text-transform:uppercase;letter-spacing:.1em}
 .bn-facts b{display:block;font:800 18px var(--ff-h);margin-top:4px;background:var(--g-gold-txt);-webkit-background-clip:text;background-clip:text;color:transparent}
 @media (max-width:760px){.bn-facts{grid-template-columns:1fr 1fr 1fr;gap:6px}.bn-facts div{padding:10px}.bn-facts b{font-size:14px}}
+
+/* ===== апгрейд: «премиум-витрина» (колесо и стрелка не трогаем) ===== */
+.upg{--gm:linear-gradient(135deg,#8a6a2c 0%,#f7dc8f 22%,#a77a2a 45%,#ffe9a8 62%,#8d6726 82%,#e2b65a 100%)}
+/* панели ставки и цели: металлическая золотая рамка, внутренняя линия, уголки */
+.upg .upg-slot{border:1.5px solid transparent;border-radius:24px;padding:58px 22px 26px;justify-content:flex-start;
+  background:radial-gradient(60% 45% at 50% 0%,color-mix(in srgb,var(--rc,#f5c76b) 22%,transparent),transparent 70%) padding-box,
+  linear-gradient(180deg,#16130e,#0b0a08 60%,#090807) padding-box,var(--gm) border-box;
+  box-shadow:0 30px 60px -30px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,236,180,.12)}
+.upg .upg-slot::before{content:'';position:absolute;inset:9px;border-radius:17px;border:1px solid rgba(245,199,107,.16);pointer-events:none;z-index:0}
+.upg .us-corners{position:absolute;inset:6px;pointer-events:none;z-index:1;--c:#e9c46f;
+  background:linear-gradient(var(--c),var(--c)) 0 0/18px 2px,linear-gradient(var(--c),var(--c)) 0 0/2px 18px,
+  linear-gradient(var(--c),var(--c)) 100% 0/18px 2px,linear-gradient(var(--c),var(--c)) 100% 0/2px 18px,
+  linear-gradient(var(--c),var(--c)) 0 100%/18px 2px,linear-gradient(var(--c),var(--c)) 0 100%/2px 18px,
+  linear-gradient(var(--c),var(--c)) 100% 100%/18px 2px,linear-gradient(var(--c),var(--c)) 100% 100%/2px 18px;background-repeat:no-repeat;opacity:.75;border-radius:20px}
+/* заголовок — гравированная табличка по центру */
+.upg .upg-slot .us-label{top:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;white-space:nowrap;z-index:2;
+  font:800 11px var(--ff-h);letter-spacing:.24em;color:#f3d48a;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+.upg .upg-slot .us-label::before,.upg .upg-slot .us-label::after{content:'✦';font-size:9px;color:#c89a45;letter-spacing:0}
+/* луч прожектора и подиум */
+.upg .us-beam{position:absolute;left:50%;top:0;width:78%;height:72%;transform:translateX(-50%);z-index:0;pointer-events:none;
+  background:conic-gradient(from 180deg at 50% 0%,transparent 158deg,color-mix(in srgb,var(--rc,#f5c76b) 30%,transparent) 172deg,color-mix(in srgb,var(--rc,#f5c76b) 42%,transparent) 180deg,color-mix(in srgb,var(--rc,#f5c76b) 30%,transparent) 188deg,transparent 202deg);
+  -webkit-mask-image:linear-gradient(180deg,#000 10%,transparent 100%);mask-image:linear-gradient(180deg,#000 10%,transparent 100%);opacity:.75;animation:usBeam 5s ease-in-out infinite}
+@keyframes usBeam{50%{opacity:.5}}
+.upg .us-pod{position:absolute;left:50%;top:64%;width:68%;height:54px;transform:translateX(-50%);z-index:0;pointer-events:none;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 40%,color-mix(in srgb,var(--rc,#f5c76b) 34%,#1d1a14),#0c0b09 75%);
+  box-shadow:inset 0 2px 0 rgba(255,226,150,.35),inset 0 -6px 12px rgba(0,0,0,.8),0 0 0 1px rgba(245,199,107,.35),0 18px 30px -10px rgba(0,0,0,.9),0 0 40px -6px color-mix(in srgb,var(--rc,#f5c76b) 45%,transparent)}
+.upg .us-pod::after{content:'';position:absolute;left:6%;right:6%;bottom:-12px;height:14px;border-radius:0 0 50% 50%/0 0 100% 100%;background:linear-gradient(180deg,#2a2419,#0e0c09);box-shadow:0 1px 0 rgba(245,199,107,.25)}
+.upg .upg-slot>img,.upg .upg-slot .us-stack,.upg .upg-slot .bal-src,.upg .upg-slot .us-empty{position:relative;z-index:2}
+.upg .upg-slot>img{width:min(270px,84%);margin-top:6px;height:auto;max-height:46%;object-fit:contain}
+.upg .upg-slot .us-name{position:relative;z-index:2;margin-top:auto;padding-top:34px;font-size:17px}
+.upg .upg-slot .us-price{position:relative;z-index:2;display:inline-flex;align-items:center;margin-top:12px;padding:8px 20px;border-radius:12px;font-size:18px;
+  border:1px solid transparent;background:linear-gradient(180deg,#1c1812,#0d0c09) padding-box,var(--gm) border-box;-webkit-text-fill-color:initial;color:#ffe3a0;text-shadow:0 0 14px rgba(245,199,107,.35)}
+.upg .upg-slot .us-x{z-index:3;top:16px;right:16px;background:rgba(0,0,0,.5);border:1px solid rgba(245,199,107,.2)}
+/* пустой слот: кольцо на подиуме */
+.upg .upg-slot .us-empty{margin:auto 0;gap:16px;color:#a99a7c;font-size:13.5px}
+.upg .upg-slot .us-empty .plus{width:84px;height:84px;border-radius:50%;border:1.5px dashed rgba(245,199,107,.55);background:radial-gradient(circle,rgba(245,199,107,.14),rgba(0,0,0,.2) 70%);
+  box-shadow:0 0 0 6px rgba(245,199,107,.05),0 0 30px -6px rgba(245,199,107,.4);animation:usPulse 2.6s ease-in-out infinite}
+@keyframes usPulse{50%{box-shadow:0 0 0 10px rgba(245,199,107,.02),0 0 40px -4px rgba(245,199,107,.55)}}
+.upg .upg-slot:has(.us-empty) .us-pod{top:auto;bottom:22%;opacity:.55}
+.upg .upg-slot .us-stack{margin-top:4px}
+/* кнопки множителей — металлические таблички */
+.upg .mults{gap:6px;align-items:center}
+.upg .mults button{height:36px;min-width:52px;padding:0 12px;border-radius:10px;font:800 12.5px var(--ff-h);color:#d9c79f;
+  border:1px solid transparent;background:linear-gradient(180deg,#25201a,#14110d) padding-box,linear-gradient(180deg,rgba(245,199,107,.45),rgba(245,199,107,.1)) border-box;
+  box-shadow:inset 0 1px 0 rgba(255,236,180,.1),0 6px 14px -8px rgba(0,0,0,.9);transition:.15s}
+.upg .mults button:hover{color:#ffe3a0;transform:translateY(-1px)}
+.upg .mults button.on{color:#2a1a02;background:var(--gm) padding-box,var(--gm) border-box;box-shadow:0 0 18px -4px rgba(246,198,80,.85),inset 0 1px 0 rgba(255,255,255,.6)}
+.upg .mults .mult-edit{min-width:36px;padding:0;display:grid;place-items:center;color:#c89a45}
+.upg .mults .mult-edit svg{width:16px;height:16px}
+/* редактор своих множителей */
+.upg .mults.editing{flex-direction:column;align-items:stretch;gap:10px;padding:14px;border-radius:16px;width:min(380px,100%);
+  border:1px solid transparent;background:linear-gradient(180deg,#191510,#0d0b08) padding-box,var(--gm) border-box}
+.upg .me-h{font:800 12px var(--ff-h);letter-spacing:.12em;text-transform:uppercase;color:#f3d48a;display:flex;justify-content:space-between;align-items:baseline}
+.upg .me-h small{font:600 11.5px var(--ff);letter-spacing:0;text-transform:none;color:var(--txt3)}
+.upg .me-row{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.upg .me-in{display:flex;align-items:center;height:38px;padding:0 6px;border-radius:10px;background:rgba(0,0,0,.45);border:1px solid rgba(245,199,107,.3)}
+.upg .me-in i{font-style:normal;font:800 12px var(--ff-h);color:#c89a45}
+.upg .me-in input{width:100%;min-width:0;background:none;border:0;outline:0;color:#ffe3a0;font:800 13px var(--ff-h);-moz-appearance:textfield;padding:0 0 0 2px}
+.upg .me-in input::-webkit-inner-spin-button,.upg .me-in input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.upg .me-in:focus-within{border-color:#f5c76b;box-shadow:0 0 0 3px rgba(245,199,107,.15)}
+.upg .me-in.err{border-color:#f87171;animation:bnShake .35s}
+.upg .me-f{display:flex;gap:6px;justify-content:flex-end}
+.upg .me-f .btn{height:34px}
+.upg .me-f #meDef{margin-right:auto}
+/* кнопка «Апгрейд» — металл с бликом */
+.upg #upgBtn{position:relative;overflow:hidden;min-width:220px;border:1px solid rgba(255,240,200,.6);background:var(--gm);color:#2a1a02;letter-spacing:.14em}
+.upg #upgBtn::after{content:'';position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.55),transparent);animation:upgShine 3.2s ease-in-out infinite}
+@keyframes upgShine{0%,55%{left:-60%}100%{left:130%}}
+/* списки снизу — в той же рамке */
+.upg .upg-lists .panel{position:relative;border:1.5px solid transparent;border-radius:24px;padding:22px;
+  background:linear-gradient(180deg,#15120e,#0a0908) padding-box,linear-gradient(180deg,rgba(245,199,107,.55),rgba(245,199,107,.08) 40%,rgba(245,199,107,.25)) border-box;backdrop-filter:none}
+.upg .upg-lists .panel::before{content:'';position:absolute;inset:8px;border-radius:17px;border:1px solid rgba(245,199,107,.1);pointer-events:none}
+.upg .upg-lists .panel-h h3{display:flex;align-items:center;gap:10px;font:800 15px var(--ff-h);letter-spacing:.16em;color:#f3d48a}
+.upg .upg-lists .panel-h h3::before{content:'✦';font-size:10px;color:#c89a45}
+.upg .upg-lists .mcard{border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -2px 0 color-mix(in srgb,var(--rc) 70%,transparent)}
+.upg .upg-lists .mcard:hover{border-color:rgba(245,199,107,.45)}
+.upg .upg-lists .chip.on,.upg #upgSort button.on{color:#2a1a02;background:var(--gm);border-color:transparent}
+@media (max-width:760px){
+  .upg .upg-slot{padding:52px 14px 20px}
+  .upg .me-row{grid-template-columns:repeat(3,1fr)}
+  .upg #upgBtn{min-width:0;width:100%}
+}
+.upg .mults{flex-wrap:nowrap;gap:5px}
+.upg .mults:not(.editing) button{min-width:0;padding:0 10px}
+.upg .us-pod{top:47%}
+.upg .upg-slot:has(.us-empty) .us-pod{bottom:9%}
+.upg .upg-slot:has(.us-stack) .us-pod,.upg .upg-slot:has(.bal-src) .us-pod{top:auto;bottom:24%}
+@media (max-width:760px){.upg .mults:not(.editing){flex-wrap:wrap}}
+@media (max-width:760px){.upg .upg-slot:has(.us-empty) .us-pod{display:none}}
