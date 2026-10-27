@@ -7,7 +7,7 @@
   const back = k => { k = clamp(k, 0, 1); const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
   // прокрутка как у сайта: сначала быстро, долгое замедление (кривая близка к cubic-bezier(.1,.55,.06,1))
   const spinEase = k => 1 - Math.pow(1 - clamp(k, 0, 1), 4.2);
-  const FS = 1.42; // рамка крупнее экрана: края уходят за кадр, карточки — крупно
+  const FS = .67; // рамка целиком в кадре 1080 (1560 × .67 ≈ 1045 px)
   const D = window.DATA, N = 42, WIN = 36, CW = 236 + 8;
   const T = { in: [0, .5], press: [.55, .85], spin: [.85, 4.25], win: 4.25, out: [5.05, 5.35], end: 6.5 };
   // лента: случайные предметы кейса (дорогие реже), выигрыш на позиции WIN; рядом с ним — тоже дорогие ножи (интрига)
@@ -22,7 +22,7 @@
     // рамка: въезд снизу с «пружиной», лёгкое дыхание; после результата поднимается вверх
     const ki = back(seg(t, ...T.in)), up = easeOut(seg(t, T.out[0], T.out[1]));
     const fr = $('#frame'); fr.style.opacity = Math.min(1, seg(t, 0, .2) * 1.5);
-    fr.style.transform = `translateY(${(1 - ki) * 420}px) scale(${FS * lerp(.6, 1, ki) * (1 + .012 * Math.sin(t * 3))})`;
+    fr.style.transform = `translateY(${(1 - ki) * 300}px) scale(${FS * lerp(.6, 1, ki) * (1 + .012 * Math.sin(t * 3))})`;
     // лента
     const sp = spinEase(seg(t, ...T.spin)), x = lerp(0, stop, sp), jitter = t > T.win && t < T.win + .3 ? Math.sin((t - T.win) * 60) * 6 * (1 - seg(t, T.win, T.win + .3)) : 0;
     $('#track').style.transform = `translateX(${x + jitter}px)`;
@@ -35,7 +35,7 @@
     btn.style.opacity = Math.min(seg(t, .2, .45) * 2, 1) * (1 - bOut);
     btn.style.transform = `translate(-50%, -50%) translateY(${press * 12 + bOut * 60}px) scale(${lerp(.8, 1, back(seg(t, .2, .55))) * (1 - press * .05)})`;
     const cu = $('#cursor'), ck = easeOut(seg(t, .25, .55)), cOut = seg(t, 1.0, 1.3);
-    cu.style.left = lerp(900, 640, ck) + 'px'; cu.style.top = lerp(1720, 1442, ck) + 'px'; cu.style.opacity = (1 - cOut) * Math.min(1, seg(t, .2, .3) * 3);
+    cu.style.left = lerp(900, 640, ck) + 'px'; cu.style.top = lerp(1800, 1342, ck) + 'px'; cu.style.opacity = (1 - cOut) * Math.min(1, seg(t, .2, .3) * 3);
     cu.style.transform = `scale(${1 - press * .15})`;
     // результат под рамкой
     const pz = $('#prize'), zk = seg(t, T.win + .1, T.win + .5), zo = easeIn(seg(t, T.out[0], T.out[0] + .25));
