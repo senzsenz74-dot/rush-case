@@ -3507,3 +3507,21 @@ body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#0
 .at-pl.sub{opacity:.75}.at-pl i{font-style:normal;font-size:10.5px;color:var(--txt3)}
 @media (max-width:980px){.trn-hero,.trn-cols,.tm-grid{grid-template-columns:1fr}.at-grid{grid-template-columns:1fr 1fr}}
 @media (max-width:600px){.trn-grid{grid-template-columns:1fr}.trn-hero{padding:18px}.tm-form{grid-template-columns:1fr}.tm-logo-up{width:120px}.tm-mem{flex-wrap:wrap}.at-grid{grid-template-columns:1fr}}
+/* документы и 18+ */
+.lg-nav{display:flex;gap:6px;flex-wrap:wrap;margin:-6px 0 18px}
+.lg-nav a{height:38px;display:inline-flex;align-items:center;padding:0 16px;border-radius:10px;font-size:13px;font-weight:700;color:var(--txt2);background:rgba(255,255,255,.03);border:1px solid var(--stroke)}
+.lg-nav a.on,.lg-nav a:hover{color:var(--gold);border-color:rgba(245,199,107,.45)}
+.lg-page a{color:var(--gold)}
+.lg-page li+li{margin-top:6px}
+.lg-req{display:flex;flex-direction:column;gap:4px;margin-top:8px;padding:14px 16px;border-radius:14px;background:rgba(0,0,0,.25);border:1px solid var(--stroke);font-size:14px;color:var(--txt2)}
+.lg-req b{color:var(--txt)}
+.ft-req{display:inline-block;margin-top:6px;color:var(--txt3)}
+.ft-req a{color:var(--txt2)}
+.age-gate{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:16px;background:rgba(5,4,3,.86);backdrop-filter:blur(12px)}
+.ag-card{width:min(520px,100%);padding:34px 30px;border-radius:24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;background:linear-gradient(180deg,#17140f,#0b0a08);border:1px solid rgba(245,199,107,.35);box-shadow:0 40px 90px -30px rgba(0,0,0,.9)}
+.ag-18{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;font:900 24px var(--ff-h);color:#f87171;border:3px solid #f87171}
+.ag-card h2{font:900 24px var(--ff-h);text-transform:uppercase}
+.ag-card p{font-size:14px;color:var(--txt2);line-height:1.55}
+.ag-card p a{color:var(--gold)}
+.ag-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.pay-methods{grid-template-columns:repeat(2,1fr)}.dep-note a{color:var(--gold)}

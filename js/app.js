@@ -674,7 +674,7 @@ function sbApply(d) {
   setBalance(bal);
   const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin || 0);
 }
-const SRV_ERR = { 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
+const SRV_ERR = { 'amount mismatch': 'Сумма оплаты не совпала — напишите в поддержку', 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
   'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку',
   'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка',
   'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
@@ -1157,11 +1157,11 @@ function renderFooter() {
       <div class="socials"><a href="#/bonus" aria-label="Telegram">${ic.tg}</a><a href="#/bonus" aria-label="VK">${ic.vk}</a><a href="#/bonus" aria-label="YouTube">${ic.yt}</a><a href="#/bonus" aria-label="Discord">${ic.ds}</a></div>
     </div>
     <div class="ft-col"><h4>Игры</h4><a href="#/cases">Кейсы</a><a href="#/upgrade">Апгрейд</a><a href="#/contracts">Контракты</a><a href="#/bonus">Бонусы</a><a href="#/tournaments">Турниры</a><a href="#/top">Топ игроков</a></div>
-    <div class="ft-col"><h4>Информация</h4><a href="#/faq">FAQ</a><a href="#/terms">Пользовательское соглашение</a><a href="#/terms">Политика конфиденциальности</a><a href="#/faq">Честная игра</a></div>
-    <div class="ft-col"><h4>Поддержка</h4><a href="#/faq">support@rushcase.gg</a><a href="#/faq">Онлайн-чат 24/7</a>
-      <div class="pay"><span>СБП</span><span>VISA</span><span>MC</span><span>МИР</span><span>USDT</span></div></div>
+    <div class="ft-col"><h4>Информация</h4><a href="#/faq">FAQ</a><a href="#/terms">Пользовательское соглашение</a><a href="#/privacy">Политика конфиденциальности</a><a href="#/payment">Оплата и возврат</a><a href="#/faq">Честная игра</a></div>
+    <div class="ft-col"><h4>Поддержка</h4><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a><a href="https://t.me/rushcasse" target="_blank" rel="noopener">Telegram-канал</a>
+      <div class="pay"><span>СБП</span><span>МИР</span><span>VISA</span><span>MC</span></div></div>
   </div>
-  <div class="container ft-bottom"><span class="age">18+</span><p>© ${new Date().getFullYear()} RUSH CASE. Сайт не аффилирован с Valve Corporation. Counter-Strike 2 и Steam — товарные знаки Valve Corporation. Все изображения предметов принадлежат их правообладателям.</p></div>`;
+  <div class="container ft-bottom"><span class="age">18+</span><p>© ${new Date().getFullYear()} RUSH CASE. Сайт не аффилирован с Valve Corporation. Counter-Strike 2 и Steam — товарные знаки Valve Corporation. Все изображения предметов принадлежат их правообладателям.<br><span class="ft-req">${LEGAL.name} · ИНН ${LEGAL.inn} · ОГРНИП ${LEGAL.ogrnip} · <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></p></div>`;
 }
 
 /* ---------- live feed ---------- */
@@ -3120,17 +3120,85 @@ function pageFaq() {
   </section>`;
 }
 function mountFaq() { $('#chatBtn').onclick = () => toast('Чат поддержки подключится после интеграции виджета', 'info'); }
-function pageTerms() {
-  return `<section class="container"><div class="page-head"><h1>Пользовательское соглашение</h1><p>Шаблон — замените текст на юридически проверенный перед запуском.</p></div>
-  <div class="textpage">
-    <h3>1. Общие положения</h3><p>Используя сайт RUSH CASE, вы подтверждаете, что вам исполнилось 18 лет и вы принимаете условия настоящего соглашения.</p>
-    <h3>2. Баланс и пополнение</h3><p>Средства на балансе используются для открытия кейсов, апгрейдов и контрактов. Пополнение проводится через платёжных партнёров.</p>
-    <h3>3. Предметы и вывод</h3><ul><li>Полученные предметы хранятся в профиле и могут быть проданы за баланс или выведены в Steam.</li><li>Для вывода необходима действующая трейд-ссылка и открытый инвентарь.</li><li>Предметы, не выведенные в течение 30 дней, могут быть автоматически проданы по текущей цене.</li></ul>
-    <h3>4. Честная игра</h3><p>Результат каждого открытия определяется случайно на сервере до начала анимации. Администрация вправе заблокировать аккаунт при попытках мошенничества или использовании мультиаккаунтов.</p>
-    <h3>5. Конфиденциальность</h3><p>Мы храним минимальный набор данных: Steam ID или e-mail, историю операций и трейд-ссылку. Данные не передаются третьим лицам, кроме платёжных партнёров.</p>
-    <h3>6. Ответственная игра</h3><p>Открытие кейсов — развлечение, а не способ заработка. Устанавливайте себе лимиты и делайте перерывы.</p>
-  </div></section>`;
+/* =========================================================
+   ДОКУМЕНТЫ: соглашение, конфиденциальность, оплата и возврат, реквизиты; подтверждение 18+
+   Тексты — рабочие шаблоны, перед запуском их стоит показать юристу.
+   ========================================================= */
+const LEGAL = { name: 'ИП Андреев Виталий Витальевич', short: 'ИП Андреев В. В.', inn: '545210831401', ogrnip: '324547600078326', mail: 'rushcasesupport@gmail.com', site: 'RUSH CASE', date: '28.10.2026' };
+const legalReq = () => `<div class="lg-req"><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}</span><span>ОГРНИП ${LEGAL.ogrnip}</span><span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></div>`;
+const LEGAL_DOCS = {
+  terms: { t: 'Пользовательское соглашение', body: () => `
+    <h3>1. Общие положения</h3>
+    <p>Настоящее соглашение (далее — Соглашение) регулирует отношения между ${LEGAL.name} (далее — Администрация) и пользователем сайта ${LEGAL.site} (далее — Сайт, Пользователь). Регистрируясь на Сайте или используя его, Пользователь подтверждает, что ознакомился с Соглашением и принимает его полностью.</p>
+    <p>Сайт предназначен только для лиц, достигших 18 лет. Регистрируясь, Пользователь подтверждает свой возраст.</p>
+    <h3>2. Предмет соглашения</h3>
+    <p>Администрация предоставляет Пользователю развлекательный сервис: открытие виртуальных кейсов, апгрейды и контракты с внутриигровыми предметами Counter-Strike 2, турниры, бонусы. Внутриигровые предметы являются цифровыми объектами, права на которые принадлежат Valve Corporation; Сайт не аффилирован с Valve Corporation.</p>
+    <h3>3. Аккаунт</h3>
+    <ul><li>Вход выполняется через Steam или по e-mail. Пользователь отвечает за сохранность доступа к своему аккаунту.</li>
+      <li>Один человек — один аккаунт. Мультиаккаунты, автоматизация и использование уязвимостей запрещены.</li>
+      <li>При нарушении Соглашения Администрация вправе ограничить доступ к аккаунту.</li></ul>
+    <h3>4. Баланс и услуги</h3>
+    <ul><li>Баланс Сайта — внутренняя учётная единица для оплаты услуг Сайта, не является электронными деньгами и не подлежит обмену, кроме возврата по правилам раздела «Оплата и возврат».</li>
+      <li>Результат каждого открытия, апгрейда и контракта определяется случайно на сервере до начала анимации. Шансы указаны на странице кейса.</li>
+      <li>Бонусы, промокоды и R-COIN начисляются по правилам, опубликованным на Сайте, и не подлежат выводу деньгами.</li></ul>
+    <h3>5. Предметы и вывод</h3>
+    <ul><li>Полученные предметы хранятся в профиле Пользователя; их можно продать за баланс или вывести в Steam по трейд-ссылке.</li>
+      <li>Для вывода Пользователь обязан указать корректную трейд-ссылку и принять обмен. Если обмен не принят или отменён, предмет возвращается в инвентарь.</li>
+      <li>При отсутствии предмета на рынке Администрация вправе предложить замену равной стоимости или возврат стоимости на баланс.</li></ul>
+    <h3>6. Ответственность</h3>
+    <p>Сервис носит развлекательный характер и не является способом заработка. Администрация не отвечает за перебои в работе Steam и сторонних сервисов, а также за действия Пользователя, повлёкшие потерю доступа к аккаунту.</p>
+    <h3>7. Изменение условий</h3>
+    <p>Администрация вправе изменять Соглашение. Новая редакция действует с момента публикации на Сайте.</p>
+    <h3>8. Контакты</h3>${legalReq()}` },
+  privacy: { t: 'Политика конфиденциальности', body: () => `
+    <h3>1. Оператор</h3><p>Оператор персональных данных — ${LEGAL.name}, ИНН ${LEGAL.inn}. Политика действует в отношении данных, которые Сайт получает от Пользователя.</p>
+    <h3>2. Какие данные мы обрабатываем</h3>
+    <ul><li>Steam ID, ник и аватар Steam (при входе через Steam) либо адрес e-mail (при регистрации по почте);</li>
+      <li>трейд-ссылку Steam, историю операций, инвентарь, баланс;</li>
+      <li>технические данные: IP-адрес, тип браузера, дату и время посещения.</li></ul>
+    <p>Платёжные данные (номер карты и т. п.) Сайт не получает и не хранит — их обрабатывает платёжный сервис.</p>
+    <h3>3. Цели обработки</h3><ul><li>регистрация и вход, работа сервиса и вывод предметов;</li><li>учёт операций и поддержка пользователей;</li><li>защита от мошенничества и злоупотреблений.</li></ul>
+    <h3>4. Передача третьим лицам</h3><p>Данные передаются только в объёме, необходимом для работы сервиса: Steam (вход и вывод), платёжным сервисам (оплата), хостинг-провайдерам. Данные не продаются.</p>
+    <h3>5. Хранение и защита</h3><p>Данные хранятся, пока существует аккаунт, и удаляются по запросу Пользователя, кроме сведений, которые нужно хранить по закону. Доступ к данным защищён.</p>
+    <h3>6. Права Пользователя</h3><p>Пользователь может запросить сведения о своих данных, их исправление или удаление, написав на <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a>.</p>
+    <h3>7. Cookies</h3><p>Сайт использует локальное хранилище браузера и cookies для входа и настроек. Их можно отключить в браузере, но часть функций перестанет работать.</p>
+    <h3>8. Контакты</h3>${legalReq()}` },
+  payment: { t: 'Оплата и возврат', body: () => `
+    <h3>1. Пополнение баланса</h3>
+    <ul><li>Баланс пополняется банковскими картами и через Систему быстрых платежей (СБП). Минимальная сумма — 100 ₽.</li>
+      <li>Оплата проходит на защищённой странице платёжного сервиса. Сайт не получает данные карты.</li>
+      <li>Баланс зачисляется автоматически после подтверждения платежа платёжным сервисом, обычно в течение нескольких минут.</li>
+      <li>Услуги оказываются в рублях. При оплате картой другой страны курс и комиссию определяет банк Пользователя.</li></ul>
+    <h3>2. Услуга считается оказанной</h3><p>С момента использования баланса — открытия кейса, апгрейда или контракта — услуга считается оказанной в полном объёме и возврату не подлежит.</p>
+    <h3>3. Возврат средств</h3>
+    <ul><li>Неиспользованный баланс, внесённый пополнением, можно вернуть по заявке в течение 14 дней со дня пополнения.</li>
+      <li>Заявку отправьте на <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a> с той почты или аккаунта, к которым привязан профиль; укажите ID игрока, дату и сумму пополнения.</li>
+      <li>Возврат выполняется тем же способом, которым была произведена оплата, в течение 10 рабочих дней после одобрения заявки. Срок поступления зависит от банка.</li>
+      <li>Не возвращаются: бонусы, начисления по промокодам, R-COIN, средства от продажи предметов и выигрыши.</li></ul>
+    <h3>4. Ошибочные платежи</h3><p>Если платёж прошёл, а баланс не зачислился в течение часа, напишите в поддержку с данными платежа — мы проверим и зачислим или вернём средства.</p>
+    <h3>5. Отказ в обслуживании</h3><p>При подозрении на мошенничество, использование чужой карты или нарушение Соглашения Администрация вправе приостановить операции до выяснения обстоятельств.</p>
+    <h3>6. Реквизиты</h3>${legalReq()}` },
+};
+function pageDoc(key) {
+  const d = LEGAL_DOCS[key];
+  return `<section class="container"><div class="page-head lg-head"><h1>${d.t}</h1><p>Редакция от ${LEGAL.date}</p></div>
+    <nav class="lg-nav">${Object.entries(LEGAL_DOCS).map(([k, x]) => `<a href="#/${k}" class="${k === key ? 'on' : ''}">${x.t}</a>`).join('')}</nav>
+    <div class="textpage lg-page">${d.body()}</div></section>`;
 }
+const pageTerms = () => pageDoc('terms'), pagePrivacy = () => pageDoc('privacy'), pagePayment = () => pageDoc('payment');
+/* подтверждение 18+ — при первом заходе, запоминаем в браузере */
+function ageGate() {
+  try { if (localStorage.getItem('rc.age18') === '1') return; } catch (e) { return; }
+  const g = document.createElement('div'); g.className = 'age-gate';
+  g.innerHTML = `<div class="ag-card"><span class="ag-18">18+</span><h2>Сайт для совершеннолетних</h2>
+    <p>${LEGAL.site} — развлекательный сервис с виртуальными кейсами. Продолжая, вы подтверждаете, что вам исполнилось 18 лет, и принимаете <a href="#/terms">Пользовательское соглашение</a> и <a href="#/privacy">Политику конфиденциальности</a>.</p>
+    <div class="ag-btns"><button class="btn btn-primary btn-lg" id="agYes">Мне есть 18 лет</button><button class="btn btn-ghost btn-lg" id="agNo">Мне нет 18</button></div></div>`;
+  document.body.appendChild(g); document.body.classList.add('no-scroll');
+  $('#agYes', g).onclick = () => { try { localStorage.setItem('rc.age18', '1'); } catch (e) { /* */ } g.remove(); document.body.classList.remove('no-scroll'); };
+  $('#agNo', g).onclick = () => { $('.ag-card', g).innerHTML = `<span class="ag-18">18+</span><h2>Доступ ограничен</h2><p>Сайт доступен только с 18 лет.</p>`; };
+  $$('a', g).forEach(a => a.onclick = () => { g.remove(); document.body.classList.remove('no-scroll'); setTimeout(ageGate, 0); });
+}
+
 const page404 = () => `<section class="container"><div class="empty-big">${ic.alert}<h2>Страница не найдена</h2><p>Такой страницы нет — но кейсы всё ещё ждут.</p><a class="btn btn-primary btn-lg" href="#/">На главную</a></div></section>`;
 
 /* =========================================================
@@ -3333,7 +3401,9 @@ function sbInit() {
   if (!sb) return;
   // возврат со входа через Steam: ?steam_token=… → сессия; ?steam_error=… → сообщение
   const qs = new URLSearchParams(location.search), stTok = qs.get('steam_token'), stErr = qs.get('steam_error');
-  if (stTok || stErr) history.replaceState(null, '', location.pathname + location.hash);
+  const payRet = qs.get('pay');
+  if (stTok || stErr || payRet) history.replaceState(null, '', location.pathname + location.hash);
+  if (payRet) setTimeout(() => { if (payRet === 'ok') { toast('Оплата прошла — баланс зачислится в течение пары минут'); [3e3, 1e4, 3e4].forEach(ms => setTimeout(sbRefresh, ms)); } else toast('Оплата не завершена', 'err'); }, 800);
   if (stErr) setTimeout(() => toast(stErr === 'cancel' ? 'Вход через Steam отменён' : 'Не удалось войти через Steam — попробуйте ещё раз', 'err'), 600);
   if (stTok) { sb.auth.verifyOtp({ token_hash: stTok, type: 'magiclink' }).then(({ data, error }) => { if (error || !data.session) return toast('Не удалось войти через Steam: ' + (error ? error.message : 'нет сессии'), 'err'); sbLoadProfile(data.session).then(ok => ok && afterLogin(false)); }); }
   loadCustomCases().then(loadCaseSettings);
@@ -3371,9 +3441,53 @@ const METHODS = [
 ];
 /* касса не подключена: онлайн-оплаты нет, баланс пополняет администратор (админ-панель → Игроки → начислить).
    Игрок собирает заявку (ID + сумма) и отправляет её в поддержку. Касса подключится — здесь снова будет оплата через шлюз */
-const SUPPORT = { mail: 'support@rushcase.gg', tg: '' }; // tg — ник поддержки в Telegram без @ (появится кнопка)
+const SUPPORT = { mail: LEGAL.mail, tg: '' }; // tg — ник поддержки в Telegram без @ (появится кнопка)
+/* онлайн-оплата через кассу: функция payment (supabase/functions/payment) создаёт счёт и ссылку, касса уведомляет сервер,
+   баланс зачисляет сервер. Пока касса не подключена (PAY_LIVE = false) — пополнение через поддержку */
+const PAY_LIVE = false;
+const PAY_METHODS = [{ k: 'sbp', t: 'СБП', s: 'Без комиссии, по QR или в приложении банка', i: 'bolt', tag: 'Быстро' }, { k: 'card', t: 'Банковская карта', s: 'Карты РФ и СНГ: МИР, Visa, Mastercard', i: 'card' }];
+async function payStart(amount, method, promo, btn) {
+  const { data } = await sb.auth.getSession(); if (!data.session) return openAuth('login');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Переходим к оплате…';
+  try {
+    const r = await fetch(SB_URL + '/functions/v1/payment?action=create', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + data.session.access_token, apikey: SB_KEY }, body: JSON.stringify({ amount, method, promo }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.url) throw new Error(j.error || 'ошибка');
+    location.href = j.url;
+  } catch (e) { btn.disabled = false; btn.innerHTML = `${ic.wallet}Оплатить`; toast('Оплата сейчас недоступна — попробуйте позже или напишите в поддержку', 'err'); }
+}
+function openDepositLive(need) {
+  let amount = Math.max(100, Math.ceil((need || 500) / 50) * 50), method = 'sbp', bonus = st.depBonus || 0, code = null;
+  const m = modal(`<div class="dep">
+    <h2>Пополнение баланса</h2>
+    <p class="dep-sub">${need ? `Не хватает <b style="color:var(--lime)">${money(need)}</b> для открытия.` : 'Выберите способ оплаты и сумму.'} Минимальная сумма — 100 ₽.</p>
+    <div class="dep-label">Способ оплаты</div>
+    <div class="methods pay-methods">${PAY_METHODS.map(x => `<button class="method" data-m="${x.k}">${x.tag ? `<span class="tagb">${x.tag}</span>` : ''}<span class="mi">${ic[x.i]}</span><span><b>${x.t}</b><small>${x.s}</small></span></button>`).join('')}</div>
+    <div class="dep-label">Сумма</div>
+    <div class="dep-amt"><input class="inp" id="depAmt" type="number" min="100" step="50" value="${amount}"><span>₽</span></div>
+    <div class="amounts">${[300, 500, 1000, 2500, 5000, 10000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
+    <div class="dep-label">Промокод на пополнение</div>
+    <div class="inp-row"><input class="inp" id="depPromo" placeholder="Если есть" style="text-transform:uppercase" autocomplete="off"><button class="btn btn-dark" id="depPromoBtn">Применить</button></div>
+    <div class="dep-total"><div>К зачислению<b id="depTotal"></b><span id="depBonusTxt"></span></div><button class="btn btn-primary btn-xl" id="depGo"></button></div>
+    <p class="dep-note">Оплата на защищённой странице платёжного сервиса. Нажимая «Оплатить», вы принимаете <a href="#/payment">правила оплаты и возврата</a>.</p>
+  </div>`, 'm-dep');
+  const draw = () => {
+    $$('.method', m).forEach(b => b.classList.toggle('on', b.dataset.m === method));
+    $$('.amounts button', m).forEach(b => b.classList.toggle('on', +b.dataset.a === amount));
+    $('#depTotal', m).textContent = money(Math.round(amount * (1 + bonus / 100)));
+    $('#depBonusTxt', m).innerHTML = bonus ? `<em>+${bonus}% промокод</em>` : '';
+    const g = $('#depGo', m); g.innerHTML = `${ic.wallet}Оплатить ${money(amount)}`; g.disabled = amount < 100 || amount > 1000000;
+  };
+  $$('.method', m).forEach(b => b.onclick = () => { method = b.dataset.m; draw(); });
+  $$('.amounts button', m).forEach(b => b.onclick = () => { amount = +b.dataset.a; $('#depAmt', m).value = amount; draw(); });
+  $('#depAmt', m).oninput = e => { amount = Math.max(0, Math.round(+e.target.value || 0)); draw(); };
+  $('#depPromoBtn', m).onclick = () => { const c = $('#depPromo', m).value.trim().toUpperCase(); if (!/^[A-Z0-9]{2,24}$/.test(c)) return toast('Введите промокод', 'err'); code = c; toast(`Промокод <b>${esc(c)}</b> будет проверен при оплате`); };
+  $('#depGo', m).onclick = e => payStart(amount, method, code, e.currentTarget);
+  draw();
+}
 function openDeposit(need = 0) {
   if (!st.user) return openAuth('login');
+  if (PAY_LIVE) return openDepositLive(need);
   let amount = Math.max(100, Math.ceil((need || 500) / 50) * 50);
   const id = st.user.pid || st.user.rid || st.user.id;
   const req = () => `Пополнение RUSH CASE\nID игрока: ${id}\nНик: ${st.user.name}\nСумма: ${fmt(amount)} ₽`;
@@ -4564,7 +4678,7 @@ async function admTourTeams(t, done) {
 
 const ROUTES = {
   '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], contracts: [pageContracts, mountContracts],
-  bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], admin: [pageAdmin, mountAdmin],
+  bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin],
 };
 function route() {
@@ -4580,7 +4694,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
@@ -4610,7 +4724,7 @@ document.addEventListener('error', e => {
 }, true);
 
 /* ---------- init ---------- */
-renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit();
+renderHeader(); renderFooter(); ageGate(); initFx(); initLive(); route(); sbInit();
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
 // экран загрузки закрывается сам (index.html: window.plFinish) — по окончании загрузки или через 7 с
 })();
