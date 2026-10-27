@@ -3332,3 +3332,6 @@ body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#0
 .uw3-stagev{height:220px}
 .uw3-img{width:auto;height:94%;max-width:92%;top:50%}
 @media (max-width:720px){.uw3-stagev{height:180px}}
+
+/* карточки предметов: без кружка за оружием */
+.icard img,.rcard img,.mcard img,.cslot img,.rv-inner.many img,.us-tile img,.ld img{background:none}
