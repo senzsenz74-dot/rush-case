@@ -12,3 +12,9 @@ desktop.ini
 
 # кэш выгрузок для tools/lis-sync.js
 tools/.cache/
+
+# промо-ролик: зависимости и кадры
+promo-video/node_modules/
+promo-video/.frames/
+promo-video/output/
+promo-video/assets/sfx.wav
