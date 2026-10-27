@@ -3324,3 +3324,9 @@ body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#0
 /* баннер «Мы открылись!»: кнопка «Участвуй в розыгрыше» → Telegram */
 .hs-hot.hs-tg{border-radius:18px;clip-path:polygon(3% 0,97% 0,100% 50%,97% 100%,3% 100%,0 50%)}
 .hs-hot.hs-tg:hover{background:rgba(255,214,110,.16);box-shadow:inset 0 0 0 2px rgba(255,226,150,.9),inset 0 0 30px rgba(255,190,70,.45)}
+/* выпавший предмет: крупнее, без тени под ним */
+.rv-card img,.rv-inner.many img{filter:none}
+.rv-inner.one .rv-card img{width:480px;max-width:56vw}
+.rl-framed .rv-inner.one .rv-card img{width:340px}
+@media (max-width:720px){.rv-inner.one .rv-card img{width:280px;max-width:84vw}.rl-framed .rv-inner.one .rv-card img{width:280px;max-width:84vw}}
+@media (max-width:480px){.rv-inner.one .rv-card img,.rl-framed .rv-inner.one .rv-card img{width:250px;max-width:80vw}}
