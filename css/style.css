@@ -3338,3 +3338,7 @@ body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#0
 
 /* название кейса — ровно по центру (боковые колонки одинаковые, кнопка «Все кейсы» слева их не сдвигает) */
 @media (min-width:721px){.cp-head{grid-template-columns:minmax(0,1fr) minmax(0,2.6fr) minmax(0,1fr)}.cp-head .back{justify-self:start}}
+/* «Участвуй в розыгрыше»: без рамки — при наведении кнопка мягко «загорается» (свет поверх картинки) */
+.hs-hot.hs-tg{clip-path:none;border-radius:40%/50%;cursor:pointer;mix-blend-mode:screen;transition:background .25s,opacity .25s}
+.hs-hot.hs-tg:hover{background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(255,214,120,.28),rgba(255,190,80,.1) 60%,transparent 75%);box-shadow:none}
+.hs-hot.hs-tg:active{background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(255,226,150,.4),transparent 75%)}
