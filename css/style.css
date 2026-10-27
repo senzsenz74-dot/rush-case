@@ -3335,3 +3335,6 @@ body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#0
 
 /* карточки предметов: без кружка за оружием */
 .icard img,.rcard img,.mcard img,.cslot img,.rv-inner.many img,.us-tile img,.ld img{background:none}
+
+/* название кейса — ровно по центру (боковые колонки одинаковые, кнопка «Все кейсы» слева их не сдвигает) */
+@media (min-width:721px){.cp-head{grid-template-columns:minmax(0,1fr) minmax(0,2.6fr) minmax(0,1fr)}.cp-head .back{justify-self:start}}
