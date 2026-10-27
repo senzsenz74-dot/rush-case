@@ -2063,6 +2063,7 @@ function pageUpgrade() {
     <div class="upg-lists">
       <div class="panel">
         <div class="panel-h"><h3>Ставка</h3><span class="upg-sum" id="upgSum"></span><div class="bal-wrap"><button class="btn btn-dark btn-sm" id="upgBalBtn" aria-haspopup="true"></button><div class="bal-pop hidden" id="upgBalPop"></div></div><button class="btn btn-dark btn-sm" id="upgAll">Выбрать всё</button><button class="btn btn-ghost btn-sm" id="upgClr">Очистить</button></div>
+        <div class="upg-inv" id="upgInv"></div>
         <div class="mini-grid" id="upgSrc"></div>
       </div>
       <div class="panel">
@@ -2146,8 +2147,6 @@ function drawMults() {
     store([...new Set(arr)].length === 6 ? arr.slice().sort((a, b) => a - b) : arr);
   };
 }
-/* «витрина»: луч прожектора цвета редкости и подиум под предметом */
-const UPG_STAGE = '<i class="us-beam" aria-hidden="true"></i><i class="us-pod" aria-hidden="true"></i><i class="us-corners" aria-hidden="true"></i>';
 function stakeSlot(items, v) {
   if (!items.length && !upg.bal) return `<span class="us-label">Ваша ставка</span><div class="us-empty"><div class="plus">${ic.plus}</div>Выберите один или несколько скинов ниже и/или добавьте баланс</div>`;
   const head = `<span class="us-label">Ваша ставка</span><button class="us-x" id="fromX" aria-label="Очистить ставку">${ic.close}</button>`;
@@ -2186,13 +2185,13 @@ function drawUpg() {
   items.forEach(x => { const r = SK[x.n].r; if (!top || RAR[r].o > RAR[top].o) top = r; });
   const from = $('#upgFrom');
   from.className = 'upg-slot' + (top ? ' r-' + top : '');
-  from.innerHTML = UPG_STAGE + stakeSlot(items, v);
+  from.innerHTML = stakeSlot(items, v);
   const fx = $('#fromX'); if (fx) fx.onclick = () => { if (upg.busy) return; upg.sel = []; upg.bal = 0; drawUpg(); };
   // слот цели
   const to = $('#upgTo'), ts = upg.to && SK[upg.to];
   to.className = 'upg-slot' + (ts ? ' r-' + ts.r : '');
-  to.innerHTML = UPG_STAGE + (ts ? `<span class="us-label">Вы получите</span><button class="us-x" id="toX" aria-label="Убрать">${ic.close}</button><img src="${imgUrl(ts, 'l')}" alt=""><div class="us-name"><span>${esc(ts.w)}</span>${esc(ts.f)}</div><div class="us-price">${money(ts.p)}</div>`
-    : `<span class="us-label">Вы получите</span><div class="us-empty"><div class="plus">${ic.star}</div>Выберите желаемый скин справа</div>`);
+  to.innerHTML = ts ? `<span class="us-label">Вы получите</span><button class="us-x" id="toX" aria-label="Убрать">${ic.close}</button><img src="${imgUrl(ts, 'l')}" alt=""><div class="us-name"><span>${esc(ts.w)}</span>${esc(ts.f)}</div><div class="us-price">${money(ts.p)}</div>`
+    : `<span class="us-label">Вы получите</span><div class="us-empty"><div class="plus">${ic.star}</div>Выберите желаемый скин справа</div>`;
   if (ts) $('#toX').onclick = () => { if (upg.busy) return; upg.to = null; drawUpg(); };
   // колесо
   const ch = upgChance(v, ts);
@@ -2211,6 +2210,8 @@ function drawUpg() {
   // инвентарь (мультивыбор)
   $('#upgSum').innerHTML = v ? `${items.length} шт.${upg.bal ? ' + баланс' : ''} · <b>${money(v)}</b>` : '';
   const src = $('#upgSrc'), list = own().slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
+  const invSum = list.reduce((t, x) => t + SK[x.n].p, 0);
+  $('#upgInv').innerHTML = list.length ? `${ic.box}В инвентаре ${list.length} ${plural(list.length, 'предмет', 'предмета', 'предметов')} на <b>${money(invSum)}</b>` : '';
   src.innerHTML = list.length ? list.map(x => mcard(SK[x.n], `data-inv="${x.id}"`)).join('')
     : `<div class="empty">${ic.box}${st.user ? 'Инвентарь пуст. Откройте кейс или добавьте баланс кнопкой «С баланса».' : 'Войдите, чтобы увидеть свой инвентарь.'}<a class="btn btn-primary btn-sm" href="#/">К кейсам</a></div>`;
   $$('[data-inv]', src).forEach(el => {
