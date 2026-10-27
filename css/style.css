@@ -3525,3 +3525,8 @@ body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#0
 .ag-card p a{color:var(--gold)}
 .ag-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px}
 .pay-methods{grid-template-columns:repeat(2,1fr)}.dep-note a{color:var(--gold)}
+.au-age{margin-top:14px;font-size:12.5px}
+.au-age a{color:var(--gold)}
+.au-age.bad span{color:#f87171}
+.au-age-msg{display:block;color:#f87171;font-size:12px;min-height:0}
+.au-age.shake{animation:bnShake .35s}

@@ -3186,18 +3186,9 @@ function pageDoc(key) {
     <div class="textpage lg-page">${d.body()}</div></section>`;
 }
 const pageTerms = () => pageDoc('terms'), pagePrivacy = () => pageDoc('privacy'), pagePayment = () => pageDoc('payment');
-/* подтверждение 18+ — при первом заходе, запоминаем в браузере */
-function ageGate() {
-  try { if (localStorage.getItem('rc.age18') === '1') return; } catch (e) { return; }
-  const g = document.createElement('div'); g.className = 'age-gate';
-  g.innerHTML = `<div class="ag-card"><span class="ag-18">18+</span><h2>Сайт для совершеннолетних</h2>
-    <p>${LEGAL.site} — развлекательный сервис с виртуальными кейсами. Продолжая, вы подтверждаете, что вам исполнилось 18 лет, и принимаете <a href="#/terms">Пользовательское соглашение</a> и <a href="#/privacy">Политику конфиденциальности</a>.</p>
-    <div class="ag-btns"><button class="btn btn-primary btn-lg" id="agYes">Мне есть 18 лет</button><button class="btn btn-ghost btn-lg" id="agNo">Мне нет 18</button></div></div>`;
-  document.body.appendChild(g); document.body.classList.add('no-scroll');
-  $('#agYes', g).onclick = () => { try { localStorage.setItem('rc.age18', '1'); } catch (e) { /* */ } g.remove(); document.body.classList.remove('no-scroll'); };
-  $('#agNo', g).onclick = () => { $('.ag-card', g).innerHTML = `<span class="ag-18">18+</span><h2>Доступ ограничен</h2><p>Сайт доступен только с 18 лет.</p>`; };
-  $$('a', g).forEach(a => a.onclick = () => { g.remove(); document.body.classList.remove('no-scroll'); setTimeout(ageGate, 0); });
-}
+/* подтверждение 18+ — в окне входа и регистрации (одна галочка на почту и Steam), запоминается в браузере */
+const ageOk = () => { try { return localStorage.getItem('rc.age18') === '1'; } catch (e) { return false; } };
+const ageSave = () => { try { localStorage.setItem('rc.age18', '1'); } catch (e) { /* */ } };
 
 const page404 = () => `<section class="container"><div class="empty-big">${ic.alert}<h2>Страница не найдена</h2><p>Такой страницы нет — но кейсы всё ещё ждут.</p><a class="btn btn-primary btn-lg" href="#/">На главную</a></div></section>`;
 
@@ -3223,6 +3214,8 @@ function openAuth(tab = 'login') {
         <button class="au-steam" id="steamBtn"><span class="au-steam-ic">${ic.steam}</span><span class="au-steam-t"><b>Войти через Steam</b><small>быстро и безопасно</small></span>${ic.right}</button>
         <div class="au-or"><span>или по e-mail</span></div>
         <form id="authForm" novalidate></form>
+        <label class="check au-age" id="aAgeBox"><input type="checkbox" id="aAge"${ageOk() ? ' checked' : ''}><span>Мне исполнилось 18 лет, я принимаю <a href="#/terms" class="au-doc">пользовательское соглашение</a> и <a href="#/privacy" class="au-doc">политику конфиденциальности</a></span></label>
+        <span class="msg au-age-msg" id="aAgeMsg"></span>
       </div>
       <div class="au-foot">${ic.shield}<span>Данные защищены · Только 18+</span></div>
     </div></div>`, 'm-auth m-auth2');
@@ -3243,14 +3236,11 @@ function openAuth(tab = 'login') {
       ${auField('aNick', 'Никнейм', ic.user, 'text', 'nickname', 'maxlength="16"')}
       ${auField('aEmail', 'E-mail', AU_IC.mail, 'email', 'email')}
       <div class="row2">${auField('aPass', 'Пароль', AU_IC.lock, 'password', 'new-password')}${auField('aPass2', 'Повторите', AU_IC.lock, 'password', 'new-password')}</div>
-      <label class="check"><input type="checkbox" id="aAgree"><span>Мне исполнилось 18 лет, я принимаю <a href="#/terms" id="termsLink">пользовательское соглашение</a></span></label>
-      <span class="msg" id="agreeMsg" style="color:var(--red);font-size:12px"></span>
       <button class="au-go" type="submit"><span>Создать аккаунт</span><em class="au-bonus">+100 ₽</em>${ic.right}</button>
       <div class="sw">Уже есть аккаунт? <button type="button" data-sw="login">Войти</button></div>`;
     // смена вкладки — форма въезжает с нужной стороны, поля появляются по очереди
     if (!first) { const body = $('#authBody', m); body.style.setProperty('--dir', dir); body.classList.remove('au-swap'); void body.offsetWidth; body.classList.add('au-swap'); }
     $$('[data-sw]', f).forEach(b => b.onclick = () => draw(b.dataset.sw));
-    const tl = $('#termsLink', f); if (tl) tl.onclick = () => closeModal();
     const fg = $('#forgot', f); if (fg) fg.onclick = () => { const e = $('#aEmail', f).value.trim(); if (!/^\S+@\S+\.\S+$/.test(e)) return setErr($('#aEmail', f), 'Введите e-mail для восстановления');
       if (sb) sb.auth.resetPasswordForEmail(e, { redirectTo: location.origin + location.pathname }).then(({ error }) => error ? toast(sbErr(error), 'err') : toast(`Ссылка для сброса пароля отправлена на <b>${esc(e)}</b>`, 'info')); };
     $$('.au-eye', f).forEach(b => b.onclick = () => { const i = b.parentElement.querySelector('input'), show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? AU_IC.eyeOff : ic.eye; b.classList.toggle('on', show); i.focus(); });
@@ -3258,7 +3248,9 @@ function openAuth(tab = 'login') {
     $$('.inp', f).forEach(i => i.oninput = () => setErr(i, ''));
   };
   const setErr = (inp, msg) => { inp.classList.toggle('err', !!msg); const fl = inp.closest('.field'); if (fl) { fl.classList.toggle('bad', !!msg); const s = fl.querySelector('.msg'); if (s) s.textContent = msg; if (msg) { fl.classList.remove('shake'); void fl.offsetWidth; fl.classList.add('shake'); } } return !msg; };
+  const ageCheck = () => { const on = $('#aAge', m).checked; $('#aAgeMsg', m).textContent = on ? '' : 'Подтвердите, что вам есть 18 лет'; $('#aAgeBox', m).classList.toggle('bad', !on); if (on) ageSave(); else { const bx = $('#aAgeBox', m); bx.classList.remove('shake'); void bx.offsetWidth; bx.classList.add('shake'); } return on; };
   const submit = async f => {
+    if (!ageCheck()) return;
     const email = $('#aEmail', f).value.trim().toLowerCase(), pass = $('#aPass', f).value;
     let ok = setErr($('#aEmail', f), /^\S+@\S+\.\S+$/.test(email) ? '' : 'Некорректный e-mail');
     ok = setErr($('#aPass', f), pass.length >= 6 ? '' : 'Минимум 6 символов') && ok;
@@ -3266,8 +3258,6 @@ function openAuth(tab = 'login') {
       const nick = $('#aNick', f).value.trim();
       ok = setErr($('#aNick', f), /^[\wА-Яа-яЁё\- ]{3,16}$/.test(nick) ? '' : '3–16 символов: буквы, цифры, _ и -') && ok;
       ok = setErr($('#aPass2', f), pass === $('#aPass2', f).value ? '' : 'Пароли не совпадают') && ok;
-      const ag = $('#aAgree', f).checked; $('#agreeMsg', f).textContent = ag ? '' : 'Подтвердите возраст и согласие';
-      ok = ok && ag;
       if (!ok) return;
       if (!sb) return toast('Нет связи с сервером — попробуйте позже', 'err');
       busy(f, true);
@@ -3289,7 +3279,9 @@ function openAuth(tab = 'login') {
   const busy = (f, on) => { const b = $('.au-go', f); if (b) { b.disabled = on; b.classList.toggle('busy', on); } };
   $$('#authTabs button', m).forEach(b => b.onclick = () => { if (b.dataset.tab !== tab) draw(b.dataset.tab); });
   // вход через Steam: серверная функция Supabase steam-auth (OpenID) → обратно на сайт с одноразовым токеном
-  $('#steamBtn', m).onclick = () => { const b = $('#steamBtn', m); b.classList.add('busy'); $('.au-steam-t', b).innerHTML = '<b>Переход в Steam…</b><small>войдите на странице Steam</small>'; location.href = SB_URL + '/functions/v1/steam-auth?start=1&ret=' + encodeURIComponent(location.origin + location.pathname); };
+  $('#aAge', m).onchange = () => { if ($('#aAge', m).checked) ageCheck(); };
+  $$('.au-doc', m).forEach(a => a.onclick = () => closeModal());
+  $('#steamBtn', m).onclick = () => { if (!ageCheck()) return; const b = $('#steamBtn', m); b.classList.add('busy'); $('.au-steam-t', b).innerHTML = '<b>Переход в Steam…</b><small>войдите на странице Steam</small>'; location.href = SB_URL + '/functions/v1/steam-auth?start=1&ret=' + encodeURIComponent(location.origin + location.pathname); };
   draw(tab, true);
 }
 /* аккаунты — в базе Supabase: вход по e-mail, профиль игрока хранится на сервере */
@@ -4724,7 +4716,7 @@ document.addEventListener('error', e => {
 }, true);
 
 /* ---------- init ---------- */
-renderHeader(); renderFooter(); ageGate(); initFx(); initLive(); route(); sbInit();
+renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit();
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
 // экран загрузки закрывается сам (index.html: window.plFinish) — по окончании загрузки или через 7 с
 })();
