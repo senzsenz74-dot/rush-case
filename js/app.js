@@ -674,7 +674,7 @@ function sbApply(d) {
   setBalance(bal);
   const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin || 0);
 }
-const SRV_ERR = { 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
+const SRV_ERR = { 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
   'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку',
   'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка',
   'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
@@ -1073,6 +1073,7 @@ const NAV = [
   { k: 'contracts', h: '/contracts', t: 'Контракты', i: 'swap' },
   { k: 'jackpot', h: '/jackpot', t: 'Ставки', i: 'coins' },
   { k: 'bonus', h: '/bonus', t: 'Бонусы', i: 'gift' },
+  { k: 'tournaments', h: '/tournaments', t: 'Турниры', i: 'crown' },
   { k: 'top', h: '/top', t: 'Топ игроков', i: 'trophy' },
 ];
 let online = randi(1180, 1460);
@@ -1155,7 +1156,7 @@ function renderFooter() {
       <p>Премиальные кейсы CS2, апгрейды и контракты с мгновенным выводом в Steam.</p>
       <div class="socials"><a href="#/bonus" aria-label="Telegram">${ic.tg}</a><a href="#/bonus" aria-label="VK">${ic.vk}</a><a href="#/bonus" aria-label="YouTube">${ic.yt}</a><a href="#/bonus" aria-label="Discord">${ic.ds}</a></div>
     </div>
-    <div class="ft-col"><h4>Игры</h4><a href="#/cases">Кейсы</a><a href="#/upgrade">Апгрейд</a><a href="#/contracts">Контракты</a><a href="#/bonus">Бонусы</a><a href="#/top">Топ игроков</a></div>
+    <div class="ft-col"><h4>Игры</h4><a href="#/cases">Кейсы</a><a href="#/upgrade">Апгрейд</a><a href="#/contracts">Контракты</a><a href="#/bonus">Бонусы</a><a href="#/tournaments">Турниры</a><a href="#/top">Топ игроков</a></div>
     <div class="ft-col"><h4>Информация</h4><a href="#/faq">FAQ</a><a href="#/terms">Пользовательское соглашение</a><a href="#/terms">Политика конфиденциальности</a><a href="#/faq">Честная игра</a></div>
     <div class="ft-col"><h4>Поддержка</h4><a href="#/faq">support@rushcase.gg</a><a href="#/faq">Онлайн-чат 24/7</a>
       <div class="pay"><span>СБП</span><span>VISA</span><span>MC</span><span>МИР</span><span>USDT</span></div></div>
@@ -2982,12 +2983,13 @@ function pageProfile() {
         <div class="pfh-best r-${best ? best.r : 'milspec'}"><span>${ic.trophy}Лучший дроп</span>${best ? `<b><img src="${imgUrl(best, 's')}" alt="">${money(best.p)}</b>` : '<b>—</b>'}</div>
       </div>
     </div>
-    <div class="tabs-row"><div class="seg pf-seg" id="pfTabs"><button data-tab="inv">${ic.box}Инвентарь<b id="invCnt"></b></button><button data-tab="stats">${ic.trend}Статистика</button><button data-tab="rc"><img class="rc-ic" src="assets/rcoin.webp" alt="">R-COIN</button><button data-tab="hist">${ic.history}История</button></div><div class="sum" id="invSum"></div></div>
+    <div class="tabs-row"><div class="seg pf-seg" id="pfTabs"><button data-tab="inv">${ic.box}Инвентарь<b id="invCnt"></b></button><button data-tab="stats">${ic.trend}Статистика</button><button data-tab="rc"><img class="rc-ic" src="assets/rcoin.webp" alt="">R-COIN</button><button data-tab="hist">${ic.history}История</button><button data-tab="team">${ic.users}Команда</button></div><div class="sum" id="invSum"></div></div>
     <div id="pfBody"></div>
   </section>`;
 }
-function mountProfile() {
+function mountProfile(sub) {
   if (!st.user) return;
+  if (sub) pfTab = sub; // #/profile/team — сразу вкладка «Команда»
   $$('#pfTabs button').forEach(b => b.onclick = () => { pfTab = b.dataset.tab; drawPf(); });
   drawPf();
 }
@@ -3007,6 +3009,7 @@ function drawPf() {
   const list = own(), sum = list.reduce((a, x) => a + SK[x.n].p, 0);
   $('#invCnt').textContent = list.length;
   $('#invSum').innerHTML = '';
+  if (pfTab === 'team') return drawTeamTab(body);
   if (pfTab === 'inv') {
     $('#invSum').innerHTML = list.length ? `Стоимость: <b>${money(sum)}</b> &nbsp;<button class="btn btn-accent btn-sm" id="sellAllInv">${ic.coin}Продать всё</button>` : '';
     const sorted = list.slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
@@ -3315,6 +3318,7 @@ async function loadCaseSettings() {
 }
 function afterLogin(isNew) {
   Snd.coin();
+  try { const j = localStorage.getItem('rc.join'); if (j) setTimeout(() => { location.hash = '#/join/' + j; }, 300); } catch (e) { /* */ }
   toast(isNew ? `Добро пожаловать в RUSH CASE, <b>${esc(st.user.name)}</b>! +100 ₽ на баланс` : `С возвращением, <b>${esc(st.user.name)}</b>!`);
   if (isNew) burst(30);
 }
@@ -3788,7 +3792,7 @@ function pageAdmin() {
   if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
   return `<section class="container cases-wide adm" id="adm">
     <div class="adm-top"><div><span class="adm-eyebrow">${ic.shield}Админ-панель</span><h1>Управление <em>RUSH CASE</em></h1></div>
-      <div class="adm-tabs" id="admTabs">${[['dash', 'Дашборд', 'trend'], ['stats', 'Статистика', 'chart'], ['cases', 'Кейсы', 'box'], ['players', 'Игроки', 'users']].map(([k, t, i]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${ic[i] || ''}${t}</button>`).join('')}</div></div>
+      <div class="adm-tabs" id="admTabs">${[['dash', 'Дашборд', 'trend'], ['stats', 'Статистика', 'chart'], ['cases', 'Кейсы', 'box'], ['players', 'Игроки', 'users'], ['tours', 'Турниры', 'crown']].map(([k, t, i]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${ic[i] || ''}${t}</button>`).join('')}</div></div>
     <div id="admBody"></div>
   </section>`;
 }
@@ -3818,7 +3822,7 @@ function mountAdmin() {
 function admDraw() {
   const box = $('#admBody'); if (!box) return;
   if (!sb && admTab !== 'cases') return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
-  if (admTab === 'dash') admDash(box); else if (admTab === 'stats') admStats(box); else if (admTab === 'cases') admCases(box); else admPlayers(box);
+  if (admTab === 'dash') admDash(box); else if (admTab === 'stats') admStats(box); else if (admTab === 'cases') admCases(box); else if (admTab === 'tours') admTours(box); else admPlayers(box);
 }
 const admErr = e => `<div class="empty">${ic.shield}Ошибка: ${esc(e.message || String(e))}. Проверьте, что запущен supabase/admin.sql и ваш аккаунт — админ.</div>`;
 /* ---------- дашборд ---------- */
@@ -4221,9 +4225,346 @@ function admGive(uid, name, done) {
 /* =========================================================
    ROUTER
    ========================================================= */
+/* =========================================================
+   ТУРНИРЫ CS2 (этап 1): команды в профиле, приглашения, список турниров, страница турнира, регистрация капитаном.
+   Сервер — supabase/tournaments.sql (все изменения через функции, прямая запись закрыта).
+   ========================================================= */
+const TOUR_ST = { draft: ['Черновик', 'st-mute'], reg: ['Регистрация открыта', 'st-ok'], closed: ['Регистрация закрыта', 'st-warn'], live: ['Идёт', 'st-live'], done: ['Завершён', 'st-mute'] };
+const TOUR_MAPS = ['Ancient', 'Anubis', 'Dust2', 'Inferno', 'Mirage', 'Nuke', 'Train', 'Overpass', 'Vertigo'];
+const TEAM_MAX = 10;
+const fmtName = f => `${f}x${f}`;
+const tourDate = d => d ? new Date(d).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : '—';
+const countdown = d => { const s = Math.max(0, Math.floor((new Date(d) - Date.now()) / 1000)); const dd = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60; return dd ? `${dd} д ${h} ч` : `${pad(h)}:${pad(m)}:${pad(s % 60)}`; };
+const TEAM_COLS = 'id, name, tag, logo, captain, created_at';
+const teamLogo = (t, cls = '') => t.logo ? `<span class="tm-logo ${cls}"><img src="${esc(t.logo)}" alt=""></span>` : `<span class="tm-logo ${cls} tm-logo-t">${esc((t.tag || '?').slice(0, 3))}</span>`;
+const steamUrl = id => `https://steamcommunity.com/profiles/${id}`;
+const steamLogin = () => { location.href = SB_URL + '/functions/v1/steam-auth?start=1&ret=' + encodeURIComponent(location.origin + location.pathname); };
+async function players(ids) {
+  const u = [...new Set(ids.filter(Boolean))]; if (!u.length || !sb) return {};
+  const { data } = await sb.from('players_pub').select('id, name, ava, pid, steamid').in('id', u);
+  return Object.fromEntries((data || []).map(p => [p.id, p]));
+}
+async function myTeam() {
+  if (!sb || !st.user || !st.user.sb) return null;
+  const { data: m } = await sb.from('team_members').select('team_id').eq('uid', st.user.id).maybeSingle();
+  if (!m) return null;
+  const [{ data: t }, { data: mem }] = await Promise.all([sb.from('teams').select(TEAM_COLS).eq('id', m.team_id).maybeSingle(), sb.from('team_members').select('uid, joined_at').eq('team_id', m.team_id).order('joined_at')]);
+  if (!t) return null;
+  t.members = mem || []; t.isCap = t.captain === st.user.id; return t;
+}
+/* загрузка картинки в хранилище: логотип — в папку игрока, баннер — админ */
+async function uploadImg(bucket, file, prefix) {
+  if (!file) return null;
+  if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) { toast('Нужна картинка PNG, JPG или WEBP', 'err'); return null; }
+  if (file.size > 3e6) { toast('Картинка больше 3 МБ', 'err'); return null; }
+  const path = `${prefix}/${Date.now()}.${(file.name.split('.').pop() || 'png').toLowerCase()}`;
+  const { error } = await sb.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type });
+  if (error) { toast('Не загружено: ' + error.message, 'err'); return null; }
+  return sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
+
+/* ---------- список турниров ---------- */
+let tourTab = 'active';
+function pageTours() {
+  return `<section class="container trn">
+    <div class="page-head trn-head"><div><h1>Турниры <em>CS2</em></h1><p>Собери команду, зарегистрируйся на турнир и забирай призы. Бан карт, сервер и трансляция — всё здесь.</p></div>
+      <a class="btn btn-dark" href="#/profile/team">${ic.users}Моя команда</a></div>
+    <div class="seg trn-seg" id="trnTabs"><button data-t="active">Активные</button><button data-t="done">Прошедшие</button></div>
+    <div id="trnList" class="trn-grid"><div class="top-load"><span class="spinner"></span>Загружаем турниры…</div></div>
+  </section>`;
+}
+async function mountTours() {
+  $$('#trnTabs button').forEach(b => b.onclick = () => { tourTab = b.dataset.t; drawTours(); });
+  drawTours();
+}
+async function drawTours() {
+  $$('#trnTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === tourTab));
+  const box = $('#trnList'); if (!box) return;
+  if (!sb) { box.innerHTML = `<div class="top-empty"><b>Нет связи с сервером</b></div>`; return; }
+  const q = sb.from('tournaments').select('id, title, format, max_teams, prize_pool, banner, starts_at, reg_end, status').order('starts_at', { ascending: tourTab === 'active', nullsFirst: false });
+  const { data, error } = await (tourTab === 'active' ? q.in('status', ['reg', 'closed', 'live']) : q.eq('status', 'done'));
+  if (!$('#trnList')) return;
+  if (error) { box.innerHTML = `<div class="top-empty"><b>Турниры не загрузились</b><span>${esc(error.message)}</span></div>`; return; }
+  const ids = (data || []).map(t => t.id);
+  const { data: regs } = ids.length ? await sb.from('tournament_teams').select('tournament_id').in('tournament_id', ids) : { data: [] };
+  const cnt = {}; (regs || []).forEach(r => { cnt[r.tournament_id] = (cnt[r.tournament_id] || 0) + 1; });
+  box.innerHTML = (data || []).length ? data.map(t => {
+    const s = TOUR_ST[t.status] || TOUR_ST.reg, n = cnt[t.id] || 0;
+    const when = t.status === 'reg' && t.starts_at ? `<span class="trn-cd" data-cd="${esc(t.starts_at)}">${ic.clock}<b>${countdown(t.starts_at)}</b> до старта</span>` : `<span class="trn-cd">${ic.clock}${tourDate(t.starts_at)}</span>`;
+    return `<a class="trn-card" href="#/tournament/${t.id}">
+      <div class="trn-ban"${t.banner ? ` style="background-image:url('${esc(t.banner)}')"` : ''}>${t.banner ? '' : `<span class="trn-ban-ph">${ic.trophy}</span>`}
+        <span class="trn-st ${s[1]}">${s[0]}</span><span class="trn-fmt">${fmtName(t.format)}</span></div>
+      <div class="trn-body"><h3>${esc(t.title)}</h3>
+        <div class="trn-prize"><small>Призовой фонд</small><b>${esc(t.prize_pool || '—')}</b></div>
+        <div class="trn-slots"><div><span>Команды</span><b>${n} / ${t.max_teams}</b></div><div class="bn-bar"><i style="width:${Math.min(100, n / t.max_teams * 100)}%"></i></div></div>
+        ${when}</div></a>`;
+  }).join('') : `<div class="top-empty trn-empty"><b>${tourTab === 'active' ? 'Скоро анонсируем турнир' : 'Прошедших турниров пока нет'}</b><span>Следите за анонсами в нашем Telegram-канале.</span><a class="btn btn-primary btn-sm" href="https://t.me/rushcasse" target="_blank" rel="noopener">${ic.tg}Telegram-канал</a></div>`;
+  every(() => $$('[data-cd]').forEach(e => { $('b', e).textContent = countdown(e.dataset.cd); }), 1000);
+}
+
+/* ---------- страница турнира ---------- */
+function pageTour() { return `<section class="container trn trn-page" id="trnPage"><div class="top-load"><span class="spinner"></span>Загружаем турнир…</div></section>`; }
+async function mountTour(id) {
+  const root = $('#trnPage'); if (!root || !sb) return;
+  const [{ data: t }, { data: regs }, team] = await Promise.all([sb.from('tournaments').select('*').eq('id', +id).maybeSingle(), sb.from('tournament_teams').select('team_id, roster, subs, registered_at').eq('tournament_id', +id).order('registered_at'), myTeam()]);
+  if (!$('#trnPage')) return;
+  if (!t) { root.innerHTML = `<div class="top-empty"><b>Турнир не найден</b><a class="btn btn-dark btn-sm" href="#/tournaments">${ic.left}Все турниры</a></div>`; return; }
+  const tids = (regs || []).map(r => r.team_id);
+  const { data: teams } = tids.length ? await sb.from('teams').select(TEAM_COLS).in('id', tids) : { data: [] };
+  const P = await players((regs || []).flatMap(r => [...r.roster, ...r.subs]));
+  const TM = Object.fromEntries((teams || []).map(x => [x.id, x]));
+  const mine = team && (regs || []).find(r => r.team_id === team.id);
+  const s = TOUR_ST[t.status] || TOUR_ST.reg, n = (regs || []).length;
+  const prizes = Array.isArray(t.prizes) ? t.prizes.filter(Boolean) : [];
+  const medal = ['gold', 'silver', 'bronze'];
+  root.innerHTML = `
+    <a class="back trn-back" href="#/tournaments">${ic.left}Все турниры</a>
+    <div class="trn-hero"${t.banner ? ` style="--ban:url('${esc(t.banner)}')"` : ''}>
+      <div class="trn-hero-in">
+        <div class="trn-chips"><span class="trn-st ${s[1]}">${s[0]}</span><span class="trn-fmt">${fmtName(t.format)}${t.subs_max ? ` · до ${t.subs_max} замен` : ''}</span></div>
+        <h1>${esc(t.title)}</h1>
+        <div class="trn-facts">
+          <div><small>Призовой фонд</small><b class="gold">${esc(t.prize_pool || '—')}</b></div>
+          <div><small>Старт</small><b>${tourDate(t.starts_at)}</b></div>
+          <div><small>Регистрация до</small><b>${tourDate(t.reg_end || t.starts_at)}</b></div>
+          <div><small>Команды</small><b>${n} / ${t.max_teams}</b></div>
+        </div>
+      </div>
+      <div class="trn-act" id="trnAct"></div>
+    </div>
+    <div class="trn-cols">
+      <div class="trn-main">
+        ${t.description ? `<section class="trn-sec"><h3>${ic.alert}О турнире</h3><div class="trn-text">${esc(t.description)}</div></section>` : ''}
+        <section class="trn-sec"><h3>${ic.users}Команды <em>${n}</em></h3>
+          ${n ? `<div class="trn-teams">${regs.map(r => { const tm = TM[r.team_id] || {}; return `<div class="trn-team${mine && r.team_id === team.id ? ' me' : ''}">${teamLogo(tm)}<div class="trn-team-n"><b>${esc(tm.name || 'Команда')}</b><small>[${esc(tm.tag || '')}]</small></div>
+            <div class="trn-roster">${r.roster.map(u => P[u] ? `<span title="${esc(P[u].name)}">${ava(P[u], 'xs')}</span>` : '').join('')}${r.subs.length ? `<i>+${r.subs.length}</i>` : ''}</div></div>`; }).join('')}</div>`
+            : `<div class="trn-none">Пока никто не зарегистрировался — станьте первыми.</div>`}
+        </section>
+        <section class="trn-sec"><h3>${ic.trend}Сетка</h3><div class="trn-none">Сетка появится после закрытия регистрации.</div></section>
+        ${t.rules ? `<section class="trn-sec"><h3>${ic.shield}Правила</h3><div class="trn-text">${esc(t.rules)}</div></section>` : ''}
+      </div>
+      <aside class="trn-side">
+        ${prizes.length ? `<section class="trn-sec"><h3>${ic.trophy}Призы</h3><ol class="trn-prizes">${prizes.map((p, i) => `<li class="${medal[i] || ''}"><i>${i + 1}</i><span>${esc(p)}</span></li>`).join('')}</ol></section>` : ''}
+        ${t.map_pool && t.map_pool.length ? `<section class="trn-sec"><h3>${ic.globe}Пул карт</h3><div class="trn-maps">${t.map_pool.map(m => `<span>${esc(m)}</span>`).join('')}</div><p class="trn-note">Бан карт — на странице матча за 15 минут до начала.</p></section>` : ''}
+        ${t.anticheat ? `<section class="trn-sec"><h3>${ic.eye}Античит</h3><div class="trn-text">${esc(t.anticheat)}</div></section>` : ''}
+      </aside>
+    </div>`;
+  drawTourAct(t, team, mine, n);
+}
+function drawTourAct(t, team, mine, n) {
+  const box = $('#trnAct'); if (!box) return;
+  const open = t.status === 'reg' && (!t.reg_end || new Date(t.reg_end) > Date.now());
+  const head = open && (t.reg_end || t.starts_at) ? `<div class="trn-cd big" data-cd="${esc(t.reg_end || t.starts_at)}"><small>До конца регистрации</small><b>${countdown(t.reg_end || t.starts_at)}</b></div>` : '';
+  let body;
+  if (mine) body = `<div class="trn-ok">${ic.check}<b>Ваша команда зарегистрирована</b><span>${team.isCap ? 'Состав можно поменять до закрытия регистрации.' : 'Регистрацией управляет капитан.'}</span></div>
+    ${team.isCap && open ? `<button class="btn btn-dark" id="trnEdit">${ic.edit}Изменить состав</button><button class="btn btn-ghost btn-sm" id="trnLeave">Сняться с турнира</button>` : ''}`;
+  else if (!open) body = `<div class="trn-info">${t.status === 'done' ? 'Турнир завершён.' : 'Регистрация закрыта.'}</div>`;
+  else if (!st.user) body = `<button class="btn btn-primary btn-lg" data-act="login">${ic.login}Войти, чтобы участвовать</button>`;
+  else if (!st.user.steamid) body = `<div class="trn-info">Для турниров нужен вход через Steam.</div><button class="btn btn-primary btn-lg" id="trnSteam">${ic.steam}Войти через Steam</button>`;
+  else if (!team) body = `<div class="trn-info">Регистрирует капитан команды. Создайте команду или вступите по ссылке капитана.</div><a class="btn btn-primary btn-lg" href="#/profile/team">${ic.users}Создать команду</a>`;
+  else if (!team.isCap) body = `<div class="trn-info">Зарегистрировать команду может только капитан.</div>`;
+  else if (n >= t.max_teams) body = `<div class="trn-info">Все места заняты.</div>`;
+  else if (team.members.length < t.format) body = `<div class="trn-info">Нужен полный состав: ${t.format} ${plural(t.format, 'игрок', 'игрока', 'игроков')}. Сейчас в команде ${team.members.length}. Пригласите игроков по ссылке.</div><a class="btn btn-dark" href="#/profile/team">${ic.link}Пригласить игроков</a>`;
+  else body = `<button class="btn btn-primary btn-lg" id="trnReg">${ic.trophy}Зарегистрировать команду</button>`;
+  box.innerHTML = head + body;
+  const reg = $('#trnReg') || $('#trnEdit'); if (reg) reg.onclick = () => rosterModal(t, team, mine);
+  const lv = $('#trnLeave'); if (lv) lv.onclick = async () => { if (!confirm('Снять команду с турнира?')) return; if (await srv('tour_unregister', { p_tour: t.id })) { toast('Команда снята с турнира'); route(); } };
+  const sm = $('#trnSteam'); if (sm) sm.onclick = steamLogin;
+  every(() => $$('[data-cd]').forEach(e => { $('b', e).textContent = countdown(e.dataset.cd); }), 1000);
+}
+/* выбор основного состава и замен */
+async function rosterModal(t, team, mine) {
+  const P = await players(team.members.map(m => m.uid));
+  const sel = {}; team.members.forEach(m => { sel[m.uid] = mine ? (mine.roster.includes(m.uid) ? 'main' : mine.subs.includes(m.uid) ? 'sub' : '') : ''; });
+  const m = modal(`<div class="dpx trn-rm"><div class="dpx-head"><span class="dpx-ico">${ic.users}</span><div><h2>Состав на турнир</h2><p>Основной состав — ровно ${t.format}, замен — до ${t.subs_max}</p></div></div>
+    <div class="trn-rm-list" id="rmList"></div><div class="trn-rm-f"><span id="rmCnt"></span><button class="btn btn-primary" id="rmOk">${mine ? 'Сохранить состав' : 'Зарегистрировать'}</button></div></div>`, 'm-dep');
+  const draw = () => {
+    const main = Object.keys(sel).filter(k => sel[k] === 'main'), subs = Object.keys(sel).filter(k => sel[k] === 'sub');
+    $('#rmList', m).innerHTML = team.members.map(x => { const p = P[x.uid] || { name: '?' }, v = sel[x.uid]; return `<div class="trn-rm-row">${ava(p, 'xs')}<b>${esc(p.name)}${x.uid === team.captain ? ' <i class="tm-cap">капитан</i>' : ''}</b>
+      <div class="seg"><button data-u="${x.uid}" data-v="main" class="${v === 'main' ? 'on' : ''}">Основа</button><button data-u="${x.uid}" data-v="sub" class="${v === 'sub' ? 'on' : ''}"${t.subs_max ? '' : ' disabled'}>Замена</button><button data-u="${x.uid}" data-v="" class="${!v ? 'on' : ''}">—</button></div></div>`; }).join('');
+    $('#rmCnt', m).innerHTML = `Основа <b class="${main.length === t.format ? 'ok' : 'bad'}">${main.length}/${t.format}</b> · замены <b>${subs.length}/${t.subs_max}</b>`;
+    $$('[data-u]', m).forEach(b => b.onclick = () => { sel[b.dataset.u] = b.dataset.v; draw(); });
+    return { main, subs };
+  };
+  draw();
+  $('#rmOk', m).onclick = async () => {
+    const { main, subs } = draw();
+    if (main.length !== t.format) return toast(`Выберите ровно ${t.format} в основу`, 'err');
+    if (subs.length > t.subs_max) return toast(`Замен — не больше ${t.subs_max}`, 'err');
+    const b = $('#rmOk', m); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+    const r = await srv('tour_register', { p_tour: t.id, p_roster: main, p_subs: subs });
+    b.disabled = false; b.textContent = mine ? 'Сохранить состав' : 'Зарегистрировать';
+    if (r) { closeModal(); toast(mine ? 'Состав сохранён' : 'Команда зарегистрирована на турнир'); burst(30); route(); }
+  };
+}
+
+/* ---------- профиль → команда ---------- */
+async function drawTeamTab(body) {
+  body.innerHTML = `<div class="top-load"><span class="spinner"></span>Загружаем команду…</div>`;
+  const team = await myTeam(); if (!$('#pfBody') || pfTab !== 'team') return;
+  if (!st.user.steamid) {
+    body.innerHTML = `<div class="tm-empty"><span class="tm-empty-ic">${ic.steam}</span><h3>Для команд нужен Steam</h3><p>Турниры по CS2 — только с привязанным аккаунтом Steam. Войдите через Steam, и сможете создать команду или вступить в неё.</p><button class="btn btn-primary btn-lg" id="tmSteam">${ic.steam}Войти через Steam</button></div>`;
+    $('#tmSteam').onclick = steamLogin; return;
+  }
+  if (!team) {
+    body.innerHTML = `<div class="tm-grid"><section class="tm-card">${teamForm(null)}</section>
+      <section class="tm-card tm-howto"><h3>${ic.link}Вступить в команду</h3><p>Попросите капитана прислать ссылку-приглашение и откройте её — вы сразу окажетесь в команде.</p>
+        <ol><li>Капитан создаёт команду и копирует ссылку</li><li>Игроки переходят по ссылке и вступают</li><li>Капитан регистрирует полный состав на турнир</li></ol>
+        <a class="btn btn-dark" href="#/tournaments">${ic.trophy}Смотреть турниры</a></section></div>`;
+    bindTeamForm(null); return;
+  }
+  const P = await players(team.members.map(m => m.uid));
+  const [{ data: regs }, inv, tg] = await Promise.all([sb.from('tournament_teams').select('tournament_id').eq('team_id', team.id), sb.rpc('team_invite', { p_new: false }), sb.rpc('team_contact', { p_team: team.id })]);
+  const tIds = (regs || []).map(r => r.tournament_id);
+  const { data: tours } = tIds.length ? await sb.from('tournaments').select('id, title, status, starts_at').in('id', tIds) : { data: [] };
+  const link = `${location.origin}${location.pathname}#/join/${inv.data || ''}`;
+  body.innerHTML = `<div class="tm-grid">
+    <section class="tm-card tm-main">
+      <div class="tm-head">${teamLogo(team, 'lg')}<div><h2>${esc(team.name)} <small>[${esc(team.tag)}]</small></h2><p>${team.members.length} / ${TEAM_MAX} игроков${tg.data ? ` · капитан в Telegram: <b>${esc(tg.data)}</b>` : ''}</p></div>
+        ${team.isCap ? `<button class="btn btn-dark btn-sm" id="tmEdit">${ic.edit}Изменить</button>` : ''}</div>
+      <div class="tm-inv"><small>Ссылка-приглашение</small><div class="inp-row"><input class="inp" readonly value="${esc(link)}" id="tmLink"><button class="btn btn-primary" id="tmCopy">${ic.copy}Копировать</button></div>
+        ${team.isCap ? `<button class="tm-newlink" id="tmNew">Сделать новую ссылку (старая перестанет работать)</button>` : ''}</div>
+      <div class="tm-members">${team.members.map(x => { const p = P[x.uid] || { name: '?' }, cap = x.uid === team.captain; return `<div class="tm-mem${cap ? ' cap' : ''}">${ava(p, 'xs')}
+        <div class="tm-mem-n"><b>${esc(p.name)}${cap ? ` <i class="tm-cap">${ic.crown}капитан</i>` : ''}${x.uid === st.user.id ? ' <i class="tt-you">вы</i>' : ''}</b><small>ID ${p.pid || '—'}${p.steamid ? ` · <a href="${steamUrl(p.steamid)}" target="_blank" rel="noopener">Steam</a>` : ''}</small></div>
+        ${team.isCap && !cap ? `<div class="tm-mem-a"><button class="btn btn-ghost btn-sm" data-cap="${x.uid}">Сделать капитаном</button><button class="btn btn-ghost btn-sm tm-kick" data-kick="${x.uid}">Исключить</button></div>` : ''}</div>`; }).join('')}</div>
+      <div class="tm-foot">${team.isCap ? `<button class="btn btn-ghost btn-sm tm-kick" id="tmDisband">Расформировать команду</button>` : `<button class="btn btn-ghost btn-sm tm-kick" id="tmLeave">Покинуть команду</button>`}</div>
+    </section>
+    <section class="tm-card"><h3>${ic.trophy}Турниры команды</h3>
+      ${(tours || []).length ? `<div class="tm-tours">${tours.map(x => `<a href="#/tournament/${x.id}"><b>${esc(x.title)}</b><span class="trn-st ${(TOUR_ST[x.status] || TOUR_ST.reg)[1]}">${(TOUR_ST[x.status] || TOUR_ST.reg)[0]}</span></a>`).join('')}</div>` : `<p class="trn-none">Команда ещё не участвует в турнирах.</p>`}
+      <a class="btn btn-dark" href="#/tournaments">${ic.trophy}Все турниры</a></section></div>`;
+  $('#tmCopy').onclick = () => copyText(link);
+  const act = async (fn, args, msg, ask) => { if (ask && !confirm(ask)) return; if (await srv(fn, args)) { toast(msg); drawTeamTab(body); } };
+  const nl = $('#tmNew'); if (nl) nl.onclick = () => act('team_invite', { p_new: true }, 'Новая ссылка готова', 'Старая ссылка перестанет работать. Продолжить?');
+  $$('[data-kick]', body).forEach(b => b.onclick = () => act('team_kick', { p_uid: b.dataset.kick }, 'Игрок исключён', 'Исключить игрока из команды?'));
+  $$('[data-cap]', body).forEach(b => b.onclick = () => act('team_transfer', { p_uid: b.dataset.cap }, 'Капитанство передано', 'Передать капитанство? Вы станете обычным игроком.'));
+  const ds = $('#tmDisband'); if (ds) ds.onclick = () => act('team_disband', {}, 'Команда расформирована', 'Расформировать команду? Её регистрации на турнирах будут отменены.');
+  const lv = $('#tmLeave'); if (lv) lv.onclick = () => act('team_leave', {}, 'Вы покинули команду', 'Покинуть команду?');
+  const ed = $('#tmEdit'); if (ed) ed.onclick = () => { const m = modal(`<div class="dpx">${teamForm(Object.assign({}, team, { captain_tg: tg.data }))}</div>`, 'm-dep'); bindTeamForm(team, m); };
+}
+function teamForm(t) {
+  return `<h3>${ic.users}${t ? 'Команда' : 'Создать команду'}</h3>
+    <div class="tm-form">
+      <label class="tm-logo-up" id="tfLogoBox">${t && t.logo ? `<img src="${esc(t.logo)}" alt="">` : `${ic.plus}<span>Логотип</span>`}<input type="file" id="tfLogo" accept="image/png,image/jpeg,image/webp" hidden></label>
+      <div class="tm-fields">
+        <label><small>Название</small><input class="inp" id="tfName" maxlength="24" placeholder="Rush Five" value="${t ? esc(t.name) : ''}"></label>
+        <label><small>Тег (2–5 символов)</small><input class="inp" id="tfTag" maxlength="5" placeholder="RUSH" value="${t ? esc(t.tag) : ''}" style="text-transform:uppercase"></label>
+        <label><small>Telegram капитана — для связи с организаторами</small><input class="inp" id="tfTg" maxlength="40" placeholder="@captain" value="${t && t.captain_tg ? esc(t.captain_tg) : ''}"></label>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-lg" id="tfSave">${t ? 'Сохранить' : `${ic.plus}Создать команду`}</button>`;
+}
+function bindTeamForm(t, root = document) {
+  let logo = t ? t.logo : null;
+  $('#tfLogo', root).onchange = async e => {
+    const box = $('#tfLogoBox', root); box.classList.add('busy');
+    const url = await uploadImg('team-logo', e.target.files[0], st.user.id); box.classList.remove('busy');
+    if (url) { logo = url; box.innerHTML = `<img src="${esc(url)}" alt=""><input type="file" id="tfLogo" accept="image/png,image/jpeg,image/webp" hidden>`; bindTeamForm(Object.assign({}, t, { logo: url }), root); }
+  };
+  $('#tfSave', root).onclick = async () => {
+    const name = $('#tfName', root).value.trim(), tag = $('#tfTag', root).value.trim().toUpperCase(), tg = $('#tfTg', root).value.trim();
+    if (name.length < 2) return toast('Название — от 2 символов', 'err');
+    if (!/^[A-Z0-9А-ЯЁ]{2,5}$/.test(tag)) return toast('Тег — 2–5 букв или цифр', 'err');
+    const b = $('#tfSave', root); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+    const r = await srv(t ? 'team_update' : 'team_create', { p_name: name, p_tag: tag, p_logo: logo, p_tg: tg || null });
+    b.disabled = false; b.innerHTML = t ? 'Сохранить' : `${ic.plus}Создать команду`;
+    if (r) { if (t) closeModal(); toast(t ? 'Команда сохранена' : 'Команда создана — пригласите игроков по ссылке'); if (!t) burst(30); const bd = $('#pfBody'); if (bd) drawTeamTab(bd); }
+  };
+}
+
+/* ---------- приглашение в команду: #/join/<код> ---------- */
+function pageJoin() { return `<section class="container trn"><div class="tm-join" id="tmJoin"><div class="top-load"><span class="spinner"></span>Проверяем приглашение…</div></div></section>`; }
+async function mountJoin(code) {
+  const box = $('#tmJoin'); if (!box || !sb) return;
+  const { data: t } = await sb.rpc('team_by_invite', { p_code: code || '' });
+  if (!$('#tmJoin')) return;
+  if (!t) { box.innerHTML = `<div class="tm-empty"><span class="tm-empty-ic">${ic.alert}</span><h3>Приглашение недействительно</h3><p>Ссылка устарела или с ошибкой. Попросите капитана прислать новую.</p><a class="btn btn-dark" href="#/tournaments">${ic.trophy}Турниры</a></div>`; return; }
+  try { localStorage.setItem('rc.join', code); } catch (e) { /* без запоминания */ }
+  const need = !st.user ? 'login' : !st.user.steamid ? 'steam' : '';
+  box.innerHTML = `<div class="tm-empty">${teamLogo(t, 'xl')}<small class="tm-join-s">Приглашение в команду</small><h3>${esc(t.name)} <span>[${esc(t.tag)}]</span></h3><p>${t.n} / ${TEAM_MAX} игроков</p>
+    ${need === 'login' ? `<button class="btn btn-primary btn-lg" data-act="login">${ic.login}Войти, чтобы вступить</button>` : need === 'steam' ? `<p class="trn-info">Для команд нужен вход через Steam.</p><button class="btn btn-primary btn-lg" id="jnSteam">${ic.steam}Войти через Steam</button>` : `<button class="btn btn-primary btn-lg" id="jnGo">${ic.users}Вступить в команду</button>`}</div>`;
+  const sm = $('#jnSteam'); if (sm) sm.onclick = steamLogin;
+  const go = $('#jnGo'); if (go) go.onclick = async () => { go.disabled = true; const r = await srv('team_join', { p_code: code }); go.disabled = false; if (r) { try { localStorage.removeItem('rc.join'); } catch (e) { /* */ } toast(`Вы в команде <b>${esc(t.name)}</b>`); burst(30); location.hash = '#/profile/team'; } };
+}
+
+/* ---------- админ → турниры ---------- */
+async function admTours(box) {
+  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Турниры</h3><button class="btn btn-primary btn-sm" id="atNew">${ic.plus}Создать турнир</button><p>Черновик видят только админы. «Регистрация открыта» — турнир на сайте, капитаны регистрируют команды. После закрытия регистрации составы заморожены.</p></div><div id="atList"><div class="top-load"><span class="spinner"></span></div></div></div>`;
+  $('#atNew').onclick = () => admTourEditor(null, () => admTours(box));
+  const { data, error } = await sb.from('tournaments').select('*').order('created_at', { ascending: false });
+  if (error) { $('#atList').innerHTML = admErr(error); return; }
+  const { data: regs } = await sb.from('tournament_teams').select('tournament_id');
+  const cnt = {}; (regs || []).forEach(r => { cnt[r.tournament_id] = (cnt[r.tournament_id] || 0) + 1; });
+  $('#atList').innerHTML = (data || []).length ? `<div class="at-list">${data.map(t => { const s = TOUR_ST[t.status] || TOUR_ST.draft; return `<div class="at-row" data-id="${t.id}">
+    <span class="at-ban"${t.banner ? ` style="background-image:url('${esc(t.banner)}')"` : ''}></span>
+    <div class="at-n"><b>${esc(t.title)}</b><span>${fmtName(t.format)} · старт ${tourDate(t.starts_at)} · ${esc(t.prize_pool || 'без призового')}</span></div>
+    <span class="trn-st ${s[1]}">${s[0]}</span><span class="at-cnt">${cnt[t.id] || 0} / ${t.max_teams}</span>
+    <div class="at-a"><button class="btn btn-dark btn-sm" data-teams="${t.id}">${ic.users}Команды</button><button class="btn btn-dark btn-sm" data-edit="${t.id}">${ic.edit}Изменить</button><a class="btn btn-ghost btn-sm" href="#/tournament/${t.id}">${ic.eye}</a><button class="btn btn-ghost btn-sm tm-kick" data-del="${t.id}">Удалить</button></div></div>`; }).join('')}</div>`
+    : `<div class="trn-none">Турниров ещё нет — создайте первый.</div>`;
+  $$('[data-edit]', box).forEach(b => b.onclick = () => admTourEditor(data.find(x => x.id === +b.dataset.edit), () => admTours(box)));
+  $$('[data-teams]', box).forEach(b => b.onclick = () => admTourTeams(data.find(x => x.id === +b.dataset.teams), () => admTours(box)));
+  $$('[data-del]', box).forEach(b => b.onclick = async () => { const t = data.find(x => x.id === +b.dataset.del); if (!confirm(`Удалить турнир «${t.title}»? Регистрации команд тоже удалятся.`)) return; const { error: e } = await sb.rpc('admin_tour_delete', { p_id: t.id }); if (e) return toast('Не удалено: ' + e.message, 'err'); toast('Турнир удалён'); admTours(box); });
+}
+const dtLocal = d => { if (!d) return ''; const x = new Date(d); return new Date(x - x.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); };
+function admTourEditor(t, done) {
+  const E = t ? JSON.parse(JSON.stringify(t)) : { title: '', status: 'draft', format: 5, subs_max: 2, max_teams: 16, prize_pool: '', prizes: [], map_pool: ['Ancient', 'Anubis', 'Dust2', 'Inferno', 'Mirage', 'Nuke', 'Train'], banner: '', description: '', rules: '', anticheat: '', starts_at: null, reg_end: null };
+  const m = modal(`<div class="dpx at-ed">
+    <div class="dpx-head"><span class="dpx-ico">${ic.trophy}</span><div><h2>${t ? 'Изменить турнир' : 'Новый турнир'}</h2><p>Все поля можно поменять позже</p></div></div>
+    <div class="at-grid">
+      <label class="at-ban-up" id="aeBanBox">${E.banner ? `<img src="${esc(E.banner)}" alt="">` : `${ic.plus}<span>Баннер турнира<small>PNG / JPG / WEBP, до 3 МБ, лучше 1600×700</small></span>`}<input type="file" id="aeBan" accept="image/png,image/jpeg,image/webp" hidden></label>
+      <label class="at-f wide"><small>Название</small><input class="inp" id="aeTitle" maxlength="80" value="${esc(E.title)}" placeholder="RUSH Cup #1"></label>
+      <label class="at-f"><small>Статус</small><select class="inp" id="aeStatus">${Object.entries(TOUR_ST).map(([k, v]) => `<option value="${k}"${E.status === k ? ' selected' : ''}>${v[0]}</option>`).join('')}</select></label>
+      <label class="at-f"><small>Формат</small><select class="inp" id="aeFormat">${[1, 2, 5].map(f => `<option value="${f}"${E.format === f ? ' selected' : ''}>${fmtName(f)}</option>`).join('')}</select></label>
+      <label class="at-f"><small>Замен в команде</small><input class="inp" id="aeSubs" type="number" min="0" max="5" value="${E.subs_max}"></label>
+      <label class="at-f"><small>Макс. команд</small><input class="inp" id="aeMax" type="number" min="2" max="256" value="${E.max_teams}"></label>
+      <label class="at-f"><small>Старт турнира</small><input class="inp" id="aeStart" type="datetime-local" value="${dtLocal(E.starts_at)}"></label>
+      <label class="at-f"><small>Конец регистрации</small><input class="inp" id="aeReg" type="datetime-local" value="${dtLocal(E.reg_end)}"></label>
+      <label class="at-f wide"><small>Призовой фонд (кратко, для карточки)</small><input class="inp" id="aePool" maxlength="80" value="${esc(E.prize_pool)}" placeholder="50 000 ₽ + скины"></label>
+      <label class="at-f wide"><small>Призы по местам — каждое место с новой строки</small><textarea class="inp" id="aePrizes" rows="4" placeholder="AWP | Dragon Lore&#10;10 000 ₽&#10;Нож на выбор">${esc((E.prizes || []).join('\n'))}</textarea></label>
+      <div class="at-f wide"><small>Пул карт — нажмите, чтобы включить или выключить</small><div class="at-maps" id="aeMaps"></div><div class="inp-row"><input class="inp" id="aeMapAdd" maxlength="30" placeholder="Своя карта"><button class="btn btn-dark" id="aeMapBtn">${ic.plus}Добавить</button></div></div>
+      <label class="at-f wide"><small>Описание</small><textarea class="inp" id="aeDesc" rows="4">${esc(E.description)}</textarea></label>
+      <label class="at-f wide"><small>Правила</small><textarea class="inp" id="aeRules" rows="6">${esc(E.rules)}</textarea></label>
+      <label class="at-f wide"><small>Античит</small><input class="inp" id="aeAc" maxlength="400" value="${esc(E.anticheat)}" placeholder="Обязателен FACEIT AC"></label>
+    </div>
+    <div class="ced-foot"><button class="btn btn-ghost" id="aeCancel">Отмена</button><button class="btn btn-primary btn-lg" id="aeSave">${t ? 'Сохранить' : 'Создать турнир'}</button></div></div>`, 'm-dep at-modal');
+  const v = id => $('#' + id, m);
+  const pool = new Set(E.map_pool || []);
+  const drawMaps = () => { const all = [...new Set([...TOUR_MAPS, ...pool])]; v('aeMaps').innerHTML = all.map(x => `<button class="${pool.has(x) ? 'on' : ''}" data-map="${esc(x)}">${esc(x)}</button>`).join(''); $$('[data-map]', m).forEach(b => b.onclick = () => { const k = b.dataset.map; pool.has(k) ? pool.delete(k) : pool.add(k); drawMaps(); }); };
+  drawMaps();
+  v('aeMapBtn').onclick = () => { const k = v('aeMapAdd').value.trim(); if (k) { pool.add(k); v('aeMapAdd').value = ''; drawMaps(); } };
+  const bindBan = () => { v('aeBan').onchange = async e => { const box = v('aeBanBox'); box.classList.add('busy'); const url = await uploadImg('tour-img', e.target.files[0], 'tour'); box.classList.remove('busy'); if (url) { E.banner = url; box.innerHTML = `<img src="${esc(url)}" alt=""><input type="file" id="aeBan" accept="image/png,image/jpeg,image/webp" hidden>`; bindBan(); } }; };
+  bindBan();
+  v('aeCancel').onclick = closeModal;
+  v('aeSave').onclick = async () => {
+    const iso = id => { const x = v(id).value; return x ? new Date(x).toISOString() : ''; };
+    const p = { id: t ? t.id : '', title: v('aeTitle').value.trim(), status: v('aeStatus').value, format: +v('aeFormat').value, subs_max: +v('aeSubs').value || 0, max_teams: +v('aeMax').value || 16,
+      starts_at: iso('aeStart'), reg_end: iso('aeReg'), prize_pool: v('aePool').value.trim(), prizes: v('aePrizes').value.split('\n').map(x => x.trim()).filter(Boolean),
+      map_pool: [...pool], banner: E.banner || '', description: v('aeDesc').value, rules: v('aeRules').value, anticheat: v('aeAc').value.trim() };
+    if (p.title.length < 2) return toast('Введите название', 'err');
+    if (p.status === 'reg' && !p.starts_at) return toast('Укажите дату старта', 'err');
+    const b = v('aeSave'); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+    const { error } = await sb.rpc('admin_tour_save', { p });
+    b.disabled = false; b.textContent = t ? 'Сохранить' : 'Создать турнир';
+    if (error) return toast('Не сохранено: ' + error.message, 'err');
+    closeModal(); toast(t ? 'Турнир сохранён' : 'Турнир создан'); done();
+  };
+}
+async function admTourTeams(t, done) {
+  const m = modal(`<div class="dpx at-tm"><div class="dpx-head"><span class="dpx-ico">${ic.users}</span><div><h2>${esc(t.title)}</h2><p>Зарегистрированные команды</p></div></div><div id="atTeams"><div class="top-load"><span class="spinner"></span></div></div></div>`, 'm-dep at-modal');
+  const { data, error } = await sb.rpc('admin_tour_teams', { p_tour: t.id });
+  if (error) { $('#atTeams', m).innerHTML = admErr(error); return; }
+  const P = await players((data || []).flatMap(x => [...x.roster, ...x.subs]));
+  const row = (u, sub) => { const p = P[u] || { name: '?' }; return `<span class="at-pl${sub ? ' sub' : ''}">${ava(p, 'xs')}${esc(p.name)}${p.steamid ? ` <a href="${steamUrl(p.steamid)}" target="_blank" rel="noopener">${ic.steam}</a>` : ''}${sub ? ' <i>замена</i>' : ''}</span>`; };
+  $('#atTeams', m).innerHTML = (data || []).length ? data.map(x => `<div class="at-team">${teamLogo(x)}<div class="at-team-b"><b>${esc(x.name)} <small>[${esc(x.tag)}]</small></b>
+      <span class="at-tg">${x.tg ? `${ic.tg}<a href="https://t.me/${esc(x.tg.replace(/^@/, ''))}" target="_blank" rel="noopener">${esc(x.tg)}</a>` : 'Telegram капитана не указан'}${x.roster.length < t.format ? ' · <b class="bad">неполный состав</b>' : ''}</span>
+      <div class="at-pls">${x.roster.map(u => row(u)).join('')}${x.subs.map(u => row(u, true)).join('')}</div></div>
+      <button class="btn btn-ghost btn-sm tm-kick" data-kick="${x.team}">Снять</button></div>`).join('') : `<div class="trn-none">Пока никто не зарегистрировался.</div>`;
+  $$('[data-kick]', m).forEach(b => b.onclick = async () => { if (!confirm('Снять команду с турнира?')) return; const { error: e } = await sb.rpc('admin_tour_kick', { p_tour: t.id, p_team: b.dataset.kick }); if (e) return toast('Ошибка: ' + e.message, 'err'); toast('Команда снята'); admTourTeams(t, done); done(); });
+}
+
 const ROUTES = {
   '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], admin: [pageAdmin, mountAdmin],
+  tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin],
 };
 function route() {
   clearTimers(); spinning = false; spinId++;
@@ -4234,11 +4575,11 @@ function route() {
   app.innerHTML = page(parts[1]);
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   if (mount) mount(parts[1]);
-  const navKey = key === '' || key === 'case' ? 'cases' : key;
+  const navKey = key === '' || key === 'case' ? 'cases' : key === 'tournament' ? 'tournaments' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', admin: 'Админ-панель' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
