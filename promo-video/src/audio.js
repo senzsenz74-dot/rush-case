@@ -25,17 +25,19 @@ function siteEvents() {
   const M = JSON.parse(fs.readFileSync(path.join(C.FRAMES, 'compose-meta.json'), 'utf8')), ev = [];
   for (const [k, [a, b]] of Object.entries(C.SCENES)) {
     const f = path.join(C.FRAMES, k, 'meta.json'); if (!fs.existsSync(f)) continue;
-    const j = JSON.parse(fs.readFileSync(f, 'utf8')), from = (M[k] && M[k].from) || 0, speed = (M[k] && M[k].speed) || 1;
-    for (const e of j.snd) { const t = a + (e.t * C.FPS - from) / speed / C.FPS; if (t >= a - .01 && t < b - .05) ev.push({ ...e, t, scene: k }); }
+    const j = JSON.parse(fs.readFileSync(f, 'utf8')), from = (M[k] && M[k].from) || 0, speed = (M[k] && M[k].speed) || 1, until = M[k] && M[k].until;
+    // та же перемотка, что у картинки (compose-scene.js → srcFrame), в обратную сторону: кадр съёмки → время сцены
+    const toT = src => until == null || src < until ? (src - from) / (C.FPS * speed) : (until - from) / (C.FPS * speed) + (src - until) / C.FPS;
+    for (const e of j.snd) { const t = a + toT(e.t * C.FPS); if (t >= a - .01 && t < b - .05) ev.push({ ...e, t, scene: k }); }
   }
   return { ev, M };
 }
 
 (async () => {
   const { ev, M } = siteEvents();
-  const rv = C.SCENES.open[0] + (M.open ? M.open.reveal : 140) / C.FPS;
+  const rv = C.SCENES.open[0] + (M.open ? M.open.revealT : 3.5);
   const cues = { scenes: Object.fromEntries(Object.entries(C.SCENES).map(([k, v]) => [k, v[0]])), reveal: rv, dur: C.DURATION,
-    wdClick: C.SCENES.withdraw[0] + 36 / C.FPS, upgWin: (() => { const w = ev.find(e => e.scene === 'upgrade' && e.m === 'play' && e.args[0] === 'upgWin'); return w ? w.t : null; })() };
+    wdClick: C.SCENES.withdraw[0] + 36 / C.FPS, panels: Object.keys(C.SCENES).filter(k => !['hook', 'cta'].includes(k)), upgWin: (() => { const w = ev.find(e => e.scene === 'upgrade' && e.m === 'play' && e.args[0] === 'upgWin'); return w ? w.t : null; })() };
   const port = C.PORT + 2, srv = await serve(port);
   const browser = await puppeteer.launch({ executablePath: C.CHROME, headless: 'new', args: ['--autoplay-policy=no-user-gesture-required'] });
   const p = await browser.newPage();
@@ -97,14 +99,17 @@ function siteEvents() {
     whoosh(0, .55, .45, true, -.6); glint(.22, .07); riser(.2, S.hook + 1.0, .3);
     impact(1.0, 1); metal(1.0, 196, .2, 1.8); glint(1.08, .08);
     // переходы между сценами
-    for (const k of ['catalog', 'open', 'upgrade', 'contract', 'withdraw', 'tournaments']) whoosh(S[k] - .2, .42, .5, k !== 'contract', k === 'upgrade' || k === 'tournaments' ? .8 : -.8);
+    cues.panels.forEach((k, i) => whoosh(S[k] - .2, .42, .5, i % 3 !== 1, i % 2 ? .8 : -.8));
+    whoosh(S.cta - .2, .42, .5, true, -.8);
+    // победитель турнира: удар, металл и блеск
+    if (S.winner != null) { impact(S.winner + .3, .85); metal(S.winner + .3, 233, .18, 1.6); glint(S.winner + .35, .09); glint(S.winner + 1.05, .06); }
     // результат кейса: короткая «тишина» уже в звуке сайта, сверху — мягкий удар и блеск
     sub(cues.reveal, 70, 34, .9, .6); glint(cues.reveal + .02, .085); burst(cues.reveal, 2600, .18, .3, 'bandpass');
     if (cues.upgWin) { sub(cues.upgWin, 66, 32, .7, .45); glint(cues.upgWin + .02, .06); }
     // вывод: «отправка» вправо
     whoosh(cues.wdClick, .5, .45, true, -.9); glint(cues.wdClick + .5, .06);
     // финал: удар логотипа, металл, длинный хвост
-    impact(S.cta + .05, 1.1); metal(S.cta + .05, 174.6, .24, 2.6); glint(S.cta + .12, .09); glint(S.cta + .75, .05);
+    impact(S.cta + .05, 1.1); metal(S.cta + .05, 174.6, .24, 2.6); glint(S.cta + .12, .09); glint(S.cta + .75, .05); glint(S.cta + 1.0, .07);
     const pad = off.createOscillator(), pg = off.createGain(), plp = off.createBiquadFilter(); pad.type = 'sawtooth'; pad.frequency.value = 55; plp.type = 'lowpass'; plp.frequency.value = 260;
     pg.gain.setValueAtTime(.0001, S.cta); pg.gain.linearRampToValueAtTime(.08, S.cta + .4); pg.gain.linearRampToValueAtTime(.06, cues.dur - .9); pg.gain.linearRampToValueAtTime(.0001, cues.dur - .05);
     pad.connect(plp); plp.connect(pg); pg.connect(fx); pad.start(S.cta); pad.stop(cues.dur);

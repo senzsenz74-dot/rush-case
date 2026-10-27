@@ -24,7 +24,7 @@
   #hook,#cta{position:absolute;inset:0;pointer-events:none}
   #hookCase{position:absolute;left:50%;top:50%;width:900px;transform-origin:50% 50%}
   #hookCase img{width:100%;display:block;filter:drop-shadow(0 50px 70px rgba(0,0,0,.85))}
-  #hookCase .sh{position:absolute;inset:0;-webkit-mask-image:url("/site/assets/case-orange.webp");mask-image:url("/site/assets/case-orange.webp");-webkit-mask-size:100% 100%;mask-size:100% 100%;
+  #hookCase .sh{position:absolute;inset:0;-webkit-mask-image:url("/site/assets/case-karambit.webp");mask-image:url("/site/assets/case-karambit.webp");-webkit-mask-size:100% 100%;mask-size:100% 100%;
     background:linear-gradient(105deg,transparent 40%,rgba(255,246,214,.9) 50%,transparent 60%) no-repeat;background-size:300% 100%;mix-blend-mode:screen}
   .logo{position:absolute;left:50%;transform-origin:50% 50%;filter:drop-shadow(0 10px 30px rgba(0,0,0,.8)) drop-shadow(0 0 40px rgba(245,170,60,.45))}
   .logo img{width:100%;display:block}
@@ -36,8 +36,35 @@
     background:linear-gradient(90deg,transparent,rgba(255,236,190,.8) 50%,transparent);filter:blur(24px)}
   /* финал */
   #ctaHalo{position:absolute;left:50%;top:330px;width:1400px;height:1400px;transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(245,180,70,.33),rgba(245,170,60,.1) 50%,transparent 75%)}
-  #ctaTitle{position:absolute;left:120px;right:120px;top:600px;text-align:center;font:900 62px/1.12 Unbounded,sans-serif;text-transform:uppercase;color:#fff;text-shadow:0 6px 0 rgba(0,0,0,.6)}
+  #ctaTitle{position:absolute;left:120px;right:120px;top:500px;text-align:center;font:900 62px/1.12 Unbounded,sans-serif;text-transform:uppercase;color:#fff;text-shadow:0 6px 0 rgba(0,0,0,.6)}
   #ctaTitle b{background:linear-gradient(180deg,#fff7dc,#ffe08a 40%,#f2b23c 75%,#c98a1f);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 6px 0 rgba(0,0,0,.6))}
+  /* плашка победителя турнира */
+  #win{position:absolute;inset:0;pointer-events:none}
+  #winBg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(18px) brightness(.35) saturate(1.2)}
+  #winCard{position:absolute;left:50%;top:50%;width:1320px;padding:44px 56px 40px;border-radius:30px;transform-origin:50% 60%;text-align:center;
+    background:radial-gradient(70% 60% at 50% 0%,rgba(245,199,107,.22),transparent 70%) padding-box,linear-gradient(180deg,#1a1611,#0b0a08) padding-box,linear-gradient(135deg,#8a6a2c,#f7dc8f 30%,#a77a2a 55%,#ffe9a8 75%,#8d6726) border-box;border:3px solid transparent;
+    box-shadow:0 60px 120px -40px rgba(0,0,0,.95),0 0 120px -20px rgba(245,190,90,.5)}
+  #winCard .wk{font:800 22px Unbounded,sans-serif;letter-spacing:.32em;text-transform:uppercase;color:#d8b874}
+  #winCard .wt{margin-top:14px;font:900 72px/1 Unbounded,sans-serif;text-transform:uppercase;background:linear-gradient(180deg,#fff7dc,#ffe08a 40%,#f2b23c 75%,#c98a1f);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 5px 0 rgba(0,0,0,.6))}
+  #winCard .wrow{display:flex;align-items:center;justify-content:center;gap:40px;margin-top:34px}
+  #winCard .wteam{display:flex;align-items:center;gap:20px}
+  #winCard .wtag{width:110px;height:110px;border-radius:26px;display:grid;place-items:center;font:900 30px Unbounded,sans-serif;color:#f5c76b;background:rgba(255,255,255,.05);border:2px solid rgba(245,199,107,.45)}
+  #winCard .wname{font:900 46px Unbounded,sans-serif;text-transform:uppercase;text-align:left;white-space:nowrap}
+  #winCard .wname small{display:block;font:700 22px Manrope,sans-serif;color:#d9cfb9;text-transform:none;margin-top:6px}
+  #winCard .wsep{width:2px;height:150px;background:linear-gradient(180deg,transparent,rgba(245,199,107,.6),transparent)}
+  #winCard .wprize{display:flex;align-items:center;gap:20px;text-align:left}
+  #winCard .wprize img{width:260px;filter:drop-shadow(0 18px 24px rgba(0,0,0,.7)) drop-shadow(0 0 30px rgba(245,170,60,.35))}
+  #winCard .wprize small{display:block;font:800 18px Unbounded,sans-serif;letter-spacing:.2em;color:#d8b874;text-transform:uppercase}
+  #winCard .wprize b{display:block;margin-top:8px;font:900 30px/1.15 Unbounded,sans-serif;max-width:360px}
+  #winCard .wnote{margin-top:30px;font:700 24px Manrope,sans-serif;color:#9fe0b0}
+  #winCrown{position:absolute;left:50%;top:-54px;width:108px;height:108px;margin-left:-54px;border-radius:50%;display:grid;place-items:center;font-size:56px;color:#2a1a02;background:linear-gradient(180deg,#ffeaa6,#f6c650 50%,#d6941f);box-shadow:0 0 40px rgba(245,190,90,.8)}
+  /* финал: промокод и бонус за регистрацию */
+  #ctaPromo{position:absolute;left:50%;top:720px;transform:translateX(-50%);display:flex;gap:28px;white-space:nowrap}
+  .cp{display:flex;align-items:center;gap:20px;padding:22px 34px;border-radius:24px;background:linear-gradient(180deg,rgba(28,24,17,.96),rgba(12,11,9,.96)) padding-box,linear-gradient(135deg,#8a6a2c,#f7dc8f 30%,#a77a2a 55%,#ffe9a8 75%,#8d6726) border-box;border:3px solid transparent;box-shadow:0 30px 60px -20px rgba(0,0,0,.9),0 0 50px -10px rgba(245,190,90,.5)}
+  .cp small{font:800 20px Unbounded,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#d8b874}
+  .cp b{font:900 46px Unbounded,sans-serif;letter-spacing:.06em;color:#ffe6a6}
+  .cp .code{padding:6px 18px;border-radius:12px;border:2px dashed rgba(245,199,107,.7);background:rgba(245,199,107,.08)}
+  .cp span{font:700 28px Manrope,sans-serif;color:#efe4c8}
   #ctaUrl{position:absolute;left:50%;top:820px;transform:translateX(-50%);white-space:nowrap;padding:24px 48px;border-radius:24px;
     font:800 46px Manrope,sans-serif;color:#ffe6a6;background:linear-gradient(180deg,rgba(28,24,17,.96),rgba(12,11,9,.96)) padding-box,linear-gradient(135deg,#8a6a2c,#f7dc8f 30%,#a77a2a 55%,#ffe9a8 75%,#8d6726) border-box;border:3px solid transparent;
     box-shadow:0 30px 60px -20px rgba(0,0,0,.9),0 0 50px -10px rgba(245,190,90,.55)}
@@ -52,7 +79,7 @@
   <div id="capBand"></div>
   <div id="cap"><i></i><span class="t" id="capT"></span></div>
   <div id="hook">
-    <div id="hookCase"><img src="/site/assets/case-orange.webp" alt=""><i class="sh"></i></div>
+    <div id="hookCase"><img src="/site/assets/case-karambit.webp" alt=""><i class="sh"></i></div>
     <div class="ring" id="ring1"></div>
     <div class="logo" id="hookLogo"><img src="/site/assets/logo.png" alt=""></div>
     <div id="hookTxt">Готов к открытию?</div>
@@ -63,7 +90,11 @@
     <div class="logo" id="ctaLogo"><img src="/site/assets/logo.png" alt=""></div>
     <div id="ctaTitle"></div>
     <div id="ctaUrl"></div>
+    <div id="ctaPromo"><div class="cp" id="cpA"><small>Промокод</small><b class="code" id="cpCode"></b><span id="cpText"></span></div><div class="cp" id="cpB"><b id="cpReg"></b><span id="cpRegText"></span></div></div>
   </div>
+  <div id="win"><div id="winBg"></div><div id="winCard"><div id="winCrown">♛</div><div class="wk" id="winK"></div><div class="wt">Победитель</div>
+    <div class="wrow"><div class="wteam"><div class="wtag" id="winTag"></div><div class="wname" id="winName"></div></div><i class="wsep"></i><div class="wprize"><img id="winImg" alt=""><div><small>Приз</small><b id="winPrize"></b></div></div></div>
+    <div class="wnote" id="winNote"></div></div></div>
   <div id="streak"></div>
   <div id="flash"></div>
 </div>

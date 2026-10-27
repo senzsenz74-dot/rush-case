@@ -20,18 +20,24 @@ const fit = (r, pad = 40, zmax = 2.6) => { if (!r) return FULL; const z = clamp(
   const part = (r, x0, x1, y0 = 0, y1 = 1) => r && { x: r.x + r.w * x0, y: r.y + r.h * y0, w: r.w * (x1 - x0), h: r.h * (y1 - y0) };
   const zoomAt = (c, z) => ({ cx: c.cx, cy: c.cy, z });
   // ключи камеры: [время сцены, камера]; между ключами — плавно
+  const M_ = k => window.META[k], T = (k, src) => (src - (M_(k).from || 0)) / (FPS * (M_(k).speed || 1)); // время сцены, когда показан кадр съёмки src
   const CAMS = {
-    catalog: k => [[0, zoomAt(FULL, 1)], [.9, fit(R(k, '.cs-block'), 30)], [2.2, fit(part(R(k, '.cs-block'), .45, 1, .1, 1), 20)]],
+    catalog: k => [[0, zoomAt(FULL, 1)], [.8, fit(R(k, '[data-promo]'), 30)], [2.0, fit(R(k, '[data-promo-card]'), 70)]],
     open: k => {
-      const rv = (window.META.open.reveal || 158) / FPS, rl = R(k, '#rl'), fr = R(k, '.rl-framed'), c = fit(rl, 0);
-      return [[0, zoomAt(FULL, 1.02)], [.7, fit(fr, 20)], [1.5, zoomAt(fit(rl, 10), 1.75)], [3.4, zoomAt(c, 2.25)], [rv - .1, zoomAt(c, 2.45)],
-        [rv + .55, zoomAt(c, 2.0)], [rv + 1.1, fit(fr, 10)], [7, zoomAt(fit(fr, 10), 1.32)]];
+      const rv = M_('open').revealT || 3.5, rl = R(k, '#rl'), fr = R(k, '.rl-framed'), c = fit(rl, 0);
+      return [[0, zoomAt(FULL, 1.02)], [.45, fit(fr, 20)], [1.0, zoomAt(fit(rl, 10), 1.75)], [2.3, zoomAt(c, 2.25)], [rv - .08, zoomAt(c, 2.45)],
+        [rv + .5, zoomAt(c, 2.0)], [rv + 1.0, fit(fr, 10)], [5.2, zoomAt(fit(fr, 10), 1.3)]];
     },
-    upgrade: k => [[0, fit(R(k, '.upg-main'), 30)], [.55, fit(R(k, '#wheel'), 60)], [1.35, fit(R(k, '#wheel'), 30)], [1.75, fit(R(k, '.upg-main'), 10)], [2.5, fit(R(k, '.upg-main'), 0)]],
-    contract: k => [[0, fit(R(k, '#dosDesk'), 20)], [.7, fit(part(R(k, '#dosDesk'), 0, .74, 0, .62), 20)], [2, fit(part(R(k, '#dosDesk'), .02, .6, .02, .55), 10)]],
+    upgrade: k => [[0, fit(R(k, '.upg-main'), 30)], [.5, fit(R(k, '#wheel'), 60)], [1.5, fit(R(k, '#wheel'), 30)], [1.95, fit(R(k, '.upg-main'), 10)], [3, fit(R(k, '.upg-main'), 0)]],
+    contract: k => { const fin = M_('contract').frames - 1;
+      return [[0, fit(R(k, '#dosDesk', 0), 20)], [T(k, 16), fit(R(k, '#dosDesk', 30), 20)], [T(k, 26), fit(R(k, '#dosPadWrap', 40), 70)], [T(k, 90), fit(R(k, '#dosPadWrap', 90), 60)],
+        [T(k, 100), fit(R(k, '#dosSign', 110), 30)], [T(k, 185), fit(R(k, '#dosSign', 180), 20)], [T(k, 205), fit(R(k, '#dosDesk', fin), 10)], [6.5, fit(part(R(k, '#dosDesk', fin), 0, .62, 0, .78), 10)]]; },
     withdraw: k => { const toast = R(k, '.toast', 89), modal = { x: 560, y: 235, w: 480, h: 430 };
-      return [[0, zoomAt(FULL, 1)], [.35, fit(modal, 30)], [1.2, fit(modal, 20)], [1.5, zoomAt(FULL, 1.05)], [1.85, fit(toast, 40)], [2.2, fit(toast, 30)]]; },
-    tournaments: k => [[0, fit(R(k, '.trn-hero'), 30)], [1.6, fit(part(R(k, '.trn-hero'), 0, .62, 0, 1), 20)]],
+      return [[0, zoomAt(FULL, 1)], [.35, fit(modal, 30)], [1.2, fit(modal, 20)], [1.5, zoomAt(FULL, 1.05)], [1.85, fit(toast, 40)], [2.0, fit(toast, 30)]]; },
+    daily: k => [[0, fit(R(k, '.bn-daily'), 20)], [.6, fit(R(k, '#dailyStrip'), 40)], [2.6, fit(R(k, '#dailyStrip'), 30)], [3.3, fit(R(k, '.bn-daily'), 10)]],
+    teamCreate: k => [[0, fit(R(k, '.tm-card', 0), 40)], [T(k, 50), fit(R(k, '.tm-form', 40), 60)], [T(k, 62), fit(R(k, '.tm-grid', 70), 20)], [3, fit(R(k, '.tm-card', 90), 30)]],
+    teamJoin: k => [[0, fit(R(k, '.tm-empty', 0), 80)], [T(k, 44), fit(R(k, '.tm-empty', 30), 60)], [T(k, 60), fit({ x: 170, y: 560, w: 880, h: 330 }, 20)], [2.4, fit({ x: 170, y: 590, w: 880, h: 300 }, 10)]], // карточка команды после вступления (5 / 10 игроков)
+    tourReg: k => [[0, fit(R(k, '.trn-hero', 0), 20)], [T(k, 16), fit(R(k, '.modal', 20), 30)], [T(k, 56), fit(R(k, '.modal', 50), 30)], [T(k, 66), fit(R(k, '.trn-hero', 80), 20)], [3.4, fit(R(k, '.trn-act', 110), 60)]],
   };
   const camAt = (keys, lt) => {
     let i = 0; while (i < keys.length - 1 && lt > keys[i + 1][0]) i++;
@@ -42,7 +48,10 @@ const fit = (r, pad = 40, zmax = 2.6) => { if (!r) return FULL; const z = clamp(
   };
   const SC = Object.entries(window.CFG.SCENES).map(([k, [a, b]]) => ({ k, a, b }));
   const frameUrl = (k, f) => `/frames/${k}/${String(f).padStart(4, '0')}.jpg`;
-  const MAP = { upgrade: lt => (window.META.upgrade.from || 0) + lt * FPS * (window.META.upgrade.speed || 1) };
+  // кадр съёмки для времени сцены: from + t·30·speed, после until — обычная скорость
+  // кадры, которые пропускаем (страница перезагружается — «Загружаем команду…»)
+  const SKIP = { teamCreate: [[52, 57]] };
+  const srcFrame = (k, lt) => { const M = M_(k), from = M.from || 0, sp = M.speed || 1; if (M.until == null) return from + lt * FPS * sp; const tU = (M.until - from) / (FPS * sp); return lt < tU ? from + lt * FPS * sp : M.until + (lt - tU) * FPS; };
 
   // золотая пыль
   const cv = $('#dust'), x = cv.getContext('2d');
@@ -73,7 +82,8 @@ const fit = (r, pad = 40, zmax = 2.6) => { if (!r) return FULL; const z = clamp(
   window.renderFrame = async t => {
     const cur = SC.find(s => t >= s.a && t < s.b) || SC[SC.length - 1], lt = t - cur.a, len = cur.b - cur.a;
     const hk = cur.k === 'hook', ct = cur.k === 'cta';
-    $('#hook').style.display = hk ? 'block' : 'none'; $('#cta').style.display = ct ? 'block' : 'none'; $('#view').style.display = hk || ct ? 'none' : 'block';
+    const wn = cur.k === 'winner';
+    $('#hook').style.display = hk ? 'block' : 'none'; $('#cta').style.display = ct ? 'block' : 'none'; $('#win').style.display = wn ? 'block' : 'none'; $('#view').style.display = hk || ct || wn ? 'none' : 'block';
     $('#bg').style.transform = `scale(${1.04 + .02 * Math.sin(t * .35)}) translate(${Math.sin(t * .2) * 12}px, ${Math.cos(t * .17) * 10}px)`;
     // склейки: световая полоса
     const near = SC.reduce((m, s) => Math.min(m, Math.abs(t - s.a)), 9), st = $('#streak');
@@ -91,18 +101,27 @@ const fit = (r, pad = 40, zmax = 2.6) => { if (!r) return FULL; const z = clamp(
       const tx = $('#hookTxt'), tk = seg(t, 1.15, 1.4); tx.style.opacity = easeOut(tk) * (1 - seg(t, he - .15, he)); tx.style.transform = `translateY(${(1 - easeOut(tk)) * 30}px)`;
       fl = t >= imp ? Math.max(0, 1 - (t - imp) / .3) : 0; boost = t < imp ? t / imp * .6 : Math.max(0, .9 - (t - imp)); dustAmt = 1;
       setCap('', 0, 0);
+    } else if (wn) {
+      const a = cur.a, k1 = seg(t, a + .05, a + .6), card = $('#winCard'), last = M_('tourReg');
+      const bgU = last ? frameUrl('tourReg', last.frames - 1) : ''; if ($('#winBg').dataset.u !== bgU) { $('#winBg').style.backgroundImage = `url(${bgU})`; $('#winBg').dataset.u = bgU; }
+      card.style.transform = `translate(-50%, -46%) perspective(1600px) rotateX(${(1 - easeOut(k1)) * 26}deg) scale(${lerp(.7, 1, back(k1)) * (1 + .012 * Math.sin((t - a) * 2))})`; card.style.opacity = Math.min(1, k1 * 2.5);
+      $('#winImg').style.transform = `translateY(${Math.sin((t - a) * 2.4) * 6}px) rotate(${-6 + Math.sin((t - a) * 1.6) * 2}deg)`;
+      const nk = easeOut(seg(t, a + 1.0, a + 1.4)); $('#winNote').style.opacity = nk; $('#winNote').style.transform = `translateY(${(1 - nk) * 16}px)`;
+      fl = t > a + .3 ? Math.max(0, 1 - (t - a - .3) / .4) * .8 : 0; boost = Math.max(0, 1 - (t - a - .3)) + .2; dustAmt = 1;
+      setCap('', 0, 0);
     } else if (ct) {
-      const a = cur.a, lk = seg(t, a + .05, a + .5), lg = $('#ctaLogo'); lg.style.width = '640px'; lg.style.top = '330px';
+      const a = cur.a, lk = seg(t, a + .05, a + .5), lg = $('#ctaLogo'); lg.style.width = '560px'; lg.style.top = '250px';
       lg.style.transform = `translate(-50%, -50%) scale(${lerp(1.7, 1, back(lk)) * (1 + .015 * Math.sin((t - a) * 2.2))})`; lg.style.opacity = Math.min(1, lk * 3);
-      const r2 = $('#ring2'), rk = seg(t, a + .05, a + .65); r2.style.top = '330px'; r2.style.width = r2.style.height = lerp(240, 1800, easeOut(rk)) + 'px'; r2.style.opacity = (1 - rk) * .85; r2.style.borderWidth = lerp(10, 1, rk) + 'px';
+      const r2 = $('#ring2'), rk = seg(t, a + .05, a + .65); r2.style.top = '250px'; r2.style.width = r2.style.height = lerp(240, 1800, easeOut(rk)) + 'px'; r2.style.opacity = (1 - rk) * .85; r2.style.borderWidth = lerp(10, 1, rk) + 'px';
       $('#ctaHalo').style.opacity = .7 + lk * .2 + .1 * Math.sin((t - a) * 1.6);
       const tk = easeOut(seg(t, a + .4, a + .85)), uk = easeOut(seg(t, a + .7, a + 1.15));
       $('#ctaTitle').style.opacity = tk; $('#ctaTitle').style.transform = `translateY(${(1 - tk) * 50}px)`;
-      $('#ctaUrl').style.opacity = uk; $('#ctaUrl').style.transform = `translateX(-50%) translateY(${(1 - uk) * 40}px) scale(${lerp(.92, 1, uk)})`;
+      $('#ctaUrl').style.display = 'none';
+      const pr = $('#ctaPromo'); pr.style.opacity = uk; pr.style.transform = `translateX(-50%) translateY(${(1 - uk) * 40}px) scale(${lerp(.92, 1, uk)})`;
       fl = t > a + .05 ? Math.max(0, 1 - (t - a - .05) / .35) : 0; boost = Math.max(0, .7 - (t - a)) + .15; dustAmt = 1;
       setCap('', 0, 0);
     } else {
-      const M = window.META[cur.k], f = clamp(Math.round((MAP[cur.k] || (l => l * FPS))(lt)), 0, M.frames - 1), url = frameUrl(cur.k, f), img = $('#shot');
+      const M = window.META[cur.k], f0 = clamp(Math.round(srcFrame(cur.k, lt)), 0, M.frames - 1), sk = (SKIP[cur.k] || []).find(([s, e]) => f0 >= s && f0 <= e), f = sk ? sk[1] + 1 : f0, url = frameUrl(cur.k, f), img = $('#shot');
       if (img.dataset.u !== url) { img.src = url; img.dataset.u = url; }
       const c = camAt(CAMS[cur.k](cur.k), lt);
       // склейка: новая сцена «влетает» из лёгкого наезда с размытием, старая уходит наездом
@@ -112,7 +131,7 @@ const fit = (r, pad = 40, zmax = 2.6) => { if (!r) return FULL; const z = clamp(
       const v = $('#view'), bl = (1 - ki) * 12 + ko * 14; v.style.filter = bl > .3 ? `blur(${bl.toFixed(1)}px)` : 'none'; v.style.opacity = clamp(Math.min(ki * 1.5, 1 - ko * .6), 0, 1);
       const capEnd = cur.k === 'withdraw' ? 1.55 : len; // у вывода подпись уходит, когда камера едет к уведомлению
       setCap(window.CFG.CAPTIONS[cur.k] || '', seg(lt, .25, .55), seg(lt, capEnd - .25, capEnd - .03));
-      if (cur.k === 'open') { const rv = (M.reveal || 158) / FPS; fl = lt >= rv ? Math.max(0, 1 - (lt - rv) / .45) * .7 : 0; boost = lt > rv ? Math.max(0, .8 - (lt - rv)) : 0; }
+      if (cur.k === 'open') { const rv = M.revealT || 3.5; fl = lt >= rv ? Math.max(0, 1 - (lt - rv) / .45) * .7 : 0; boost = lt > rv ? Math.max(0, .8 - (lt - rv)) : 0; }
       dustAmt = .35;
     }
     $('#flash').style.opacity = fl;
@@ -120,5 +139,8 @@ const fit = (r, pad = 40, zmax = 2.6) => { if (!r) return FULL; const z = clamp(
     await Promise.all([...document.images].filter(i => i.offsetParent !== null).map(i => i.complete && i.naturalWidth ? null : i.decode().catch(() => {})));
   };
   $('#ctaTitle').innerHTML = window.CFG.CTA.title.split('|').map((s, i) => i ? `<b>${s}</b>` : s).join('<br>');
-  $('#ctaUrl').textContent = window.CFG.CTA.url;
+  const CT = window.CFG.CTA, W = window.CFG.WINNER;
+  $('#cpCode').textContent = CT.promo; $('#cpText').textContent = CT.promoText; $('#cpReg').textContent = CT.reg; $('#cpRegText').textContent = CT.regText;
+  $('#winK').textContent = W.title + ' · финал'; $('#winTag').textContent = W.tag; $('#winName').innerHTML = W.team + '<small>5 игроков · капитан p3gasus</small>'; $('#winNote').textContent = '✓ ' + W.note;
+  $('#winPrize').textContent = window.CFG.PRIZE.replace('(Прямо с завода)', '(FN)'); if (window.META.tourReg && window.META.tourReg.prizeImg) { const u = window.META.tourReg.prizeImg; $('#winImg').src = /^https?:/.test(u) ? u : '/site/' + u; } if (!window.CFG.CTA.url) $('#ctaUrl').style.display = 'none';
 })();
