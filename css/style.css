@@ -3307,3 +3307,17 @@ html{overflow-x:clip}
 .mults.editing .me-f{display:grid;grid-template-columns:1.2fr 1fr 1.2fr;gap:6px;flex-wrap:nowrap}
 .mults.editing .me-f button{height:34px;min-width:0;padding:0 8px;margin:0;font:800 11px var(--ff-h);letter-spacing:.04em;white-space:nowrap}
 .mults.editing .me-f .btn-primary{background:var(--g-gold);color:var(--ink);border-color:transparent;box-shadow:0 6px 18px -8px rgba(245,199,107,.8)}
+
+/* фон сайта: векторный «Obsidian Gold» (assets/bg-obsidian.svg), закреплён на весь экран — заменяет картинку с оружием выше */
+body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#060607}
+/* окно кейса: вместо четырёх точек светятся две короны рамки (верх и низ по центру) */
+.rl-crown{position:absolute;z-index:9;left:49.76%;width:6.2%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;mix-blend-mode:screen;
+  background:radial-gradient(circle,rgba(255,236,170,.95) 0%,rgba(255,206,96,.75) 16%,rgba(255,170,50,.32) 34%,rgba(255,150,30,.1) 52%,transparent 70%);
+  animation:crownGlow 2.8s ease-in-out infinite}
+.rl-crown::after{content:'';position:absolute;inset:-60%;border-radius:50%;background:radial-gradient(circle,rgba(255,190,80,.22),transparent 62%);animation:crownHalo 2.8s ease-in-out infinite}
+.rl-crown.c1{top:30.65%}.rl-crown.c2{top:76.21%;animation-delay:-1.4s}.rl-crown.c2::after{animation-delay:-1.4s}
+@keyframes crownGlow{0%,100%{opacity:.7;transform:translate(-50%,-50%) scale(.92)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}}
+@keyframes crownHalo{0%,100%{opacity:.45;transform:scale(.9)}50%{opacity:1;transform:scale(1.1)}}
+@media (max-width:1100px){.rl-crown{display:none}}
+.rl-crown{width:7.2%;background:radial-gradient(circle,rgba(255,244,200,1) 0%,rgba(255,214,110,.9) 15%,rgba(255,176,56,.5) 32%,rgba(255,150,30,.18) 50%,transparent 68%)}
+.rl-crown::after{inset:-90%;background:radial-gradient(circle,rgba(255,190,80,.32),rgba(255,170,60,.1) 40%,transparent 64%)}

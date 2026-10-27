@@ -1245,89 +1245,121 @@ function liveMine(d) {
   if (false) sb.from('live_drops').insert({ uid: st.user.id, name: st.user.name, n: d.n, t: d.t || 'case', c: d.c || null, x: d.x ? Math.round(d.x * 100) / 100 : 0 }).then(() => {}, () => {});
 }
 
-/* ---------- background fx: фон-картинка с оружием (CSS) + частицы (пыль, угольки, искры из оружия) ---------- */
-const BG_W = 1672, BG_H = 940, BG_ZOOM = 1.16; // фон крупнее экрана на 16% (как в CSS .fx) — оружие у краёв
-// точки на картинке фона, откуда иногда сыплются искры: АК слева, Desert Eagle справа, керамбит снизу справа
-const BG_HOT = [[110, 335, -1], [1384, 93, 1], [1635, 613, 1], [93, 800, -1]];
+/* ---------- background fx: «золотая пыль» поверх фона ----------
+   Три слоя глубины: дальние — мелкие чёткие искорки, средние — с ореолом, ближние — крупные размытые «боке».
+   Больше по краям, меньше в центре (не мешают кейсам). Редкие блики-звёздочки.
+   Параллакс от мыши и прокрутки (ближние сдвигаются сильнее), fxBurst() — золотая вспышка на крупный дроп. */
+let fxBurst = () => {};
 function initFx() {
   const host = $('#fx');
   host.innerHTML = '<canvas class="fx-cv" aria-hidden="true"></canvas>';
   const cv = host.firstChild, x = cv.getContext('2d');
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  // светящаяся точка — рисуем один раз и дальше штампуем
-  const sprite = (r, g, b) => { const c = document.createElement('canvas'); c.width = c.height = 32; const q = c.getContext('2d'), gr = q.createRadialGradient(16, 16, 0, 16, 16, 16);
-    gr.addColorStop(0, `rgba(255,255,240,1)`); gr.addColorStop(.18, `rgba(${r},${g},${b},.95)`); gr.addColorStop(.45, `rgba(${r},${g},${b},.28)`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
-    q.fillStyle = gr; q.fillRect(0, 0, 32, 32); return c; };
-  const SP_GOLD = sprite(255, 186, 72), SP_EMBER = sprite(255, 120, 30), SP_DUST = sprite(255, 236, 200);
-  let W = 0, H = 0, dpr = 1, map = null;
+  const SPR = 64; // спрайты рисуем крупно и штампуем со сжатием — края остаются гладкими
+  const mk = draw => { const c = document.createElement('canvas'); c.width = c.height = SPR; draw(c.getContext('2d'), SPR / 2); return c; };
+  // чёткое ядро с тугим ореолом
+  const core = (r, g, b) => mk((q, h) => { const gr = q.createRadialGradient(h, h, 0, h, h, h);
+    gr.addColorStop(0, 'rgba(255,252,236,1)'); gr.addColorStop(.1, `rgba(${r},${g},${b},.95)`); gr.addColorStop(.22, `rgba(${r},${g},${b},.35)`);
+    gr.addColorStop(.5, `rgba(${r},${g},${b},.08)`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`); q.fillStyle = gr; q.fillRect(0, 0, SPR, SPR); });
+  // «боке»: мягкий диск со светлым ободком, как размытый огонёк вне фокуса
+  const bokeh = (r, g, b) => mk((q, h) => { const gr = q.createRadialGradient(h, h, 0, h, h, h);
+    gr.addColorStop(0, `rgba(${r},${g},${b},.22)`); gr.addColorStop(.62, `rgba(${r},${g},${b},.26)`); gr.addColorStop(.82, `rgba(${r},${g},${b},.42)`);
+    gr.addColorStop(.92, `rgba(${r},${g},${b},.16)`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`); q.fillStyle = gr; q.fillRect(0, 0, SPR, SPR); });
+  // блик-звёздочка: тонкий крест с ядром
+  const star = mk((q, h) => {
+    const ray = (dx, dy) => { const gr = q.createLinearGradient(h - dx * h, h - dy * h, h + dx * h, h + dy * h);
+      gr.addColorStop(0, 'rgba(255,226,160,0)'); gr.addColorStop(.5, 'rgba(255,248,225,1)'); gr.addColorStop(1, 'rgba(255,226,160,0)');
+      q.strokeStyle = gr; q.lineWidth = 1.6; q.beginPath(); q.moveTo(h - dx * h, h - dy * h); q.lineTo(h + dx * h, h + dy * h); q.stroke(); };
+    ray(1, 0); ray(0, 1);
+    const gr = q.createRadialGradient(h, h, 0, h, h, h * .35); gr.addColorStop(0, 'rgba(255,250,232,1)'); gr.addColorStop(1, 'rgba(255,200,110,0)');
+    q.fillStyle = gr; q.fillRect(0, 0, SPR, SPR);
+  });
+  const C_GOLD = core(246, 198, 96), C_CHAMP = core(246, 221, 167), C_VIOLET = core(176, 140, 255);
+  const B_GOLD = bokeh(232, 176, 80), B_CHAMP = bokeh(246, 221, 167), B_VIOLET = bokeh(150, 110, 230);
+
+  let W = 0, H = 0, dpr = 1, parts = [];
+  // x: чаще у краёв, реже в центре
+  const edgeX = () => { const u = Math.random(), s = u < .5 ? -1 : 1, d = Math.pow(Math.random(), .55); return .5 + s * d * .5; };
+  const spawn = (init, layer) => {
+    const z = layer ?? (Math.random() < .55 ? 0 : Math.random() < .8 ? 1 : 2); // 0 дальние, 1 средние, 2 ближние
+    const vio = Math.random() < .12;
+    return { z, x: edgeX(), y: init ? Math.random() : 1.05, sp: [.35, .6, .9][z] * (.7 + Math.random() * .6),
+      ph: Math.random() * 6.28, tw: .6 + Math.random() * 1.6, sz: [1.9, 3.4, 34][z] * (.7 + Math.random() * .7),
+      a: [.8, .95, .42][z] * (.6 + Math.random() * .4), spr: z === 2 ? (vio ? B_VIOLET : Math.random() < .5 ? B_GOLD : B_CHAMP) : (vio ? C_VIOLET : Math.random() < .5 ? C_GOLD : C_CHAMP),
+      glint: 0, life: 0 };
+  };
   const fit = () => {
-    dpr = Math.min(1.5, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
-    cv.width = W * dpr; cv.height = H * dpr; x.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // как картинка ложится на фон страницы (ширина --bgw, сверху по центру, прокручивается) — чтобы искры вылетали ровно из оружия
-    const s = Math.max(W, H * BG_W / BG_H) * BG_ZOOM / BG_W, ox = (W - BG_W * s) / 2;
-    map = ([px, py]) => [ox + px * s, py * s - scrollY];
+    dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = Math.round(clamp(W * H / 15000, 40, 150)); // сдержанно: ~140 на 1920×1080, ~40 на телефоне
+    while (parts.length < n) parts.push(spawn(true));
+    parts.length = n;
   };
   fit(); addEventListener('resize', fit);
-  const side = () => Math.random() < .5 ? rand(0, W * .2) : rand(W * .8, W); // угольки — в основном по бокам, где оружие
-  // 1) пыль: медленно плавает, мерцает; три слоя глубины
-  const dust = Array.from({ length: 70 }, () => ({ x: rand(0, 1), y: rand(0, 1), z: rand(.3, 1), ph: rand(0, 6.28), sp: rand(.4, 1.1), vx: rand(-4, 4), vy: rand(-6, -1) }));
-  // 2) угольки: поднимаются снизу, покачиваются, гаснут
-  const mkEmber = (init) => ({ x: side(), y: init ? rand(0, H) : H + rand(0, 40), vy: -rand(14, 42), sw: rand(8, 22), ph: rand(0, 6.28), f: rand(.6, 1.6), s: rand(1.2, 2.8), life: 0, max: rand(7, 14) });
-  const embers = Array.from({ length: 52 }, () => mkEmber(true));
-  // 3) искры от оружия: короткая вспышка с хвостом, падают под тяжестью
-  const sparks = []; let nextBurst = performance.now() + 1500;
-  const burstAt = () => {
-    if (!BG_HOT.length) return;
-    const [px, py, dir] = BG_HOT[Math.floor(Math.random() * BG_HOT.length)], [sx, sy] = map([px, py]);
-    if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) return;
-    const n = randi(7, 13);
-    for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + rand(-1.1, 1.1) + dir * .35, v = rand(60, 190);
-      sparks.push({ x: sx, y: sy, px: sx, py: sy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, max: rand(.5, 1.2) }); }
+  // параллакс: мышь и прокрутка (сглаженные)
+  let mx = 0, my = 0, tx = 0, ty = 0, ss = scrollY;
+  addEventListener('pointermove', e => { tx = e.clientX / W - .5; ty = e.clientY / H - .5; }, { passive: true });
+  // вспышка на крупный дроп: мягкий свет + разлёт золотых искр из центра, потом они тают
+  const flares = []; let flash = 0;
+  fxBurst = (n = 70) => {
+    flash = Math.min(1, flash + .35 + n / 400);
+    const cx = W / 2, cy = H * .42, k = Math.min(160, Math.round(n * 1.1));
+    for (let i = 0; i < k; i++) {
+      const a = Math.random() * 6.283, v = 140 + Math.random() * 520 * (Math.random() < .3 ? 1.4 : 1);
+      flares.push({ x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, life: 0, max: 1.1 + Math.random() * 1.4,
+        sz: 2 + Math.random() * 3.5, spr: Math.random() < .15 ? C_VIOLET : Math.random() < .5 ? C_GOLD : C_CHAMP, st: Math.random() < .18 });
+    }
   };
-  // лёгкий параллакс за мышью
-  let mx = 0, my = 0, tx = 0, ty = 0;
-  addEventListener('pointermove', e => { tx = (e.clientX / W - .5); ty = (e.clientY / H - .5); }, { passive: true });
-  let last = performance.now(), raf = 0;
+  const DEPTH_M = [6, 16, 40], DEPTH_S = [.06, .16, .38]; // насколько слой сдвигается за мышью / прокруткой
+  let last = performance.now();
   const frame = now => {
-    raf = requestAnimationFrame(frame);
+    requestAnimationFrame(frame);
     if (document.hidden) { last = now; return; }
-    const dt = Math.min(.05, (now - last) / 1000); last = now;
-    mx += (tx - mx) * .04; my += (ty - my) * .04;
+    const dt = Math.min(.05, (now - last) / 1000), t = now / 1000; last = now;
+    mx += (tx - mx) * .05; my += (ty - my) * .05;
+    ss += (scrollY - ss) * Math.min(1, dt * 7); // прокрутка — со сглаживанием
     x.clearRect(0, 0, W, H);
     x.globalCompositeOperation = 'lighter';
-    const t = now / 1000;
-    // пыль
-    for (const d of dust) {
-      d.x += d.vx * dt / W * d.z; d.y += d.vy * dt / H * d.z;
-      if (d.y < -.02) { d.y = 1.02; d.x = rand(0, 1); } if (d.x < -.02) d.x = 1.02; if (d.x > 1.02) d.x = -.02;
-      const a = (.3 + .5 * (Math.sin(t * d.sp + d.ph) * .5 + .5)) * d.z, sz = 3 + d.z * 8;
-      const px = d.x * W - mx * 18 * d.z, py = d.y * H - my * 12 * d.z;
-      x.globalAlpha = a * .8; x.drawImage(SP_DUST, px - sz / 2, py - sz / 2, sz, sz);
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i]; p.life += dt;
+      // дрейф: вверх + плавное покачивание (поле течения)
+      p.y -= p.sp * dt * 22 / H;
+      p.x += Math.sin(t * .23 + p.ph + p.y * 3) * dt * p.sp * 9 / W;
+      if (p.y < -.06) { parts[i] = spawn(false, p.z); continue; }
+      const ox = -mx * DEPTH_M[p.z], oy = -my * DEPTH_M[p.z] * .7 - ss * DEPTH_S[p.z];
+      let py = p.y * H + oy; py = ((py % (H + 80)) + H + 80) % (H + 80) - 40;
+      const px = p.x * W + ox;
+      // мерцание; изредка средняя искра вспыхивает звёздочкой
+      let a = p.a * (.55 + .45 * Math.sin(t * p.tw + p.ph));
+      if (p.z === 1 && !p.glint && Math.random() < dt * .025) p.glint = 1;
+      a *= Math.min(1, p.life * .8); // плавное появление
+      x.globalAlpha = Math.max(0, a);
+      const s = p.sz * (p.z === 2 ? 1 : 6);
+      x.drawImage(p.spr, px - s / 2, py - s / 2, s, s);
+      if (p.glint) {
+        p.glint -= dt * 1.4; const g = Math.sin(Math.max(0, p.glint) * Math.PI);
+        if (p.glint <= 0) p.glint = 0; else { const gs = 18 + g * 22; x.globalAlpha = g * .9; x.drawImage(star, px - gs / 2, py - gs / 2, gs, gs); }
+      }
     }
-    // угольки
-    for (let i = 0; i < embers.length; i++) {
-      const e = embers[i]; e.life += dt; e.y += e.vy * dt; e.ph += dt * e.f;
-      const px = e.x + Math.sin(e.ph) * e.sw - mx * 30, py = e.y - my * 20;
-      const k = e.life / e.max, a = Math.min(1, e.life * 1.5) * (1 - k) * (.6 + .4 * Math.sin(t * 9 + e.ph * 3));
-      if (k >= 1 || py < -20) { embers[i] = mkEmber(false); continue; }
-      const sz = e.s * 11; x.globalAlpha = Math.max(0, a); x.drawImage(i % 3 ? SP_GOLD : SP_EMBER, px - sz / 2, py - sz / 2, sz, sz);
+    // вспышка
+    if (flash > .001) {
+      const gr = x.createRadialGradient(W / 2, H * .42, 0, W / 2, H * .42, Math.max(W, H) * .6);
+      gr.addColorStop(0, `rgba(255,214,140,${.18 * flash})`); gr.addColorStop(1, 'rgba(255,214,140,0)');
+      x.globalAlpha = 1; x.fillStyle = gr; x.fillRect(0, 0, W, H); flash *= Math.pow(.25, dt);
     }
-    // искры
-    if (now > nextBurst) { burstAt(); nextBurst = now + rand(1200, 3200); } // искры — только пока оружие на экране (проверка в burstAt)
-    x.lineCap = 'round';
-    for (let i = sparks.length - 1; i >= 0; i--) {
-      const s = sparks[i]; s.life += dt; if (s.life > s.max) { sparks.splice(i, 1); continue; }
-      s.px = s.x; s.py = s.y; s.vy += 230 * dt; s.vx *= .985; s.x += s.vx * dt; s.y += s.vy * dt;
-      const a = 1 - s.life / s.max;
-      x.globalAlpha = a; x.strokeStyle = 'rgba(255,200,110,1)'; x.lineWidth = 1.8;
-      x.beginPath(); x.moveTo(s.px - s.vx * .03, s.py - s.vy * .03); x.lineTo(s.x, s.y); x.stroke();
-      x.drawImage(SP_GOLD, s.x - 8, s.y - 8, 16, 16);
+    for (let i = flares.length - 1; i >= 0; i--) {
+      const f = flares[i]; f.life += dt; if (f.life > f.max) { flares.splice(i, 1); continue; }
+      const drag = Math.pow(.18, dt); f.vx *= drag; f.vy = f.vy * drag + 40 * dt; f.x += f.vx * dt; f.y += f.vy * dt;
+      const k = f.life / f.max, a = (k < .1 ? k / .1 : 1 - (k - .1) / .9);
+      x.globalAlpha = a; const s = f.sz * 6; x.drawImage(f.spr, f.x - s / 2, f.y - s / 2, s, s);
+      if (f.st && k < .6) { const gs = 20 * (1 - k); x.globalAlpha = a * .8; x.drawImage(star, f.x - gs / 2, f.y - gs / 2, gs, gs); }
     }
     x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
   };
-  raf = requestAnimationFrame(frame);
+  requestAnimationFrame(frame);
 }
 function burst(n = 70) {
+  fxBurst(n);
   const box = document.createElement('div'); box.className = 'burst';
   const cols = ['#f5c76b', '#ffe7a3', '#ffffff', '#a78bfa', '#d6912c'];
   for (let i = 0; i < n; i++) {
@@ -1669,7 +1701,7 @@ function pageCase(id) {
       <div class="rl-strips" id="strips"></div>
       <div class="rl-marker"></div>
       <div class="rl-reveal" id="reveal"></div>
-    </div></div><img class="rl-frame-img" src="${c.frame ? c.frame.src : 'assets/frame-case.png'}" alt="" draggable="false"><i class="rl-spark s1"></i><i class="rl-spark s2"></i><i class="rl-spark s3"></i><i class="rl-spark s4"></i>${c.frame ? '' : FRAME_FX}</div>
+    </div></div><img class="rl-frame-img" src="${c.frame ? c.frame.src : 'assets/frame-case.png'}" alt="" draggable="false">${c.frame ? '<i class="rl-spark s1"></i><i class="rl-spark s2"></i><i class="rl-spark s3"></i><i class="rl-spark s4"></i>' : '<i class="rl-crown c1"></i><i class="rl-crown c2"></i>' + FRAME_FX}</div>
     <div class="cc" id="cc"></div>
     ${secTitle('Содержимое кейса')}
     <div class="items-grid">${c.items.map(s => itemCard(s)).join('')}</div>

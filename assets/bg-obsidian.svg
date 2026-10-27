@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" preserveAspectRatio="xMidYMid slice">
+  <title>RUSH CASE — Obsidian Gold Background</title>
+  <desc>Pure vector dark background in obsidian black, champagne gold and subdued royal violet, designed to sit behind a CS2 case-opening interface.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1920" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B0A0D"/>
+      <stop offset="0.52" stop-color="#060607"/>
+      <stop offset="1" stop-color="#080709"/>
+    </linearGradient>
+    <radialGradient id="goldTop" cx="0" cy="0" r="1" gradientTransform="matrix(-1170 620 -520 -980 1450 -35)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D6A044" stop-opacity=".18"/>
+      <stop offset=".42" stop-color="#A66B23" stop-opacity=".075"/>
+      <stop offset="1" stop-color="#A66B23" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="violetBottom" cx="0" cy="0" r="1" gradientTransform="matrix(970 -660 570 840 65 1085)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#542A91" stop-opacity=".20"/>
+      <stop offset=".48" stop-color="#43216F" stop-opacity=".09"/>
+      <stop offset="1" stop-color="#43216F" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="goldRight" cx="0" cy="0" r="1" gradientTransform="matrix(-650 220 -230 -680 1960 680)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D6A044" stop-opacity=".085"/>
+      <stop offset="1" stop-color="#D6A044" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edgeFade" x1="0" y1="0" x2="1920" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#000" stop-opacity=".42"/>
+      <stop offset=".18" stop-color="#000" stop-opacity="0"/>
+      <stop offset=".78" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".35"/>
+    </linearGradient>
+    <linearGradient id="bottomFade" x1="960" y1="640" x2="960" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".24"/>
+    </linearGradient>
+    <pattern id="microDots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#F6DDA7" fill-opacity=".17"/>
+    </pattern>
+    <linearGradient id="dotsFade" x1="960" y1="0" x2="960" y2="950" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity=".72"/>
+      <stop offset=".38" stop-color="white" stop-opacity=".48"/>
+      <stop offset=".84" stop-color="white" stop-opacity=".08"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="dotMask">
+      <rect width="1920" height="1080" fill="url(#dotsFade)"/>
+    </mask>
+    <linearGradient id="hairline" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFE9AB" stop-opacity=".38"/>
+      <stop offset=".48" stop-color="#D6A044" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#B37419" stop-opacity=".22"/>
+    </linearGradient>
+    <linearGradient id="shardFill" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#8B6328" stop-opacity=".11"/>
+      <stop offset="1" stop-color="#171216" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+  </defs>
+
+  <!-- Deep obsidian base and gentle colour fields -->
+  <rect width="1920" height="1080" fill="url(#base)"/>
+  <rect width="1920" height="1080" fill="url(#goldTop)"/>
+  <rect width="1920" height="1080" fill="url(#violetBottom)"/>
+  <rect width="1920" height="1080" fill="url(#goldRight)"/>
+
+  <!-- Fine dotted texture, deliberately quiet behind cards and text -->
+  <rect width="1920" height="1080" fill="url(#microDots)" mask="url(#dotMask)" opacity=".56"/>
+
+  <!-- Barely-visible radial lines, concentrated near the outer edges -->
+  <g stroke="#D6A044" stroke-opacity=".055" stroke-width="1">
+    <path d="M1510 0L1120 1080"/><path d="M1605 0L1320 1080"/><path d="M1700 0L1515 1080"/>
+    <path d="M1920 170L1380 1080"/><path d="M1920 300L1510 1080"/>
+    <path d="M0 210L390 1080"/><path d="M0 360L260 1080"/><path d="M0 520L130 1080"/>
+  </g>
+
+  <!-- Angular, low-contrast facets on the left edge -->
+  <g stroke="url(#hairline)" stroke-width="1.3" stroke-linejoin="round">
+    <path d="M0 0H275L208 68L104 112L0 76Z" fill="url(#shardFill)" stroke-opacity=".48"/>
+    <path d="M0 76L104 112L68 226L0 278Z" fill="#18131A" fill-opacity=".34" stroke-opacity=".30"/>
+    <path d="M0 278L68 226L156 285L74 414L0 455Z" fill="url(#shardFill)" stroke-opacity=".34"/>
+    <path d="M0 625L92 552L138 640L78 752L0 792Z" fill="#211811" fill-opacity=".17" stroke-opacity=".23"/>
+    <path d="M0 792L78 752L160 860L91 945L0 1004Z" fill="url(#shardFill)" stroke-opacity=".28"/>
+    <path d="M0 1004L91 945L170 1016L205 1080H0Z" fill="#1D1717" fill-opacity=".35" stroke-opacity=".36"/>
+    <path d="M104 112L208 68L275 0M68 226L156 285M74 414L156 285M92 552L138 640M78 752L160 860M91 945L170 1016" stroke-opacity=".20"/>
+  </g>
+
+  <!-- Matching right-edge geometry -->
+  <g stroke="url(#hairline)" stroke-width="1.2" stroke-linejoin="round">
+    <path d="M1920 0H1712L1770 76L1864 121L1920 96Z" fill="url(#shardFill)" stroke-opacity=".42"/>
+    <path d="M1920 96L1864 121L1832 235L1920 310Z" fill="#1B1515" fill-opacity=".28" stroke-opacity=".28"/>
+    <path d="M1920 310L1832 235L1757 318L1845 443L1920 472Z" fill="url(#shardFill)" stroke-opacity=".31"/>
+    <path d="M1920 616L1836 563L1782 653L1847 753L1920 794Z" fill="#211811" fill-opacity=".16" stroke-opacity=".23"/>
+    <path d="M1920 794L1847 753L1760 868L1831 951L1920 1012Z" fill="url(#shardFill)" stroke-opacity=".28"/>
+    <path d="M1920 1012L1831 951L1752 1022L1720 1080H1920Z" fill="#1D1717" fill-opacity=".3" stroke-opacity=".33"/>
+    <path d="M1770 76L1712 0M1864 121L1757 318M1845 443L1757 318M1836 563L1782 653M1847 753L1760 868M1831 951L1752 1022" stroke-opacity=".19"/>
+  </g>
+
+  <!-- Thin circular traces evoke the precision of a premium game interface -->
+  <g stroke="#D6A044" stroke-width="1.15" fill="none">
+    <circle cx="1760" cy="1030" r="410" stroke-opacity=".075"/>
+    <circle cx="1760" cy="1030" r="350" stroke-opacity=".055" stroke-dasharray="3 11"/>
+    <circle cx="-110" cy="120" r="365" stroke-opacity=".06"/>
+    <circle cx="-110" cy="120" r="305" stroke-opacity=".04" stroke-dasharray="2 10"/>
+    <path d="M1460 0A460 460 0 0 1 1920 460" stroke-opacity=".12"/>
+    <path d="M0 735A345 345 0 0 1 345 1080" stroke-opacity=".07"/>
+  </g>
+
+  <!-- A few warm glints around the perimeter, never in the visual center -->
+  <g fill="#F6C650">
+    <circle cx="104" cy="163" r="1.8" fill-opacity=".82"/>
+    <circle cx="79" cy="389" r="1.1" fill-opacity=".56"/>
+    <circle cx="181" cy="886" r="1.5" fill-opacity=".66"/>
+    <circle cx="282" cy="1028" r="1.2" fill-opacity=".55"/>
+    <circle cx="1791" cy="144" r="1.4" fill-opacity=".65"/>
+    <circle cx="1863" cy="370" r="1.8" fill-opacity=".72"/>
+    <circle cx="1778" cy="836" r="1.1" fill-opacity=".58"/>
+    <circle cx="1694" cy="1005" r="1.7" fill-opacity=".67"/>
+  </g>
+  <g fill="#F6C650" filter="url(#softGlow)" opacity=".23">
+    <circle cx="104" cy="163" r="3.5"/><circle cx="1863" cy="370" r="4"/><circle cx="1694" cy="1005" r="3.5"/>
+  </g>
+
+  <!-- Overall vignette keeps the playable UI as the brightest visual layer -->
+  <rect width="1920" height="1080" fill="url(#edgeFade)"/>
+  <rect width="1920" height="1080" fill="url(#bottomFade)"/>
+</svg>
