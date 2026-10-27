@@ -3,10 +3,12 @@ Options -Indexes
 DirectoryIndex index.html
 
 RewriteEngine On
-# http → https, www.rush-case.ru → rush-case.ru
-RewriteCond %{HTTPS} off [OR]
-RewriteCond %{HTTP_HOST} ^www\. [NC]
-RewriteRule ^ https://rush-case.ru%{REQUEST_URI} [L,R=301]
+# www → без www (тот же домен и протокол)
+RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+RewriteRule ^ %{REQUEST_SCHEME}://%1%{REQUEST_URI} [L,R=301]
+# http → https — включить, когда в Beget будут выпущены SSL-сертификаты:
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
 # сжатие текстовых файлов
 <IfModule mod_deflate.c>
