@@ -1908,8 +1908,8 @@ function spinStrip(strip, dur, withSound) {
     };
   });
 }
-/* выпавший предмет можно покрутить курсором в 3D (как карточку выигрыша в апгрейде) — двигается только сам предмет (без тени);
-   без курсора — лёгкое покачивание */
+/* выпавший предмет можно покрутить курсором в 3D (как карточку выигрыша в апгрейде) — двигается только сам предмет;
+   тень уходит в противоположную сторону, без курсора — лёгкое покачивание */
 function itemTilt(root) {
   $$('.rv-imgw', root).forEach((w, i) => {
     const img = $('img', w); if (!img) return;
@@ -1957,6 +1957,7 @@ function itemTilt(root) {
       rx += (ty - rx) * .1; ry += (tx - ry) * .1;
       const tf = `perspective(800px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) translateZ(40px) scale(1.02)`;
       img.style.transform = fx.style.transform = tf;
+      img.style.filter = `drop-shadow(${(-ry * .7).toFixed(1)}px ${(22 + rx * .5).toFixed(1)}px 22px rgba(0,0,0,.65))`;
       // чем быстрее крутится — тем ярче блики; полоса света бежит по предмету вслед за поворотом
       energy = clamp(energy * .93 + Math.hypot(rx - prx, ry - pry) * .22, 0, 1);
       glint(now, .22 + energy * .78);
