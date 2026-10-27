@@ -1,4 +1,4 @@
-// Сборка ролика: кадры .frames/final + assets/sfx.wav → output/RUSH_CASE_vertical_18s.mp4 (H.264, yuv420p, Rec.709, AAC 48 кГц, faststart),
+// Сборка ролика: кадры .frames/final + assets/sfx.wav → output/RUSH_CASE_16x9.mp4 (H.264, yuv420p, Rec.709, AAC 48 кГц, faststart),
 // плюс превью (poster) и субтитры. Полный цикл: node src/build.js all  (съёмка → композиция → звук → видео)
 const fs = require('fs'), path = require('path'), { execFileSync } = require('child_process');
 const ffmpeg = require('ffmpeg-static'), sharp = require('sharp');
@@ -8,7 +8,7 @@ const run = (f, args = []) => execFileSync(process.execPath, [path.join(__dirnam
 if (process.argv[2] === 'all') { run('capture.js'); run('compose.js'); run('audio.js'); }
 
 fs.mkdirSync(C.OUT, { recursive: true });
-const mp4 = path.join(C.OUT, 'RUSH_CASE_vertical_18s.mp4');
+const mp4 = path.join(C.OUT, 'RUSH_CASE_16x9.mp4');
 execFileSync(ffmpeg, ['-y', '-hide_banner', '-loglevel', 'error',
   '-framerate', String(C.FPS), '-i', path.join(C.FRAMES, 'final', '%04d.png'),
   '-i', path.join(C.ROOT, 'assets', 'sfx.wav'),
@@ -17,6 +17,7 @@ execFileSync(ffmpeg, ['-y', '-hide_banner', '-loglevel', 'error',
   '-vf', 'scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p',
   '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-color_range', 'tv',
   '-r', String(C.FPS), '-g', String(C.FPS),
+  '-af', 'volume=-2dB,alimiter=limit=0.63:attack=2:release=60:level=false', // запас по истинному пику после AAC
   '-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-ac', '2',
   '-movflags', '+faststart', mp4], { stdio: 'inherit' });
 

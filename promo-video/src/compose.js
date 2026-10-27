@@ -1,4 +1,4 @@
-// Рендер итоговых кадров 1080×1920: compose.html + снятые сцены сайта → .frames/final/NNNN.png
+// Рендер итоговых кадров 1920×1080: compose.html + снятые сцены сайта → .frames/final/NNNN.png
 // Запуск: node src/compose.js [кадр_с кадр_по]  (без аргументов — весь ролик)
 const fs = require('fs'), path = require('path'), http = require('http');
 const puppeteer = require('puppeteer-core');
@@ -21,13 +21,13 @@ function meta() {
   const M = {};
   for (const k of fs.readdirSync(C.FRAMES)) {
     const f = path.join(C.FRAMES, k, 'meta.json'); if (!fs.existsSync(f)) continue;
-    const j = JSON.parse(fs.readFileSync(f, 'utf8')); M[k] = { w: j.clip.w, h: j.clip.h, frames: j.frames, snd: j.snd };
+    const j = JSON.parse(fs.readFileSync(f, 'utf8')); M[k] = { w: j.clip.w, h: j.clip.h, frames: j.frames, focus: j.focus, snd: j.snd };
   }
   // момент результата = звук выигрыша сайта
   if (M.open) { const w = M.open.snd.find(e => ['win', 'profit', 'jackpot', 'cheap'].includes(e.m)); M.open.reveal = w ? Math.round(w.t * C.FPS) : 140; }
   if (M.upgrade) {
     const win = M.upgrade.snd.find(e => e.m === 'play' && e.args[0] === 'upgWin') || M.upgrade.snd.find(e => /safeWin/.test(e.m));
-    const end = win ? Math.round(win.t * C.FPS) + 16 : M.upgrade.frames - 1, from = 5, len = (C.SCENES.upgrade[1] - C.SCENES.upgrade[0]) * C.FPS;
+    const end = win ? Math.round(win.t * C.FPS) + 30 : M.upgrade.frames - 1, from = 5, len = (C.SCENES.upgrade[1] - C.SCENES.upgrade[0]) * C.FPS;
     M.upgrade.from = from; M.upgrade.speed = Math.max(1, (end - from) / len);
   }
   for (const k in M) delete M[k].snd;
@@ -35,7 +35,7 @@ function meta() {
 }
 
 (async () => {
-  const [a = 0, b = C.DURATION * C.FPS - 1] = process.argv.slice(2).map(Number);
+  const [a = 0, b = Math.round(C.DURATION * C.FPS) - 1] = process.argv.slice(2).map(Number);
   const port = C.PORT + 1, srv = await serve(port), M = meta();
   fs.writeFileSync(path.join(C.FRAMES, 'compose-meta.json'), JSON.stringify(M, null, 1));
   const out = path.join(C.FRAMES, 'final'); fs.mkdirSync(out, { recursive: true });

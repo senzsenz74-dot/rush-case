@@ -72,26 +72,26 @@ function attachMock(p, S) {
 // ---------- сцены ----------
 // setup — подготовка в обычном времени; actions — {кадр: действие}; clip — что снимаем; frames — сколько кадров
 const SCENES = {
-  catalog: { hash: '#/', frames: +(process.env.NF || 75), clip: '.cs-block', pad: [30, 30, 30, 30],
-    setup: async p => { await p.evaluate(() => { const b = document.querySelector('.cs-block'); window.scrollTo(0, b.getBoundingClientRect().top + scrollY - 60); }); } },
-  open: { hash: '#/case/' + C.CASE_ID, frames: 215, clip: '.rl-framed', pad: [10, 40, 10, 40],
-    setup: async p => { await p.evaluate(() => { const f = document.querySelector('#fastChk'); if (f && !f.checked) f.click(); document.querySelector('.rl-framed').scrollIntoView({ block: 'center' }); }); },
+  catalog: { hash: '#/', frames: 75, focus: ['.cs-block', '.hero3'],
+    setup: async p => { await p.evaluate(() => { const b = document.querySelector('.cs-block'); window.scrollTo(0, b.getBoundingClientRect().top + scrollY - 330); }); } },
+  open: { hash: '#/case/' + C.CASE_ID, frames: 215, focus: ['.rl-framed', '#rl', '.cp-head h1', '#cc'],
+    setup: async p => { await p.evaluate(() => { const f = document.querySelector('#fastChk'); if (f && !f.checked) f.click(); const f2 = document.querySelector('.cp-head'); window.scrollTo(0, f2.getBoundingClientRect().top + scrollY - 24); }); },
     actions: { 8: p => p.evaluate(() => document.querySelector('#openBtn').click()) } },
-  upgrade: { hash: '#/upgrade', frames: 150, clip: '.upg-main', pad: [20, 20, 20, 20],
+  upgrade: { hash: '#/upgrade', frames: 150, focus: ['.upg-main', '#wheel', '#upgFrom', '#upgTo'],
     setup: async p => { await p.evaluate(() => { const f = document.querySelector('#upgFastChk'); if (f && !f.checked) f.click(); document.querySelector('#upgSrc [data-inv="i1"]').click(); }); await sleep(300);
       await p.evaluate(() => document.querySelector('#upgMults [data-m="2"]').click()); await sleep(400);
       // цель — оружие около x2 (как выбрал бы игрок), если такое есть в списке
-      await p.evaluate(() => { const w = [...document.querySelectorAll('#upgTargets [data-t]')].find(e => /^(AK-47|AWP|M4A4|M4A1-S|Desert Eagle|USP-S|Glock-18) |/.test(e.dataset.t)); if (w) w.click(); document.querySelector('.upg-main').scrollIntoView({ block: 'center' }); }); await sleep(600); },
+      await p.evaluate(() => { const w = [...document.querySelectorAll('#upgTargets [data-t]')].find(e => /^(AK-47|AWP|M4A4|M4A1-S|Desert Eagle|USP-S|Glock-18) |/.test(e.dataset.t)); if (w) w.click(); const m = document.querySelector('.upg-main'); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 120); }); await sleep(600); },
     actions: { 6: p => p.evaluate(() => document.querySelector('#upgBtn').click()) } },
-  contract: { hash: '#/contracts', frames: 75, clip: '#dosDesk', pad: [0, 0, 0, 0],
-    setup: async p => { await p.evaluate(() => document.querySelector('#dosDesk').scrollIntoView({ block: 'center' })); },
+  contract: { hash: '#/contracts', frames: 75, focus: ['#dosDesk', '.dos-board', '.dos-side'],
+    setup: async p => { await p.evaluate(() => { const d = document.querySelector('#dosDesk'); window.scrollTo(0, d.getBoundingClientRect().top + scrollY - 40); }); },
     actions: { 4: p => p.evaluate(() => document.querySelector('#dosAuto').click()) } },
-  withdraw: { hash: '#/profile', frames: 90, clip: 'viewport', pad: [0, 0, 0, 0],
+  withdraw: { hash: '#/profile', frames: 90, focus: ['.toast', '.m-wd', '.wd'],
     setup: async p => { await p.evaluate(() => window.scrollTo(0, 0)); },
     actions: { 4: p => p.evaluate(() => document.querySelector('[data-wd="i0"]').click()),
       36: p => p.evaluate(() => document.querySelector('#wdGo').click()) } },
-  tournaments: { hash: '#/tournament/1', frames: 60, clip: '.trn-hero', pad: [16, 16, 16, 16],
-    setup: async p => { await p.evaluate(() => document.querySelector('.trn-hero').scrollIntoView({ block: 'center' })); } },
+  tournaments: { hash: '#/tournament/1', frames: 60, focus: ['.trn-hero', '.trn-act', '.trn-hero h1'],
+    setup: async p => { await p.evaluate(() => { const h = document.querySelector('.trn-hero'); window.scrollTo(0, h.getBoundingClientRect().top + scrollY - 140); }); } },
 };
 
 // виртуальное время: CSS-анимации/переходы ставим вручную по часам страницы, окончания — сообщаем событиями
@@ -128,12 +128,12 @@ const SND_HOOK = () => {
 async function shoot(browser, name, sc) {
   const p = await browser.newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
-  await p.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 2 });
+  await p.setViewport({ width: 1600, height: 900, deviceScaleFactor: 3 });
   const S = mockState(); await p.setRequestInterception(true); attachMock(p, S);
   const base = `http://localhost:${C.PORT}/`;
   await p.goto(base, { waitUntil: 'domcontentloaded' });
   await p.evaluate(id => { localStorage.setItem('sb-gkeexoyrxnsarosymdyp-auth-token', JSON.stringify({ access_token: 'x.eyJleHAiOjk5OTk5OTk5OTl9.x', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'r', user: { id, email: 'promo@rushcase.app', aud: 'authenticated' } })); }, ME);
-  await p.goto(base + '?promo=1' + sc.hash, { waitUntil: 'networkidle2', timeout: 60000 });
+  await p.goto(base + '?promo=1' + sc.hash, { waitUntil: 'networkidle2', timeout: 90000 }).catch(() => {}); // медленные картинки Steam не должны срывать съёмку
   await p.waitForFunction('window.__d && document.querySelector("#preloader") === null || (document.querySelector("#preloader") || {}).className?.includes("done")', { timeout: 30000 }).catch(() => {});
   await sleep(2500);
   // выпадение: по реальным шансам выбранного кейса, зерно фиксировано
@@ -148,19 +148,19 @@ async function shoot(browser, name, sc) {
   await cdp.send('Emulation.setVirtualTimePolicy', { policy: 'pause' });
   const adv = ms => new Promise(r => { cdp.once('Emulation.virtualTimeBudgetExpired', r); cdp.send('Emulation.setVirtualTimePolicy', { policy: 'advance', budget: ms }); });
   const dir = path.join(C.FRAMES, name); fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
-  const rectOf = () => p.evaluate((sel, pad) => { if (sel === 'viewport') return { x: scrollX, y: scrollY, w: innerWidth, h: innerHeight };
-    const q = document.querySelector(sel).getBoundingClientRect(); return { x: Math.max(0, q.left - pad[3]) + scrollX, y: Math.max(0, q.top - pad[0]) + scrollY, w: Math.min(innerWidth, q.width + pad[1] + pad[3]), h: Math.min(innerHeight, q.height + pad[0] + pad[2]) }; }, sc.clip, sc.pad);
-  const clip = await rectOf();
+  const rects = sels => p.evaluate(sels => Object.fromEntries(sels.map(s => { const e = document.querySelector(s); if (!e) return [s, null]; const q = e.getBoundingClientRect(); return [s, { x: q.left, y: q.top, w: q.width, h: q.height }]; })), sels);
+  const clip = await p.evaluate(() => ({ x: scrollX, y: scrollY, w: innerWidth, h: innerHeight })), focus = {};
   for (let f = 0; f < sc.frames; f++) {
     if (sc.actions && sc.actions[f]) await sc.actions[f](p);
     await adv(1000 / C.FPS);
     await p.evaluate(() => window.__vt());
-    const shot = await cdp.send('Page.captureScreenshot', { format: 'png', clip: { x: clip.x, y: clip.y, width: clip.w, height: clip.h, scale: 1 }, captureBeyondViewport: false, fromSurface: true });
-    fs.writeFileSync(path.join(dir, String(f).padStart(4, '0') + '.png'), Buffer.from(shot.data, 'base64'));
+    if (sc.focus && [0, 60, 120, 160, sc.frames - 1].includes(f)) focus[f] = await rects(sc.focus);
+    const shot = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 93, clip: { x: clip.x, y: clip.y, width: clip.w, height: clip.h, scale: 3 }, captureBeyondViewport: false, fromSurface: true });
+    fs.writeFileSync(path.join(dir, String(f).padStart(4, '0') + '.jpg'), Buffer.from(shot.data, 'base64'));
   }
   const snd = await p.evaluate(() => window.__snd);
-  fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ clip, frames: sc.frames, dpr: 2, drop: S.drop, snd, errs }, null, 1));
-  console.log(`${name}: ${sc.frames} кадров ${Math.round(clip.w * 2)}×${Math.round(clip.h * 2)}, звуков ${snd.length}${S.drop && name === 'open' ? ', дроп: ' + S.drop : ''}${errs.length ? ', ошибки: ' + errs.join(' | ') : ''}`);
+  fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ clip, focus, frames: sc.frames, dpr: 3, drop: S.drop, snd, errs }, null, 1));
+  console.log(`${name}: ${sc.frames} кадров ${Math.round(clip.w * 3)}×${Math.round(clip.h * 3)}, звуков ${snd.length}${S.drop && name === 'open' ? ', дроп: ' + S.drop : ''}${errs.length ? ', ошибки: ' + errs.join(' | ') : ''}`);
   await p.close();
 }
 
