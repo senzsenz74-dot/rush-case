@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>RUSH CASE — вставка на хромакее 9:16</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Unbounded:wght@700;800;900&display=block" rel="stylesheet">
+<!-- карточки рулетки — стили самого сайта -->
+<link rel="stylesheet" href="/site/css/style.css">
+<style>
+  /* фон прозрачный: зелёную версию и версию с альфа-каналом собирает ffmpeg (insert.js) */
+  html,body{width:1080px;height:1920px;overflow:hidden;background:transparent!important;margin:0}
+  body::before,body::after,#fx{display:none!important}
+  #root{position:relative;width:1080px;height:1920px;overflow:hidden;font-family:Manrope,sans-serif;color:#fff}
+  /* рамка кейса сайта (assets/frame-case.png, 1983×793); окно рулетки — те же доли, что на сайте */
+  #frame{position:absolute;left:50%;top:560px;width:1560px;height:624px;margin-left:-780px;transform-origin:50% 50%}
+  #frame .img{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none}
+  #win{position:absolute;left:19%;top:32.2%;width:61.6%;height:41.9%;overflow:hidden;border-radius:6px;z-index:2;background:linear-gradient(180deg,#0e0c0a,#060505)}
+  #track{position:absolute;left:0;top:50%;display:flex;gap:8px;height:230px;margin-top:-115px;will-change:transform}
+  #track .rcard{--cw:236px;--ch:230px;flex:0 0 236px;height:230px}
+  #track .rcard img{top:6%;width:74%}
+  #track .rc-w{font-size:15px}#track .rc-f{font-size:17px}
+  #track .rcard.is-win{box-shadow:0 0 0 4px #ffe08a,0 0 40px rgba(255,200,90,.9)}
+  #marker{position:absolute;left:50%;top:0;bottom:0;width:4px;margin-left:-2px;z-index:4;background:linear-gradient(180deg,#ffe9a8,#f6c650 50%,#ffe9a8);box-shadow:0 0 18px rgba(255,200,90,.95)}
+  #marker::before,#marker::after{content:'';position:absolute;left:50%;margin-left:-14px;border:14px solid transparent}
+  #marker::before{top:0;border-top:18px solid #ffe08a}#marker::after{bottom:0;border-bottom:18px solid #ffe08a}
+  #flash{position:absolute;inset:0;z-index:3;pointer-events:none;background:radial-gradient(60% 80% at 50% 50%,rgba(255,226,160,.9),rgba(255,190,90,.3) 50%,transparent 80%);opacity:0}
+  .crown{position:absolute;left:49.76%;width:7.2%;aspect-ratio:1;transform:translate(-50%,-50%);z-index:4;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,rgba(255,244,200,1) 0%,rgba(255,214,110,.9) 15%,rgba(255,176,56,.5) 32%,rgba(255,150,30,.15) 50%,transparent 68%)}
+  .crown.c1{top:30.65%}.crown.c2{top:76.21%}
+  /* кнопка «Крутить» и курсор */
+  #btn{position:absolute;left:50%;top:1420px;transform:translate(-50%,-50%);display:flex;align-items:center;gap:20px;height:132px;padding:0 84px;border-radius:26px;white-space:nowrap;
+    font:900 54px Unbounded,sans-serif;text-transform:uppercase;letter-spacing:.06em;color:#2a1a02;background:linear-gradient(180deg,#ffeaa6,#f6c650 50%,#d6941f);
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.75),inset 0 -6px 0 rgba(120,70,0,.35),0 14px 0 #8a5a12,0 30px 50px -10px rgba(0,0,0,.6)}
+  #cursor{position:absolute;width:96px;height:96px;z-index:9;transform-origin:10% 6%}
+  #cursor svg{width:100%;height:100%;filter:drop-shadow(0 6px 10px rgba(0,0,0,.6))}
+  /* результат */
+  #prize{position:absolute;left:50%;top:1440px;transform:translate(-50%,-50%);text-align:center;white-space:nowrap}
+  #prize small{display:block;font:800 30px Unbounded,sans-serif;letter-spacing:.24em;text-transform:uppercase;color:#ffe08a;text-shadow:0 3px 0 #3a2504}
+  #prize b{display:block;margin-top:14px;font:900 46px/1.15 Unbounded,sans-serif;text-transform:uppercase;color:#fff;text-shadow:0 5px 0 rgba(0,0,0,.65)}
+  #prize b em{font-style:normal;font-size:64px;color:#ffe08a}
+  #prize span{display:inline-block;margin-top:20px;padding:16px 40px;border-radius:20px;font:900 54px Unbounded,sans-serif;color:#2a1a02;background:linear-gradient(180deg,#ffeaa6,#f6c650 50%,#d6941f);box-shadow:0 10px 0 #8a5a12}
+  /* логотип и промокод */
+  #logo{position:absolute;left:50%;top:340px;width:760px;transform-origin:50% 50%;filter:drop-shadow(0 12px 0 rgba(0,0,0,.35))}
+  #logo img{width:100%;display:block}
+  #promo{position:absolute;left:50%;top:1600px;transform:translateX(-50%);display:flex;align-items:center;gap:22px;padding:26px 40px;border-radius:28px;white-space:nowrap;
+    background:linear-gradient(180deg,#1c1812,#0d0c09) padding-box,linear-gradient(135deg,#8a6a2c,#f7dc8f 30%,#a77a2a 55%,#ffe9a8 75%,#8d6726) border-box;border:4px solid transparent}
+  #promo small{font:800 26px Unbounded,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#d8b874}
+  #promo b{font:900 64px Unbounded,sans-serif;letter-spacing:.06em;color:#ffe6a6;padding:4px 22px;border-radius:14px;border:3px dashed rgba(245,199,107,.75)}
+  #promo span{font:800 36px Manrope,sans-serif;color:#fff}
+</style>
+</head>
+<body>
+<div id="root">
+  <div id="logo"><img src="/site/assets/logo.png" alt=""></div>
+  <div id="frame">
+    <div id="win"><div id="track"></div><i id="marker"></i><i id="flash"></i></div>
+    <img class="img" src="/site/assets/frame-case.png" alt="">
+    <i class="crown c1"></i><i class="crown c2"></i>
+  </div>
+  <div id="btn">Крутить</div>
+  <div id="prize"><small>Выпало</small><b id="pName"></b><span id="pPrice"></span></div>
+  <div id="promo"><small>Промокод</small><b>WELCOME</b><span>+50 ₽</span></div>
+  <div id="cursor"><svg viewBox="0 0 48 48"><path d="M8 4 L8 38 L17 30 L23 44 L29 41 L23 28 L35 28 Z" fill="#fff" stroke="#111" stroke-width="2.4" stroke-linejoin="round"/></svg></div>
+</div>
+<script src="/src/insert-scene.js"></script>
+</body>
+</html>
