@@ -8,7 +8,7 @@
 // Чтобы подключить кассу: дописать её адаптер в PROVIDERS (2 функции по её документации) и задать секреты.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const SITE = 'https://rush-case.ru/';
+const SITE = 'https://rush-case.online/';
 const env = (k: string) => Deno.env.get(k) || '';
 const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type, apikey', 'access-control-allow-methods': 'POST, OPTIONS' };
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...cors, 'content-type': 'application/json' } });

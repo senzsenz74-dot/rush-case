@@ -1,4 +1,4 @@
-# Выкладка сайта на Beget (rush-case.ru) при каждом push в main.
+# Выкладка сайта на Beget (rush-case.online) при каждом push в main.
 # Доступ FTP — в секретах репозитория (Settings → Secrets and variables → Actions):
 #   BEGET_FTP_HOST, BEGET_FTP_USER, BEGET_FTP_PASS
 # FTP-аккаунт в Beget привязан к папке rush-case.ru/public_html — файлы кладутся в её корень.

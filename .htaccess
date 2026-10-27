@@ -1,11 +1,11 @@
-# RUSH CASE на Beget (Apache): https и адрес без www, сжатие, кэш
+# RUSH CASE на Beget (Apache): основной адрес rush-case.online, сжатие, кэш
 Options -Indexes
 DirectoryIndex index.html
 
 RewriteEngine On
-# www → без www (тот же домен и протокол)
-RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
-RewriteRule ^ %{REQUEST_SCHEME}://%1%{REQUEST_URI} [L,R=301]
+# основной адрес — rush-case.online: www и rush-case.ru → rush-case.online (тот же протокол)
+RewriteCond %{HTTP_HOST} !^rush-case\.online$ [NC]
+RewriteRule ^ %{REQUEST_SCHEME}://rush-case.online%{REQUEST_URI} [L,R=301]
 # http → https — включить, когда в Beget будут выпущены SSL-сертификаты:
 # RewriteCond %{HTTPS} off
 # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

@@ -11,7 +11,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // куда разрешено возвращать игрока
-const SITES = ['https://rush-case.ru/', 'https://www.rush-case.ru/', 'https://senzsenz74-dot.github.io/rush-case/', 'http://localhost:5178/'];
+const SITES = ['https://rush-case.online/', 'https://www.rush-case.online/', 'http://rush-case.online/', 'https://rush-case.ru/', 'https://senzsenz74-dot.github.io/rush-case/', 'http://localhost:5178/'];
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
