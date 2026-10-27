@@ -1908,10 +1908,10 @@ function spinStrip(strip, dur, withSound) {
     };
   });
 }
-/* выпавший предмет сам плавно покачивается в 3D (мышью не двигается); тень уходит в противоположную сторону */
+/* выпавший предмет сам плавно покачивается в 3D (мышью не двигается); если выпало несколько — стоят на месте */
 function itemTilt(root) {
   $$('.rv-imgw', root).forEach((w, i) => {
-    const img = $('img', w); if (!img) return;
+    const img = $('img', w); if (!img || w.closest('.rv-inner.many')) return; // несколько предметов — стоят на месте
     const t0 = performance.now() + i * 900, hover = false;
     let tx = 0, ty = 0, rx = 0, ry = 0, energy = 0;
     // блики: canvas поверх предмета, повёрнутый вместе с ним; полоса света и искорки обрезаются по силуэту
