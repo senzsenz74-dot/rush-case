@@ -1,0 +1,34 @@
+# RUSH CASE на Beget (Apache): https и адрес без www, сжатие, кэш
+Options -Indexes
+DirectoryIndex index.html
+
+RewriteEngine On
+# http → https, www.rush-case.ru → rush-case.ru
+RewriteCond %{HTTPS} off [OR]
+RewriteCond %{HTTP_HOST} ^www\. [NC]
+RewriteRule ^ https://rush-case.ru%{REQUEST_URI} [L,R=301]
+
+# сжатие текстовых файлов
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript text/javascript application/json image/svg+xml
+</IfModule>
+
+AddType image/webp .webp
+AddType image/avif .avif
+AddType video/webm .webm
+AddType image/svg+xml .svg
+
+# кэш: страница — всегда свежая; css/js — по ?v= в index.html; картинки и звуки — неделя
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "\.(css|js)$">
+    Header set Cache-Control "public, max-age=31536000"
+  </FilesMatch>
+  <FilesMatch "\.(webp|avif|png|jpg|jpeg|svg|webm|mp3|wav|woff2|ico)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

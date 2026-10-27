@@ -1,0 +1,30 @@
+# Выкладка сайта на Beget (rush-case.ru) при каждом push в main.
+# Доступ FTP — в секретах репозитория (Settings → Secrets and variables → Actions):
+#   BEGET_FTP_HOST, BEGET_FTP_USER, BEGET_FTP_PASS
+# FTP-аккаунт в Beget привязан к папке rush-case.ru/public_html — файлы кладутся в её корень.
+name: Выкладка на Beget
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency: beget-deploy
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ secrets.BEGET_FTP_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка папки сайта
+        run: |
+          mkdir dist
+          cp -r index.html .htaccess assets css js dist/
+      - name: Загрузка по FTP (только изменённые файлы)
+        if: env.HOST != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.BEGET_FTP_HOST }}
+          username: ${{ secrets.BEGET_FTP_USER }}
+          password: ${{ secrets.BEGET_FTP_PASS }}
+          local-dir: ./dist/
+          server-dir: ./
