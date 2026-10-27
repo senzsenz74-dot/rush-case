@@ -4454,12 +4454,13 @@ function teamForm(t) {
     <button class="btn btn-primary btn-lg" id="tfSave">${t ? 'Сохранить' : `${ic.plus}Создать команду`}</button>`;
 }
 function bindTeamForm(t, root = document) {
-  let logo = t ? t.logo : null;
-  $('#tfLogo', root).onchange = async e => {
+  let logo = t ? t.logo : null; // t — команда при изменении, null при создании (загрузка логотипа режим не меняет)
+  const onLogo = async e => {
     const box = $('#tfLogoBox', root); box.classList.add('busy');
     const url = await uploadImg('team-logo', e.target.files[0], st.user.id); box.classList.remove('busy');
-    if (url) { logo = url; box.innerHTML = `<img src="${esc(url)}" alt=""><input type="file" id="tfLogo" accept="image/png,image/jpeg,image/webp" hidden>`; bindTeamForm(Object.assign({}, t, { logo: url }), root); }
+    if (url) { logo = url; box.innerHTML = `<img src="${esc(url)}" alt=""><input type="file" id="tfLogo" accept="image/png,image/jpeg,image/webp" hidden>`; $('#tfLogo', root).onchange = onLogo; }
   };
+  $('#tfLogo', root).onchange = onLogo;
   $('#tfSave', root).onclick = async () => {
     const name = $('#tfName', root).value.trim(), tag = $('#tfTag', root).value.trim().toUpperCase(), tg = $('#tfTg', root).value.trim();
     if (name.length < 2) return toast('Название — от 2 символов', 'err');
