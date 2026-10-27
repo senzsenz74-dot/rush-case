@@ -1399,6 +1399,11 @@ function heroHtml() {
     <div class="h3-frame hs" id="heroSlider">
       <div class="hs-track">
         <div class="hs-slide on" data-i="0">
+          <img class="h3-img hs-cover" src="assets/hero-open.webp" alt="Мы открылись! Участвуй в розыгрыше — итоги 20.11" data-nw="1983" data-nh="793">
+          <!-- кнопка «Участвуй в розыгрыше» нарисована на картинке: зона клика — в пикселях картинки (data-box), пересчитывается под обрезку cover -->
+          <a class="hs-hot hs-tg" href="https://t.me/rushcasse" target="_blank" rel="noopener" data-box="212,376,918,188" aria-label="Участвуй в розыгрыше — Telegram-канал RUSH CASE"></a>
+        </div>
+        <div class="hs-slide" data-i="1">
           <img class="h3-img" src="assets/hero-banner.webp" alt="Открывай. Собирай. Побеждай. Твои следующие легендарные скины уже внутри">
           <div class="h3-fx" aria-hidden="true"><div class="h2-embers">${embers}</div><div class="h3-dust">${dust}</div></div>
           <div class="h3-btns">
@@ -1406,7 +1411,7 @@ function heroHtml() {
             <a class="btn btn-outline btn-lg" href="#/upgrade">${ic.trend}Смотреть апгрейды</a>
           </div>
         </div>
-        <div class="hs-slide" data-i="1">
+        <div class="hs-slide" data-i="2">
           <img class="h3-img hs-cover" src="assets/hero-bonus.webp" alt="Получи бонус за участие: подпишись на наши соцсети" loading="lazy">
           <!-- кликабельные зоны поверх нарисованных значков и шагов (координаты — % от слайда) -->
           ${[['Telegram', 22.11], ['ВКонтакте', 28.4], ['YouTube', 35.01], ['TikTok', 41.63]].map(([t, x]) => `<a class="hs-hot hs-soc" href="#/bonus" title="${t} — бонус за подписку" aria-label="${t}" style="left:${x}%;top:64.8%"></a>`).join('')}
@@ -1414,14 +1419,14 @@ function heroHtml() {
           <a class="hs-hot hs-step" href="#/bonus" title="Бонусы" style="left:24.24%;top:72.96%;width:14.56%;height:15.52%"></a>
           <a class="hs-hot hs-step" href="#/bonus" title="Выполнить условия" style="left:42.48%;top:72.96%;width:12.91%;height:15.52%"></a>
         </div>
-        <div class="hs-slide" data-i="2">
+        <div class="hs-slide" data-i="3">
           <img class="h3-img hs-cover hs-agents" src="assets/hero-agents.webp" alt="Твой сквад. Твой дроп. Кейс с агентами — открой кейс и забери своего легендарного агента" loading="lazy">
           <a class="hs-hot hs-all" href="#/cases" aria-label="Смотреть кейсы"></a>
         </div>
       </div>
       <button class="hs-arr hs-prev" aria-label="Предыдущий баннер">${ic.left}</button>
       <button class="hs-arr hs-next" aria-label="Следующий баннер">${ic.right}</button>
-      <div class="hs-dots"><button class="on" data-go="0" aria-label="Баннер 1"></button><button data-go="1" aria-label="Баннер 2"></button><button data-go="2" aria-label="Баннер 3"></button></div>
+      <div class="hs-dots"><button class="on" data-go="0" aria-label="Баннер 1"></button><button data-go="1" aria-label="Баннер 2"></button><button data-go="2" aria-label="Баннер 3"></button><button data-go="3" aria-label="Баннер 4"></button></div>
     </div>
   </section>`;
 }
@@ -1495,7 +1500,14 @@ const caseCard = c => `<a class="case-card${c.disabled ? ' cc-closed' : ''}" hre
 function heroSlider() {
   const root = $('#heroSlider'); if (!root) return;
   const slides = $$('.hs-slide', root), dots = $$('.hs-dots button', root); let i = 0, t;
-  const go = n => { i = (n + slides.length) % slides.length; slides.forEach((x, k) => x.classList.toggle('on', k === i)); dots.forEach((x, k) => x.classList.toggle('on', k === i)); };
+  // зоны клика поверх нарисованных кнопок: data-box — x,y,w,h в пикселях картинки; картинка object-fit: cover по центру
+  const place = () => $$('[data-box]', root).forEach(a => {
+    const sl = a.closest('.hs-slide'), img = $('img', sl), sw = sl.clientWidth, sh = sl.clientHeight; if (!sw || !sh) return;
+    const nw = +img.dataset.nw, nh = +img.dataset.nh, k = Math.max(sw / nw, sh / nh), ox = (sw - nw * k) / 2, oy = (sh - nh * k) / 2, [bx, by, bw, bh] = a.dataset.box.split(',').map(Number);
+    Object.assign(a.style, { left: ox + bx * k + 'px', top: oy + by * k + 'px', width: bw * k + 'px', height: bh * k + 'px' });
+  });
+  const go = n => { i = (n + slides.length) % slides.length; slides.forEach((x, k) => x.classList.toggle('on', k === i)); dots.forEach((x, k) => x.classList.toggle('on', k === i)); place(); };
+  new ResizeObserver(place).observe(root); place();
   const auto = () => { clearInterval(t); t = setInterval(() => { if (!document.body.contains(root)) return clearInterval(t); go(i + 1); }, 7000); };
   $('.hs-prev', root).onclick = () => { go(i - 1); auto(); }; $('.hs-next', root).onclick = () => { go(i + 1); auto(); };
   dots.forEach(d => d.onclick = () => { go(+d.dataset.go); auto(); });
