@@ -3662,3 +3662,66 @@ body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#0
 .ax .adm-ph h3,.ax .ac-gh b{text-shadow:none}
 @media (max-width:1180px){.ax-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.ax-g2{grid-template-columns:1fr}}
 @media (max-width:640px){.ax-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-y{width:58px}.ax-v{font-size:18px}.ax-period{width:100%}}
+
+/* ---------- админка: убыточные дни красным, клик по дню, кейсы на дашборде, выводы ---------- */
+.ax-col.loss .ax-bar{background:var(--ax-neg)}
+.ax-col.click{cursor:pointer}
+.ax-col.loss.click:hover .ax-bar{filter:brightness(1.15)}
+.ax-tip em{display:block;margin-top:6px;padding-top:6px;border-top:1px solid var(--ax-line);font-style:normal;font-size:11.5px;color:#fff}
+.ax-col.loss .ax-tip em{color:#fca5a5}
+.ax-duo{margin-bottom:12px}
+.ax-case{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;background:var(--ax-card);border:1px solid var(--ax-line);color:var(--ax-txt);text-decoration:none}
+.ax-case:hover{border-color:var(--ax-line2)}
+.ax-case img{width:74px;height:58px;object-fit:contain;flex:none}
+.ax-case small{display:block;font-size:11.5px;color:var(--ax-mut)}
+.ax-case b{display:block;margin:2px 0;font:800 16px var(--ff-h);color:#fff}
+.ax-case em{display:block;font-style:normal;font-size:12.5px;color:var(--ax-mut)}
+.ax-case.bad{border-color:rgba(239,68,68,.35)}.ax-case.bad em{color:#fca5a5}
+.ax-sm{height:28px;padding:0 9px;font-size:12px;text-decoration:none}
+.ax-acts{display:inline-flex;gap:6px}
+.ax-mute{color:var(--ax-mut);font-size:12px}
+.ax a.plink,.ax-t a.plink{color:#fff;text-decoration:none;border-bottom:1px dashed rgba(255,255,255,.3)}
+.ax a.plink:hover{border-bottom-color:#fff}
+.modal.m-axday{max-width:1100px;width:calc(100vw - 32px);max-height:calc(100vh - 40px);overflow-y:auto;background:#101216;border:1px solid rgba(255,255,255,.08);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.modal.m-axday::before,.modal.m-axday::after{display:none}
+.ax-day{padding:4px 2px}.ax-day h2{margin:0 0 14px;font:800 22px var(--ff-h);color:#fff}
+.ax-kpis-s .ax-v{font-size:17px}
+.ax-why{border-color:rgba(239,68,68,.35)}
+/* ---------- публичный профиль игрока ---------- */
+.pp{padding-bottom:50px}
+.pp-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:6px 0 16px}
+.pp-top #ppSearch{flex:0 1 380px}
+.pp-mine{margin-top:12px}
+.pp-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:16px 0}
+.pp-st{padding:14px 16px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}
+.pp-st span{display:block;font-size:12px;color:var(--txt2);font-weight:700}
+.pp-st b{display:block;margin-top:6px;font:800 20px var(--ff-h);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-st b a{color:inherit;text-decoration:none}.pp-st b a:hover{color:var(--gold)}
+.pp-st small{display:block;margin-top:3px;font-size:12px;color:var(--txt2)}
+.pp-grid{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:14px;align-items:start}
+.pp-col{display:flex;flex-direction:column;gap:14px}
+.pp-card{padding:16px;border-radius:16px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}
+.pp-card h3{margin:0 0 12px;font:800 15px var(--ff-h);text-transform:uppercase;letter-spacing:.04em}
+.pp-card h3 small{margin-left:6px;font:700 12px var(--ff-b,inherit);color:var(--txt2);text-transform:none;letter-spacing:0}
+.pp-best .icard{max-width:200px;margin:0 auto}
+.pp-team{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none}
+.pp-team b{display:block;font:800 15px var(--ff-h)}.pp-team small{color:var(--txt2)}
+.pp-drops{display:flex;flex-direction:column;gap:6px}
+.pp-drop{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.03)}
+.pp-drop img{width:48px;height:36px;object-fit:contain}
+.pp-drop b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-drop small{display:block;font-size:11.5px;color:var(--txt2)}
+.pp-drop i{font-style:normal;font-weight:800;font-size:12.5px;color:var(--gold)}
+.pp-inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.pp-more{margin-top:10px;text-align:center;color:var(--txt2);font-size:13px}
+/* поиск игрока */
+.ps{position:relative}
+.ps-res{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;display:flex;flex-direction:column;border-radius:12px;background:#15151a;border:1px solid rgba(255,255,255,.1);box-shadow:0 14px 40px rgba(0,0,0,.5);overflow:hidden}
+.ps-res:empty{display:none}
+.ps-res a{display:flex;align-items:center;gap:10px;padding:9px 12px;color:var(--txt);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.05)}
+.ps-res a:hover{background:rgba(255,255,255,.05)}
+.ps-res a b{flex:1;font-size:13.5px}.ps-res a i{font-style:normal;color:var(--txt2);font-size:12px}
+.ps-none{padding:12px;color:var(--txt2);font-size:13px;text-align:center}
+.top-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.top-tools #topSearch{width:280px}
+a.plink{color:inherit;text-decoration:none}a.plink:hover{color:var(--gold)}
+@media (max-width:900px){.pp-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pp-grid{grid-template-columns:1fr}.top-tools #topSearch{width:100%}}

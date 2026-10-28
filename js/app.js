@@ -1527,7 +1527,7 @@ const LD_DOC = sv('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h
 // запись ленты: t — 'case' (по умолчанию), 'upg' — апгрейд, 'con' — контракт; x — во сколько раз дороже ставки
 const liveHtml = d => {
   const s = SK[d.n], c = d.t ? null : caseById(d.c);
-  const href = d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
+  const href = d.uid ? `#/u/${d.uid}` : d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
   const src = d.t === 'upg' ? `Апгрейд ×${d.x.toFixed(d.x < 10 ? 1 : 0)}` : d.t === 'con' ? `Контракт ×${d.x.toFixed(1)}` : c ? 'Кейс «' + c.name + '»' : d.c;
   const tag = d.t === 'upg' ? `<span class="ld-t upg">${ic.up}</span>` : d.t === 'con' ? `<span class="ld-t con">${LD_DOC}</span>` : '';
   return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${href}" title="${esc(s.name)}">${tag}<img src="${imgUrl(s, 'xs')}" alt="" loading="lazy" decoding="async"><span class="ld-f">${esc(s.f)}</span><span class="ld-w">${esc(s.w)}</span><span class="ld-u"><small>${esc(src)}</small>${esc(d.u)}</span></a>`;
@@ -1568,7 +1568,7 @@ function fakeDropAt(sec) {
 }
 let liveSec = 0;
 const liveSeen = new Set(); // id реальных дропов, уже показанных
-function liveRealRow(r) { return { n: r.n, t: r.t === 'case' ? undefined : r.t, c: r.c, x: +r.x || 0, u: r.name, ts: Date.parse(r.ts) - liveOff, mine: !!(st.user && r.uid === st.user.id), id: r.id }; }
+function liveRealRow(r) { return { uid: r.uid, n: r.n, t: r.t === 'case' ? undefined : r.t, c: r.c, x: +r.x || 0, u: r.name, ts: Date.parse(r.ts) - liveOff, mine: !!(st.user && r.uid === st.user.id), id: r.id }; }
 function initLive() {
   const now = Math.floor(liveNow() / 1000);
   for (let sec = now; sec > now - 400 && liveBuf.length < 60; sec--) { const d = fakeDropAt(sec); if (d) liveBuf.push(d); }
@@ -1597,7 +1597,7 @@ async function liveSync() {
 }
 // свой дроп: сразу в ленту и в базу — его увидят все
 function liveMine(d) {
-  pushLive({ ...d, u: st.user.name, mine: true, ts: liveNow() });
+  pushLive({ ...d, u: st.user.name, uid: st.user.id, mine: true, ts: liveNow() });
   if (false) sb.from('live_drops').insert({ uid: st.user.id, name: st.user.name, n: d.n, t: d.t || 'case', c: d.c || null, x: d.x ? Math.round(d.x * 100) / 100 : 0 }).then(() => {}, () => {});
 }
 
@@ -2046,14 +2046,77 @@ async function topData(period) {
   topCache[period] = { t: Date.now(), d: data };
   return data;
 }
+/* ---------- публичный профиль игрока (#/u/<ID или uid>) и поиск игроков ---------- */
+const plink = (id, html) => id ? `<a class="plink" href="#/u/${encodeURIComponent(id)}">${html}</a>` : html;
+function playerSearch(box) {
+  if (!box) return;
+  box.innerHTML = `<div class="ps"><div class="search"><input class="inp" placeholder="Найти игрока: ник или ID" autocomplete="off">${ic.search}</div><div class="ps-res"></div></div>`;
+  const inp = $('input', box), res = $('.ps-res', box); let t = 0, q0 = '';
+  inp.oninput = () => { clearTimeout(t); t = setTimeout(async () => {
+    const q = inp.value.trim(); q0 = q; if (!q || !sb) return (res.innerHTML = '');
+    const { data } = await sb.rpc('search_players', { p_q: q }); if (q !== q0) return;
+    res.innerHTML = (data || []).length ? data.map(p => `<a href="#/u/${p.pid}">${ava({ name: p.name, ava: p.ava }, 'xs')}<b>${esc(p.name)}</b><i>#${p.pid}</i></a>`).join('') : '<div class="ps-none">Никого не нашли</div>';
+  }, 250); };
+  inp.onkeydown = e => { if (e.key === 'Enter') { const a = $('a', res); if (a) location.hash = a.getAttribute('href'); } };
+}
+function pagePlayer(id) {
+  return `<section class="container pp" id="pp"><div class="pp-top"><a class="btn btn-dark btn-sm" href="#/top">${ic.left || '←'}Топ игроков</a><div id="ppSearch"></div></div>
+    <div id="ppBody"><div class="adm-load"><span class="spinner"></span>Загружаем профиль…</div></div></section>`;
+}
+async function mountPlayer(id) {
+  playerSearch($('#ppSearch'));
+  const box = $('#ppBody'); if (!box) return;
+  if (!sb || !id) return (box.innerHTML = `<div class="empty-big">${ic.user}<h2>Игрок не найден</h2></div>`);
+  const { data: p, error } = await sb.rpc('player_card', { p_id: decodeURIComponent(id) });
+  if (!$('#ppBody')) return;
+  if (error || !p) return (box.innerHTML = `<div class="empty-big">${ic.user}<h2>Игрок не найден</h2><p>Проверьте ссылку или найдите игрока по нику.</p></div>`);
+  document.title = `${p.name} — RUSH CASE`;
+  const S = p.stats || {}, rk = rankOf(+S.spent || 0), best = S.best && SK[S.best], fav = p.fav && caseById(p.fav);
+  const inv = (p.inv || []).map(n => SK[n]).filter(Boolean), invSum = inv.reduce((a, s) => a + s.p, 0), me = st.user && st.user.id === p.id;
+  const tile = (l, v, sub = '') => `<div class="pp-st"><span>${l}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  box.innerHTML = `
+    <div class="pf-hero pp-hero" style="--rk1:${rk.cur.c[0]};--rk2:${rk.cur.c[1]}">
+      <span class="pfh-wm" aria-hidden="true">${rk.cur.n}</span>
+      <div class="pfh-main">
+        <div class="pfh-ava">${ava({ name: p.name, ava: p.ava }, 'xl')}<span class="pfh-rk" title="Ранг ${rk.cur.n}">${rankIcon(rk.cur, rk.i)}</span></div>
+        <div class="pfh-info">
+          <h1>${esc(p.name)}${p.admin ? ' <i class="tt-you">админ</i>' : ''}${me ? ' <i class="tt-you">это вы</i>' : ''}</h1>
+          <div class="pfh-chips">
+            <button class="pfh-chip" data-act="copy" data-copy="${p.pid}" title="Скопировать ID">ID ${p.pid}${ic.copy}</button>
+            ${p.steamid ? `<a class="pfh-chip" href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steamid)}" target="_blank" rel="noopener">${ic.steam}Steam-профиль</a>` : ''}
+            <span class="pfh-chip">${ic.clock}с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</span>
+            <span class="pfh-chip">${rankIcon(rk.cur, rk.i)}${rk.cur.n}</span>
+          </div>
+          ${me ? '<a class="btn btn-dark btn-sm pp-mine" href="#/profile">Мой кабинет</a>' : ''}
+        </div>
+      </div>
+    </div>
+    <div class="pp-stats">
+      ${tile('Открыто кейсов', fmt(+S.opened || 0))}
+      ${tile('Апгрейдов', fmt(+S.upg || 0), +S.upg ? `побед ${fmt(+S.upgWin || 0)}` : '')}
+      ${tile('Контрактов', fmt(+S.con || 0))}
+      ${tile('Любимый кейс', fav ? `<a href="#/case/${fav.id}">${esc(fav.name)}</a>` : '—')}
+      ${tile('Инвентарь', money(invSum), `${fmt(inv.length)} ${plural(inv.length, 'предмет', 'предмета', 'предметов')}`)}
+    </div>
+    <div class="pp-grid">
+      <div class="pp-col">
+        ${best ? `<section class="pp-card"><h3>Лучший дроп</h3><div class="pp-best">${itemCard(best)}</div></section>` : ''}
+        ${p.team ? `<section class="pp-card"><h3>Команда</h3><a class="pp-team" href="#/tournaments">${teamLogo(p.team)}<span><b>${esc(p.team.name)}</b><small>[${esc(p.team.tag)}]${p.team.captain ? ' · капитан' : ''}</small></span></a></section>` : ''}
+        <section class="pp-card"><h3>Последние дропы</h3>${(p.drops || []).filter(d => SK[d.n]).length ? `<div class="pp-drops">${p.drops.filter(d => SK[d.n]).map(d => { const s = SK[d.n], c = d.t === 'case' ? caseById(d.c) : null;
+          return `<div class="pp-drop r-${s.r}"><img src="${imgUrl(s, 's')}" alt=""><span><b>${esc(s.name)}</b><small>${d.t === 'upg' ? `апгрейд ×${(+d.x).toFixed(1).replace('.', ',')}` : d.t === 'con' ? 'контракт' : c ? 'кейс «' + esc(c.name) + '»' : 'кейс'} · ${new Date(d.ts).toLocaleDateString('ru-RU')}</small></span><i>${money(s.p)}</i></div>`; }).join('')}</div>` : '<div class="empty">Пока нет дропов</div>'}</section>
+      </div>
+      <section class="pp-card pp-inv"><h3>Инвентарь <small>${fmt(inv.length)} предм. · ${money(invSum)}</small></h3>${inv.length ? `<div class="inv-grid pp-inv-grid">${inv.slice(0, 60).map(s => itemCard(s)).join('')}</div>${inv.length > 60 ? `<div class="pp-more">и ещё ${inv.length - 60}</div>` : ''}` : '<div class="empty">Инвентарь пуст</div>'}</section>
+    </div>`;
+}
 function pageTop() {
   return `<section class="container">
     <div class="page-head top-head"><div><h1>Топ <em>игроков</em></h1><p>Самые удачливые игроки RUSH CASE. Рейтинг по сумме выигрышей.</p></div>
-      <div class="seg" id="topSeg"><button data-p="week">Неделя</button><button data-p="month">Месяц</button><button data-p="all">Всё время</button></div></div>
+      <div class="top-tools"><div id="topSearch"></div><div class="seg" id="topSeg"><button data-p="week">Неделя</button><button data-p="month">Месяц</button><button data-p="all">Всё время</button></div></div></div>
     <div id="topBody"></div>
   </section>`;
 }
 function mountTop() {
+  playerSearch($('#topSearch'));
   $$('#topSeg button').forEach(b => b.onclick = () => { topPeriod = b.dataset.p; drawTop(); });
   drawTop();
 }
@@ -2075,7 +2138,7 @@ async function drawTop() {
         ${place[i] === 1 ? `<span class="pod-crown">${ic.crown}</span>` : ''}
         <span class="pod-place">${place[i]}</span>
         ${ava({ name: p.name, ava: p.ava }, 'xl')}
-        <b class="pod-name">${esc(p.name)}${p.me ? ' <i class="tt-you">вы</i>' : ''}</b>
+        <b class="pod-name">${plink(p.pid, esc(p.name))}${p.me ? ' <i class="tt-you">вы</i>' : ''}</b>
         <span class="pod-won">${money(+p.won)}</span>
         <span class="pod-sub">${fmt(p.opened)} ${plural(p.opened, 'кейс', 'кейса', 'кейсов')}</span>
         ${bestHtml(p, 'pod-best')}
@@ -2088,7 +2151,7 @@ async function drawTop() {
       </div>`).join('')}</div>
     ${list.length > 3 ? `<div class="top-table">
       <div class="tt-row tt-h"><span>#</span><span>Игрок</span><span>Кейсов</span><span>Лучший дроп</span><span>Выиграно</span></div>
-      ${list.slice(3).map(p => { const s = best(p); return `<div class="tt-row${p.me ? ' is-me' : ''}"><span class="tt-pl">${p.pos}</span><span class="tt-u">${ava({ name: p.name, ava: p.ava }, 'xs')}${esc(p.name)}${p.me ? ' <i class="tt-you">вы</i>' : ''}</span><span>${fmt(p.opened)}</span>
+      ${list.slice(3).map(p => { const s = best(p); return `<div class="tt-row${p.me ? ' is-me' : ''}"><span class="tt-pl">${p.pos}</span><span class="tt-u">${ava({ name: p.name, ava: p.ava }, 'xs')}${plink(p.pid, esc(p.name))}${p.me ? ' <i class="tt-you">вы</i>' : ''}</span><span>${fmt(p.opened)}</span>
         ${s ? `<span class="tt-best r-${s.r}"><img src="${imgUrl(s, 'm')}" alt="">${esc(s.name)}</span>` : '<span class="tt-best none">—</span>'}<span class="tt-won">${money(+p.won)}</span></div>`; }).join('')}
     </div>` : ''}
     ${!list.length ? `<div class="top-empty"><b>Рейтинг ${perTxt} пока пуст</b><span>Первый, кто откроет кейс, окажется на вершине.</span></div>` : ''}
@@ -4272,7 +4335,7 @@ function jpRender(flash) {
   $('#jpList').innerHTML = jp.players.length ? jp.players.slice().sort((a, b) => b.sum - a.sum).map(p => `
     <div class="jp-row${p.me ? ' me' : ''}${p.name === flash ? ' flash' : ''}${jp.winner === p && jp.phase === 'done' ? ' won' : ''}" style="--pc:${p.color}">
       <i class="jp-dot"></i>${ava({ name: p.name, ava: p.ava }, 'xs')}
-      <div class="jp-n"><b>${esc(p.name)}${p.me ? ' (вы)' : ''}</b><span>${money(p.sum)} · ${p.items.length} предм.</span></div>
+      <div class="jp-n"><b>${plink(p.uid, esc(p.name))}${p.me ? ' (вы)' : ''}</b><span>${money(p.sum)} · ${p.items.length} предм.</span></div>
       <div class="jp-items">${p.items.slice(0, 4).map(s => `<img class="r-${s.r}" src="${imgUrl(s, 'm')}" alt="" title="${esc(s.name)} — ${money(s.p)}">`).join('')}${p.items.length > 4 ? `<em>+${p.items.length - 4}</em>` : ''}</div>
       <b class="jp-pct">${(p.sum / total * 100).toFixed(1)}%</b>
     </div>`).join('') : `<div class="empty">${ic.users}Пока никто не поставил. Сделайте первую ставку — запустится таймер на ${jp.cfg.time} секунд.</div>`;
@@ -4372,7 +4435,7 @@ function admFetch(force) {
   const hours = (t - f) / 36e5 <= 48, bucket = hours ? 'hour' : 'day', args = { p_from: f.toISOString(), p_to: t.toISOString() };
   const p = Promise.all([
     sb.rpc('admin_period', { ...args, p_bucket: bucket }), sb.rpc('admin_upg', { ...args, p_bucket: bucket }), sb.rpc('admin_bets', { ...args, p_bucket: bucket }),
-    sb.rpc('admin_cases_period', args), sb.rpc('admin_stats'), sb.from('profiles').select('id, name, data, created_at, is_admin')
+    sb.rpc('admin_cases_period', args), sb.rpc('admin_stats'), sb.from('profiles').select('id, pid, name, data, created_at, is_admin, steamid')
   ]).then(([per, upg, bets, cp, snap, prof]) => {
     if (per.error) throw per.error;
     const by = (arr) => Object.fromEntries((arr || []).map(r => [String(r.t), r]));
@@ -4391,19 +4454,19 @@ function admFetch(force) {
     // игроки и деньги «сейчас» — по профилям (цены скинов из каталога)
     const P = it => (SK[it.n] && SK[it.n].p) || 0;
     let bal = 0, hold = 0, holdN = 0, depAll = 0, outAll = 0;
-    const players = [], csAll = {};
+    const players = [], csAll = {}, outs = [];
     for (const p of prof.data || []) {
       const d = p.data || {}, inv = d.inv || [], s = d.stats || {};
       let pOut = 0, pHold = 0;
-      for (const it of inv) { if (it.st === 'out' || it.st === 'pend') pOut += P(it); else if (it.st === 'own' || it.st === 'bet') { pHold += P(it); holdN++; } }
+      for (const it of inv) { if (it.st === 'out' || it.st === 'pend') { pOut += P(it); outs.push({ uid: p.id, pid: p.pid, name: p.name, steamid: p.steamid, trade: d.trade || '', n: it.n, p: P(it), ts: +(it.ot || it.ts) || 0, exact: !!it.ot }); } else if (it.st === 'own' || it.st === 'bet') { pHold += P(it); holdN++; } }
       bal += +d.balance || 0; hold += pHold; depAll += +s.dep || 0; outAll += pOut;
       if (s.cs) for (const [id, v] of Object.entries(s.cs)) { const k = csAll[id] = csAll[id] || { n: 0, spent: 0, won: 0 }; k.n += +v.n || 0; k.spent += +v.spent || 0; k.won += +v.won || 0; }
-      players.push({ id: p.id, name: p.name, admin: p.is_admin, reg: p.created_at, dep: +s.dep || 0, spent: +s.spent || 0, opened: +s.opened || 0, out: pOut, bal: +d.balance || 0, hold: pHold, profit: (+s.dep || 0) - pOut - (+d.balance || 0) - pHold });
+      players.push({ id: p.id, pid: p.pid, name: p.name, admin: p.is_admin, reg: p.created_at, dep: +s.dep || 0, spent: +s.spent || 0, opened: +s.opened || 0, out: pOut, bal: +d.balance || 0, hold: pHold, profit: (+s.dep || 0) - pOut - (+d.balance || 0) - pHold });
     }
     const T = per.data.total, UT = (upg.data && upg.data.total) || {}, BT = (bets.data && bets.data.total) || {};
     const cases = +T.spent - +T.won, upgP = (+UT.stake || 0) - (+UT.won || 0), betsP = +BT.profit || 0;
     return { hours, f, t, rows, T, UT, UX: (upg.data && upg.data.byX) || [], BT, cp: cp.data || [], cpErr: cp.error, betsErr: bets.error, snap: snap.data || {},
-      now: { bal, hold, holdN, depAll, outAll, net: depAll - outAll - bal - hold }, players, csAll,
+      now: { bal, hold, holdN, depAll, outAll, net: depAll - outAll - bal - hold }, players, csAll, outs,
       sum: { cases, upgP, betsP, game: cases + upgP + betsP } };
   });
   admData = { key, at: Date.now(), p }; p.catch(() => { admData = null; });
@@ -4424,10 +4487,10 @@ function axBars(rows, val, o = {}) {
     <div class="ax-y"><span style="top:0">${fa(mp)}</span><span style="top:${(z * 100).toFixed(2)}%">0</span>${mn ? `<span style="top:100%">${fa(-mn)}</span>` : ''}</div>
     <div class="ax-plot"><i class="ax-zero"></i>${rows.map((r, i) => { const v = vs[i], h = Math.abs(v) / span * 100, up = v >= 0;
       const mk = best.has(i) ? `<em class="ax-mk pos" style="${up ? `bottom:${((1 - z) * 100 + h).toFixed(2)}%` : ''}">${f(v)}</em>` : worst.has(i) ? `<em class="ax-mk neg" style="top:${(z * 100 + h).toFixed(2)}%">${f(v)}</em>` : '';
-      return `<div class="ax-col${best.has(i) ? ' best' : ''}${worst.has(i) ? ' worst' : ''}" tabindex="0">
+      return `<div class="ax-col${best.has(i) ? ' best' : ''}${worst.has(i) ? ' worst' : ''}${v < 0 ? ' loss' : ''}${o.day ? ' click' : ''}" tabindex="0"${o.day ? ` data-day="${r.t}"` : ''}>
         <i class="ax-bar ${up ? 'up' : 'dn'}" style="${up ? `bottom:${((1 - z) * 100).toFixed(2)}%` : `top:${(z * 100).toFixed(2)}%`};height:${Math.max(v ? .6 : 0, h).toFixed(2)}%;animation-delay:${Math.min(i * 14, 600)}ms"></i>${mk}
         <span class="ax-x">${i % step ? '' : r.lbl}</span>
-        <div class="ax-tip"><b>${r.full}</b>${(o.tip ? o.tip(r) : [[o.name || 'Значение', f(v)]]).map(([a, b]) => `<span>${a}<i>${b}</i></span>`).join('')}</div></div>`; }).join('')}</div></div>`;
+        <div class="ax-tip"><b>${r.full}</b>${(o.tip ? o.tip(r) : [[o.name || 'Значение', f(v)]]).map(([a, b]) => `<span>${a}<i>${b}</i></span>`).join('')}${o.day ? `<em>${v < 0 ? 'Нажмите — разобрать убыток' : 'Нажмите — весь день'}</em>` : ''}</div></div>`; }).join('')}</div></div>`;
 }
 /* линии (онлайн): рисуются слева направо */
 function axLine(rows, series) {
@@ -4450,7 +4513,7 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Деньги'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['players', 'Игроки'], ['tours', 'Турниры']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['shop', 'Управление витриной'], ['tours', 'Турниры']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -4467,6 +4530,7 @@ async function admTabData(box, render) {
   let D; try { D = await admFetch(); } catch (e) { return (box.innerHTML = admErr(e) + '<div class="ax-empty">Нужны supabase/stats.sql, admin2.sql, admin_bets.sql, stats_cases.sql.</div>'); }
   if (!$('#admBody') || box !== $('#admBody')) return;
   render(box, D);
+  $$('.ax-col[data-day]', box).forEach(c => c.onclick = () => admDayView(c.dataset.day));
 }
 function axDash(box, D) {
   const T = D.T, s = D.sum, days = D.rows.filter(r => r.game);
@@ -4481,14 +4545,15 @@ function axDash(box, D) {
   if (lossDays) hot.push(`Убыточных ${D.hours ? 'часов' : 'дней'} за период: <b class="neg">${lossDays}</b>`);
   box.innerHTML = `
     <div class="ax-kpis">
-      ${axKpi('Игровая прибыль', sgn(s.game), 'кейсы + апгрейд + ставки', tone(s.game))}
-      ${axKpi('Пополнения', money(+T.dep), `${fmt(T.depN)} платежей`)}
-      ${axKpi('Выведено в Steam', money(+T.out), `${fmt(T.outN)} предм.`)}
+      ${axKpi('Чистая прибыль', sgn(D.now.net), 'за всё время: пополнения − выводы − балансы − скины игроков', tone(D.now.net))}
+      ${axKpi('Игровая прибыль', sgn(s.game), 'за период: кейсы + апгрейд + ставки', tone(s.game))}
+      ${axKpi('Пополнения', money(+T.dep), `${fmt(T.depN)} платежей за период`)}
+      ${axKpi('Выведено в Steam', money(+T.out), `${fmt(T.outN)} предм. за период`)}
       ${axKpi('Онлайн сейчас', fmt(+D.snap.online || 0), `пик за период ${fmt(T.peak)}`)}
       ${axKpi('Новые игроки', fmt(+T.reg), `всего ${fmt(+D.snap.users || 0)}`)}
-      ${axKpi('На балансах игроков', money(D.now.bal), `и скинов на ${money(D.now.hold)}`)}
     </div>
-    ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { name: 'Прибыль', tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }),
+    ${axCaseDuo(D)}
+    ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { day: !D.hours, name: 'Прибыль', tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }),
       `<div class="ax-note">${best ? `лучший <b class="pos">${best.full} ${sgn(best.game)}</b>` : ''}${worst && worst.game < 0 ? ` · худший <b class="neg">${worst.full} ${sgn(worst.game)}</b>` : ''}</div>`)}
     <div class="ax-g2">
       ${axCard('Из чего прибыль', `<div class="ax-split">${[['Кейсы', s.cases, +T.spent, +T.won, `${fmt(T.opens)} откр.`], ['Апгрейд', s.upgP, +D.UT.stake || 0, +D.UT.won || 0, `${fmt(D.UT.n || 0)} попыток`], ['Ставки', s.betsP, +D.BT.bets || 0, 0, `${fmt(D.BT.live || 0)} раундов с игроками`]]
@@ -4496,6 +4561,17 @@ function axDash(box, D) {
         <div class="ax-sr ax-sr-t"><span>Итого</span><span></span><b class="num ${tone(s.game)}">${sgn(s.game)}</b></div></div>`)}
       ${axCard('Требует внимания', hot.length ? `<ul class="ax-warn">${hot.slice(0, 8).map(h => `<li>${h}</li>`).join('')}</ul>` : '<div class="ax-empty ok">Всё в порядке</div>')}
     </div>`;
+}
+/* самый убыточный (больше всех отдал сверх потраченного) и самый популярный кейс: за период, если нет открытий — за всё время */
+function axCaseDuo(D) {
+  let src = D.cp.map(r => ({ id: r.c, n: +r.n, spent: +r.spent, won: +r.won })), lbl = 'за период';
+  if (!src.length) { src = Object.entries(D.csAll).map(([id, k]) => ({ id, n: k.n, spent: k.spent, won: k.won })); lbl = 'за всё время'; }
+  src = src.filter(r => { const c = caseById(r.id); return c && !c.rc && r.spent > 0; });
+  if (!src.length) return '';
+  const sig = src.filter(r => r.n >= 5), worst = (sig.length ? sig : src).slice().sort((a, b) => (b.won - b.spent) - (a.won - a.spent))[0], pop = src.slice().sort((a, b) => b.n - a.n)[0];
+  const card = (t, r, line, cls) => { const c = caseById(r.id); return `<a class="ax-case ${cls}" href="#/case/${c.id}"><img src="${caseThumb(c)}" alt=""><span><small>${t} · ${lbl}</small><b>${esc(c.name)}</b><em>${line}</em></span></a>`; };
+  return `<div class="ax-g2 ax-duo">${card('Самый убыточный кейс', worst, `отдал ${pctS(worst.won / worst.spent)} · ${sgn(worst.spent - worst.won)} для сайта · ${fmt(worst.n)} откр.`, worst.won > worst.spent ? 'bad' : '')}
+    ${card('Самый популярный кейс', pop, `${fmt(pop.n)} открытий · потрачено ${money(pop.spent)} · отдаёт ${pctS(pop.won / pop.spent)}`, '')}</div>`;
 }
 const upgOr = D => (+D.UT.stake || 0) - (+D.UT.won || 0);
 function axMoney(box, D) {
@@ -4509,8 +4585,8 @@ function axMoney(box, D) {
       ${axKpi('Начислено админом', sgn(+T.grants), 'начисления минус списания за период')}
       ${axKpi('Чистая прибыль', sgn(N.net), 'за всё время: пополнения − выводы − балансы − скины игроков', tone(N.net))}
     </div>
-    ${axCard(`Пополнения − выводы по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.flow, { tip: r => [['Пополнения', money(r.dep)], ['Выведено', money(r.out)], ['Разница', sgn(r.flow)]] }))}
-    ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }))}
+    ${axCard(`Пополнения − выводы по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.flow, { day: !D.hours, tip: r => [['Пополнения', money(r.dep)], ['Выведено', money(r.out)], ['Разница', sgn(r.flow)]] }))}
+    ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { day: !D.hours, tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }))}
     ${axCard('Обязательства перед игроками — сейчас', `<div class="ax-split">
       <div class="ax-sr"><span>На балансах игроков<small>рубли, которые игроки могут потратить</small></span><span></span><b class="num">${money(N.bal)}</b></div>
       <div class="ax-sr"><span>Скины в инвентарях<small>${fmt(N.holdN)} предм. по ценам каталога</small></span><span></span><b class="num">${money(N.hold)}</b></div>
@@ -4553,8 +4629,7 @@ function axCases(box, D) {
       ['Открытий', r => fmt(r.n), num], ['Игроков', r => fmt(r.players), num], ['Потрачено', r => money(r.spent), num], ['Выдано', r => money(r.won), num], ['Отдаёт', r => r.spent ? pctS(r.won / r.spent) : '—', r => 'num ' + (r.spent && r.won > r.spent ? 'neg' : '')], ['Прибыль', r => r.spent ? sgn(r.profit) : '—', tn('profit')],
       ['Всего откр.', r => fmt(r.an), 'num sep'], ['Отдаёт всего', r => r.aSpent ? pctS(r.aWon / r.aSpent) : '—', r => 'num ' + (r.aSpent && r.aWon > r.aSpent ? 'neg' : '')], ['Прибыль всего', r => r.aSpent ? sgn(r.aProfit) : '—', tn('aProfit')]], list),
       free > 1 ? `<div class="ax-note">ещё ${money(free)} — открытия до включения учёта по кейсам</div>` : '')}
-    <h2 class="ax-h2">Управление кейсами</h2><div id="axCasesMgr"></div>`;
-  admCases($('#axCasesMgr', box));
+    <p class="ax-foot">Изменить кейсы, разделы, метки и порядок — во вкладке «Управление витриной».</p>`;
 }
 function axBets(box, D) {
   const B = D.BT;
@@ -4568,7 +4643,7 @@ function axBets(box, D) {
       ${axKpi('Прибыль со ставок', sgn(+B.profit || 0), 'боты — это сайт', tone(+B.profit || 0))}
       ${axKpi('Самый большой банк', money(+B.maxPot || 0))}
     </div>
-    ${axCard(`Прибыль со ставок по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.betsP, { tip: r => [['Раундов с игроками', fmt(r.bLive)], ['Ставки игроков', money(r.bBets)], ['Побед игроков', fmt(r.bWins)], ['Прибыль', sgn(r.betsP)]] }))}
+    ${axCard(`Прибыль со ставок по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.betsP, { day: !D.hours, tip: r => [['Раундов с игроками', fmt(r.bLive)], ['Ставки игроков', money(r.bBets)], ['Побед игроков', fmt(r.bWins)], ['Прибыль', sgn(r.betsP)]] }))}
     ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Раундов', r => fmt(r.bRounds), num], ['С игроками', r => fmt(r.bLive), num], ['Игроков', r => fmt(r.bPlayers), num], ['Ставки игроков', r => money(r.bBets), num], ['Побед игроков', r => fmt(r.bWins), num], ['Прибыль', r => sgn(r.betsP), tn('betsP')]],
       D.rows.slice().reverse(), { full: 'Итого', bRounds: +B.rounds || 0, bLive: +B.live || 0, bPlayers: +B.players || 0, bBets: +B.bets || 0, bWins: +B.pwins || 0, betsP: +B.profit || 0 }))}
     <p class="ax-foot">Прибыль раунда: выиграл бот — сайту ставки игроков; выиграл игрок — ставки игроков минус весь банк.</p>`;
@@ -4585,7 +4660,7 @@ function axUpg(box, D) {
       ${axKpi('Прибыль с апгрейда', sgn(pr), '', tone(pr))}
       ${axKpi('Крупнейший выигрыш', money(+U.maxWin || 0), +U.maxX ? `×${(+U.maxX).toFixed(1).replace('.', ',')}` : '')}
     </div>
-    ${axCard(`Прибыль с апгрейда по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.upgP, { tip: r => [['Попыток', fmt(r.uN)], ['Побед', fmt(r.uWins)], ['Поставлено', money(r.uStake)], ['Выдано', money(r.uWon)], ['Прибыль', sgn(r.upgP)]] }))}
+    ${axCard(`Прибыль с апгрейда по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.upgP, { day: !D.hours, tip: r => [['Попыток', fmt(r.uN)], ['Побед', fmt(r.uWins)], ['Поставлено', money(r.uStake)], ['Выдано', money(r.uWon)], ['Прибыль', sgn(r.upgP)]] }))}
     <div class="ax-g2">
       ${axCard('По множителям', axTable([['Множитель', r => band(+r.lo)], ['Попыток', r => fmt(r.n), num], ['Побед', r => pctOr(+r.wins, +r.n), num], ['Отдаёт', r => pctOr(+r.won, +r.stake), r => 'num ' + (+r.won > +r.stake ? 'neg' : '')], ['Прибыль', r => sgn(+r.stake - +r.won), r => 'num ' + tone(+r.stake - +r.won)]], D.UX))}
       ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Попыток', r => fmt(r.uN), num], ['Побед', r => fmt(r.uWins), num], ['Поставлено', r => money(r.uStake), num], ['Прибыль', r => sgn(r.upgP), tn('upgP')]], D.rows.filter(r => r.uN).reverse()))}
@@ -4603,16 +4678,75 @@ function axPlayers(box, D) {
       ${axKpi('На балансах', money(N.bal))}
       ${axKpi('Прибыль с игроков', sgn(N.net), 'пополнили − вывели − балансы − скины', tone(N.net))}
     </div>
-    ${axCard('Игроки по прибыли для сайта — за всё время', axTable([['Игрок', r => `${esc(r.name)}${r.admin ? ' <i class="ax-tag">админ</i>' : ''}`], ['Пополнил', r => money(r.dep), num], ['Потратил на кейсы', r => money(r.spent), num], ['Открыл', r => fmt(r.opened), num], ['Вывел', r => money(r.out), num], ['Баланс', r => money(r.bal), num], ['Скины', r => money(r.hold), num], ['Прибыль сайта', r => sgn(r.profit), tn('profit')], ['С нами с', r => new Date(r.reg).toLocaleDateString('ru-RU'), 'num']], top.slice(0, 50)))}
+    ${axCard('Игроки по прибыли для сайта — за всё время', axTable([['Игрок', r => `${plink(r.pid, esc(r.name))}${r.admin ? ' <i class="ax-tag">админ</i>' : ''}`], ['Пополнил', r => money(r.dep), num], ['Потратил на кейсы', r => money(r.spent), num], ['Открыл', r => fmt(r.opened), num], ['Вывел', r => money(r.out), num], ['Баланс', r => money(r.bal), num], ['Скины', r => money(r.hold), num], ['Прибыль сайта', r => sgn(r.profit), tn('profit')], ['С нами с', r => new Date(r.reg).toLocaleDateString('ru-RU'), 'num']], top.slice(0, 50)))}
     <h2 class="ax-h2">Поиск и управление</h2><div id="axPlayersMgr"></div>`;
   admPlayers($('#axPlayersMgr', box));
+}
+/* ---------- день целиком: клик по дню на графике → всё за этот день (по часам), разбор, если день убыточный ---------- */
+async function admDayView(t0) {
+  const f = new Date(t0), t = new Date(+f + 864e5), args = { p_from: f.toISOString(), p_to: t.toISOString() };
+  const ttl = `${pad(f.getUTCDate())}.${pad(f.getUTCMonth() + 1)}.${f.getUTCFullYear()}`;
+  const m = modal(`<div class="ax ax-day"><h2>${ttl}</h2><div id="axDayB"><div class="ax-load"><span class="spinner"></span>Считаем день…</div></div></div>`, 'm-axday');
+  const [per, upg, bets, cp, top] = await Promise.all([sb.rpc('admin_period', { ...args, p_bucket: 'hour' }), sb.rpc('admin_upg', { ...args, p_bucket: 'hour' }), sb.rpc('admin_bets', { ...args, p_bucket: 'hour' }), sb.rpc('admin_cases_period', args), sb.rpc('admin_day_top', args)]);
+  const box = $('#axDayB', m); if (!box) return;
+  if (per.error) return (box.innerHTML = admErr(per.error));
+  const T = per.data.total, U = (upg.data && upg.data.total) || {}, B = (bets.data && bets.data.total) || {};
+  const by = a => Object.fromEntries((a || []).map(r => [String(r.t), r])), UB = by(upg.data && upg.data.series), BB = by(bets.data && bets.data.series);
+  const rows = (per.data.series || []).map(r => { const u = UB[String(r.t)] || {}, b = BB[String(r.t)] || {}, cases = +r.spent - +r.won, upgP = (+u.stake || 0) - (+u.won || 0), betsP = +b.profit || 0;
+    const d = new Date(r.t); return { t: r.t, lbl: pad(d.getHours()), full: `${pad(d.getHours())}:00–${pad(d.getHours() + 1 === 24 ? 0 : d.getHours() + 1)}:00`, cases, upgP, betsP, game: cases + upgP + betsP }; });
+  const cases = +T.spent - +T.won, upgP = (+U.stake || 0) - (+U.won || 0), betsP = +B.profit || 0, game = cases + upgP + betsP;
+  const cl = (cp.data || []).map(r => ({ c: caseById(r.c), id: r.c, n: +r.n, players: +r.players, spent: +r.spent, won: +r.won, profit: +r.spent - +r.won })).sort((a, b) => a.profit - b.profit);
+  // разбор: из чего сложился минус
+  let why = '';
+  if (game < 0) {
+    const parts = [['Кейсы', cases], ['Апгрейд', upgP], ['Ставки', betsP]].filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1]);
+    const badCases = cl.filter(r => r.profit < 0).slice(0, 5);
+    const tips = [];
+    parts.forEach(([n, v]) => tips.push(`<b>${n}</b> в минусе на <b class="neg">${money(-v)}</b> — ${Math.round(-v / -game * 100)}% от убытка дня`));
+    badCases.forEach(r => tips.push(`Кейс <b>${esc(r.c ? r.c.name : r.id)}</b>: открыли ${fmt(r.n)} раз, отдал <b class="neg">${pctS(r.won / (r.spent || 1))}</b> (${sgn(r.profit)}) — проверьте наполнение и удачу`));
+    if (upgP < 0 && +U.n) tips.push(`Апгрейд: ${fmt(U.n)} попыток, побед ${pctS((+U.wins || 0) / (+U.n || 1))} — сравните с вкладкой «Апгрейд» по множителям`);
+    (top.data || []).slice(0, 3).forEach(w => tips.push(`Крупный выигрыш: ${plink(w.pid, esc(w.name || 'игрок'))} — ${w.kind === 'upg' ? `апгрейд ×${(+w.x).toFixed(1).replace('.', ',')}` : `кейс «${esc((caseById(w.c) || {}).name || w.c || '')}»`} ${sgn(-w.net)} для сайта`));
+    if (!tips.length) tips.push('Минус небольшой и без одной явной причины — это обычный разброс.');
+    why = `<section class="ax-card ax-why"><header class="ax-ch"><h3>Разбор: почему день в минусе</h3></header><ul class="ax-warn">${tips.map(x => `<li>${x}</li>`).join('')}</ul></section>`;
+  }
+  box.innerHTML = `
+    <div class="ax-kpis">
+      ${axKpi('Игровая прибыль', sgn(game), '', tone(game))}${axKpi('Кейсы', sgn(cases), `${fmt(T.opens)} откр. · отдают ${pctOr(+T.won, +T.spent)}`, tone(cases))}
+      ${axKpi('Апгрейд', sgn(upgP), `${fmt(+U.n || 0)} попыток · побед ${pctOr(+U.wins || 0, +U.n || 0)}`, tone(upgP))}${axKpi('Ставки', sgn(betsP), `${fmt(+B.live || 0)} раундов с игроками`, tone(betsP))}
+      ${axKpi('Пополнения', money(+T.dep), `${fmt(T.depN)} платежей`)}${axKpi('Выведено в Steam', money(+T.out), `${fmt(T.outN)} предм.`)}
+    </div>
+    <div class="ax-kpis ax-kpis-s">${axKpi('Пик онлайна', fmt(T.peak))}${axKpi('Посетители', fmt(T.visitors))}${axKpi('Игроки', fmt(T.players))}${axKpi('Регистрации', fmt(T.reg))}${axKpi('Ставки игроков', money(+B.bets || 0))}${axKpi('Начислено админом', sgn(+T.grants))}</div>
+    ${why}
+    ${axCard('Игровая прибыль по часам', axBars(rows, r => r.game, { marks: 2, tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }))}
+    ${axCard('Кейсы за день — сколько отдал и сколько забрал', axTable([['Кейс', r => r.c ? `<span class="ax-cs"><img src="${caseThumb(r.c)}" alt="">${esc(r.c.name)}</span>` : esc(r.id)], ['Открытий', r => fmt(r.n), num], ['Игроков', r => fmt(r.players), num], ['Забрал у игроков', r => money(r.spent), num], ['Отдал игрокам', r => money(r.won), num], ['Отдаёт', r => pctS(r.won / (r.spent || 1)), r => 'num ' + (r.won > r.spent ? 'neg' : '')], ['Итог для сайта', r => sgn(r.profit), tn('profit')]], cl.slice().sort((a, b) => b.spent - a.spent)))}
+    ${(top.data || []).length ? axCard('Крупнейшие выигрыши игроков', axTable([['Время', r => new Date(r.ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })], ['Игрок', r => plink(r.pid, esc(r.name || '—'))], ['Где', r => r.kind === 'upg' ? `апгрейд ×${(+r.x).toFixed(1).replace('.', ',')}` : `кейс «${esc((caseById(r.c) || {}).name || r.c || '')}»${+r.x > 1 ? ' ×' + r.x : ''}`], ['Поставил', r => money(+r.amount), num], ['Получил', r => money(+r.won), num], ['Для сайта', r => sgn(-r.net), 'num neg']], top.data)) : ''}`;
+}
+/* ---------- выводы в Steam: заявки игроков с трейд-ссылкой и Steam-профилем ---------- */
+function axOut(box, D) {
+  const [f, t] = [D.f, D.t];
+  const all = D.outs.slice().sort((a, b) => b.ts - a.ts), inP = all.filter(o => o.ts >= +f && o.ts < +t);
+  box.innerHTML = `
+    <div class="ax-kpis">
+      ${axKpi('Выводов за период', fmt(inP.length), money(inP.reduce((a, o) => a + o.p, 0)))}
+      ${axKpi('Выводов всего', fmt(all.length), money(all.reduce((a, o) => a + o.p, 0)))}
+      ${axKpi('Игроков выводило', fmt(new Set(all.map(o => o.uid)).size))}
+      ${axKpi('Без трейд-ссылки', fmt(all.filter(o => !o.trade).length), 'у игрока ссылка удалена')}
+      ${axKpi('Средний вывод', all.length ? money(all.reduce((a, o) => a + o.p, 0) / all.length) : '—')}
+      ${axKpi('Крупнейший', all.length ? money(Math.max(...all.map(o => o.p))) : '—')}
+    </div>
+    ${axCard('Предметы, выведенные в Steam', axTable([['Дата', r => new Date(r.ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + (r.exact ? '' : ' <i class="ax-tag" title="время дропа: заявка сделана до учёта времени вывода">≈</i>')],
+      ['Игрок', r => plink(r.pid, esc(r.name)) + (r.pid ? ` <i class="ax-tag">#${r.pid}</i>` : '')], ['Предмет', r => { const s = SK[r.n]; return s ? `<span class="ax-cs"><img src="${imgUrl(s, 's')}" alt="">${esc(s.name)}</span>` : esc(r.n); }], ['Цена', r => money(r.p), num],
+      ['Трейд-ссылка', r => r.trade ? `<span class="ax-acts"><a class="ax-btn ax-sm" href="${esc(r.trade)}" target="_blank" rel="noopener">Открыть</a><button class="ax-btn ax-sm" data-act="copy" data-copy="${esc(r.trade)}">Копировать</button></span>` : '<span class="neg">нет ссылки</span>'],
+      ['Steam', r => r.steamid ? `<a class="ax-btn ax-sm" href="https://steamcommunity.com/profiles/${encodeURIComponent(r.steamid)}" target="_blank" rel="noopener">Профиль</a>` : '<span class="ax-mute">вход по почте</span>']], all))}
+    <p class="ax-foot">Автовывода через Lis-Skins пока нет: предметы отправляются вручную по трейд-ссылке. «≈» — у старых заявок время вывода не записывалось, показано время дропа.</p>`;
 }
 function admDraw() {
   const box = $('#admBody'); if (!box) return;
   $$('#admTabs [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === admTab));
   if (!sb) return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
-  const R = { dash: axDash, money: axMoney, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, players: axPlayers };
+  const R = { dash: axDash, money: axMoney, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, out: axOut, players: axPlayers };
   if (admTab === 'tours') return admTours(box);
+  if (admTab === 'shop') return admCases(box);
   admTabData(box, R[admTab] || axDash);
 }
 /* ---------- выгрузка статистики в Excel (.xlsx, библиотека SheetJS грузится по кнопке) ---------- */
@@ -4977,7 +5111,7 @@ async function admPlayers(box) {
     const ago = ts => { const m = (Date.now() - Date.parse(ts)) / 60000; return m < 10 ? '<em class="on">онлайн</em>' : m < 60 ? Math.round(m) + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : new Date(ts).toLocaleDateString('ru-RU'); };
     list.innerHTML = `<div class="adm-tbl"><div class="at-h"><span>Игрок</span><span>Баланс</span><span>Открыто</span><span>Потрачено</span><span>Удача</span><span>Был</span><span></span></div>
       ${data.map(p => `<div class="at-r" data-uid="${p.id}" data-name="${esc(p.name)}" data-luck="${+p.luck || 1}" data-pid="${p.pid || ''}">
-        <span class="at-u">${ava({ name: p.name }, 'xs')}<span><b>${p.pid ? `<i class="at-id">#${p.pid}</i>` : ''}${esc(p.name)}${p.is_admin ? ' <i class="at-adm">админ</i>' : ''}</b><small>${esc(p.email || '')} · с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</small></span></span>
+        <span class="at-u">${ava({ name: p.name }, 'xs')}<span><b>${p.pid ? `<i class="at-id">#${p.pid}</i>` : ''}${plink(p.pid, esc(p.name))}${p.is_admin ? ' <i class="at-adm">админ</i>' : ''}</b><small>${esc(p.email || '')} · с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</small></span></span>
         <span class="at-bal">${money(+p.balance)}<small>R ${rc(+p.rcoin)}</small></span><span>${fmt(+p.opened)}</span><span>${money(+p.spent)}</span><span><button class="at-luck${(+p.luck || 1) > 1 ? ' up' : (+p.luck || 1) < 1 ? ' dn' : ''}">×${(+p.luck || 1).toFixed(2).replace('.', ',')}</button></span><span>${ago(p.last_seen)}</span>
         <span><button class="btn btn-dark btn-sm at-give">${ic.plus}Начислить</button></span></div>`).join('')}</div>`;
     $$('.at-give', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admGive(r.dataset.uid, r.dataset.name, load); });
@@ -5237,7 +5371,7 @@ async function drawTeamTab(body) {
       <div class="tm-inv"><small>Ссылка-приглашение</small><div class="inp-row"><input class="inp" readonly value="${esc(link)}" id="tmLink"><button class="btn btn-primary" id="tmCopy">${ic.copy}Копировать</button></div>
         ${team.isCap ? `<button class="tm-newlink" id="tmNew">Сделать новую ссылку (старая перестанет работать)</button>` : ''}</div>
       <div class="tm-members">${team.members.map(x => { const p = P[x.uid] || { name: '?' }, cap = x.uid === team.captain; return `<div class="tm-mem${cap ? ' cap' : ''}">${ava(p, 'xs')}
-        <div class="tm-mem-n"><b>${esc(p.name)}${cap ? ` <i class="tm-cap">${ic.crown}капитан</i>` : ''}${x.uid === st.user.id ? ' <i class="tt-you">вы</i>' : ''}</b><small>ID ${p.pid || '—'}${p.steamid ? ` · <a href="${steamUrl(p.steamid)}" target="_blank" rel="noopener">Steam</a>` : ''}</small></div>
+        <div class="tm-mem-n"><b>${plink(p.pid || x.uid, esc(p.name))}${cap ? ` <i class="tm-cap">${ic.crown}капитан</i>` : ''}${x.uid === st.user.id ? ' <i class="tt-you">вы</i>' : ''}</b><small>ID ${p.pid || '—'}${p.steamid ? ` · <a href="${steamUrl(p.steamid)}" target="_blank" rel="noopener">Steam</a>` : ''}</small></div>
         ${team.isCap && !cap ? `<div class="tm-mem-a"><button class="btn btn-ghost btn-sm" data-cap="${x.uid}">Сделать капитаном</button><button class="btn btn-ghost btn-sm tm-kick" data-kick="${x.uid}">Исключить</button></div>` : ''}</div>`; }).join('')}</div>
       <div class="tm-foot">${team.isCap ? `<button class="btn btn-ghost btn-sm tm-kick" id="tmDisband">Расформировать команду</button>` : `<button class="btn btn-ghost btn-sm tm-kick" id="tmLeave">Покинуть команду</button>`}</div>
     </section>
@@ -5366,7 +5500,7 @@ async function admTourTeams(t, done) {
   const { data, error } = await sb.rpc('admin_tour_teams', { p_tour: t.id });
   if (error) { $('#atTeams', m).innerHTML = admErr(error); return; }
   const P = await players((data || []).flatMap(x => [...x.roster, ...x.subs]));
-  const row = (u, sub) => { const p = P[u] || { name: '?' }; return `<span class="at-pl${sub ? ' sub' : ''}">${ava(p, 'xs')}${esc(p.name)}${p.steamid ? ` <a href="${steamUrl(p.steamid)}" target="_blank" rel="noopener">${ic.steam}</a>` : ''}${sub ? ' <i>замена</i>' : ''}</span>`; };
+  const row = (u, sub) => { const p = P[u] || { name: '?' }; return `<span class="at-pl${sub ? ' sub' : ''}">${ava(p, 'xs')}${plink(p.pid || u, esc(p.name))}${p.steamid ? ` <a href="${steamUrl(p.steamid)}" target="_blank" rel="noopener">${ic.steam}</a>` : ''}${sub ? ' <i>замена</i>' : ''}</span>`; };
   $('#atTeams', m).innerHTML = (data || []).length ? data.map(x => `<div class="at-team">${teamLogo(x)}<div class="at-team-b"><b>${esc(x.name)} <small>[${esc(x.tag)}]</small></b>
       <span class="at-tg">${x.tg ? `${ic.tg}<a href="https://t.me/${esc(x.tg.replace(/^@/, ''))}" target="_blank" rel="noopener">${esc(x.tg)}</a>` : 'Telegram капитана не указан'}${x.roster.length < t.format ? ' · <b class="bad">неполный состав</b>' : ''}</span>
       <div class="at-pls">${x.roster.map(u => row(u)).join('')}${x.subs.map(u => row(u, true)).join('')}</div></div>
@@ -5377,7 +5511,7 @@ async function admTourTeams(t, done) {
 const ROUTES = {
   '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
-  tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin],
+  tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer],
 };
 function route() {
   clearTimers(); spinning = false; spinId++;
@@ -5388,11 +5522,11 @@ function route() {
   app.innerHTML = page(parts[1]);
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   if (mount) mount(parts[1]);
-  const navKey = key === '' || key === 'case' ? 'cases' : key === 'tournament' ? 'tournaments' : key;
+  const navKey = key === '' || key === 'case' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
