@@ -4423,10 +4423,11 @@ function admStats(box) {
   const [f, t] = admRangeDates();
   box.innerHTML = `<div class="adm-panel ast-bar">
       <div class="ast-presets">${[['today', 'Сегодня'], ['yest', 'Вчера'], ['7d', '7 дней'], ['30d', '30 дней'], ['90d', '90 дней'], ['all', 'Всё время']].map(([k, n]) => `<button data-k="${k}" class="${admRange.k === k ? 'on' : ''}">${n}</button>`).join('')}</div>
-      <div class="ast-custom"><span>Период</span><input class="inp" type="date" id="astFrom" value="${admIso(f)}"><i>—</i><input class="inp" type="date" id="astTo" value="${admIso(new Date(+t - 864e5))}"><button class="btn btn-primary btn-sm" id="astGo">Показать</button></div>
+      <div class="ast-custom"><span>Период</span><input class="inp" type="date" id="astFrom" value="${admIso(f)}"><i>—</i><input class="inp" type="date" id="astTo" value="${admIso(new Date(+t - 864e5))}"><button class="btn btn-primary btn-sm" id="astGo">Показать</button><button class="btn btn-primary btn-sm ast-xls" id="astXls" title="Выгрузить выбранный период в Excel">${ic.copy || ''}Excel</button></div>
     </div><div id="astBody"><div class="adm-load"><span class="spinner"></span>Считаем…</div></div>`;
   $$('.ast-presets [data-k]', box).forEach(b => b.onclick = () => { admRange = { k: b.dataset.k }; admStats(box); });
   $('#astGo', box).onclick = () => { const a = $('#astFrom', box).value, b = $('#astTo', box).value; if (!a || !b || a > b) return toast('Проверьте даты', 'err'); admRange = { k: 'custom', from: a, to: b }; admStats(box); };
+  $('#astXls', box).onclick = e => admXls(e.currentTarget);
   admStatsLoad(f, t);
 }
 async function admStatsLoad(f, t) {
@@ -4489,6 +4490,86 @@ async function admUpgLoad(f, t, hours, lbl) {
             <span class="act-rtp ${rt > 1 ? 'neg' : ''}"><i style="width:${Math.min(100, rt * 50).toFixed(0)}%"></i>${pctS(rt)}</span><span class="${p < 0 ? 'neg' : 'pos'}">${(p < 0 ? '−' : '+') + money(Math.abs(p))}</span></div>`; }).join('')}</div>`
           : '<div class="empty">Нет апгрейдов за период</div>'}</div>
     </div>`;
+}
+/* ---------- выгрузка статистики в Excel (.xlsx, библиотека SheetJS грузится по кнопке) ---------- */
+let xlsxLib = null;
+const loadXlsx = () => xlsxLib || (xlsxLib = new Promise((res, rej) => {
+  if (window.XLSX) return res(window.XLSX);
+  const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = () => res(window.XLSX); s.onerror = () => { xlsxLib = null; rej(new Error('не загрузилась библиотека Excel')); }; document.head.appendChild(s);
+}));
+async function admXls(btn) {
+  const [f, t] = admRangeDates(), hours = (t - f) / 36e5 <= 48, bucket = hours ? 'hour' : 'day';
+  const was = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Готовим…';
+  try {
+    const args = { p_from: f.toISOString(), p_to: t.toISOString() };
+    const [X, per, upg, cp, profs] = await Promise.all([
+      loadXlsx(), sb.rpc('admin_period', { ...args, p_bucket: bucket }), sb.rpc('admin_upg', { ...args, p_bucket: bucket }),
+      sb.rpc('admin_cases_period', args), sb.from('profiles').select('data')]);
+    if (per.error) throw per.error;
+    const T = per.data.total, S = per.data.series || [], U = (upg.data && upg.data.total) || {}, US = (upg.data && upg.data.series) || [], UX = (upg.data && upg.data.byX) || [];
+    const n = v => Math.round((+v || 0) * 100) / 100, pc = (a, b) => (+b ? n(+a / +b * 1e4) / 1e4 : null);
+    const d2 = x => { const d = new Date(x); return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`; };
+    const tl = x => { const d = new Date(x); return hours ? `${d2(x)} ${pad(d.getHours())}:00` : `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`; }; // сервер считает дни по UTC
+    const period = `${d2(f)} — ${d2(new Date(+t - 1))}`;
+    // форматы ячеек: деньги, проценты, целые
+    const RUB = '#,##0.00 "₽"', PCT = '0.0%', INT = '#,##0';
+    const sheet = (rows, fmts, widths) => {
+      const ws = X.utils.aoa_to_sheet(rows);
+      rows.forEach((r, i) => r.forEach((v, j) => { const z = typeof fmts === 'function' ? fmts(i, j, v) : fmts[j]; const c = ws[X.utils.encode_cell({ r: i, c: j })]; if (c && typeof v === 'number' && z) c.z = z; }));
+      ws['!cols'] = widths.map(w => ({ wch: w }));
+      return ws;
+    };
+    const wb = X.utils.book_new();
+    // 1) сводка
+    const profit = +T.dep - +T.out, cProfit = +T.spent - +T.won, uProfit = +U.stake - +U.won;
+    const sum = [['RUSH CASE — статистика', ''], ['Период', period], ['Выгружено', d2(new Date()) + ' ' + new Date().toLocaleTimeString('ru-RU')], ['Примечание', hours ? 'часы — по вашему времени' : 'дни на листе «По дням» — по UTC (Москва = UTC+3)'], [],
+      ['ОНЛАЙН', ''], ['Пик онлайна (одновременно)', +T.peak], ['Средний онлайн', +T.avg], ['Посетителей', +T.visitors], ['Игроков (с аккаунтом)', +T.players], ['Регистраций', +T.reg], [],
+      ['ДЕНЬГИ', ''], ['Пополнения', n(T.dep)], ['Пополнений, шт.', +T.depN], ['Средний чек', T.depN ? n(+T.dep / T.depN) : 0], ['Выведено в Steam', n(T.out)], ['Выводов, предм.', +T.outN],
+      ['Пополнения − выводы', n(profit)], ['Ставки (банк)', n(T.jp)], ['Начислено админом', n(T.grants)], [],
+      ['КЕЙСЫ', ''], ['Открытий', +T.opens], ['Потрачено на кейсы', n(T.spent)], ['Выдано из кейсов', n(T.won)], ['Кейсы отдают', pc(T.won, T.spent)], ['Прибыль с кейсов', n(cProfit)], [],
+      ['АПГРЕЙД', ''], ['Апгрейдов', +U.n || 0], ['Игроков', +U.players || 0], ['Побед', pc(U.wins, U.n)], ['Поставлено', n(U.stake)], ['Выдано', n(U.won)], ['Апгрейд отдаёт', pc(U.won, U.stake)], ['Прибыль с апгрейда', n(uProfit)], ['Крупнейший выигрыш', n(U.maxWin)]];
+    const moneyRows = new Set(['Пополнения', 'Средний чек', 'Выведено в Steam', 'Пополнения − выводы', 'Ставки (банк)', 'Начислено админом', 'Потрачено на кейсы', 'Выдано из кейсов', 'Прибыль с кейсов', 'Поставлено', 'Выдано', 'Прибыль с апгрейда', 'Крупнейший выигрыш']);
+    X.utils.book_append_sheet(wb, sheet(sum, (i, j) => j !== 1 ? null : moneyRows.has(sum[i][0]) ? RUB : /отда|Побед/.test(sum[i][0]) ? PCT : sum[i][0] === 'Средний онлайн' ? '0.0' : INT, [34, 26]), 'Сводка');
+    // 2) по дням / часам: онлайн, деньги, кейсы, апгрейд
+    const ux = Object.fromEntries(US.map(r => [String(r.t), r]));
+    const head = [hours ? 'Час' : 'День', 'Пик онлайна', 'Средний онлайн', 'Посетители', 'Игроки', 'Регистрации', 'Пополнения', 'Выведено в Steam', 'Пополнения − выводы', 'Потрачено на кейсы', 'Выдано из кейсов', 'Прибыль с кейсов', 'Кейсы отдают', 'Поставлено в апгрейд', 'Выдано апгрейдом', 'Прибыль с апгрейда'];
+    const rows = S.map(r => { const u = ux[String(r.t)] || {}; return [tl(r.t), +r.peak, +r.avg, +r.visitors, +r.players, +r.reg, n(r.dep), n(r.out), n(+r.dep - +r.out), n(r.spent), n(r.won), n(+r.spent - +r.won), pc(r.won, r.spent), n(u.stake), n(u.won), n(+(u.stake || 0) - +(u.won || 0))]; });
+    const tot = ['ИТОГО', +T.peak, +T.avg, +T.visitors, +T.players, +T.reg, n(T.dep), n(T.out), n(profit), n(T.spent), n(T.won), n(cProfit), pc(T.won, T.spent), n(U.stake), n(U.won), n(uProfit)];
+    const fm2 = [null, INT, '0.0', INT, INT, INT, RUB, RUB, RUB, RUB, RUB, RUB, PCT, RUB, RUB, RUB];
+    const ws2 = sheet([head, ...rows, tot], (i, j) => i ? fm2[j] : null, [hours ? 18 : 12, 12, 14, 12, 10, 12, 16, 16, 18, 18, 18, 16, 13, 18, 16, 18]);
+    ws2['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: head.length - 1 } }) };
+    X.utils.book_append_sheet(wb, ws2, hours ? 'По часам' : 'По дням');
+    // 3) кейсы: за период (по журналу открытий) + за всё время (по профилям игроков) + настройки
+    const per_ = Object.fromEntries(((cp.data) || []).map(r => [r.c, r]));
+    const all = {};
+    for (const p of (profs.data || [])) { const cs = p.data && p.data.stats && p.data.stats.cs; if (cs) for (const [id, v] of Object.entries(cs)) { const k = all[id] = all[id] || { n: 0, spent: 0, won: 0 }; k.n += +v.n || 0; k.spent += +v.spent || 0; k.won += +v.won || 0; } }
+    const blockName = c => { const b = CASE_BLOCKS.find(x => x.id === caseBlockId(c)); return b ? b.t : ''; };
+    const ch = ['Кейс', 'ID', 'Раздел', 'Цена', 'Статус', 'Удача', 'Расчётная окупаемость', 'Дороже кейса (шанс)',
+      'Открытий за период', 'Игроков за период', 'Потрачено за период', 'Выдано за период', 'Отдаёт за период', 'Прибыль за период',
+      'Открытий всего', 'Потрачено всего', 'Выдано всего', 'Отдаёт всего', 'Прибыль всего'];
+    const cr = CASES.slice().sort((a, b) => ((per_[b.id] && +per_[b.id].spent) || 0) - ((per_[a.id] && +per_[a.id].spent) || 0) || a.price - b.price).map(c => {
+      const p = per_[c.id] || {}, a = all[c.id] || {};
+      return [c.name, c.id, blockName(c), c.price, c.disabled ? 'закрыт' : 'открыт', c.luck || 1, n(caseRtp(c) * 1e4) / 1e4, n(caseWin(c) * 1e4) / 1e4,
+        +p.n || 0, +p.players || 0, n(p.spent), n(p.won), pc(p.won, p.spent), n((+p.spent || 0) - (+p.won || 0)),
+        +a.n || 0, n(a.spent), n(a.won), pc(a.won, a.spent), n((+a.spent || 0) - (+a.won || 0))];
+    });
+    const sp = (cp.data || []).reduce((x, r) => x + +r.spent, 0), wn = (cp.data || []).reduce((x, r) => x + +r.won, 0);
+    if (+T.spent - sp > 1) cr.push(['Без учёта кейса', '—', '', null, '', null, null, null, null, null, n(+T.spent - sp), n(+T.won - wn), pc(+T.won - wn, +T.spent - sp), n((+T.spent - sp) - (+T.won - wn)), null, null, null, null, null]);
+    const fm3 = [null, null, null, RUB, null, '0.00', PCT, PCT, INT, INT, RUB, RUB, PCT, RUB, INT, RUB, RUB, PCT, RUB];
+    const ws3 = sheet([ch, ...cr], (i, j, v) => i ? (j === 3 && CASES.find(c => c.name === cr[i - 1][0] && c.rc) ? '#,##0 "R-COIN"' : fm3[j]) : null, [22, 12, 22, 12, 9, 7, 13, 12, 12, 11, 14, 14, 12, 14, 12, 14, 14, 11, 14]);
+    ws3['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: cr.length, c: ch.length - 1 } }) };
+    X.utils.book_append_sheet(wb, ws3, 'Кейсы');
+    // 4) апгрейд по множителям
+    const band = lo => lo === 20 ? 'x20+' : `x${String(lo).replace('.', ',')}–${{ 1: '1,5', 1.5: '2', 2: '3', 3: '5', 5: '10', 10: '20' }[lo]}`;
+    const uh = ['Множитель', 'Попыток', 'Побед', '% побед', 'Поставлено', 'Выдано', 'Отдаёт', 'Прибыль'];
+    const ur = UX.map(r => [band(+r.lo), +r.n, +r.wins, pc(r.wins, r.n), n(r.stake), n(r.won), pc(r.won, r.stake), n(+r.stake - +r.won)]);
+    ur.push(['ИТОГО', +U.n || 0, +U.wins || 0, pc(U.wins, U.n), n(U.stake), n(U.won), pc(U.won, U.stake), n(uProfit)]);
+    X.utils.book_append_sheet(wb, sheet([uh, ...ur], (i, j) => i ? [null, INT, INT, PCT, RUB, RUB, PCT, RUB][j] : null, [12, 10, 10, 10, 16, 16, 10, 16]), 'Апгрейд');
+    X.writeFile(wb, `RUSH_CASE_статистика_${admIso(f)}_${admIso(new Date(+t - 1))}.xlsx`, { compression: true });
+    toast(`Выгружено: ${period}${cp.error ? ' · по кейсам за период нет данных — запустите supabase/stats_cases.sql' : ''}`, cp.error ? 'info' : undefined);
+  } catch (e) { toast('Не выгружено: ' + (e.message || e), 'err'); }
+  btn.disabled = false; btn.innerHTML = was;
 }
 // линейный график (SVG): несколько рядов
 function admLine(S, keys, lbl) {

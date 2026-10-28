@@ -97,8 +97,12 @@ create or replace function public._luck() returns numeric language sql stable as
 create or replace function public._live(p_n text, p_t text, p_c text, p_x numeric) returns void language sql as $$
   insert into public.live_drops (uid, name, n, t, c, x) select auth.uid(), p.name, p_n, p_t, p_c, round(least(p_x, 99999), 2) from public.profiles p where p.id = auth.uid()
 $$;
-create or replace function public._ev(p_kind text, p_amount numeric, p_won numeric default 0, p_x numeric default 0) returns void language sql as $$
-  insert into public.site_events (uid, sid, kind, amount, won, x) values (auth.uid(), 'srv-' || substr(auth.uid()::text, 1, 8), p_kind, greatest(0, round(p_amount, 2)), greatest(0, round(p_won, 2)), round(p_x, 2))
+-- p_c — id кейса (для открытий): статистика кейсов за любой период; p_x у открытия — сколько кейсов открыто разом
+alter table public.site_events add column if not exists c text;
+create index if not exists site_events_open_c on public.site_events (kind, ts, c);
+drop function if exists public._ev(text, numeric, numeric, numeric);
+create or replace function public._ev(p_kind text, p_amount numeric, p_won numeric default 0, p_x numeric default 0, p_c text default null) returns void language sql as $$
+  insert into public.site_events (uid, sid, kind, amount, won, x, c) values (auth.uid(), 'srv-' || substr(auth.uid()::text, 1, 8), p_kind, greatest(0, round(p_amount, 2)), greatest(0, round(p_won, 2)), round(p_x, 2), p_c)
 $$;
 
 -- ---------- кейсы ----------
@@ -151,7 +155,7 @@ begin
     d := jsonb_set(d, '{stats}', (d->'stats') || jsonb_build_object('cs', coalesce(d->'stats'->'cs', '{}'::jsonb) || jsonb_build_object(p_case,
       jsonb_build_object('n', (cst->>'n')::numeric + p_n, 'spent', (cst->>'spent')::numeric + cost, 'won', (cst->>'won')::numeric + won))));
     d := public._rc(d, cost * cs.rate, 'Кейс ' || p_case || case when p_n > 1 then ' ×' || p_n else '' end);
-    perform public._ev('open', cost, won);
+    perform public._ev('open', cost, won, p_n, p_case);
   end if;
   perform public._save(d);
   return jsonb_build_object('drops', drops, 'data', d);
@@ -388,7 +392,7 @@ begin
 end $$;
 
 -- ---------- права ----------
-revoke all on function public._me(), public._save(jsonb), public._live(text, text, text, numeric), public._ev(text, numeric, numeric, numeric) from public, anon, authenticated;
+revoke all on function public._me(), public._save(jsonb), public._live(text, text, text, numeric), public._ev(text, numeric, numeric, numeric, text) from public, anon, authenticated;
 grant execute on function public.open_case(text, int), public.sell_items(text[]), public.upgrade(text[], numeric, text), public.contract(text[]), public.withdraw(text),
   public.save_trade(text), public.claim_daily(), public.use_promo(text), public.claim_social(text), public.admin_sync(jsonb, jsonb, text) to authenticated;
 
@@ -409,3 +413,15 @@ begin
 end $$;
 revoke execute on function public.save_umults(numeric[]) from public, anon;
 grant execute on function public.save_umults(numeric[]) to authenticated;
+
+-- ---------- статистика кейсов за период (выгрузка в Excel): открытий, игроков, потрачено, выдано ----------
+create or replace function public.admin_cases_period(p_from timestamptz, p_to timestamptz) returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('c', c, 'n', n, 'calls', calls, 'players', players, 'spent', spent, 'won', won) order by spent desc) from (
+    select c, sum(greatest(x, 1)) n, count(*) calls, count(distinct uid) players, sum(amount) spent, sum(won) won
+    from public.site_events where kind = 'open' and c is not null and ts >= p_from and ts < p_to group by c) t), '[]'::jsonb);
+end $$;
+revoke all on function public.admin_cases_period(timestamptz, timestamptz) from public, anon;
+grant execute on function public.admin_cases_period(timestamptz, timestamptz) to authenticated;
