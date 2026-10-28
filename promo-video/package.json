@@ -2,6 +2,13 @@
   "name": "rush-case-promo",
   "private": true,
   "description": "RUSH CASE — рекламный ролик 9:16: съёмка реального сайта + 3D-композиция + звуковые эффекты",
-  "scripts": { "build": "node src/build.js" },
-  "dependencies": { "puppeteer-core": "^24.0.0", "sharp": "^0.33.5", "ffmpeg-static": "^5.2.0" }
+  "scripts": {
+    "build": "node src/build.js"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "msedge-tts": "^2.1.1",
+    "puppeteer-core": "^24.0.0",
+    "sharp": "^0.33.5"
+  }
 }
