@@ -1392,7 +1392,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
 const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
-const caseThumb = c => !c.img ? '' : c.custom ? c.img : c.img.replace(/\.webp$/, '-s.webp');
+const caseThumb = c => !c.img ? '' : c.custom || c.imgOv ? c.img : c.img.replace(/\.webp$/, '-s.webp');
 function caseArt(c, cls = '', badge = '') {
   // в витрине (без cls) — лёгкая копия картинки 440 px, на странице кейса — полная
   const src = c.img && !cls ? caseThumb(c) : c.img;
@@ -1792,10 +1792,10 @@ function pageHome() {
       <div class="sb-i"><span class="sb-ic">${ic.shield}</span><div><b>98.7%</b><span>Выплат</span></div></div>
     </div>
     <div class="home-secs">
-      ${secHead('Популярные кейсы', 'Открывают чаще всего', ic.fire, '#f3c14f', HOME_POP.length)}
-      <div class="cases-grid" id="popRow">${HOME_POP.map(caseById).filter(Boolean).map(caseCard).join('')}</div>
-      ${secHead('Новые кейсы', 'Свежие поступления', ic.star, '#ff6fb5', NEW_CASES.length)}
-      <div class="cases-grid" id="newRow">${NEW_CASES.map(caseById).filter(Boolean).map(caseCard).join('')}</div>
+      ${secHead('Популярные кейсы', 'Открывают чаще всего', ic.fire, '#f3c14f', homeHits().length)}
+      <div class="cases-grid" id="popRow">${homeHits().map(caseCard).join('')}</div>
+      ${secHead('Новые кейсы', 'Свежие поступления', ic.star, '#ff6fb5', homeNew().length)}
+      <div class="cases-grid" id="newRow">${homeNew().map(caseCard).join('')}</div>
       ${secHead('Бонусные кейсы', 'Открываются за R-COIN', RC_IMG, '#8be04e', casesRc().length)}
       <div class="cases-grid" id="bonusRow">${casesRc().map(caseCard).join('')}</div>
     </div>
@@ -1822,15 +1822,60 @@ const CASE_BLOCKS = [
   { id: 'clutch', wm: 'CLUTCH', t: 'CLUTCH', sub: 'Один против всех — редкий, но огромный дроп', ic: 'crown', a: '#8b5cf6', ids: ['1vs5'] },
   { id: 'maps', wm: 'MAPS', t: 'Кейсы карт', sub: 'Каждая карта CS2 — свой кейс: скины её коллекций и её стиль', ic: 'globe', a: '#d97706', ids: ['mirage'] }
 ];
-const blockCases = b => {
-  const listed = new Set(CASE_BLOCKS.flatMap(x => x.ids));
-  const extra = b.id === 'pop' ? CASES.filter(c => !listed.has(c.id) && !c.rc) : b.rc ? CASES.filter(c => c.rc && !listed.has(c.id)) : [];
-  return [...b.ids.map(caseById).filter(Boolean), ...extra];
-};
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
 const NEW_CASES = ['rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
+/* раздел, порядок и метки кейса: по умолчанию — из кода (CASE_BLOCKS, NEW_CASES, HOME_POP); админ-панель может поменять (site_cfg) */
+const DEF_BLOCK = {}, DEF_ORD = {};
+CASE_BLOCKS.forEach(b => b.ids.forEach((id, i) => { DEF_BLOCK[id] = b.id; DEF_ORD[id] = i; }));
+const caseBlockId = c => {
+  const id = c.block || DEF_BLOCK[c.id] || (c.rc ? 'bonusrc' : 'pop');
+  if (CASE_BLOCKS.some(b => b.id === id)) return id;
+  const b = CASE_BLOCKS.find(x => !!x.rc === !!c.rc) || CASE_BLOCKS[0]; return b && b.id; // раздел удалён — в первый подходящий
+};
+const caseOrd = c => c.ord != null ? c.ord : DEF_ORD[c.id] != null ? DEF_ORD[c.id] : 1000 + c.price / 1e7;
+const isNewCase = c => c.isNew != null ? !!c.isNew : NEW_CASES.includes(c.id);
+const isHitCase = c => c.hit != null ? !!c.hit : HOME_POP.includes(c.id);
+const blockCases = b => CASES.filter(c => caseBlockId(c) === b.id).sort((x, y) => caseOrd(x) - caseOrd(y));
+const listIdx = (L, c) => { const i = L.indexOf(c.id); return i < 0 ? -1 : i; };
+const homeHits = () => CASES.filter(c => isHitCase(c) && !c.rc).sort((x, y) => (listIdx(HOME_POP, x) - listIdx(HOME_POP, y)) || caseOrd(x) - caseOrd(y));
+const homeNew = () => CASES.filter(c => isNewCase(c) && !c.rc).sort((x, y) => (listIdx(NEW_CASES, x) - listIdx(NEW_CASES, y)) || x.price - y.price);
+/* правки кейсов из админ-панели: таблица site_cfg — 'case:<id>' (поля кейса) и 'blocks' (список разделов) */
+let caseCfg = {};
+const CASE_DEF = {}; // исходный кейс из кода — для сброса и сравнения
+function caseSetItems(c, list) { // [{ n, ch }] → предметы кейса, шансы нормируются
+  const its = list.map(x => SK[x.n] && { s: SK[x.n], ch: +x.ch }).filter(x => x && x.ch > 0);
+  if (its.length < 2) return false;
+  const tot = its.reduce((a, x) => a + x.ch, 0), fwRaw = its.map(x => Math.sqrt(x.ch / tot)), fs = fwRaw.reduce((a, b) => a + b, 0);
+  c.items = its.map((x, i) => ({ ...x.s, ...(c.exactR && c.exactR[x.s.name] ? { r: c.exactR[x.s.name] } : {}), ch: x.ch / tot, fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p);
+  c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
+  c.show = c.items.slice(0, 3).map(s => s.name);
+  return true;
+}
+function applyCaseCfg(c) {
+  const v = caseCfg[c.id] || {};
+  c.hit = v.hit; c.ord = v.ord;
+  if (c.custom) return; // у кейсов из панели остальное хранится в custom_cases
+  if (!CASE_DEF[c.id]) CASE_DEF[c.id] = { name: c.name, sub: c.sub || '', price: c.price, img: c.img, ar: c.ar, a: c.th.a, items: c.items.map(s => ({ n: s.name, ch: s.ch0 != null ? s.ch0 : s.ch })) };
+  const d = CASE_DEF[c.id];
+  c.name = v.name || d.name; c.sub = v.sub != null ? v.sub : d.sub; c.price = +v.price > 0 ? +v.price : d.price;
+  c.img = v.img || d.img; c.imgOv = !!v.img && v.img !== d.img; c.ar = v.img && v.ar ? v.ar : d.ar;
+  c.th = { ...c.th, a: v.a || d.a };
+  c.block = v.block; c.isNew = v.isNew;
+  if (v.items || c.itemsOv) caseSetItems(c, v.items || d.items);
+  c.itemsOv = !!v.items;
+}
+async function loadCaseCfg() {
+  if (!sb) return;
+  const { data, error } = await sb.from('site_cfg').select('k, v');
+  if (error || !data) return;
+  caseCfg = {};
+  data.forEach(r => { if (r.k.startsWith('case:')) caseCfg[r.k.slice(5)] = r.v || {}; });
+  const bl = data.find(r => r.k === 'blocks');
+  if (bl && Array.isArray(bl.v) && bl.v.length) CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...bl.v.map(b => ({ ...b, ids: [] })));
+  CASES.forEach(applyCaseCfg); CASES.sort((a, b) => a.price - b.price);
+}
 /* заголовок раздела: наклонная метка со значком, название с переливом, подпись, линия с бегущим огоньком, счётчик */
 const secHead = (t, sub, icon, a, n) => `<div class="sh" style="--bc:${a}">
   <span class="sh-tag">${icon}</span>
@@ -1847,7 +1892,7 @@ const caseBlock = (b, grp) => {
   </section>`;
 };
 const caseCard = c => `<a class="case-card${c.disabled ? ' cc-closed' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
-  <div class="cc-art">${caseArt(c, '', (NEW_CASES.includes(c.id) && !c.disabled ? '<span class="cc-new">Новое</span>' : '') + (c.disabled ? '<span class="cc-lock">Закончился</span>' : ''))}</div>
+  <div class="cc-art">${caseArt(c, '', (isNewCase(c) && !c.disabled ? '<span class="cc-new">Новое</span>' : '') + (isHitCase(c) && !c.disabled ? '<span class="cc-hit">Хит</span>' : '') + (c.disabled ? '<span class="cc-lock">Закончился</span>' : ''))}</div>
   <div class="cc-body">
     <div class="cc-name">${c.name}</div>
     <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}${c.rc ? ' cc-price-rc' : ''}">${casePrice(c, c.price)}</span></div>
@@ -3723,10 +3768,7 @@ function addCustomCase(r) {
   c.show = c.items.slice(0, 3).map(s => s.name);
   const i = CASES.findIndex(x => x.id === c.id); if (i >= 0) CASES.splice(i, 1);
   CASES.push(c); CASES.sort((a, b) => a.price - b.price);
-  CASE_BLOCKS.forEach(b => { b.ids = b.ids.filter(x => x !== c.id); });
-  const bl = CASE_BLOCKS.find(b => b.id === r.block && !b.rc) || CASE_BLOCKS[0]; bl.ids.push(c.id);
-  const ni = NEW_CASES.indexOf(c.id); if (ni >= 0) NEW_CASES.splice(ni, 1);
-  if (r.is_new) NEW_CASES.unshift(c.id);
+  c.block = r.block; c.isNew = !!r.is_new; applyCaseCfg(c);
   return c;
 }
 let customCaseRows = [];
@@ -3741,8 +3783,6 @@ async function loadCustomCases() {
 }
 function removeCustomCase(id) {
   const i = CASES.findIndex(x => x.id === id && x.custom); if (i >= 0) CASES.splice(i, 1);
-  CASE_BLOCKS.forEach(b => { b.ids = b.ids.filter(x => x !== id); });
-  const ni = NEW_CASES.indexOf(id); if (ni >= 0) NEW_CASES.splice(ni, 1);
 }
 async function loadCaseSettings() {
   if (!sb) return;
@@ -3776,7 +3816,7 @@ function sbInit() {
   if (payRet) setTimeout(() => { if (payRet === 'ok') { toast('Оплата прошла — баланс зачислится в течение пары минут'); [3e3, 1e4, 3e4].forEach(ms => setTimeout(sbRefresh, ms)); } else toast('Оплата не завершена', 'err'); }, 800);
   if (stErr) setTimeout(() => toast(stErr === 'cancel' ? 'Вход через Steam отменён' : 'Не удалось войти через Steam — попробуйте ещё раз', 'err'), 600);
   if (stTok) { sb.auth.verifyOtp({ token_hash: stTok, type: 'magiclink' }).then(({ data, error }) => { if (error || !data.session) return toast('Не удалось войти через Steam: ' + (error ? error.message : 'нет сессии'), 'err'); sbLoadProfile(data.session).then(ok => ok && afterLogin(false)); }); }
-  loadCustomCases().then(loadCaseSettings);
+  loadCaseCfg().then(loadCustomCases).then(loadCaseSettings);
   sb.auth.getSession().then(({ data }) => {
     if (data.session) sbLoadProfile(data.session);
     else if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); }
@@ -4472,12 +4512,33 @@ function admBars(S, keys, lbl) {
     <span>${i % step ? '' : lbl(r)}</span></div>`).join('')}</div><div class="ast-max">макс. ${money(mx)}</div>`;
 }
 /* ---------- кейсы: закрыть / открыть, множитель удачи ---------- */
+/* сохранить правки кейсов / разделов в site_cfg; пустая правка кейса — удаляется (кейс как в коде) */
+async function cfgSave(rows) {
+  const up = rows.filter(r => r.v != null && !(typeof r.v === 'object' && !Array.isArray(r.v) && !Object.keys(r.v).length));
+  const del = rows.filter(r => !up.includes(r)).map(r => r.k);
+  const now = new Date().toISOString();
+  if (up.length) { const { error } = await sb.from('site_cfg').upsert(up.map(r => ({ k: r.k, v: r.v, updated_at: now }))); if (error) return error; }
+  if (del.length) { const { error } = await sb.from('site_cfg').delete().in('k', del); if (error) return error; }
+  return null;
+}
+const cfgErr = e => toast('Не сохранено: ' + e.message + (/site_cfg/.test(e.message) ? ' — запустите supabase/site_cfg.sql' : ''), 'err');
+/* правка кейса → caseCfg + применить на месте + загрузить кейсы на сервер */
+async function caseCfgPut(changes) { // { id: правка | null }
+  const rows = Object.entries(changes).map(([id, v]) => ({ k: 'case:' + id, v }));
+  const e = await cfgSave(rows); if (e) { cfgErr(e); return false; }
+  Object.entries(changes).forEach(([id, v]) => { if (v && Object.keys(v).length) caseCfg[id] = v; else delete caseCfg[id]; const c = caseById(id); if (c) { applyCaseCfg(c); applyLuck(c, c.luck || 1); } });
+  CASES.sort((a, b) => a.price - b.price);
+  admSync();
+  return true;
+}
 function admCases(box) {
-  const row = c => {
-    const l = c.luck || 1;
+  const row = (c, i, n) => {
+    const l = c.luck || 1, nw = isNewCase(c), ht = isHitCase(c), ov = !c.custom && caseCfg[c.id] && Object.keys(caseCfg[c.id]).some(k => !['hit', 'ord'].includes(k));
     return `<div class="adm-case${c.disabled ? ' off' : ''}" data-id="${c.id}">
+      <span class="ac-ord"><button class="ac-up" title="Выше"${i ? '' : ' disabled'}>▲</button><button class="ac-dn" title="Ниже"${i < n - 1 ? '' : ' disabled'}>▼</button></span>
       <img src="${caseThumb(c)}" alt="" loading="lazy">
-      <div class="ac-n"><b>${esc(c.name)}${c.custom ? ' <i class="ac-own">из панели</i>' : ''}</b><span>${c.rc ? c.price + " R-COIN" : money(c.price)} · ${c.items.length} предм.</span>${c.custom ? `<span class="ac-acts"><button class="ac-edit">${ic.edit || '✎'}Изменить</button><button class="ac-del">Удалить</button></span>` : ''}</div>
+      <div class="ac-n"><b>${esc(c.name)}${c.custom ? ' <i class="ac-own">из панели</i>' : ''}${ov ? ' <i class="ac-own ac-ov">изменён</i>' : ''}</b><span>${c.rc ? c.price + ' R-COIN' : money(c.price)} · ${c.items.length} предм.</span>
+        <span class="ac-acts"><button class="ac-edit">${ic.edit || '✎'}Изменить</button><button class="ac-tg${nw ? ' on' : ''}" data-tg="isNew">Новое</button><button class="ac-tg ac-hit${ht ? ' on' : ''}" data-tg="hit">Хит</button>${c.custom ? '<button class="ac-del">Удалить</button>' : ''}</span></div>
       <div class="ac-m"><span>Окупаемость</span><b class="ac-rtp">${pctS(caseRtp(c))}</b></div>
       <div class="ac-m"><span>Дороже кейса</span><b class="ac-win">${pctS(caseWin(c))}</b></div>
       <div class="ac-luck"><span>Удача <b class="ac-lv">×${l.toFixed(2)}</b></span><input type="range" min="0.5" max="3" step="0.05" value="${l}" class="ac-r"></div>
@@ -4485,9 +4546,12 @@ function admCases(box) {
       <button class="btn btn-primary btn-sm ac-save" disabled>Сохранить</button>
     </div>`;
   };
-  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="btn btn-ghost btn-sm" id="acCloseAll">Закрыть все</button><button class="btn btn-ghost btn-sm" id="acOpenAll">Открыть все</button><button class="btn btn-primary btn-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Удача» умножает шанс всех предметов дороже кейса (остальные — пропорционально реже). Окупаемость пересчитывается сразу; у игроков — после обновления страницы.</p></div>
-    <div class="adm-cases">${CASES.map(row).join('')}</div></div>`;
+  const groups = CASE_BLOCKS.map(b => ({ b, list: blockCases(b) }));
+  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="btn btn-ghost btn-sm" id="acBlocks">${ic.menu || ''}Разделы</button><button class="btn btn-ghost btn-sm" id="acCloseAll">Закрыть все</button><button class="btn btn-ghost btn-sm" id="acOpenAll">Открыть все</button><button class="btn btn-primary btn-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Изменить» — название, цена, картинка, раздел и наполнение любого кейса. Стрелки — порядок внутри раздела. «Новое» и «Хит» — метки на карточке (хиты показываются в популярных на главной). «Удача» умножает шанс всех предметов дороже кейса. Изменения у игроков — после обновления страницы.</p></div>
+    ${groups.map(({ b, list }) => `<div class="ac-grp" style="--bc:${b.a}"><div class="ac-gh"><b>${esc(b.t)}</b><span>${list.length} ${plural(list.length, 'кейс', 'кейса', 'кейсов')}</span></div>
+      <div class="adm-cases">${list.length ? list.map((c, i) => row(c, i, list.length)).join('') : '<div class="empty">Пусто — перенесите сюда кейс через «Изменить»</div>'}</div></div>`).join('')}</div>`;
   $('#acNew', box).onclick = () => admCaseEditor(null, () => admCases(box));
+  $('#acBlocks', box).onclick = () => admBlocks(() => admCases(box));
   // все кейсы разом: удача у каждого остаётся своя
   const setAll = async (off, btn) => {
     if (off && !confirm('Закрыть все кейсы? Игроки не смогут их открывать, пока вы не откроете обратно.')) return;
@@ -4502,7 +4566,26 @@ function admCases(box) {
   $('#acOpenAll', box).onclick = e => setAll(false, e.currentTarget);
   $$('.adm-case', box).forEach(el => {
     const c = caseById(el.dataset.id), r = $('.ac-r', el), sw = $('.ac-open', el), save = $('.ac-save', el);
-    const ed = $('.ac-edit', el); if (ed) ed.onclick = () => admCaseEditor(customCaseRows.find(x => x.id === c.id), () => admCases(box));
+    $('.ac-edit', el).onclick = () => admCaseEditor(c.custom ? customCaseRows.find(x => x.id === c.id) : null, () => admCases(box), c.custom ? null : c);
+    // метки «Новое» / «Хит» — сразу
+    $$('.ac-tg', el).forEach(b => b.onclick = async () => {
+      const k = b.dataset.tg, on = !b.classList.contains('on'); b.disabled = true;
+      if (k === 'isNew' && c.custom) {
+        const { error } = await sb.from('custom_cases').update({ is_new: on }).eq('id', c.id);
+        if (error) { b.disabled = false; return toast('Не сохранено: ' + error.message, 'err'); }
+        const rw = customCaseRows.find(x => x.id === c.id); if (rw) rw.is_new = on; c.isNew = on;
+      } else if (!(await caseCfgPut({ [c.id]: { ...(caseCfg[c.id] || {}), [k]: on } }))) { b.disabled = false; return; }
+      toast(`«${esc(c.name)}»: ${k === 'hit' ? 'Хит' : 'Новое'} ${on ? 'включено' : 'выключено'}`); admCases(box);
+    });
+    // порядок внутри раздела: всем кейсам раздела проставляем номера и меняем местами соседей
+    const move = async d => {
+      const list = blockCases(CASE_BLOCKS.find(b => b.id === caseBlockId(c))), i = list.indexOf(c), j = i + d;
+      if (j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      const ch = {}; list.forEach((x, k) => { if (caseOrd(x) !== k) ch[x.id] = { ...(caseCfg[x.id] || {}), ord: k }; });
+      if (await caseCfgPut(ch)) admCases(box);
+    };
+    $('.ac-up', el).onclick = () => move(-1); $('.ac-dn', el).onclick = () => move(1);
     const dl = $('.ac-del', el); if (dl) dl.onclick = async () => {
       if (!confirm(`Удалить кейс «${c.name}»? Игроки больше не смогут его открыть (уже выпавшие скины останутся).`)) return;
       const { error } = await sb.from('custom_cases').delete().eq('id', c.id);
@@ -4528,15 +4611,55 @@ function admCases(box) {
     };
   });
 }
-/* ---------- редактор кейса: создание / изменение кейса прямо из панели ---------- */
-function admCaseEditor(row, done) {
-  const edit = !!row;
-  const E = { id: row ? row.id : '', name: row ? row.name : '', price: row ? +row.price : 100, img: row ? row.img : '', accent: row ? row.accent : '#f5c76b',
-    block: row ? row.block : 'pop', isNew: row ? row.is_new : true, sub: row ? row.sub || '' : '', rtp: 80,
-    items: row ? row.items.filter(it => SK[it.n]).map(it => ({ n: SK[it.n].name, ch: +it.ch * 100 })).filter((x, i, A) => A.findIndex(y => y.n === x.n) === i) : [] };
-  const blocks = CASE_BLOCKS.filter(b => !b.rc);
+/* ---------- разделы витрины: название, подпись, значок, цвет, порядок; создать / удалить ---------- */
+const BLOCK_ICONS = ['fire', 'trophy', 'crown', 'gem', 'bolt', 'globe', 'trend', 'gift', 'star', 'knife', 'box', 'shield', 'users', 'coins', 'leaf', 'eye'];
+function admBlocks(done) {
+  const B = CASE_BLOCKS.map(b => ({ id: b.id, t: b.t, sub: b.sub || '', wm: b.wm || '', ic: b.ic || 'box', a: b.a || '#f3c14f', ...(b.rc ? { rc: true } : {}) }));
+  const m = modal(`<div class="ced abl"><h2>Разделы витрины</h2><p class="abl-note">Порядок — как на главной и на странице «Кейсы». Кейсы удалённого раздела переходят в первый раздел. Бонусный раздел (R-COIN) удалить нельзя.</p>
+    <div class="abl-list" id="ablList"></div>
+    <div class="ced-foot"><button class="btn btn-ghost" id="ablAdd">${ic.plus}Добавить раздел</button><span style="flex:1"></span><button class="btn btn-ghost" id="ablCancel">Отмена</button><button class="btn btn-primary btn-lg" id="ablSave">Сохранить</button></div></div>`, 'm-ced');
+  const draw = () => {
+    $('#ablList', m).innerHTML = B.map((b, i) => `<div class="abl-row" data-i="${i}" style="--bc:${b.a}">
+      <span class="ac-ord"><button data-mv="-1"${i ? '' : ' disabled'}>▲</button><button data-mv="1"${i < B.length - 1 ? '' : ' disabled'}>▼</button></span>
+      <select class="inp abl-ic" data-f="ic">${BLOCK_ICONS.map(k => `<option value="${k}"${k === b.ic ? ' selected' : ''}>${k}</option>`).join('')}</select>
+      <input class="inp" data-f="t" value="${esc(b.t)}" placeholder="Название раздела" maxlength="40">
+      <input class="inp" data-f="sub" value="${esc(b.sub)}" placeholder="Подпись" maxlength="120">
+      <input class="inp abl-wm" data-f="wm" value="${esc(b.wm)}" placeholder="Метка" maxlength="12">
+      <input class="inp ced-color" data-f="a" type="color" value="${esc(b.a)}">
+      <span class="abl-n">${blockCases(CASE_BLOCKS.find(x => x.id === b.id) || { id: b.id }).length}</span>
+      <button class="ced-x" data-del title="Удалить раздел"${b.rc && B.filter(x => x.rc).length < 2 ? ' disabled' : ''}>×</button></div>`).join('');
+    $$('.abl-row', m).forEach(el => {
+      const i = +el.dataset.i;
+      $$('[data-f]', el).forEach(inp => inp.oninput = () => { B[i][inp.dataset.f] = inp.value; if (inp.dataset.f === 'a') el.style.setProperty('--bc', inp.value); });
+      $$('[data-mv]', el).forEach(btn => btn.onclick = () => { const j = i + +btn.dataset.mv; [B[i], B[j]] = [B[j], B[i]]; draw(); });
+      $('[data-del]', el).onclick = () => { if (!confirm(`Удалить раздел «${B[i].t}»? Его кейсы перейдут в первый раздел.`)) return; B.splice(i, 1); draw(); };
+    });
+  };
+  $('#ablAdd', m).onclick = () => { B.push({ id: 'b' + Date.now().toString(36), t: 'Новый раздел', sub: '', wm: 'NEW', ic: 'star', a: '#f3c14f' }); draw(); const l = $('#ablList', m); l.scrollTop = l.scrollHeight; };
+  $('#ablCancel', m).onclick = closeModal;
+  $('#ablSave', m).onclick = async () => {
+    if (B.some(b => !b.t.trim())) return toast('У каждого раздела должно быть название', 'err');
+    const btn = $('#ablSave', m); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    const v = B.map(b => ({ ...b, t: b.t.trim(), sub: b.sub.trim(), wm: b.wm.trim() || b.t.trim().slice(0, 8).toUpperCase() }));
+    const e = await cfgSave([{ k: 'blocks', v }]);
+    if (e) { btn.disabled = false; btn.textContent = 'Сохранить'; return cfgErr(e); }
+    CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...v.map(b => ({ ...b, ids: [] })));
+    closeModal(); toast('Разделы сохранены'); done && done();
+  };
+  draw();
+}
+/* ---------- редактор кейса: создание кейса в панели, правка кейса из панели (row) или кейса из кода (base) ---------- */
+function admCaseEditor(row, done, base) {
+  const edit = !!(row || base), d = base && CASE_DEF[base.id];
+  const E = base ? { id: base.id, name: base.name, price: base.price, img: base.img, ar: base.ar, accent: base.th.a, block: caseBlockId(base), isNew: isNewCase(base), hit: isHitCase(base), sub: base.sub || '', rtp: 80,
+      items: base.items.map(s => ({ n: s.name, ch: (s.ch0 != null ? s.ch0 : s.ch) * 100 })) }
+    : { id: row ? row.id : '', name: row ? row.name : '', price: row ? +row.price : 100, img: row ? row.img : '', accent: row ? row.accent : '#f5c76b',
+      block: row ? row.block : (CASE_BLOCKS.find(b => !b.rc) || CASE_BLOCKS[0]).id, isNew: row ? row.is_new : true, hit: row ? isHitCase(caseById(row.id) || {}) : false, sub: row ? row.sub || '' : '', rtp: 80,
+      items: row ? row.items.filter(it => SK[it.n]).map(it => ({ n: SK[it.n].name, ch: +it.ch * 100 })).filter((x, i, A) => A.findIndex(y => y.n === x.n) === i) : [] };
+  let itemsDirty = false;
+  const blocks = CASE_BLOCKS.filter(b => !!b.rc === !!(base && base.rc));
   const m = modal(`<div class="ced">
-    <h2>${edit ? 'Изменить кейс' : 'Новый кейс'}</h2>
+    <h2>${edit ? `Изменить кейс «${esc(E.name)}»` : 'Новый кейс'}</h2>
     <div class="ced-grid">
       <div class="ced-left">
         <label class="ced-img" id="cedImgBox">${E.img ? `<img src="${esc(E.img)}" alt="">` : `<span>${ic.plus}Загрузить картинку<small>PNG/WebP с прозрачным фоном</small></span>`}<input type="file" id="cedFile" accept="image/png,image/webp,image/jpeg" hidden></label>
@@ -4545,11 +4668,11 @@ function admCaseEditor(row, done) {
       <div class="ced-right">
         <div class="row2"><div class="field"><label>ID (латиница)</label><input class="inp" id="cedId" value="${esc(E.id)}" placeholder="my_case" ${edit ? 'disabled' : ''}></div>
           <div class="field"><label>Название</label><input class="inp" id="cedName" value="${esc(E.name)}" placeholder="ЗОЛОТОЙ ДРАКОН" maxlength="30"></div></div>
-        <div class="row2"><div class="field"><label>Цена, ₽</label><input class="inp" id="cedPrice" type="number" min="1" step="1" value="${E.price}"></div>
-          <div class="field"><label>Раздел</label><select class="inp" id="cedBlock">${blocks.map(b => `<option value="${b.id}"${b.id === E.block ? ' selected' : ''}>${b.t}</option>`).join('')}</select></div></div>
+        <div class="row2"><div class="field"><label>Цена, ${base && base.rc ? 'R-COIN' : '₽'}</label><input class="inp" id="cedPrice" type="number" min="1" step="1" value="${E.price}"></div>
+          <div class="field"><label>Раздел</label><select class="inp" id="cedBlock">${blocks.map(b => `<option value="${b.id}"${b.id === E.block ? ' selected' : ''}>${esc(b.t)}</option>`).join('')}</select></div></div>
         <div class="row2"><div class="field"><label>Цвет подсветки</label><input class="inp ced-color" id="cedAccent" type="color" value="${esc(E.accent)}"></div>
-          <label class="check ced-new"><input type="checkbox" id="cedNew"${E.isNew ? ' checked' : ''}><span>Метка «НОВОЕ»</span></label></div>
-        <div class="field"><label>Описание (необязательно)</label><input class="inp" id="cedSub" value="${esc(E.sub)}" maxlength="140" placeholder="Например: только ножи от 5 000 ₽"></div>
+          <div class="ced-flags"><label class="check ced-new"><input type="checkbox" id="cedNew"${E.isNew ? ' checked' : ''}><span>Метка «НОВОЕ»</span></label><label class="check ced-new"><input type="checkbox" id="cedHit"${E.hit ? ' checked' : ''}><span>Метка «ХИТ»</span></label></div></div>
+        <div class="field"><label>Описание (необязательно)</label><input class="inp" id="cedSub" value="${esc(E.sub)}" maxlength="240" placeholder="Например: только ножи от 5 000 ₽"></div>
       </div>
     </div>
     <div class="ced-items">
@@ -4558,7 +4681,7 @@ function admCaseEditor(row, done) {
       <div class="ced-list" id="cedList"></div>
       <div class="ced-sum" id="cedSum"></div>
     </div>
-    <div class="ced-foot"><button class="btn btn-ghost" id="cedCancel">Отмена</button><button class="btn btn-primary btn-lg" id="cedSave">${edit ? 'Сохранить изменения' : 'Создать кейс'}</button></div>
+    <div class="ced-foot">${base && caseCfg[base.id] ? '<button class="btn btn-ghost" id="cedReset">Вернуть как было</button><span style="flex:1"></span>' : ''}<button class="btn btn-ghost" id="cedCancel">Отмена</button><button class="btn btn-primary btn-lg" id="cedSave">${edit ? 'Сохранить изменения' : 'Создать кейс'}</button></div>
   </div>`, 'm-ced');
   const v = id => $('#' + id, m);
   const price = () => +v('cedPrice').value || 0;
@@ -4568,16 +4691,16 @@ function admCaseEditor(row, done) {
     if (q.length < 2) return (box.innerHTML = '');
     const res = UPG_CAT.filter(s => s.name.toLowerCase().includes(q) && !E.items.some(x => x.n === s.name)).slice(0, 24);
     box.innerHTML = res.length ? res.map(s => `<button class="ced-fi r-${s.r}" data-n="${esc(s.name)}"><img src="${imgUrl(s, 's')}" alt=""><span>${esc(s.name)}</span><b>${money(s.p)}</b></button>`).join('') : '<div class="empty">Ничего не найдено</div>';
-    $$('[data-n]', box).forEach(b => b.onclick = () => { E.items.push({ n: b.dataset.n, ch: 0 }); b.remove(); draw(); });
+    $$('[data-n]', box).forEach(b => b.onclick = () => { E.items.push({ n: b.dataset.n, ch: 0 }); itemsDirty = true; b.remove(); draw(); });
   };
   const draw = () => {
     E.items.sort((a, b) => SK[b.n].p - SK[a.n].p);
     v('cedList').innerHTML = E.items.length ? `<div class="ced-row ced-h"><span>Предмет</span><span>Цена</span><span>Шанс, %</span><span></span></div>` + E.items.map((it, i) => { const s = SK[it.n]; return `<div class="ced-row r-${s.r}${s.p >= price() ? ' up' : ''}">
       <span class="ced-it"><img src="${imgUrl(s, 's')}" alt="">${esc(s.name)}</span><b>${money(s.p)}</b>
-      <input class="inp" type="number" min="0" step="0.001" value="${+(+it.ch).toFixed(4)}" data-i="${i}"><button class="ced-x" data-x="${i}" title="Убрать">×</button></div>`; }).join('')
+      <input class="inp" type="number" min="0" step="0.0001" value="${+(+it.ch).toFixed(6)}" data-i="${i}"><button class="ced-x" data-x="${i}" title="Убрать">×</button></div>`; }).join('')
       : '<div class="empty">Добавьте предметы через поиск выше (минимум 3)</div>';
-    $$('[data-i]', m).forEach(inp => inp.oninput = () => { E.items[+inp.dataset.i].ch = +inp.value || 0; sum(); });
-    $$('[data-x]', m).forEach(b => b.onclick = () => { E.items.splice(+b.dataset.x, 1); draw(); });
+    $$('[data-i]', m).forEach(inp => inp.oninput = () => { E.items[+inp.dataset.i].ch = +inp.value || 0; itemsDirty = true; sum(); });
+    $$('[data-x]', m).forEach(b => b.onclick = () => { E.items.splice(+b.dataset.x, 1); itemsDirty = true; draw(); });
     sum();
   };
   const sum = () => {
@@ -4593,12 +4716,15 @@ function admCaseEditor(row, done) {
       if (E.items.length < 2) return toast('Добавьте хотя бы 2 предмета', 'err');
       const its = E.items.map(x => SK[x.n]), target = price() * E.rtp / 100;
       if (target < Math.min(...its.map(s => s.p)) || target > Math.max(...its.map(s => s.p))) return toast('Такую окупаемость не получить из этих предметов — добавьте дешевле или дороже', 'err');
-      const ch = solveChances(its, target); E.items.forEach((x, i) => { x.ch = ch[i] * 100; }); draw();
+      const ch = solveChances(its, target); E.items.forEach((x, i) => { x.ch = ch[i] * 100; }); itemsDirty = true; draw();
     };
   };
   v('cedPrice').oninput = draw;
-  // картинка: загрузка в хранилище Supabase или ссылка
-  const setImg = url => { E.img = url; v('cedImg').value = url; v('cedImgBox').innerHTML = `<img src="${esc(url)}" alt=""><input type="file" id="cedFile" accept="image/png,image/webp,image/jpeg" hidden>`; bindFile(); };
+  // картинка: загрузка в хранилище Supabase или ссылка; соотношение сторон — по самой картинке
+  const setImg = url => {
+    E.img = url; v('cedImg').value = url; v('cedImgBox').innerHTML = `<img src="${esc(url)}" alt=""><input type="file" id="cedFile" accept="image/png,image/webp,image/jpeg" hidden>`; bindFile();
+    const im = new Image(); im.onload = () => { if (im.naturalHeight) E.ar = Math.round(im.naturalWidth / im.naturalHeight * 1e4) / 1e4; }; im.src = url;
+  };
   const bindFile = () => { v('cedFile').onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
     if (file.size > 5e6) return toast('Картинка больше 5 МБ', 'err');
@@ -4612,22 +4738,40 @@ function admCaseEditor(row, done) {
   bindFile();
   v('cedImg').onchange = () => { const u = v('cedImg').value.trim(); if (u) setImg(u); };
   v('cedCancel').onclick = closeModal;
+  const rs = v('cedReset'); if (rs) rs.onclick = async () => {
+    if (!confirm(`Вернуть кейс «${base.name}» к исходному виду из кода? Пропадут все правки: название, цена, картинка, раздел, метки, порядок, наполнение.`)) return;
+    rs.disabled = true; if (await caseCfgPut({ [base.id]: null })) { closeModal(); toast(`«${esc(base.name)}» — как было`); done && done(); } else rs.disabled = false;
+  };
   v('cedSave').onclick = async () => {
     const id = v('cedId').value.trim().toLowerCase(), name = v('cedName').value.trim(), p = price(), tot = E.items.reduce((a, x) => a + x.ch, 0);
-    if (!/^[a-z0-9_-]{2,32}$/.test(id)) return toast('ID: 2–32 символа, латиница, цифры, _ и -', 'err');
+    if (!base && !/^[a-z0-9_-]{2,32}$/.test(id)) return toast('ID: 2–32 символа, латиница, цифры, _ и -', 'err');
     if (!edit && caseById(id)) return toast('Кейс с таким ID уже есть', 'err');
     if (!name) return toast('Введите название', 'err');
     if (!(p > 0)) return toast('Введите цену', 'err');
     if (!E.img) return toast('Добавьте картинку кейса', 'err');
     if (E.items.length < 3) return toast('Нужно минимум 3 предмета', 'err');
     if (!(tot > 0) || E.items.some(x => !(x.ch > 0))) return toast('У каждого предмета должен быть шанс больше 0 — или нажмите «Рассчитать шансы»', 'err');
-    const rec = { id, name, price: p, img: E.img, accent: v('cedAccent').value, block: v('cedBlock').value, is_new: v('cedNew').checked, sub: v('cedSub').value.trim() || null,
-      items: E.items.map(x => ({ n: x.n, ch: Math.round(x.ch / tot * 1e8) / 1e8 })), updated_at: new Date().toISOString() };
     const b = v('cedSave'); b.disabled = true; b.innerHTML = '<span class="spinner"></span>Сохраняем…';
+    const fail = () => { b.disabled = false; b.textContent = edit ? 'Сохранить изменения' : 'Создать кейс'; };
+    const blk = v('cedBlock').value, isNew = v('cedNew').checked, hit = v('cedHit').checked, sub = v('cedSub').value.trim(), acc = v('cedAccent').value;
+    if (base) {
+      // кейс из кода: храним только то, что отличается от исходного
+      const o = { ...(caseCfg[id] || {}) }, set = (k, val, def) => { if (val === def || val == null) delete o[k]; else o[k] = val; };
+      set('name', name, d.name); set('sub', sub, d.sub || ''); set('price', p, d.price); set('a', acc, d.a);
+      set('img', E.img, d.img); if (o.img && E.ar) o.ar = E.ar; else delete o.ar;
+      set('block', blk, DEF_BLOCK[id] || (base.rc ? 'bonusrc' : 'pop')); set('isNew', isNew, NEW_CASES.includes(id)); set('hit', hit, HOME_POP.includes(id));
+      if (blk !== caseBlockId(base)) delete o.ord; // в новом разделе — в конец по умолчанию
+      if (itemsDirty) o.items = E.items.map(x => ({ n: x.n, ch: Math.round(x.ch / tot * 1e8) / 1e8 }));
+      if (!(await caseCfgPut({ [id]: o }))) return fail();
+      closeModal(); toast(`Кейс «${esc(name)}» обновлён — у игроков после обновления страницы`); done && done(); return;
+    }
+    const rec = { id, name, price: p, img: E.img, accent: acc, block: blk, is_new: isNew, sub: sub || null,
+      items: E.items.map(x => ({ n: x.n, ch: Math.round(x.ch / tot * 1e8) / 1e8 })), updated_at: new Date().toISOString() };
     const { error } = await sb.from('custom_cases').upsert(rec);
-    if (error) { b.disabled = false; b.textContent = edit ? 'Сохранить изменения' : 'Создать кейс'; return toast('Не сохранено: ' + error.message, 'err'); }
+    if (error) { fail(); return toast('Не сохранено: ' + error.message, 'err'); }
     customCaseRows = customCaseRows.filter(x => x.id !== id).concat(rec);
     const c = addCustomCase(rec);
+    if (c && hit !== isHitCase(c) && !(await caseCfgPut({ [id]: { ...(caseCfg[id] || {}), hit } }))) return fail();
     const st_ = (await sb.from('case_settings').select('disabled, luck').eq('id', id).maybeSingle()).data; if (c && st_) { c.disabled = st_.disabled; applyLuck(c, +st_.luck || 1); }
     closeModal(); toast(`Кейс «${esc(name)}» ${edit ? 'обновлён' : 'создан'} — уже на сайте`); done && done();
   };
