@@ -450,6 +450,357 @@ const CASES = [
     ],
   },
   {
+    id: 'drip', name: 'DRIP', price: 59, tag: 'Брелоки', tagIc: 'star', rtp: .82,
+    sub: 'Все брелоки CS2 — 78 штук: дроп от 9 ₽, ~18% открытий окупаются. Джекпоты — Butane Buddy, Lil\' Boo, 8 Ball IGL',
+    th: { a: '#a259ff' }, img: 'assets/case-drip.webp',
+    // все брелоки Lis-Skins: [брелок, без износа, шанс]. Дешевле кейса — почти поровну, дороже — тем реже, чем дороже (×5+ цены кейса — ещё реже); окупаемость держит наклон шансов
+    exact: [
+      ['Charm | Pocket AWP', null, 0.01563], ['Charm | Gritty', null, 0.01563], ['Charm | Lil\' Ava', null, 0.01594],
+      ['Charm | Pinch O\' Salt', null, 0.01594], ['Charm | Lil\' Smokey', null, 0.01594], ['Charm | Biomech', null, 0.01594],
+      ['Charm | Fluffy', null, 0.01594], ['Charm | Whittle Guy', null, 0.01594], ['Charm | Lil\' Vino', null, 0.01594],
+      ['Charm | Baby\'s AK', null, 0.01623], ['Charm | Lil\' SAS', null, 0.01623], ['Charm | Hot Sauce', null, 0.01677],
+      ['Charm | Lil\' Curse', null, 0.01702], ['Charm | Lil\' Baller', null, 0.01702], ['Charm | Backsplash', null, 0.01725],
+      ['Charm | Whittle Knife', null, 0.01725], ['Charm | Big Kev', null, 0.01725], ['Charm | Lil\' Tusk', null, 0.01725],
+      ['Charm | Splatter Cat', null, 0.01725], ['Charm | Stitch-Loaded', null, 0.01748], ['Charm | Lil\' Cap Gun', null, 0.01748],
+      ['Charm | Lil\' Cackle', null, 0.0177], ['Charm | Lil\' Crass', null, 0.01791], ['Charm | Dead Weight', null, 0.01791],
+      ['Charm | Lil\' Squatch', null, 0.01869], ['Charm | Disco MAC', null, 0.01887], ['Charm | Lil\' Zen', null, 0.01887],
+      ['Charm | Lil\' Facelift', null, 0.01887], ['Charm | Hang Loose', null, 0.01887], ['Charm | Lil\' No. 2', null, 0.01921],
+      ['Charm | Lil\' Chomper', null, 0.01921], ['Charm | Hot Hands', null, 0.0207], ['Charm | Big Brain', null, 0.02121],
+      ['Charm | Dr. Brian', null, 0.02133], ['Charm | POP Art', null, 0.02145], ['Charm | Bomb Tag', null, 0.02145],
+      ['Charm | Lil\' Sandy', null, 0.02157], ['Charm | That\'s Bananas', null, 0.02234], ['Charm | Lil\' Dumplin\'', null, 0.02254],
+      ['Charm | Lil\' Buns', null, 0.02274], ['Charm | Chicken Lil\'', null, 0.02313], ['Charm | Glamour Shot', null, 0.02322],
+      ['Charm | Lil\' Bloody', null, 0.02402], ['Charm | Pocket Pop', null, 0.02418], ['Charm | Lil\' Whiskers', null, 0.02244],
+      ['Charm | Lil\' Teacup', null, 0.02174], ['Charm | Lil\' Prick', null, 0.01393], ['Charm | Lil\' Squirt', null, 0.01253],
+      ['Charm | Diner Dog', null, 0.01148], ['Charm | Lil\' Moments', null, 0.01066], ['Charm | Magmatude', null, 0.008958],
+      ['Charm | Lil\' Goop', null, 0.008432], ['Charm | Flash Bomb', null, 0.006169], ['Charm | Die-cast AK', null, 0.006133],
+      ['Charm | Eye of Ball', null, 0.006098], ['Charm | Lil\' Eco', null, 0.005928], ['Charm | Lil\' Chirp', null, 0.005767],
+      ['Charm | Lil\' Monster', null, 0.005643], ['Charm | Hungry Eyes', null, 0.005613], ['Charm | Titeenium AWP', null, 0.005141],
+      ['Charm | Piñatita', null, 0.004347], ['Charm | Lil\' Yeti', null, 0.00339], ['Charm | Lil\' Hero', null, 0.003024],
+      ['Charm | Diamond Dog', null, 0.002195], ['Charm | Lil\' Happy', null, 0.001619], ['Charm | Hot Wurst', null, 0.001014],
+      ['Charm | Baby Karat CT', null, 0.0009187], ['Charm | Semi-Precious', null, 0.0007397], ['Charm | Lil\' Serpent', null, 0.0006305],
+      ['Charm | Baby Karat T', null, 0.0005031], ['Charm | Glitter Bomb', null, 0.0004893], ['Charm | Lil\' Ferno', null, 0.0004576],
+      ['Charm | Hot Howl', null, 0.000238], ['Charm | Quick Silver', null, 0.0001641], ['Charm | Lil\' Eldritch', null, 0.0001234],
+      ['Charm | 8 Ball IGL', null, 0.0001076], ['Charm | Lil\' Boo', null, 0.00002368], ['Charm | Butane Buddy', null, 0.0000122],
+    ],
+  },
+  {
+    id: 'rush', name: 'RUSH CASE', price: 199, tag: 'Фирменный', tagIc: 'crown', rtp: 0.82,
+    sub: 'Фирменный кейс: яркие скины от 23 ₽, ~22% открытий окупаются, нож или перчатки — 1 из 1 500. Ультра — Karambit и Butterfly | Fade, Sport Gloves | Vice, Specialist Gloves | Fade',
+    th: { a: '#ff8a1f' }, img: 'assets/case-rush.webp',
+    // яркие скины: дешевле кейса — часто, дороже кейса в 4+ раза — заметно реже; 4 ножа/перчатки ~5 тыс. — вместе 1 из 1 500; 4 ультра (89–159 тыс.) — по 1 из 500 000
+    exact: [
+      ['MAG-7 | Monster Call', 'WW', 0.05145], ['P90 | Neoqueen', 'WW', 0.05145], ['SG 553 | Dragon Tech', 'BS', 0.05],
+      ['P250 | Cyber Shell', 'BS', 0.04932], ['P90 | Wave Breaker', 'BS', 0.04867], ['MAC-10 | Pipe Down', 'WW', 0.0448],
+      ['P250 | Inferno', 'FT', 0.04259], ['P2000 | Acid Etched', 'BS', 0.0418], ['M4A4 | Sheet Lightning', 'BS', 0.0407],
+      ['SSG 08 | Acid Fade', 'FN', 0.04001], ['Galil AR | Rocket Pop', 'WW', 0.0371], ['Glock-18 | Bunsen Burner', 'FT', 0.03684],
+      ['FAMAS | Neural Net', 'FT', 0.03635], ['MP5-SD | Acid Wash', 'FT', 0.03255], ['R8 Revolver | Amber Fade', 'FT', 0.0313],
+      ['M4A1-S | Glitched Paint', 'BS', 0.03073], ['Glock-18 | Candy Apple', 'FT', 0.03046], ['M4A1-S | Fizzy POP', 'FT', 0.02781],
+      ['AUG | Amber Fade', 'FT', 0.02706], ['AK-47 | Crossfade', 'FT', 0.02427], ['AWP | Duality', 'FT', 0.01962],
+      ['USP-S | Cortex', 'WW', 0.01935], ['Galil AR | Chromatic Aberration', 'BS', 0.01825], ['UMP-45 | Neo-Noir', 'WW', 0.01743],
+      ['MP7 | Neon Ply', 'MW', 0.01632], ['AWP | Duality', 'MW', 0.0155], ['AK-47 | Phantom Disruptor', 'FT', 0.0152],
+      ['FAMAS | Neural Net', 'FN', 0.01472], ['Galil AR | Chromatic Aberration', 'MW', 0.01379], ['USP-S | Cortex', 'MW', 0.01368],
+      ['AWP | Duality', 'FN', 0.01219], ['AWP | Fever Dream', 'FT', 0.009731], ['Nova | Hyper Beast', 'FT', 0.009179],
+      ['SCAR-20 | Bloodsport', 'FN', 0.007785], ['MP9 | Hypnotic', 'FN', 0.006025], ['M4A4 | Cyber Security', 'WW', 0.004015],
+      ['M4A4 | Desolate Space', 'MW', 0.003171], ['UMP-45 | Neo-Noir', 'FN', 0.002209], ['AK-47 | Head Shot', 'BS', 0.001579],
+      ['M4A4 | Temukau', 'FT', 0.001185], ['USP-S | Printstream', 'BS', 0.001147], ['AWP | Chromatic Aberration', 'FT', 0.0008834],
+      ['Desert Eagle | Printstream', 'WW', 0.0007046], ['AWP | Printstream', 'FT', 0.000433], ['★ Moto Gloves | POW!', 'FT', 0.0001958],
+      ['★ Shadow Daggers | Crimson Web', 'WW', 0.0001723], ['★ Bowie Knife | Autotronic', 'FT', 0.0001526], ['★ Navaja Knife | Marble Fade', 'FN', 0.000146],
+      ['★ Sport Gloves | Vice', 'MW', 0.000002], ['★ Specialist Gloves | Fade', 'FN', 0.000002], ['★ Karambit | Fade', 'FN', 0.000002],
+      ['★ Butterfly Knife | Fade', 'FN', 0.000002],
+    ],
+  },
+  {
+    id: 'medkit', name: 'ЛОВИ АПТЕЧКУ', price: 15, tag: 'Фарм', tagIc: 'trend', rtp: 0.8,
+    sub: 'Фарм-кейс: открывай до 50 штук за раз, ширп сразу продаётся на баланс. Дроп 3–15 ₽, джекпот — AWP | Азимов и Kukri | Crimson Web (1 из 150 000)',
+    th: { a: '#e53935' }, img: 'assets/case-medkit.webp',
+    farm: { maxN: 50, sellBelow: 100 }, // фарм: до 50 кейсов за раз, ширп дешевле 100 ₽ сразу продаётся на баланс
+    // ширп 3–15 ₽ (чем дороже — тем чаще, возврат 80%) + AWP | Азимов и Kukri | Crimson Web — вместе 1 из 150 000
+    exact: [
+      ['ПП-19 Бизон | Городская штриховка', 'WW', 0.001008], ['M249 | Sleet', 'FN', 0.001163], ['MAC-10 | Video Cam', 'FT', 0.00218],
+      ['Negev | Bulkhead', 'FT', 0.00218], ['Negev | Raw Ceramic', 'FN', 0.00218], ['AUG | Sweeper', 'FN', 0.003622],
+      ['Galil AR | Смешанный камуфляж', 'MW', 0.004149], ['P90 | Mustard Gas', 'MW', 0.005592], ['Tec-9 | Citric Acid', 'MW', 0.005592],
+      ['Tec-9 | Армейская сетка', 'FN', 0.008109], ['PP-Bizon | Night Ops', 'MW', 0.008109], ['Dual Berettas | Stained', 'FT', 0.0113],
+      ['MAC-10 | Poplar Thicket', 'FT', 0.0113], ['MP5-SD | Focus', 'WW', 0.0113], ['PP-Bizon | Brass', 'FT', 0.01515],
+      ['PP-Bizon | Traitor', 'MW', 0.01515], ['AUG | Snake Pit', 'BS', 0.01982], ['PP-Bizon | RMX', 'FT', 0.01982],
+      ['P90 | Пиксельный камуфляж «Пустыня»', 'FT', 0.02526], ['AUG | Creep', 'BS', 0.02526], ['PP-Bizon | Night Riot', 'BS', 0.02526],
+      ['FAMAS | Мяу 36', 'MW', 0.03165], ['Dual Berettas | Бордвойня', 'WW', 0.03165], ['Dual Berettas | Наемник', 'WW', 0.039],
+      ['G3SG1 | Смешанный камуфляж', 'MW', 0.039], ['AWP | Африканская сетка', 'FT', 0.04725], ['Zeus x27 | Пиксельный камуфляж «Болото»', 'MW', 0.04725],
+      ['AWP | Safari Mesh', 'WW', 0.05668], ['PP-Bizon | Anolis', 'MW', 0.05668], ['Desert Eagle | Tilted', 'BS', 0.05668],
+      ['FAMAS | Byproduct', 'WW', 0.06709], ['G3SG1 | Полярный камуфляж', 'FT', 0.06709], ['Tec-9 | Порыв синевы', 'FT', 0.07882],
+      ['AUG | Наемник', 'MW', 0.07882], ['Dual Berettas | Silver Pour', 'MW', 0.07882], ['★ Kukri Knife | Crimson Web', 'FT', 0.000003333],
+      ['AWP | Азимов', 'FT', 0.000003333],
+    ],
+  },
+  {
+    id: 'm4a1s', name: 'M4A1-S', price: 299, tag: 'Оружейный', tagIc: 'trophy', rtp: 0.8,
+    sub: 'Только M4A1-S: 27 скинов от 10 ₽ до 204 тыс., ~21% открытий окупаются. Джекпоты — Knight, Hot Rod, Welcome to the Jungle, Imminent Danger',
+    th: { a: '#22d3ee' }, img: 'assets/case-m4a1s.webp',
+    // скины M4A1-S из списка заказчика: до 2 400 ₽ — обычный дроп; 13–38 тыс. — вместе 1 из 4 000; дороже 50 тыс. — 1 из 176–680 тыс.
+    exact: [
+      ['M4A1-S | Boreal Forest', 'FT', 0.3344], ['M4A1-S | Nitro', 'FT', 0.1872], ['M4A1-S | Night Terror', 'FT', 0.1567],
+      ['M4A1-S | Black Lotus', 'FT', 0.05554], ['M4A1-S | Flashback', 'FT', 0.05277], ['M4A1-S | Briefing', 'FT', 0.05057],
+      ['M4A1-S | Blood Tiger', 'FT', 0.04463], ['M4A1-S | Leaded Glass', 'FT', 0.03088], ['M4A1-S | Decimator', 'FT', 0.02899],
+      ['M4A1-S | Control Panel', 'FT', 0.02124], ['M4A1-S | Guardian', 'FT', 0.02042], ['M4A1-S | Bright Water', 'FT', 0.01646],
+      ['M4A1-S | Сайрекс', 'FT', 0.00005265], ['M4A1-S | Atomic Alloy', 'FN', 0.00004991], ['M4A1-S | Nightmare', 'FN', 0.00004676],
+      ['M4A1-S | Hyper Beast', 'FN', 0.00003377], ['M4A1-S | Master Piece', 'FN', 0.00002562], ['M4A1-S | Поток информации', 'FN', 0.00001686],
+      ['StatTrak™ M4A1-S | Hyper Beast', 'FN', 0.00001321], ['M4A1-S | Падение Икара', 'MW', 0.00001121], ['M4A1-S | Blue Phosphor', 'MW', 0.000005684],
+      ['StatTrak™ M4A1-S | Printstream', 'FN', 0.000003913], ['M4A1-S | Hot Rod', 'FN', 0.000003179], ['M4A1-S | Неотвратимая угроза', 'FN', 0.000002849],
+      ['M4A1-S | Добро пожаловать в джунгли', 'FN', 0.000002633], ['M4A1-S | Hot Rod', 'MW', 0.000002555], ['M4A1-S | Knight', 'FN', 0.000001469],
+    ],
+  },
+  {
+    id: 'deagle', name: 'DEAGLE', price: 299, tag: 'Оружейный', tagIc: 'trophy', rtp: 0.8,
+    sub: 'Только Desert Eagle: 27 скинов от 12 ₽ до 59 тыс., ~17% открытий окупаются. Джекпоты — Blaze, Sunset Storm 壱, Hand Cannon, Emerald Jörmungandr',
+    th: { a: '#f0b429' }, img: 'assets/case-deagle.webp',
+    // скины Desert Eagle из списка заказчика (ST Blaze не существует — вместо него Blaze MW): до 3 200 ₽ — обычный дроп; 6–30 тыс. — вместе 1 из 3 000; дороже 30 тыс. — 1 из 100–200 тыс.
+    exact: [
+      ['Desert Eagle | The Daily Deagle', 'FT', 0.1249], ['Desert Eagle | Mint Fan', 'FT', 0.121], ['Desert Eagle | Oxide Blaze', 'FT', 0.1008],
+      ['Desert Eagle | Corinthian', 'FT', 0.09689], ['Desert Eagle | Trigger Discipline', 'FT', 0.08497], ['Desert Eagle | Meteorite', 'FT', 0.08038],
+      ['Desert Eagle | Light Rail', 'FT', 0.07881], ['Desert Eagle | Directive', 'FT', 0.07406], ['Desert Eagle | Mulberry', 'FT', 0.06759],
+      ['Desert Eagle | Механо-пушка', 'FT', 0.05269], ['Desert Eagle | Heirloom', 'FT', 0.04914], ['Desert Eagle | Conspiracy', 'FT', 0.03781],
+      ['Desert Eagle | Код красный', 'FT', 0.03066], ['Desert Eagle | Ржавый кобальт', 'FN', 0.00007599], ['Desert Eagle | Pilot', 'FT', 0.00007307],
+      ['Desert Eagle | Crimson Web', 'FN', 0.00004056], ['Desert Eagle | Hypnotic', 'FN', 0.00003537], ['Desert Eagle | Pilot', 'FN', 0.00002874],
+      ['Desert Eagle | Код красный', 'FN', 0.0000257], ['Desert Eagle | Золотой карп', 'FN', 0.00002376], ['Desert Eagle | Ocean Drive', 'FN', 0.00001986],
+      ['Desert Eagle | Fennec Fox', 'FN', 0.00001029], ['Desert Eagle | Изумрудный Ёрмунганд', 'FN', 0.000009549], ['Desert Eagle | Hand Cannon', 'FN', 0.000009335],
+      ['Desert Eagle | Sunset Storm 壱', 'FN', 0.000008228], ['Desert Eagle | Пламя', 'FN', 0.000006502], ['Desert Eagle | Пламя', 'MW', 0.000005043],
+    ],
+  },
+  {
+    id: 'usps', name: 'USP-S', price: 249, tag: 'Оружейный', tagIc: 'trophy', rtp: 0.8,
+    sub: 'Только USP-S: 27 скинов от 33 ₽ до 50 тыс., ~29% открытий окупаются. Джекпоты — ST Kill Confirmed, Whiteout, Target Acquired, ST Printstream',
+    th: { a: '#a259ff' }, img: 'assets/case-usps.webp',
+    // скины USP-S из списка заказчика: до 1 300 ₽ — обычный дроп; 3–30 тыс. — вместе 1 из 1 800 (дороже — реже); ST Kill Confirmed (50 тыс.) — 1 из 420 тыс.
+    exact: [
+      ['USP-S | Check Engine', 'FT', 0.1552], ['USP-S | Flashback', 'FT', 0.1538], ['USP-S | Torque', 'FT', 0.1332],
+      ['USP-S | Lead Conduit', 'FT', 0.1177], ['USP-S | Guardian', 'FT', 0.07707], ['USP-S | Blood Tiger', 'FT', 0.07638],
+      ['USP-S | Cortex', 'FT', 0.07038], ['USP-S | Blueprint', 'FT', 0.06703], ['USP-S | Para Green', 'FT', 0.05578],
+      ['USP-S | Stainless', 'FT', 0.05516], ['USP-S | Overgrowth', 'FT', 0.03774], ['USP-S | Orion', 'FT', 0.0001103],
+      ['USP-S | Monster Mashup', 'FN', 0.00006578], ['USP-S | Dark Water', 'FT', 0.00006443], ['USP-S | Caiman', 'FN', 0.0000549],
+      ['USP-S | Serum', 'FN', 0.0000481], ['USP-S | Orion', 'FN', 0.00004228], ['USP-S | Printstream', 'FN', 0.00003821],
+      ['USP-S | The Traitor', 'FN', 0.00003799], ['USP-S | Business Class', 'FN', 0.00002954], ['USP-S | Road Rash', 'FN', 0.00002001],
+      ['StatTrak™ USP-S | Neo-Noir', 'FN', 0.00001646], ['USP-S | Kill Confirmed', 'FN', 0.000009351], ['StatTrak™ USP-S | Printstream', 'FN', 0.000007926],
+      ['USP-S | Target Acquired', 'FN', 0.000006248], ['USP-S | Whiteout', 'FN', 0.000004038], ['StatTrak™ USP-S | Kill Confirmed', 'FN', 0.000002372],
+    ],
+  },
+  {
+    id: 'awp', name: 'AWP', price: 499, tag: 'Оружейный', tagIc: 'trophy', rtp: 0.8,
+    sub: 'Только AWP: 31 скин от 12 ₽ до 554 тыс., ~16% открытий окупаются. Джекпоты — Gungnir, Dragon Lore, Medusa, The Prince',
+    th: { a: '#3b82f6' }, img: 'assets/case-awp.webp',
+    // AWP из списка заказчика: до 8 тыс. — обычный дроп (дороже 2 000 ₽ — реже); 20–66 тыс. — вместе 1 из 4 000; дороже 100 тыс. — 1 из 0,7–3,7 млн
+    exact: [
+      ['AWP | Safari Mesh', 'FT', 0.1202], ['AWP | Safari Mesh', 'MW', 0.1075], ['AWP | Arsenic Spill', 'FN', 0.08445],
+      ['AWP | Гадюка', 'FT', 0.07817], ['AWP | Капилляры', 'MW', 0.07487], ['AWP | Гадюка', 'MW', 0.07112],
+      ['AWP | Acheron', 'MW', 0.06428], ['AWP | Phobos', 'FT', 0.06339], ['AWP | ЛАПКИ', 'FT', 0.06311],
+      ['AWP | Worm God', 'FT', 0.06213], ['AWP | Mortis', 'FT', 0.05513], ['AWP | Fever Dream', 'FT', 0.0396],
+      ['AWP | Электрический улей', 'FT', 0.03228], ['AWP | Красная линия', 'FT', 0.02277], ['AWP | Скоростной зверь', 'FT', 0.02166],
+      ['AWP | Chromatic Aberration', 'FT', 0.02098], ['AWP | Неонуар', 'FT', 0.0157], ['AWP | Азимов', 'FT', 0.002358],
+      ['StatTrak™ AWP | Wildfire', 'FN', 0.00005582], ['AWP | Oni Taiji', 'MW', 0.00004766], ['AWP | Containment Breach', 'FN', 0.00004259],
+      ['AWP | LongDog', 'FN', 0.00003134], ['AWP | Lightning Strike', 'FN', 0.00002683], ['AWP | CMYK', 'FN', 0.00002018],
+      ['AWP | Градиент', 'FN', 0.00001606], ['StatTrak™ AWP | Oni Taiji', 'FN', 0.000009527], ['AWP | Desert Hydra', 'FN', 0.000001462],
+      ['AWP | Принц', 'FN', 7.424e-7], ['AWP | Медуза', 'MW', 6.118e-7], ['AWP | История о драконе', 'FT', 3.11e-7],
+      ['AWP | Gungnir', 'BS', 2.705e-7],
+    ],
+  },
+  {
+    id: 'ak47', name: 'AK-47', price: 349, tag: 'Оружейный', tagIc: 'trophy', rtp: 0.8,
+    sub: 'Только AK-47: 29 скинов от 10 ₽ до 560 тыс., ~27% открытий окупаются. Джекпоты — Wild Lotus, Hydroponic, Fire Serpent, Gold Arabesque',
+    th: { a: '#f97316' }, img: 'assets/case-ak47.webp',
+    // AK-47 из списка заказчика: до 8,5 тыс. — обычный дроп (дороже 1 400 ₽ — реже); 26–78 тыс. — вместе 1 из 4 000; дороже 100 тыс. — 1 из 0,7–3,7 млн
+    exact: [
+      ['AK-47 | Safari Mesh', 'FT', 0.5634], ['AK-47 | Элитное снаряжение', 'FT', 0.1076], ['AK-47 | Slate', 'FT', 0.06244],
+      ['AK-47 | Цвет джунглей', 'FT', 0.05535], ['AK-47 | Phantom Disruptor', 'FT', 0.05158], ['AK-47 | Point Disarray', 'FT', 0.03041],
+      ['AK-47 | Хищник', 'FT', 0.0282], ['AK-47 | Blue Laminate', 'FT', 0.02788], ['AK-47 | Зелёный глянец', 'FT', 0.02707],
+      ['AK-47 | Frontside Misty', 'FT', 0.02622], ['AK-47 | Красная линия', 'FT', 0.009182], ['AK-47 | Inheritance', 'FT', 0.005986],
+      ['AK-47 | Азимов', 'FT', 0.00402], ['AK-47 | Neon Revolution', 'FT', 0.0003863], ['StatTrak™ AK-47 | Bloodsport', 'FN', 0.00005279],
+      ['AK-47 | Ягуар', 'FN', 0.00004857], ['AK-47 | Case Hardened', 'FN', 0.00004416], ['AK-47 | Вулкан', 'FN', 0.00002802],
+      ['AK-47 | AUTOEXEC', 'FN', 0.00002147], ['AK-47 | Огненный змей', 'FT', 0.00001895], ['AK-47 | Jet Set', 'FN', 0.00001462],
+      ['StatTrak™ AK-47 | Case Hardened', 'FN', 0.00001103], ['AK-47 | Огненный змей', 'MW', 0.00001039], ['StatTrak™ AK-47 | Vulcan', 'FN', 0.000001485],
+      ['AK-47 | Рентген', 'FN', 0.000001169], ['AK-47 | Золотая арабеска', 'FN', 0.00000108], ['AK-47 | Огненный змей', 'FN', 8.874e-7],
+      ['AK-47 | Hydroponic', 'FN', 5.646e-7], ['AK-47 | Дикий лотос', 'FT', 2.68e-7],
+    ],
+  },
+  {
+    id: 'm4a4', name: 'M4A4', price: 349, tag: 'Оружейный', tagIc: 'trophy', rtp: 0.8,
+    sub: 'Только M4A4: 26 скинов от 15 ₽ до 628 тыс., ~21% открытий окупаются. Джекпоты — ST Howl, Howl, Poseidon, The Coalition',
+    th: { a: '#ef4444' }, img: 'assets/case-m4a4.webp',
+    // M4A4 из списка заказчика: до 6,2 тыс. — обычный дроп (дороже 1 400 ₽ — реже); 22–83 тыс. — вместе 1 из 4 000; дороже 90 тыс. — 1 из 0,6–4,2 млн
+    exact: [
+      ['M4A4 | Mainframe', 'FT', 0.2528], ['M4A4 | Magnesium', 'FT', 0.1864], ['M4A4 | Converter', 'FT', 0.1704],
+      ['M4A4 | Griffin', 'FT', 0.09027], ['M4A4 | Evil Daimyo', 'FT', 0.08914], ['M4A4 | Jungle Tiger', 'FT', 0.06978],
+      ['M4A4 | Desert Storm', 'FT', 0.05122], ['M4A4 | Desolate Space', 'FT', 0.04952], ['M4A4 | The Battlestar', 'FT', 0.02065],
+      ['M4A4 | Neo-Noir', 'FT', 0.01486], ['M4A4 | X-Ray', 'FT', 0.00255], ['M4A4 | Royal Paladin', 'FT', 0.002169],
+      ['M4A4 | Radiation Hazard', 'FN', 0.00004357], ['M4A4 | Hellfire', 'FN', 0.00004169], ['StatTrak™ M4A4 | Full Throttle', 'FN', 0.00003195],
+      ['StatTrak™ M4A4 | The Emperor', 'FN', 0.00002982], ['M4A4 | Buzz Kill', 'FN', 0.00002594], ['StatTrak™ M4A4 | Asiimov', 'FT', 0.00002133],
+      ['M4A4 | Daybreak', 'FN', 0.00001507], ['M4A4 | Modern Hunter', 'FN', 0.00001434], ['M4A4 | Eye of Horus', 'FN', 0.00001333],
+      ['M4A4 | The Coalition', 'FN', 0.000007035], ['M4A4 | Poseidon', 'MW', 0.000005916], ['M4A4 | Poseidon', 'FN', 0.000001541],
+      ['M4A4 | Вой', 'FT', 4.307e-7], ['StatTrak™ M4A4 | Howl', 'FT', 2.387e-7],
+    ],
+  },
+  {
+    id: 'gloves', name: 'ELITE GLOVES', price: 3999, tag: 'Перчаточный', tagIc: 'gem', rtp: 0.8,
+    sub: 'Только перчатки: 28 пар от 2 142 ₽ до 351 тыс. — перчатки в каждом открытии, ~17% окупаются. Джекпоты — Sport Gloves | Ultra Violent, Moto Gloves | Cool Mint',
+    th: { a: '#10b981' }, img: 'assets/case-gloves.webp',
+    // перчатки из списка заказчика: до 15 тыс. — обычный дроп; 29–86 тыс. — вместе 1 из 600; Cool Mint и Ultra Violent — 1 из 73 и 175 тыс.
+    exact: [
+      ['★ Driver Gloves | Racing Green', 'BS', 0.1975], ['★ Moto Gloves | Transport', 'BS', 0.1301], ['★ Moto Gloves | Transport', 'FT', 0.1277],
+      ['★ Moto Gloves | 3rd Commando Company', 'BS', 0.1064], ['★ Moto Gloves | 3rd Commando Company', 'FT', 0.09931], ['★ Moto Gloves | 3rd Commando Company', 'WW', 0.06867],
+      ['★ Moto Gloves | Turtle', 'BS', 0.05], ['★ Moto Gloves | Finish Line', 'BS', 0.04768], ['★ Moto Gloves | Turtle', 'FT', 0.03535],
+      ['★ Moto Gloves | Turtle', 'WW', 0.03025], ['★ Sport Gloves | Bronze Morph', 'BS', 0.02246], ['★ Sport Gloves | Bronze Morph', 'FT', 0.01789],
+      ['★ Specialist Gloves | Mogul', 'BS', 0.01757], ['★ Driver Gloves | Seigaiha', 'FT', 0.01241], ['★ Driver Gloves | Convoy', 'WW', 0.01064],
+      ['★ Moto Gloves | Polygon', 'FT', 0.00908], ['★ Moto Gloves | Blood Pressure', 'FT', 0.006206], ['★ Sport Gloves | Blaze', 'FT', 0.004702],
+      ['★ Driver Gloves | Imperial Plaid', 'FT', 0.00273], ['★ Sport Gloves | Omega', 'FT', 0.001706], ['★ Sport Gloves | Vice', 'FT', 0.0004935],
+      ['★ Moto Gloves | Eclipse', 'MW', 0.0003823], ['★ Sport Gloves | Nocts', 'FT', 0.0002943], ['★ Driver Gloves | Lunar Weave', 'MW', 0.0002334],
+      ['★ Sport Gloves | Slingshot', 'MW', 0.0001653], ['★ Specialist Gloves | Emerald Web', 'FT', 0.00009787], ['★ Moto Gloves | Cool Mint', 'FN', 0.00001371],
+      ['★ Sport Gloves | Ultra Violent', 'FN', 0.000005699],
+    ],
+  },
+  {
+    id: 'mirage', name: 'MIRAGE', price: 149, tag: 'Карта', tagIc: 'globe', rtp: 0.8,
+    sub: 'Карта Mirage: 50 скинов коллекций Mirage, Mirage 2021 и восточной Arabesque — от 10 ₽ до 103 тыс., ~21% открытий окупаются. Джекпоты — AWP | Desert Hydra, AK-47 | Consequence of the Jinn, AWP | Sovereign Flame',
+    th: { a: '#d97706' }, img: 'assets/case-mirage.webp',
+    // коллекции The Mirage, The 2021 Mirage, Arabesque (50 скинов): до 5 тыс. — обычный дроп (дороже 600 ₽ — реже); 12–44 тыс. — вместе 1 из 3 000; Desert Hydra FN — 1 из 680 тыс.
+    exact: [
+      ['P250 | Drought', 'FT', 0.0431], ['MAG-7 | Navy Sheen', 'FT', 0.0431], ['MAC-10 | Sienna Damask', 'FT', 0.0431],
+      ['PP-Bizon | Anolis', 'FT', 0.04147], ['SSG 08 | Prey', 'FT', 0.03948], ['MP9 | Dune Asp', 'FT', 0.03948],
+      ['Nova | Morning Sun', 'FT', 0.03948], ['SCAR-20 | Sirocco Script', 'FT', 0.03948], ['Dual Berettas | Mystic Conjunction', 'FT', 0.03948],
+      ['Five-SeveN | Desert Seal', 'FT', 0.03892], ['Dual Berettas | Drift Wood', 'FT', 0.03615], ['FAMAS | CaliCamo', 'FT', 0.03615],
+      ['P90 | Verdant Growth', 'FT', 0.03576], ['CZ75-Auto | Midnight Palm', 'FT', 0.0354], ['Sawed-Off | Lunar Wyrm', 'FT', 0.03411],
+      ['FAMAS | Snake Song', 'FT', 0.03411], ['MAC-10 | Arabesque Mosaic', 'FT', 0.03327], ['Tec-9 | Sultan', 'FT', 0.02999],
+      ['Galil AR | Hunting Blind', 'FT', 0.02243], ['Five-SeveN | Contractor', 'FT', 0.02223], ['AUG | Colony', 'FT', 0.02215],
+      ['P90 | Scorched', 'FT', 0.022], ['P250 | Bone Mask', 'FT', 0.02182], ['G3SG1 | Safari Mesh', 'FT', 0.02103],
+      ['MP9 | Music Box', 'FT', 0.02062], ['M249 | Humidor', 'FT', 0.02057], ['SG 553 | Desert Blossom', 'FT', 0.02049],
+      ['AUG | Lapis Lazuli', 'FT', 0.0192], ['USP-S | Пиксельный камуфляж «Фиолетовый»', 'FT', 0.01916], ['Glock-18 | Ifrit Lattice', 'FT', 0.01881],
+      ['P250 | Lotus Imprint', 'FT', 0.01879], ['MAG-7 | Bulldozer', 'FT', 0.008806], ['SG 553 | Gator Mesh', 'FT', 0.005433],
+      ['SSG 08 | Tropical Storm', 'FT', 0.005108], ['Glock-18 | Groundwater', 'FT', 0.004759], ['MP7 | Orange Peel', 'FT', 0.004398],
+      ['UMP-45 | Пламя', 'FN', 0.003781], ['Negev | CaliCamo', 'FN', 0.0034], ['XM1014 | Elegant Vines', 'FT', 0.003136],
+      ['MAC-10 | Янтарный градиент', 'FT', 0.003074], ['AUG | Sand Storm', 'FT', 0.002934], ['Glock-18 | Пиксельный камуфляж «Розовый»', 'FT', 0.002089],
+      ['Desert Eagle | Eastern Enigma', 'MW', 0.001095], ['M4A4 | Falak', 'MW', 0.0003242], ['MP5-SD | Oxide Oasis', 'FN', 0.0001276],
+      ['MP9 | Хот-род', 'FN', 0.0001045], ['Desert Eagle | Fennec Fox', 'FN', 0.00004834], ['AWP | Пламя суверена', 'FN', 0.00003286],
+      ['AK-47 | Consequence of the Jinn', 'FN', 0.00002004], ['AWP | Desert Hydra', 'FN', 0.000001462],
+    ],
+  },
+  {
+    id: 'rushb', name: 'RUSH B', price: 249, tag: 'Мемный', tagIc: 'bolt', rtp: 0.8,
+    sub: 'GO GO GO!!! 45 граффити-скинов в красно-оранжевом стиле от 25 ₽ до 85 тыс., ~23% открытий окупаются. Джекпоты — Karambit | Slaughter, Autotronic и Crimson Web',
+    th: { a: '#ea580c' }, img: 'assets/case-rushb.webp',
+    // граффити и стрит-стиль, красный/оранжевый/чёрный: до 3 500 ₽ — обычный дроп (дороже 1 000 ₽ — реже); 8–16 тыс. — вместе 1 из 2 500; три керамбита — 1 из 110–210 тыс.
+    exact: [
+      ['SG 553 | Dragon Tech', 'BS', 0.0726], ['M4A1-S | Nitro', 'FT', 0.0663], ['M4A1-S | Emphorosaur-S', 'FT', 0.0629],
+      ['MAC-10 | Pipe Down', 'FT', 0.06139], ['P250 | Inferno', 'FT', 0.05997], ['USP-S | Ticket to Hell', 'FT', 0.0541],
+      ['Desert Eagle | Firebreathing', 'WW', 0.05046], ['Desert Eagle | Trigger Discipline', 'FT', 0.04816], ['MP9 | Ruby Poison Dart', 'FT', 0.04066],
+      ['Glock-18 | Candy Apple', 'FT', 0.04023], ['M249 | Magma', 'BS', 0.03864], ['Galil AR | Firefight', 'WW', 0.03828],
+      ['CZ75-Auto | Red Astor', 'FT', 0.03809], ['MAC-10 | Heat', 'FT', 0.02586], ['AWP | Duality', 'FT', 0.02383],
+      ['UMP-45 | Дикое дитя', 'FT', 0.02274], ['Tec-9 | Isaac', 'FT', 0.02266], ['USP-S | Cortex', 'FT', 0.02196],
+      ['MP9 | Food Chain', 'FT', 0.02182], ['Sawed-Off | Kiss♥Love', 'FT', 0.02142], ['Glock-18 | Vogue', 'FT', 0.02107],
+      ['AWP | Древесная гадюка', 'FT', 0.0203], ['SG 553 | Cyrex', 'FT', 0.01864], ['MAC-10 | Disco Tech', 'FT', 0.01749],
+      ['M4A4 | Spider Lily', 'FT', 0.01526], ['Tec-9 | Fuel Injector', 'FT', 0.01192], ['P250 | Cartel', 'FT', 0.01186],
+      ['Nova | Hyper Beast', 'FT', 0.01173], ['Desert Eagle | Kumicho Dragon', 'FT', 0.007532], ['MAC-10 | Toybox', 'FT', 0.006774],
+      ['Glock-18 | Snack Attack', 'FT', 0.00671], ['M4A4 | Cyber Security', 'FT', 0.006428], ['Glock-18 | Water Elemental', 'FT', 0.004901],
+      ['AK-47 | Красная линия', 'FT', 0.00232], ['AK-47 | Head Shot', 'FT', 0.001963], ['AWP | Скоростной зверь', 'FT', 0.001639],
+      ['Desert Eagle | Код красный', 'FT', 0.000952], ['AK-47 | Кровавый спорт', 'FT', 0.0001287], ['M4A4 | Hellfire', 'FT', 0.0001086],
+      ['P90 | Азимов', 'FT', 0.00006021], ['AK-47 | Leet Museo', 'FT', 0.00005686], ['SSG 08 | Dragonfire', 'FT', 0.00004564],
+      ['★ Karambit | Crimson Web', 'FT', 0.000008867], ['★ Karambit | Autotronic', 'FT', 0.000006441], ['★ Karambit | Slaughter', 'FN', 0.000004734],
+    ],
+  },
+  {
+    id: 'reallife', name: 'THIS IS REAL LIFE', price: 149, tag: 'Мемный', tagIc: 'bolt', rtp: 0.8,
+    sub: 'No respawn: 46 военных скинов — камуфляж, хаки, пустыня — от 10 ₽ до 77 тыс., ~21% открытий окупаются. Джекпоты — Sport Gloves | Arid, Butterfly и Karambit в камуфляже',
+    th: { a: '#84a33a' }, img: 'assets/case-reallife.webp',
+    // военная тема (камуфляж, хаки, пустыня): до 3 тыс. — обычный дроп (дороже 600 ₽ — реже); ножи/перчатки и Wasteland Rebel 6–18 тыс. — вместе 1 из 2 500; Karambit, Butterfly, Sport Gloves Arid — 1 из 93–258 тыс.
+    exact: [
+      ['P90 | Desert DDPAT', 'FT', 0.03998], ['AK-47 | Safari Mesh', 'FT', 0.0394], ['AK-47 | Olive Polycam', 'FT', 0.0394],
+      ['M4A1-S | Boreal Forest', 'FT', 0.0394], ['MP7 | Army Recon', 'FT', 0.0394], ['Nova | Predator', 'FT', 0.0394],
+      ['Negev | Army Sheen', 'FT', 0.0394], ['SCAR-20 | Sand Mesh', 'FT', 0.0394], ['Sawed-Off | Forest DDPAT', 'FT', 0.0394],
+      ['Zeus x27 | Swamp DDPAT', 'FT', 0.0394], ['AWP | Safari Mesh', 'FT', 0.03841], ['USP-S | Desert Tactical', 'FT', 0.03841],
+      ['M4A4 | Urban DDPAT', 'FT', 0.03841], ['USP-S | Night Ops', 'FT', 0.03756], ['FAMAS | CaliCamo', 'FT', 0.03505],
+      ['UMP-45 | Briefing', 'FT', 0.03457], ['MP5-SD | Desert Strike', 'FT', 0.03413], ['M249 | Predator', 'FT', 0.03142],
+      ['M4A4 | Converter', 'FT', 0.03107], ['AWP | Гадюка', 'FT', 0.02859], ['MP7 | Special Delivery', 'FT', 0.02792],
+      ['AWP | Phobos', 'FT', 0.02476], ['AK-47 | Safety Net', 'FT', 0.02365], ['FAMAS | Sergeant', 'FT', 0.02361],
+      ['P90 | Desert Warfare', 'FT', 0.02326], ['MP7 | Olive Plaid', 'FT', 0.02238], ['M4A1-S | Briefing', 'FT', 0.02141],
+      ['M4A4 | Jungle Tiger', 'FT', 0.0207], ['M4A1-S | Basilisk', 'FT', 0.01961], ['AWP | Elite Build', 'FT', 0.01128],
+      ['M4A4 | Desert Storm', 'FT', 0.01048], ['AK-47 | Хищник', 'FT', 0.007716], ['SG 553 | Gator Mesh', 'FT', 0.007498],
+      ['Galil AR | Orange DDPAT', 'FT', 0.005508], ['Nova | Modern Hunter', 'FT', 0.004351], ['M4A4 | Desert-Strike', 'FT', 0.001778],
+      ['M4A4 | Modern Hunter', 'FT', 0.001441], ['★ Moto Gloves | Boom!', 'BS', 0.0001127], ['Glock-18 | Wasteland Rebel', 'FT', 0.00007881],
+      ['★ Skeleton Knife | Safari Mesh', 'FT', 0.00007736], ['★ Bayonet | Forest DDPAT', 'FT', 0.00007214], ['★ Talon Knife | Boreal Forest', 'FT', 0.00003437],
+      ['★ Specialist Gloves | Forest DDPAT', 'FT', 0.00002466], ['★ Karambit | Boreal Forest', 'FT', 0.00001071], ['★ Butterfly Knife | Forest DDPAT', 'FT', 0.000009469],
+      ['★ Sport Gloves | Arid', 'MW', 0.000003881],
+    ],
+  },
+  {
+    id: 'crybabies', name: 'CRY LIKE BABIES', price: 399, tag: 'Мемный', tagIc: 'bolt', rtp: 0.8,
+    sub: 'No skill, just luck: 44 розово-голубых скина от 24 ₽ до 129 тыс., ~18% открытий окупаются. Джекпоты — Karambit, Talon и Skeleton | Fade',
+    th: { a: '#ec4899' }, img: 'assets/case-crybabies.webp',
+    // розово-голубые и мультяшные скины: до 4,5 тыс. — обычный дроп (дороже 1 600 ₽ — заметно реже); Fade-ножи, Specialist Gloves Fade, Neon Revolution, Leet Museo 8–14 тыс. — вместе 1 из 3 000; Skeleton, Talon, Karambit | Fade — 1 из 140–515 тыс.
+    exact: [
+      ['P90 | Neoqueen', 'FT', 0.04007], ['P90 | Vent Rush', 'FT', 0.03974], ['P250 | Cyber Shell', 'FT', 0.03943],
+      ['R8 Revolver | Crazy 8', 'FT', 0.039], ['Dual Berettas | Flora Carnivora', 'FT', 0.039], ['M4A1-S | Emphorosaur-S', 'FT', 0.03849],
+      ['MAG-7 | Monster Call', 'FT', 0.03814], ['Tec-9 | Bamboozle', 'FT', 0.03752], ['M4A1-S | Night Terror', 'FT', 0.03742],
+      ['MAC-10 | Саккаку', 'FT', 0.03673], ['Glock-18 | Bunsen Burner', 'FT', 0.03642], ['Glock-18 | Moonrise', 'FT', 0.03586],
+      ['SSG 08 | Fever Dream', 'FT', 0.03494], ['M4A1-S | Fizzy POP', 'FT', 0.03348], ['XM1014 | Monster Melt', 'FT', 0.03252],
+      ['SG 553 | Pulse', 'FT', 0.03108], ['AWP | Duality', 'FT', 0.03017], ['USP-S | Jawbreaker', 'FT', 0.02993],
+      ['UMP-45 | Дикое дитя', 'FT', 0.02982], ['USP-S | Cortex', 'FT', 0.02956], ['Sawed-Off | Kiss♥Love', 'FT', 0.02937],
+      ['AK-47 | Ледяной уголь', 'FT', 0.029], ['UMP-45 | Neo-Noir', 'FT', 0.02883], ['MP9 | Mount Fuji', 'FT', 0.02842],
+      ['FAMAS | Rapid Eye Movement', 'FT', 0.02755], ['Dual Berettas | Melondrama', 'FT', 0.02748], ['AWP | Fever Dream', 'FT', 0.02534],
+      ['MAC-10 | Toybox', 'FT', 0.02411], ['Glock-18 | Water Elemental', 'FT', 0.02364], ['Glock-18 | Пиксельный камуфляж «Розовый»', 'FT', 0.02036],
+      ['M4A4 | Temukau', 'FT', 0.01025], ['AWP | Chromatic Aberration', 'FT', 0.007249], ['AK-47 | Неоновый гонщик', 'FT', 0.003075],
+      ['M4A1-S | Player Two', 'FT', 0.002349], ['MP9 | Starlight Protector', 'FT', 0.001756], ['Desert Eagle | Ocean Drive', 'FT', 0.001565],
+      ['AK-47 | Neon Revolution', 'FT', 0.00008679], ['★ Gut Knife | Fade', 'FN', 0.00008675], ['★ Shadow Daggers | Fade', 'FN', 0.00006782],
+      ['★ Specialist Gloves | Fade', 'FT', 0.00005089], ['AK-47 | Leet Museo', 'FT', 0.00004108], ['★ Skeleton Knife | Fade', 'FN', 0.00000725],
+      ['★ Talon Knife | Fade', 'FN', 0.00000455], ['★ Karambit | Fade', 'FN', 0.000001941],
+    ],
+  },
+  {
+    id: '1vs5', name: '1vs5', price: 249, tag: 'Клатч', tagIc: 'crown', rtp: 0.8,
+    sub: 'One against five, never give up: 42 фиолетовых скина — обычный дроп до 250 ₽, пять дорогих по 10–15 тыс. (1 из 200) и три ультра до 150 тыс.',
+    th: { a: '#8b5cf6' }, img: 'assets/case-1vs5.webp',
+    // фиолетово-белые скины: 34 обычных до 250 ₽; 5 дорогих 10–15 тыс. — вместе 1 из 200 (клатч — редко, но крупно); Karambit Ultraviolet, Sport Gloves Pandora's Box, Butterfly Ultraviolet — 1 из 150–500 тыс.
+    exact: [
+      ['R8 Revolver | Monarch', 'WW', 0.00817], ['Five-SeveN | Dark Polymer', 'BS', 0.008453], ['M4A4 | Dark Operative', 'WW', 0.009287],
+      ['P90 | Neoqueen', 'WW', 0.009287], ['Five-SeveN | Violent Daimyo', 'BS', 0.00956], ['M249 | Spectre', 'MW', 0.00956],
+      ['Negev | Sour Grapes', 'FN', 0.00956], ['PP-Bizon | Night Riot', 'FN', 0.01092], ['Glock-18 | Wraiths', 'BS', 0.01092],
+      ['P2000 | Royal Baroque', 'MW', 0.01092], ['USP-S | Royal Guard', 'BS', 0.01198], ['SG 553 | Darkwing', 'WW', 0.01381],
+      ['UMP-45 | Moonrise', 'FT', 0.01433], ['M4A1-S | Night Terror', 'FT', 0.01509], ['UMP-45 | Late Night Transit', 'MW', 0.0181],
+      ['Glock-18 | Moonrise', 'FT', 0.02006], ['P2000 | Pulse', 'FT', 0.0239], ['M249 | Nebula Crusader', 'WW', 0.02437],
+      ['SG 553 | Phantom', 'BS', 0.02437], ['M4A1-S | Glitched Paint', 'BS', 0.02601], ['SSG 08 | Ghost Crusader', 'BS', 0.02833],
+      ['Glock-18 | Night', 'FT', 0.03332], ['Glock-18 | Royal Legion', 'BS', 0.04016], ['MP7 | Neon Ply', 'BS', 0.04511],
+      ['SSG 08 | Dark Water', 'FT', 0.04532], ['AK-47 | Midnight Laminate', 'BS', 0.04808], ['Five-SeveN | Nightshade', 'FT', 0.05165],
+      ['SG 553 | Pulse', 'BS', 0.05165], ['Nova | Ghost Camo', 'FN', 0.05764], ['AWP | Duality', 'BS', 0.05826],
+      ['MAC-10 | Ультрафиолет', 'FT', 0.05866], ['Dual Berettas | Royal Consorts', 'BS', 0.0605], ['USP-S | Пиксельный камуфляж «Фиолетовый»', 'FT', 0.06212],
+      ['USP-S | Cortex', 'WW', 0.06555], ['★ Bayonet | Ultraviolet', 'FT', 0.001274], ['★ Skeleton Knife | Night Stripe', 'FT', 0.001144],
+      ['Glock-18 | Неонуар', 'FN', 0.001018], ['AK-47 | Неоновый гонщик', 'FN', 0.0008074], ['M4A1-S | Nightmare', 'FN', 0.0007557],
+      ['★ Karambit | Ultraviolet', 'MW', 0.000006656], ['★ Sport Gloves | Pandora\'s Box', 'BS', 0.000002023], ['★ Butterfly Knife | Ultraviolet', 'FN', 0.000002006],
+    ],
+  },
+  {
+    id: 'agents', name: 'AGENTS', price: 499, tag: 'Агенты', tagIc: 'users', rtp: 0.8,
+    sub: 'Все агенты CS2 — 63 персонажа от 304 ₽ до 5,3 тыс.: Phoenix, Sabre, SEAL, SWAT, The Professionals, Guerrilla Warfare. Джекпоты — Sir Bloody Miami Darryl, Primeiro Tenente, Getaway Sally',
+    th: { a: '#2563eb' }, img: 'assets/case-agents.webp',
+    // все агенты Lis-Skins: до 1 000 ₽ — обычный дроп (дешевле — чаще); дороже 1 000 ₽ — вместе 1 из 200 (дороже — реже)
+    exact: [
+      ['Soldier | Phoenix', null, 0.2088], ['Enforcer | Phoenix', null, 0.1663], ['Maximus | Sabre', null, 0.1086],
+      ['Dragomir | Sabre', null, 0.09293], ['Rezan The Ready | Sabre', null, 0.04916], ['Buckshot | NSWC SEAL', null, 0.04264],
+      ['Blackwolf | Sabre', null, 0.04184], ['Prof. Shahmat | Elite Crew', null, 0.0407], ['Rezan the Redshirt | Sabre', null, 0.03217],
+      ['\'Two Times\' McCoy | USAF TACP', null, 0.03188], ['Slingshot | Phoenix', null, 0.02896], ['\'Two Times\' McCoy | TACP Cavalry', null, 0.02142],
+      ['Dragomir | Sabre Footsoldier', null, 0.02024], ['Markus Delrow | FBI HRT', null, 0.01461], ['B Squadron Officer | SAS', null, 0.01346],
+      ['1st Lieutenant Farlow | SWAT', null, 0.01278], ['Osiris | Elite Crew', null, 0.01024], ['Ground Rebel  | Elite Crew', null, 0.005429],
+      ['Aspirant | Gendarmerie Nationale', null, 0.005233], ['John \'Van Healen\' Kask | SWAT', null, 0.004926], ['Sous-Lieutenant Medic | Gendarmerie Nationale', null, 0.004668],
+      ['Operator | FBI SWAT', null, 0.004668], ['Seal Team 6 Soldier | NSWC SEAL', null, 0.004668], ['The Elite Mr. Muhlik | Elite Crew', null, 0.004504],
+      ['Chem-Haz Specialist | SWAT', null, 0.004399], ['Bio-Haz Specialist | SWAT', null, 0.00385], ['Michael Syfers  | FBI Sniper', null, 0.003617],
+      ['\'The Doctor\' Romanov | Sabre', null, 0.003438], ['3rd Commando Company | KSK', null, 0.003164], ['\'Blueberries\' Buckshot | NSWC SEAL', null, 0.001222],
+      ['Lieutenant \'Tree Hugger\' Farlow | SWAT', null, 0.001168], ['Arno The Overgrown | Guerrilla Warfare', null, 0.0009968], ['Street Soldier | Phoenix', null, 0.0009712],
+      ['Cmdr. Mae \'Dead Cold\' Jamison | SWAT', null, 0.0007156], ['Sergeant Bombson | SWAT', null, 0.0006984], ['Lt. Commander Ricksaw | NSWC SEAL', null, 0.0004126],
+      ['Officer Jacques Beltram | Gendarmerie Nationale', null, 0.0004121], ['Safecracker Voltzmann | The Professionals', null, 0.000351], ['Lieutenant Rex Krikey | SEAL Frogman', null, 0.0003356],
+      ['Special Agent Ava | FBI', null, 0.0003024], ['Crasswater The Forgotten | Guerrilla Warfare', null, 0.0002946], ['Chem-Haz Capitaine | Gendarmerie Nationale', null, 0.00028],
+      ['Chef d\'Escadron Rouchard | Gendarmerie Nationale', null, 0.0002758], ['Jungle Rebel | Elite Crew', null, 0.0002721], ['Col. Mangos Dabisi | Guerrilla Warfare', null, 0.0001992],
+      ['\'Medium Rare\' Crasswater | Guerrilla Warfare', null, 0.0001979], ['Little Kev | The Professionals', null, 0.0001975], ['Trapper Aggressor | Guerrilla Warfare', null, 0.0001715],
+      ['Elite Trapper Solman | Guerrilla Warfare', null, 0.000154], ['Trapper | Guerrilla Warfare', null, 0.0001315], ['Bloody Darryl The Strapped | The Professionals', null, 0.0001301],
+      ['Sir Bloody Silent Darryl | The Professionals', null, 0.0001222], ['Sir Bloody Skullhead Darryl | The Professionals', null, 0.0001116], ['Vypa Sista of the Revolution | Guerrilla Warfare', null, 0.0000973],
+      ['Cmdr. Frank \'Wet Sox\' Baroud | SEAL Frogman', null, 0.00009545], ['Cmdr. Davida \'Goggles\' Fernandez | SEAL Frogman', null, 0.00009438], ['Sir Bloody Darryl Royale | The Professionals', null, 0.00008767],
+      ['Number K | The Professionals', null, 0.00006439], ['Sir Bloody Loudmouth Darryl | The Professionals', null, 0.00005675], ['D Squadron Officer | NZSAS', null, 0.00004172],
+      ['Getaway Sally | The Professionals', null, 0.00004121], ['Primeiro Tenente | Brazilian 1st Battalion', null, 0.00003521], ['Sir Bloody Miami Darryl | The Professionals', null, 0.0000341],
+    ],
+  },
+  {
     id: 'karambit', name: 'KARAMBIT', price: 39999, tag: 'Ножевой', tagIc: 'knife', rtp: .85, win: .2,
     sub: 'Только керамбиты: от 32 000 ₽ до Crimson Web FN — 30 позиций',
     th: { a: '#e11d48' }, img: 'assets/case-karambit.webp', overlay: 'shine',
@@ -1039,7 +1390,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003};
+const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
 const caseThumb = c => !c.img ? '' : c.custom ? c.img : c.img.replace(/\.webp$/, '-s.webp');
 function caseArt(c, cls = '', badge = '') {
@@ -1462,9 +1813,14 @@ const casePrice = (c, v) => c.rc ? `${RC_IMG}${rc(v)} R-COIN` : money(v);
 const CASE_BLOCKS = [
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
-  { id: 'allin', wm: 'ALL IN', t: 'Всё или ничего', sub: 'Ультра дорогие кейсы — максимальный риск, максимальный дроп', ic: 'crown', a: '#ff4d4d', ids: ['gold', 'karambit', 'premium'] },
-  { id: 'farm', wm: 'FARM', t: 'Фарм кейсы', sub: 'Дешёвые кейсы с частым дропом — фарми скины и копи на апгрейд', ic: 'trend', a: '#f5c518', ids: ['coco'] },
+  { id: 'guns', wm: 'GUNS', t: 'Оружейные кейсы', sub: 'Кейс одного оружия — все его скины, от ширпа до легенд', ic: 'trophy', a: '#22d3ee', ids: ['awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps'] },
+  { id: 'farm', wm: 'FARM', t: 'Фарм кейсы', sub: 'Дешёвые кейсы с частым дропом — фарми скины и копи на апгрейд', ic: 'trend', a: '#f5c518', ids: ['medkit', 'coco'] },
   { id: 'bonusrc', wm: 'BONUS', t: 'Бонусные кейсы', sub: 'Открываются за R-COIN, которые копятся с каждого открытия', ic: 'gift', a: '#8be04e', rc: true, ids: ['bonus30', 'bonus', 'bonus150'] },
+  { id: 'allin', wm: 'ALL IN', t: 'Всё или ничего', sub: 'Ультра дорогие кейсы — максимальный риск, максимальный дроп', ic: 'crown', a: '#ff4d4d', ids: ['gold', 'karambit', 'premium'] },
+  { id: 'gloves', wm: 'GLOVES', t: 'Перчатки и агенты', sub: 'Кейсы одной категории: только перчатки или только агенты', ic: 'gem', a: '#10b981', ids: ['gloves', 'agents'] },
+  { id: 'bingo', wm: 'BINGO', t: 'Bingo, bango, bongo', sub: 'Мемные кейсы CS2 — легендарные фразы, легендарный дроп', ic: 'bolt', a: '#ea580c', ids: ['rushb', 'reallife', 'crybabies'] },
+  { id: 'clutch', wm: 'CLUTCH', t: 'CLUTCH', sub: 'Один против всех — редкий, но огромный дроп', ic: 'crown', a: '#8b5cf6', ids: ['1vs5'] },
+  { id: 'maps', wm: 'MAPS', t: 'Кейсы карт', sub: 'Каждая карта CS2 — свой кейс: скины её коллекций и её стиль', ic: 'globe', a: '#d97706', ids: ['mirage'] }
 ];
 const blockCases = b => {
   const listed = new Set(CASE_BLOCKS.flatMap(x => x.ids));
@@ -1474,7 +1830,7 @@ const blockCases = b => {
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['coco', 'karambit', 'donk', 'gold', 'zont', 's1mple', 'frog'];
+const NEW_CASES = ['rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
 /* заголовок раздела: наклонная метка со значком, название с переливом, подпись, линия с бегущим огоньком, счётчик */
 const secHead = (t, sub, icon, a, n) => `<div class="sh" style="--bc:${a}">
   <span class="sh-tag">${icon}</span>
@@ -1788,11 +2144,15 @@ function resetRoulette() {
   rl.classList.remove('spinning', 'revealed', 'vert'); delete rl.dataset.n;
   $('#strips').innerHTML = ''; $('#reveal').innerHTML = '';
 }
+const FARM_N = [1, 3, 5, 10, 25, 50]; // кнопки количества фарм-кейса
+const MANY_N = 7; // больше — без рулеток, сразу итог
 function ccIdle(c) {
   const cc = $('#cc'); if (!cc) return;
   const have = c.rc ? (st.rcoin || 0) : st.balance;
-  const maxN = st.user ? clamp(Math.floor(have / c.price + 1e-9), 1, 7) : 7;
-  if (caseN > maxN) caseN = maxN;
+  const cap = c.farm ? c.farm.maxN : 7, maxN = st.user ? clamp(Math.floor(have / c.price + 1e-9), 1, cap) : cap;
+  // фарм-кейс: x1 x3 x5 x10 x25 x50 (сколько хватает денег); обычный — x1…x7
+  const counts = c.farm ? FARM_N.filter(n => n <= cap && n <= maxN) : Array.from({ length: maxN }, (_, i) => i + 1);
+  if (caseN > maxN || !counts.includes(caseN)) caseN = counts.filter(n => n <= Math.min(caseN, maxN)).pop() || 1;
   const cost = c.price * caseN;
   let main;
   if (c.disabled) main = `<button class="btn btn-primary btn-xl btn-cham" disabled>${ic.lock || ic.shield}Кейс временно закрыт</button>`;
@@ -1800,8 +2160,9 @@ function ccIdle(c) {
   else if (c.rc) main = (st.rcoin || 0) >= cost ? `<button class="btn btn-primary btn-xl btn-cham btn-rc" id="openBtn">Открыть за ${casePrice(c, cost)}</button>` : `<a class="btn btn-primary btn-xl btn-cham btn-rc" href="#/profile">Не хватает ${casePrice(c, cost - (st.rcoin || 0))}</a>`;
   else if (st.balance >= cost) main = `<button class="btn btn-primary btn-xl btn-cham" id="openBtn">${ic.coins}Открыть за ${money(cost)}</button>`;
   else main = `<button class="btn btn-primary btn-xl btn-cham" data-act="deposit" data-need="${cost - st.balance}">${ic.wallet}Пополнить на ${money(cost - st.balance)}</button>`;
-  cc.innerHTML = `<div class="mult" role="group" aria-label="Количество кейсов">${Array.from({ length: maxN }, (_, i) => i + 1).map(n => `<button class="${n === caseN ? 'on' : ''}" data-n="${n}">x${n}</button>`).join('')}</div>
+  cc.innerHTML = `<div class="mult" role="group" aria-label="Количество кейсов">${counts.map(n => `<button class="${n === caseN ? 'on' : ''}" data-n="${n}">x${n}</button>`).join('')}</div>
     <div class="cc-btns">${main}${c.rc ? '' : `<button class="btn btn-xl btn-cham btn-gline" id="demoBtn">${ic.eye}Демо</button>`}</div>
+    ${c.farm ? `<div class="cc-note cc-farm">${ic.coin}Ширп дешевле ${money(c.farm.sellBelow)} продаётся сразу — деньги на баланс</div>` : ''}
     <label class="switch"><input type="checkbox" id="fastChk"${st.fast ? ' checked' : ''}><i></i>Быстрое открытие</label>
     ${!st.user ? '<div class="cc-note">В демо-режиме выигрыш не сохраняется. <b>Войдите</b>, чтобы забирать скины по-настоящему.</div>' : ''}`;
   $$('.mult button', cc).forEach(b => b.onclick = () => { caseN = +b.dataset.n; Snd.click(); ccIdle(c); });
@@ -1811,6 +2172,7 @@ function ccIdle(c) {
 }
 /* демо: всегда предмет минимум вдвое дороже кейса (чаще 2–5×, дороже — реже); на настоящие открытия не влияет */
 function rollDemo(c) {
+  if (c.farm) return roll(c.items, 'ch');
   let pool = c.items.filter(s => s.p >= c.price * 2);
   if (!pool.length) pool = c.items.slice().sort((a, b) => b.p - a.p).slice(0, 3);
   const w = pool.map(s => (s.p / c.price) ** -1.6), sw = w.reduce((a, b) => a + b, 0);
@@ -1836,8 +2198,9 @@ async function openCase(c, demo) {
     if (!r) return;
     wins = r.drops.map(d => SK[d.n]).filter(Boolean);
     if (wins.length !== n) return toast('Ошибка выдачи — обновите страницу', 'err');
-    given = r.drops.map(d => d.cash ? { id: uid(), n: d.n, st: 'cash' } : (st.inv.find(x => x.id === d.id) || { id: d.id, n: d.n, st: 'own' }));
+    given = r.drops.map(d => d.cash ? { id: uid(), n: d.n, st: 'cash' } : d.sold != null ? { id: uid(), n: d.n, st: 'autosold' } : (st.inv.find(x => x.id === d.id) || { id: d.id, n: d.n, st: 'own' }));
   }
+  if (n > MANY_N) return openMany(c, wins, given, demo);
   resetRoulette();
   wins.forEach(s => { new Image().src = imgUrl(s, 'l'); }); // большие картинки грузим, пока крутится рулетка
   spinning = true;
@@ -1864,6 +2227,19 @@ async function openCase(c, demo) {
   if (song) song.then(h => h && h.stop(.25));
   await sleep(550);
   if (my !== spinId || !document.body.contains(rl)) return;
+  showReveal(c, wins, given, demo);
+  spinning = false;
+}
+/* много кейсов (фарм x10–x50): короткая тряска кейса и сразу итог — сетка выпавшего */
+async function openMany(c, wins, given, demo) {
+  resetRoulette();
+  spinning = true;
+  const my = ++spinId, rl = $('#rl');
+  $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем ${wins.length} кейсов…</div>`;
+  rl.classList.add('unlocking'); Snd.lock();
+  await sleep(st.fast ? 600 : 1100);
+  if (my !== spinId || !document.body.contains(rl)) return;
+  rl.classList.remove('unlocking');
   showReveal(c, wins, given, demo);
   spinning = false;
 }
@@ -1912,7 +2288,7 @@ function spinStrip(strip, dur, withSound) {
 /* выпавший предмет сам плавно покачивается в 3D (мышью не двигается); если выпало несколько — стоят на месте */
 function itemTilt(root) {
   $$('.rv-imgw', root).forEach((w, i) => {
-    const img = $('img', w); if (!img || w.closest('.rv-inner.many')) return; // несколько предметов — стоят на месте
+    const img = $('img', w); if (!img || w.closest('.rv-inner.many, .rv-agent')) return; // несколько предметов и агенты — стоят на месте, без бликов
     const t0 = performance.now() + i * 900, hover = false;
     let tx = 0, ty = 0, rx = 0, ry = 0, energy = 0;
     // блики: canvas поверх предмета, повёрнутый вместе с ним; полоса света и искорки обрезаются по силуэту
@@ -1968,20 +2344,22 @@ function showReveal(c, wins, given, demo) {
   const tier = best.r === 'rare' || best.p >= c.price * 8 ? 'jackpot' : best.p > c.price ? 'profit' : 'cheap';
   if (c.snd) Snd.play(best.p >= c.price ? c.snd.win : c.snd.lose, .55); else Snd[tier]();
   if (tier === 'jackpot') { burst(110); setTimeout(() => burst(70), 700); }
-  const one = wins.length === 1;
+  const one = wins.length === 1, lots = wins.length > MANY_N;
+  if (lots) { const ord = wins.map((s, i) => i).sort((a, b) => wins[b].p - wins[a].p); wins = ord.map(i => wins[i]); given = ord.map(i => given[i]); }
+  const autoSum = demo || !c.farm ? 0 : wins.reduce((a, s, i) => a + (given[i] && given[i].st === 'autosold' ? s.p : 0), 0);
   const topR = wins.reduce((a, s) => RAR[s.r].o > RAR[a].o ? s.r : a, wins[0].r);
   const rays = ''; // без лучей и свечения за выпавшим предметом
-  $('#reveal').innerHTML = `${one ? '' : `<div class="rv-bg r-${topR}">${rays}</div>`}<div class="rv-inner ${one ? 'one' : 'many'}">${wins.map((s, i) => `
-    <div class="rv-card r-${s.r}" style="--d:${i * 110}ms" ${given[i] ? `data-id="${given[i].id}"` : ''}>
+  $('#reveal').innerHTML = `${one ? '' : `<div class="rv-bg r-${topR}">${rays}</div>`}${autoSum ? `<div class="rv-auto">${ic.coin}Ширп продан автоматически: <b>+${money(autoSum)}</b> на баланс</div>` : lots ? `<div class="rv-auto">${ic.coin}Выпало ${wins.length} предметов на <b>${money(wins.reduce((a, s) => a + s.p, 0))}</b></div>` : ''}<div class="rv-inner ${one ? 'one' : 'many'}${lots ? ' lots' : ''}">${wins.map((s, i) => `
+    <div class="rv-card r-${s.r}${given[i] && given[i].st === 'autosold' ? ' rv-auto-sold' : ''}${s.c === 'agent' ? ' rv-agent' : ''}" style="--d:${Math.min(i, 24) * (lots ? 40 : 110)}ms" ${given[i] ? `data-id="${given[i].id}"` : ''}>
       <div class="rv-imgw">${one ? rays : ''}<img src="${imgUrl(s, 'l')}" alt=""></div>
-      <div class="rv-rar">${s.cash ? 'Зачислено на баланс' : RAR[s.r].n}</div>
+      <div class="rv-rar">${s.cash ? 'Зачислено на баланс' : given[i] && given[i].st === 'autosold' ? 'Продано автоматически' : RAR[s.r].n}</div>
       <div class="rv-name"><span>${esc(s.w)}</span>${esc(s.f)}</div>
       <div class="rv-price">${money(s.p)}</div>
       ${!demo && !one && given[i].st === 'own' ? `<button class="btn btn-sm btn-dark" data-sellone="${given[i].id}">Продать</button>` : ''}
     </div>`).join('')}</div>`;
   $('#rl').classList.add('revealed');
   itemTilt($('#reveal'));
-  if (!demo && !c.rc) wins.filter(s => !s.cash).forEach(s => liveMine({ n: s.name, c: c.id }));
+  if (!demo && !c.rc) wins.filter((s, i) => !s.cash && given[i].st !== 'autosold').forEach(s => liveMine({ n: s.name, c: c.id }));
   ccDone(c, wins, given, demo);
 }
 function ccDone(c, wins, given, demo) {
@@ -3905,7 +4283,7 @@ function pageAdmin() {
 /* каталог цен и составы встроенных кейсов → на сервер (выпадение считает сервер по этим данным); грузим, если на сайте что-то поменялось */
 async function admSync(force) {
   const cat = Object.keys(SK).map(k => [k, Math.round(SK[k].p * 100) / 100, SK[k].c || 'skin']).filter(x => x[1] > 0);
-  const cases = CASES.filter(c => !c.custom).map(c => ({ id: c.id, price: c.price, rc: !!c.rc, rate: c.rc ? 0 : RCOIN_RATE(c), items: c.items.map(x => ({ n: x.name, ch: x.ch0 != null ? x.ch0 : x.ch })) }));
+  const cases = CASES.filter(c => !c.custom).map(c => ({ id: c.id, price: c.price, rc: !!c.rc, rate: c.rc ? 0 : RCOIN_RATE(c), maxn: c.farm ? c.farm.maxN : 7, sell_below: c.farm ? c.farm.sellBelow : null, items: c.items.map(x => ({ n: x.name, ch: x.ch0 != null ? x.ch0 : x.ch })) }));
   const str = JSON.stringify(cases) + cat.length + cat.reduce((a, x) => a + x[1], 0).toFixed(2);
   let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
   const ver = (h >>> 0).toString(36);
