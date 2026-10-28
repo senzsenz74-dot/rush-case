@@ -1044,9 +1044,13 @@ async function sbRefresh() {
 }
 addEventListener('visibilitychange', () => { if (document.hidden) sbPush(); });
 /* журнал для статистики админки: пульс онлайна (раз в 2 мин с открытой вкладки), пополнения, выводы, открытия кейсов */
-const SID = (() => { try { let s = sessionStorage.getItem('rc.sid'); if (!s) { s = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); sessionStorage.setItem('rc.sid', s); } return s; } catch (e) { return 'x' + Math.random().toString(36).slice(2, 12); } })();
+// SID — номер устройства (хранится в браузере постоянно): посетитель = устройство, а не вкладка
+const SID = (() => { try { let s = localStorage.getItem('rc.vid'); if (!s) { s = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem('rc.vid', s); } return s; } catch (e) { return 'x' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); } })();
+// не считаем онлайн: локальная копия и тестовые адреса, устройства админов (метка ставится при входе админа)
+const NO_STATS = /^(localhost|127\.0\.0\.1|\[::1\]|.+\.(local|test|localhost))$/.test(location.hostname) || location.protocol === 'file:';
+const isAdminDevice = () => { try { return localStorage.getItem('rc.adm') === '1'; } catch (e) { return false; } };
 function logEv(kind, amount = 0, won = 0, x = 0) {
-  if (!sb) return;
+  if (!sb || (kind === 'hb' && (NO_STATS || isAdminDevice() || (st.user && st.user.admin)))) return;
   sb.from('site_events').insert({ kind, sid: SID, uid: st.user && st.user.sb ? st.user.id : null, amount: Math.max(0, Math.round(amount * 100) / 100), won: Math.max(0, Math.round(won * 100) / 100), ...(x ? { x: Math.round(x * 100) / 100 } : {}) }).then(() => {}, () => {});
 }
 setTimeout(() => logEv('hb'), 3000);
@@ -3718,6 +3722,7 @@ async function sbLoadProfile(session) {
   st.stats = Object.assign(freshProfile().stats, st.stats || {});
   st.inv.forEach(x => { x.n = fixName(x.n); });
   st.user = { id: session.user.id, rid: session.user.id.slice(0, 8), name: p.name, email: session.user.email, ava: p.ava || null, reg: Date.parse(p.created_at), via: p.steamid ? 'steam' : 'email', steamid: p.steamid || null, key: 'sb', sb: true, admin: !!p.is_admin, pid: p.pid || null, luck: +p.luck || 1 };
+  if (p.is_admin) try { localStorage.setItem('rc.adm', '1'); } catch (e) { /* */ }
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
   renderUser(); route();
   jpClaim(false); jpResolveMine(); claimGrants();

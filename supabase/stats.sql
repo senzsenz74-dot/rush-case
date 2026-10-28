@@ -32,17 +32,21 @@ declare b text := case when p_bucket = 'hour' then 'hour' else 'day' end; r json
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
   with ev as (select * from public.site_events where ts >= p_from and ts < p_to),
-  slots as (  -- онлайн в каждые 5 минут: сколько разных вкладок прислали пульс
+  -- онлайн и посетители — без админов: их аккаунтов и всех устройств (sid), с которых админ хоть раз заходил
+  adm as (select id from public.profiles where is_admin),
+  admsid as (select distinct e.sid from public.site_events e where e.uid in (select id from adm)),
+  evo as (select * from ev where (uid is null or uid not in (select id from adm)) and sid not in (select sid from admsid)),
+  slots as (  -- онлайн в каждые 5 минут: сколько разных устройств прислали пульс
     select to_timestamp(floor(extract(epoch from ts) / 300) * 300) as t, count(distinct sid) as n
-    from ev where kind = 'hb' group by 1),
+    from evo where kind = 'hb' group by 1),
   buckets as (
     select date_trunc(b, gs) as t from generate_series(date_trunc(b, p_from), p_to - interval '1 second', ('1 ' || b)::interval) gs),
   per as (
     select k.t,
       (select coalesce(max(s.n), 0) from slots s where date_trunc(b, s.t) = k.t) as peak,
       (select coalesce(round(avg(s.n), 1), 0) from slots s where date_trunc(b, s.t) = k.t) as avg,
-      (select count(distinct e.sid) from ev e where e.kind = 'hb' and date_trunc(b, e.ts) = k.t) as visitors,
-      (select count(distinct e.uid) from ev e where e.uid is not null and date_trunc(b, e.ts) = k.t) as players,
+      (select count(distinct e.sid) from evo e where e.kind = 'hb' and date_trunc(b, e.ts) = k.t) as visitors,
+      (select count(distinct e.uid) from evo e where e.uid is not null and date_trunc(b, e.ts) = k.t) as players,
       (select coalesce(sum(e.amount), 0) from ev e where e.kind = 'dep' and date_trunc(b, e.ts) = k.t) as dep,
       (select coalesce(sum(e.amount), 0) from ev e where e.kind = 'out' and date_trunc(b, e.ts) = k.t) as out,
       (select coalesce(sum(e.amount), 0) from ev e where e.kind = 'open' and date_trunc(b, e.ts) = k.t) as spent,
@@ -55,8 +59,8 @@ begin
     'total', jsonb_build_object(
       'peak', (select coalesce(max(n), 0) from slots),
       'avg', (select coalesce(round(avg(n), 1), 0) from slots),
-      'visitors', (select count(distinct sid) from ev where kind = 'hb'),
-      'players', (select count(distinct uid) from ev where uid is not null),
+      'visitors', (select count(distinct sid) from evo where kind = 'hb'),
+      'players', (select count(distinct uid) from evo where uid is not null),
       'reg', (select count(*) from public.profiles where created_at >= p_from and created_at < p_to),
       'dep', (select coalesce(sum(amount), 0) from ev where kind = 'dep'),
       'depN', (select count(*) from ev where kind = 'dep'),
