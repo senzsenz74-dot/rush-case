@@ -4315,13 +4315,13 @@ function jpOpenBet() {
    АДМИН-ПАНЕЛЬ: дашборд, кейсы (закрыть / удача), игроки (начислить баланс).
    Права проверяет база (is_admin в profiles, функции admin_* — см. supabase/admin.sql).
    ========================================================= */
-let admTab = 'dash';
+let admTab = (() => { try { return localStorage.getItem('rc.admTab') || 'dash'; } catch (e) { return 'dash'; } })();
 const pctS = v => (v * 100).toFixed(v < .1 ? 2 : 1).replace('.', ',') + '%';
 function pageAdmin() {
   if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
-  return `<section class="container cases-wide adm" id="adm">
-    <div class="adm-top"><div><span class="adm-eyebrow">${ic.shield}Админ-панель</span><h1>Управление <em>RUSH CASE</em></h1></div>
-      <div class="adm-tabs" id="admTabs">${[['dash', 'Дашборд', 'trend'], ['stats', 'Статистика', 'chart'], ['cases', 'Кейсы', 'box'], ['players', 'Игроки', 'users'], ['tours', 'Турниры', 'crown']].map(([k, t, i]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${ic[i] || ''}${t}</button>`).join('')}</div></div>
+  return `<section class="container cases-wide ax" id="adm">
+    <header class="ax-top"><div class="ax-ttl"><span>Админ-панель</span><h1>RUSH CASE</h1></div><div class="ax-period" id="axPeriod"></div></header>
+    <nav class="ax-tabs" id="admTabs">${ADM_TABS.map(([k, t]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${t}</button>`).join('')}</nav>
     <div id="admBody"></div>
   </section>`;
 }
@@ -4345,76 +4345,13 @@ async function admSync(force) {
 function mountAdmin() {
   if (!$('#adm')) return;
   if (sb) admSync();
-  $$('#admTabs [data-t]').forEach(b => b.onclick = () => { admTab = b.dataset.t; $$('#admTabs [data-t]').forEach(x => x.classList.toggle('on', x === b)); admDraw(); });
+  if (!ADM_TABS.some(([k]) => k === admTab)) admTab = 'dash';
+  admPeriodBar();
+  $$('#admTabs [data-t]').forEach(b => b.onclick = () => { admTab = b.dataset.t; try { localStorage.setItem('rc.admTab', admTab); } catch (e) { /* */ } admDraw(); });
   admDraw();
 }
-function admDraw() {
-  const box = $('#admBody'); if (!box) return;
-  if (!sb && admTab !== 'cases') return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
-  if (admTab === 'dash') admDash(box); else if (admTab === 'stats') admStats(box); else if (admTab === 'cases') admCases(box); else if (admTab === 'tours') admTours(box); else admPlayers(box);
-}
 const admErr = e => `<div class="empty">${ic.shield}Ошибка: ${esc(e.message || String(e))}. Проверьте, что запущен supabase/admin.sql и ваш аккаунт — админ.</div>`;
-/* ---------- дашборд ---------- */
-async function admDash(box) {
-  box.innerHTML = `<div class="adm-load"><span class="spinner"></span>Загружаем статистику…</div>`;
-  const [{ data: s, error }, { data: profs, error: e2 }] = await Promise.all([sb.rpc('admin_stats'), sb.from('profiles').select('id, name, data')]);
-  if (error || e2) return (box.innerHTML = admErr(error || e2));
-  // деньги: всё считаем по профилям игроков (цены скинов — из каталога сайта)
-  const P = it => (SK[it.n] && SK[it.n].p) || 0;
-  let dep = 0, out = 0, outN = 0, bal = 0, hold = 0, holdN = 0;
-  const cs = {}; // по кейсам: n — открыто, spent — потрачено, won — выдано
-  const top = [];
-  for (const p of profs || []) {
-    const d = p.data || {}, inv = d.inv || [], stt = d.stats || {};
-    dep += +stt.dep || 0; bal += +d.balance || 0;
-    let pOut = 0;
-    for (const it of inv) {
-      if (it.st === 'out' || it.st === 'pend') { out += P(it); outN++; pOut += P(it); }
-      else if (it.st === 'own' || it.st === 'bet') { hold += P(it); holdN++; }
-    }
-    if (stt.cs) for (const [id, v] of Object.entries(stt.cs)) { const k = cs[id] = cs[id] || { n: 0, spent: 0, won: 0 }; k.n += v.n; k.spent += v.spent; k.won += v.won; }
-    else for (const it of inv) { const c = caseById(it.from); if (!c) continue; const k = cs[c.id] = cs[c.id] || { n: 0, spent: 0, won: 0, est: true }; k.n++; k.spent += c.price; k.won += P(it); }
-    top.push({ name: p.name, dep: +stt.dep || 0, out: pOut });
-  }
-  const profit = dep - out - bal - hold;
-  const rows = Object.entries(cs).map(([id, k]) => ({ c: caseById(id), ...k, rtp: k.spent ? k.won / k.spent : 0 })).filter(r => r.c && !r.c.rc && r.spent > 0).sort((a, b) => b.rtp - a.rtp);
-  // самый дающий — среди кейсов с хотя бы 5 открытиями (одно случайное открытие не показательно)
-  const best = rows.find(r => r.n >= 5 && !r.est) || rows.find(r => r.n >= 5) || rows[0];
-  const days = s.regDays || [], mx = Math.max(1, ...days.map(d => d.n));
-  const kpi = (t, v, sub, ac, ic_, cls = '') => `<div class="adm-kpi ${cls}" style="--ac:${ac}"><span class="ak-ic">${ic_}</span><span class="ak-t">${t}</span><b>${v}</b><small>${sub}</small></div>`;
-  const tile = (t, v, sub, ac) => `<div class="adm-tile" style="--ac:${ac}"><span>${t}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
-  const flow = [['Пополнения', dep, '#4ade80'], ['Выведено в Steam', out, '#f472b6'], ['На балансах', bal, '#60a5fa'], ['Скины в инвентарях', hold, '#a78bfa']], fmx = Math.max(1, ...flow.map(f => f[1]));
-  box.innerHTML = `
-    <div class="adm-kpis">
-      ${kpi('Сумма пополнений', money(dep), 'за всё время · тестовые', '#4ade80', ic.wallet || ic.coin)}
-      ${kpi('Выведено в Steam', money(out), `${fmt(outN)} предм.`, '#f472b6', ic.steam)}
-      ${kpi('Чистая прибыль', (profit < 0 ? '−' : '') + money(Math.abs(profit)), 'пополнения − выведено − балансы − скины игроков', profit >= 0 ? '#4ade80' : '#ff5d5d', ic.trend, profit >= 0 ? 'pos' : 'neg')}
-      <div class="adm-kpi best" style="--ac:#f5c76b">${best ? `<img src="${caseThumb(best.c)}" alt=""><span class="ak-t">Самый дающий кейс</span><b>${esc(best.c.name)}</b><small>отдаёт ${pctS(best.rtp)} · открыт ${fmt(best.n)} раз${best.est ? ' · оценка' : ''}</small>` : `<span class="ak-ic">${ic.box}</span><span class="ak-t">Самый дающий кейс</span><b>—</b><small>пока нет открытий</small>`}</div>
-    </div>
-    <div class="adm-tiles">
-      ${tile('Игроков', fmt(s.users), `+${fmt(s.new24)} за сутки`, '#f5c76b')}
-      ${tile('Онлайн', fmt(s.online), 'активны за 10 мин', '#4ade80')}
-      ${tile('Балансы игроков', money(bal), `R-COIN: ${rc(+s.rcoin)}`, '#60a5fa')}
-      ${tile('Скины у игроков', money(hold), `${fmt(holdN)} предм. в инвентарях`, '#a78bfa')}
-      ${tile('Открыто кейсов', fmt(+s.opened), `потрачено ${money(+s.spent)}`, '#fb923c')}
-      ${tile('Ставки за сутки', money(+s.jpPot24), `${fmt(s.jpRounds24)} раундов · игроков ${fmt(s.jpRealBets24)} на ${money(+s.jpRealSum24)}`, '#f472b6')}
-      ${tile('Начислено админом', money(+s.grants24), 'за сутки', '#22d3ee')}
-      ${tile('Кейсы', `${CASES.filter(c => !c.disabled).length} / ${CASES.length}`, `открыто · с удачей ≠ ×1: ${CASES.filter(c => (c.luck || 1) !== 1).length}`, '#facc15')}
-    </div>
-    <div class="adm-grid2">
-      <div class="adm-panel"><div class="adm-ph"><h3>Движение денег</h3></div>
-        <div class="adm-flow">${flow.map(([t, v, c]) => `<div class="af-r"><span>${t}</span><div class="af-b"><i style="width:${(v / fmx * 100).toFixed(1)}%;background:${c}"></i></div><b>${money(v)}</b></div>`).join('')}
-          <div class="af-sum ${profit >= 0 ? 'pos' : 'neg'}"><span>Чистая прибыль</span><b>${(profit < 0 ? '−' : '') + money(Math.abs(profit))}</b></div></div></div>
-      <div class="adm-panel"><div class="adm-ph"><h3>Регистрации за 14 дней</h3></div>
-        <div class="adm-bars">${days.length ? days.map(d => `<div class="adm-bar" title="${d.d}: ${d.n}"><i style="height:${(d.n / mx * 100).toFixed(0)}%"></i><b>${d.n}</b><span>${d.d.slice(8)}.${d.d.slice(5, 7)}</span></div>`).join('') : '<div class="empty">Пока нет регистраций</div>'}</div></div>
-    </div>
-    <div class="adm-panel"><div class="adm-ph"><h3>Кейсы: сколько отдают</h3><p>Факт по открытиям игроков: «отдаёт» = стоимость выпавшего ÷ потрачено. Больше 100% — кейс в минусе для сайта.</p></div>
-      ${rows.length ? `<div class="adm-ct"><div class="act-h"><span>Кейс</span><span>Открыто</span><span>Потрачено</span><span>Выдано</span><span>Отдаёт</span><span>Прибыль</span></div>
-        ${rows.map(r => `<div class="act-r"><span class="act-c"><img src="${caseThumb(r.c)}" alt="">${esc(r.c.name)}${r.est ? '<em>оценка</em>' : ''}</span><span>${fmt(r.n)}</span><span>${money(r.spent)}</span><span>${money(r.won)}</span>
-          <span class="act-rtp ${r.rtp > 1 ? 'neg' : ''}"><i style="width:${Math.min(100, r.rtp * 50).toFixed(0)}%"></i>${pctS(r.rtp)}</span><span class="${r.spent - r.won < 0 ? 'neg' : 'pos'}">${(r.spent - r.won < 0 ? '−' : '+') + money(Math.abs(r.spent - r.won))}</span></div>`).join('')}</div>`
-        : '<div class="empty">Пока нет открытий</div>'}</div>`;
-}
-/* ---------- статистика за любой период: онлайн и деньги ---------- */
+/* ---------- админ-панель: общий период, данные за период (кэш 1 мин), графики и таблицы ---------- */
 let admRange = { k: '7d' };
 const admDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const admIso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -4424,77 +4361,259 @@ function admRangeDates() {
   if (admRange.k === 'custom') return [admDay(admRange.from), new Date(+admDay(admRange.to) + 864e5)];
   return R[admRange.k];
 }
-function admStats(box) {
+const sgn = v => (v < 0 ? '−' : v > 0 ? '+' : '') + money(Math.abs(v));
+const tone = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+// кратко для шкалы графика: 4,98 млн ₽ / 12 тыс ₽
+const cmp = v => { const a = Math.abs(v), s_ = v < 0 ? '−' : v > 0 ? '+' : ''; return s_ + (a >= 1e6 ? (a / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace('.', ',') + ' млн' : a >= 1e4 ? Math.round(a / 1e3) + ' тыс' : fmt(a)) + ' ₽'; };
+let admData = null;
+function admFetch(force) {
+  const [f, t] = admRangeDates(), key = `${+f}-${+t}`;
+  if (!force && admData && admData.key === key && Date.now() - admData.at < 60000) return admData.p;
+  const hours = (t - f) / 36e5 <= 48, bucket = hours ? 'hour' : 'day', args = { p_from: f.toISOString(), p_to: t.toISOString() };
+  const p = Promise.all([
+    sb.rpc('admin_period', { ...args, p_bucket: bucket }), sb.rpc('admin_upg', { ...args, p_bucket: bucket }), sb.rpc('admin_bets', { ...args, p_bucket: bucket }),
+    sb.rpc('admin_cases_period', args), sb.rpc('admin_stats'), sb.from('profiles').select('id, name, data, created_at, is_admin')
+  ]).then(([per, upg, bets, cp, snap, prof]) => {
+    if (per.error) throw per.error;
+    const by = (arr) => Object.fromEntries((arr || []).map(r => [String(r.t), r]));
+    const U = by(upg.data && upg.data.series), B = by(bets.data && bets.data.series);
+    // подпись: часы — по вашему времени, дни — дата сервера (UTC)
+    const lbl = t_ => { const d = new Date(t_); return hours ? `${pad(d.getHours())}:00` : `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}`; };
+    const full = t_ => { const d = new Date(t_); return hours ? `${pad(d.getDate())}.${pad(d.getMonth() + 1)} ${pad(d.getHours())}:00` : `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`; };
+    const rows = (per.data.series || []).map(r => {
+      const u = U[String(r.t)] || {}, b = B[String(r.t)] || {};
+      const cases = +r.spent - +r.won, upgP = (+u.stake || 0) - (+u.won || 0), betsP = +b.profit || 0;
+      return { t: r.t, lbl: lbl(r.t), full: full(r.t), peak: +r.peak, avg: +r.avg, visitors: +r.visitors, players: +r.players, reg: +r.reg,
+        dep: +r.dep, out: +r.out, flow: +r.dep - +r.out, spent: +r.spent, won: +r.won, cases,
+        uN: +u.n || 0, uWins: +u.wins || 0, uStake: +u.stake || 0, uWon: +u.won || 0, upgP,
+        bRounds: +b.rounds || 0, bLive: +b.live || 0, bBets: +b.bets || 0, bPlayers: +b.players || 0, bWins: +b.pwins || 0, betsP, game: cases + upgP + betsP };
+    });
+    // игроки и деньги «сейчас» — по профилям (цены скинов из каталога)
+    const P = it => (SK[it.n] && SK[it.n].p) || 0;
+    let bal = 0, hold = 0, holdN = 0, depAll = 0, outAll = 0;
+    const players = [], csAll = {};
+    for (const p of prof.data || []) {
+      const d = p.data || {}, inv = d.inv || [], s = d.stats || {};
+      let pOut = 0, pHold = 0;
+      for (const it of inv) { if (it.st === 'out' || it.st === 'pend') pOut += P(it); else if (it.st === 'own' || it.st === 'bet') { pHold += P(it); holdN++; } }
+      bal += +d.balance || 0; hold += pHold; depAll += +s.dep || 0; outAll += pOut;
+      if (s.cs) for (const [id, v] of Object.entries(s.cs)) { const k = csAll[id] = csAll[id] || { n: 0, spent: 0, won: 0 }; k.n += +v.n || 0; k.spent += +v.spent || 0; k.won += +v.won || 0; }
+      players.push({ id: p.id, name: p.name, admin: p.is_admin, reg: p.created_at, dep: +s.dep || 0, spent: +s.spent || 0, opened: +s.opened || 0, out: pOut, bal: +d.balance || 0, hold: pHold, profit: (+s.dep || 0) - pOut - (+d.balance || 0) - pHold });
+    }
+    const T = per.data.total, UT = (upg.data && upg.data.total) || {}, BT = (bets.data && bets.data.total) || {};
+    const cases = +T.spent - +T.won, upgP = (+UT.stake || 0) - (+UT.won || 0), betsP = +BT.profit || 0;
+    return { hours, f, t, rows, T, UT, UX: (upg.data && upg.data.byX) || [], BT, cp: cp.data || [], cpErr: cp.error, betsErr: bets.error, snap: snap.data || {},
+      now: { bal, hold, holdN, depAll, outAll, net: depAll - outAll - bal - hold }, players, csAll,
+      sum: { cases, upgP, betsP, game: cases + upgP + betsP } };
+  });
+  admData = { key, at: Date.now(), p }; p.catch(() => { admData = null; });
+  return p;
+}
+/* карточка показателя */
+const axKpi = (l, v, sub = '', tn = '') => `<div class="ax-kpi"><span class="ax-l">${l}</span><b class="ax-v ${tn}">${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+const axCard = (title, body, extra = '') => `<section class="ax-card"><header class="ax-ch"><h3>${title}</h3>${extra}</header>${body}</section>`;
+/* столбики со знаком (плюс вверх, минус вниз): отмечены лучшие и худшие дни, растут от нуля */
+function axBars(rows, val, o = {}) {
+  const vs = rows.map(val);
+  if (!rows.length || vs.every(v => !v)) return '<div class="ax-empty">Нет данных за период</div>';
+  const mp = Math.max(0, ...vs), mn = Math.max(0, ...vs.map(v => -v)), span = mp + mn || 1, z = mp / span;
+  const n = o.marks == null ? 3 : o.marks, idx = vs.map((v, i) => i);
+  const best = new Set(idx.filter(i => vs[i] > 0).sort((a, b) => vs[b] - vs[a]).slice(0, n)), worst = new Set(idx.filter(i => vs[i] < 0).sort((a, b) => vs[a] - vs[b]).slice(0, n));
+  const step = Math.max(1, Math.ceil(rows.length / 14)), f = o.fmt || sgn, fa = o.axis || cmp;
+  return `<div class="ax-bars" style="--z:${(z * 100).toFixed(2)}%">
+    <div class="ax-y"><span style="top:0">${fa(mp)}</span><span style="top:${(z * 100).toFixed(2)}%">0</span>${mn ? `<span style="top:100%">${fa(-mn)}</span>` : ''}</div>
+    <div class="ax-plot"><i class="ax-zero"></i>${rows.map((r, i) => { const v = vs[i], h = Math.abs(v) / span * 100, up = v >= 0;
+      const mk = best.has(i) ? `<em class="ax-mk pos" style="${up ? `bottom:${((1 - z) * 100 + h).toFixed(2)}%` : ''}">${f(v)}</em>` : worst.has(i) ? `<em class="ax-mk neg" style="top:${(z * 100 + h).toFixed(2)}%">${f(v)}</em>` : '';
+      return `<div class="ax-col${best.has(i) ? ' best' : ''}${worst.has(i) ? ' worst' : ''}" tabindex="0">
+        <i class="ax-bar ${up ? 'up' : 'dn'}" style="${up ? `bottom:${((1 - z) * 100).toFixed(2)}%` : `top:${(z * 100).toFixed(2)}%`};height:${Math.max(v ? .6 : 0, h).toFixed(2)}%;animation-delay:${Math.min(i * 14, 600)}ms"></i>${mk}
+        <span class="ax-x">${i % step ? '' : r.lbl}</span>
+        <div class="ax-tip"><b>${r.full}</b>${(o.tip ? o.tip(r) : [[o.name || 'Значение', f(v)]]).map(([a, b]) => `<span>${a}<i>${b}</i></span>`).join('')}</div></div>`; }).join('')}</div></div>`;
+}
+/* линии (онлайн): рисуются слева направо */
+function axLine(rows, series) {
+  if (!rows.length) return '<div class="ax-empty">Нет данных за период</div>';
+  const mx = Math.max(1, ...rows.flatMap(r => series.map(([k]) => +r[k]))), n = rows.length, X = i => n === 1 ? 500 : i / (n - 1) * 1000, Y = v => 200 - v / mx * 190;
+  const step = Math.max(1, Math.ceil(n / 14));
+  return `<div class="ax-line"><div class="ax-y"><span style="top:5%">${fmt(mx)}</span><span style="top:100%">0</span></div>
+    <div class="ax-plot"><svg viewBox="0 0 1000 200" preserveAspectRatio="none">${series.map(([k, c]) => `<polyline pathLength="1" class="ax-pl" style="stroke:${c}" points="${rows.map((r, i) => X(i).toFixed(1) + ',' + Y(+r[k]).toFixed(1)).join(' ')}"/>`).join('')}</svg>
+      <div class="ax-hov">${rows.map((r, i) => `<div class="ax-col" tabindex="0"><span class="ax-x">${i % step ? '' : r.lbl}</span><div class="ax-tip"><b>${r.full}</b>${series.map(([k, c, l]) => `<span><s style="background:${c}"></s>${l}<i>${String(r[k]).replace('.', ',')}</i></span>`).join('')}</div></div>`).join('')}</div></div></div>
+    <div class="ax-leg">${series.map(([, c, l]) => `<span><s style="background:${c}"></s>${l}</span>`).join('')}</div>`;
+}
+/* таблица: cols — [заголовок, (строка) → значение, класс?]; итоговая строка — необязательна */
+function axTable(cols, rows, total) {
+  if (!rows.length) return '<div class="ax-empty">Нет данных за период</div>';
+  const cell = (c, r) => { const v = c[1](r); return `<td class="${typeof c[2] === 'function' ? c[2](r) : c[2] || ''}">${v == null || v === '' ? '—' : v}</td>`; };
+  return `<div class="ax-tw"><table class="ax-t"><thead><tr>${cols.map(c => `<th class="${typeof c[2] === 'string' ? c[2] : ''}">${c[0]}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${cols.map(c => cell(c, r)).join('')}</tr>`).join('')}</tbody>${total ? `<tfoot><tr>${cols.map(c => cell(c, total)).join('')}</tr></tfoot>` : ''}</table></div>`;
+}
+const num = 'num', tn = k => r => 'num ' + tone(r[k]);
+const pctOr = (a, b) => b ? pctS(a / b) : '—';
+const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
+/* ---------- вкладки ---------- */
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Деньги'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['players', 'Игроки'], ['tours', 'Турниры']];
+function admPeriodBar() {
+  const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
-  box.innerHTML = `<div class="adm-panel ast-bar">
-      <div class="ast-presets">${[['today', 'Сегодня'], ['yest', 'Вчера'], ['7d', '7 дней'], ['30d', '30 дней'], ['90d', '90 дней'], ['all', 'Всё время']].map(([k, n]) => `<button data-k="${k}" class="${admRange.k === k ? 'on' : ''}">${n}</button>`).join('')}</div>
-      <div class="ast-custom"><span>Период</span><input class="inp" type="date" id="astFrom" value="${admIso(f)}"><i>—</i><input class="inp" type="date" id="astTo" value="${admIso(new Date(+t - 864e5))}"><button class="btn btn-primary btn-sm" id="astGo">Показать</button><button class="btn btn-primary btn-sm ast-xls" id="astXls" title="Выгрузить выбранный период в Excel">${ic.copy || ''}Excel</button></div>
-    </div><div id="astBody"><div class="adm-load"><span class="spinner"></span>Считаем…</div></div>`;
-  $$('.ast-presets [data-k]', box).forEach(b => b.onclick = () => { admRange = { k: b.dataset.k }; admStats(box); });
-  $('#astGo', box).onclick = () => { const a = $('#astFrom', box).value, b = $('#astTo', box).value; if (!a || !b || a > b) return toast('Проверьте даты', 'err'); admRange = { k: 'custom', from: a, to: b }; admStats(box); };
-  $('#astXls', box).onclick = e => admXls(e.currentTarget);
-  admStatsLoad(f, t);
+  box.innerHTML = `<div class="ax-seg">${[['today', 'Сегодня'], ['yest', 'Вчера'], ['7d', '7 дней'], ['30d', '30 дней'], ['90d', '90 дней'], ['all', 'Всё время']].map(([k, n]) => `<button data-k="${k}" class="${admRange.k === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <div class="ax-dates"><input type="date" id="axFrom" value="${admIso(f)}"><i>—</i><input type="date" id="axTo" value="${admIso(new Date(+t - 864e5))}"><button class="ax-btn" id="axGo">Показать</button></div>
+    <button class="ax-btn" id="axRe" title="Обновить данные">${ic.history || '↻'}</button><button class="ax-btn ax-btn-p" id="axXls">Excel</button>`;
+  $$('.ax-seg [data-k]', box).forEach(b => b.onclick = () => { admRange = { k: b.dataset.k }; admPeriodBar(); admDraw(); });
+  $('#axGo', box).onclick = () => { const a = $('#axFrom', box).value, b = $('#axTo', box).value; if (!a || !b || a > b) return toast('Проверьте даты', 'err'); admRange = { k: 'custom', from: a, to: b }; admPeriodBar(); admDraw(); };
+  $('#axRe', box).onclick = () => { admData = null; admDraw(); };
+  $('#axXls', box).onclick = e => admXls(e.currentTarget);
 }
-async function admStatsLoad(f, t) {
-  const hours = (t - f) / 36e5 <= 48, body = $('#astBody');
-  const { data: d, error } = await sb.rpc('admin_period', { p_from: f.toISOString(), p_to: t.toISOString(), p_bucket: hours ? 'hour' : 'day' });
-  if (!body || !$('#astBody')) return;
-  if (error) return (body.innerHTML = admErr(error) + '<div class="empty" style="margin-top:8px">Запустите supabase/stats.sql в Supabase.</div>');
-  const T = d.total, S = d.series || [], profit = +T.dep - +T.out;
-  const lbl = r => { const x = new Date(r.t); return hours ? pad(x.getHours()) + ':00' : pad(x.getDate()) + '.' + pad(x.getMonth() + 1); };
-  const kpi = (t_, v, sub, ac, cls = '') => `<div class="adm-kpi ${cls}" style="--ac:${ac}"><span class="ak-t">${t_}</span><b>${v}</b><small>${sub}</small></div>`;
-  body.innerHTML = `
-    <h3 class="ast-h">${ic.users}Онлайн</h3>
-    <div class="adm-kpis">
-      ${kpi('Пик онлайна', fmt(T.peak), 'одновременно на сайте', '#4ade80')}
-      ${kpi('Средний онлайн', String(T.avg).replace('.', ','), 'одновременно, в среднем', '#22d3ee')}
-      ${kpi('Посетителей', fmt(T.visitors), `из них игроков ${fmt(T.players)}`, '#60a5fa')}
-      ${kpi('Регистраций', fmt(T.reg), 'новых аккаунтов', '#f5c76b')}
-    </div>
-    <div class="adm-panel"><div class="adm-ph"><h3>Онлайн по ${hours ? 'часам' : 'дням'}</h3><div class="ast-leg"><i style="--c:#4ade80"></i>пик<i style="--c:#22d3ee"></i>средний<i style="--c:#60a5fa"></i>посетители</div></div>
-      ${admLine(S, [['peak', '#4ade80'], ['avg', '#22d3ee'], ['visitors', '#60a5fa']], lbl)}</div>
-    <h3 class="ast-h">${ic.coin}Деньги</h3>
-    <div class="adm-kpis">
-      ${kpi('Пополнения', money(+T.dep), `${fmt(T.depN)} платежей`, '#4ade80')}
-      ${kpi('Выведено в Steam', money(+T.out), `${fmt(T.outN)} предм.`, '#f472b6')}
-      ${kpi('Пополнения − выводы', (profit < 0 ? '−' : '') + money(Math.abs(profit)), 'поток денег за период', profit >= 0 ? '#4ade80' : '#ff5d5d', profit >= 0 ? 'pos' : 'neg')}
-      ${kpi('Кейсы', money(+T.spent), `${fmt(T.opens)} открытий · выдано ${money(+T.won)}${+T.spent ? ' · отдают ' + pctS(+T.won / +T.spent) : ''}`, '#fb923c')}
-    </div>
-    <div class="adm-panel"><div class="adm-ph"><h3>Деньги по ${hours ? 'часам' : 'дням'}</h3><div class="ast-leg"><i style="--c:#4ade80"></i>пополнения<i style="--c:#f472b6"></i>выведено<i style="--c:#fb923c"></i>потрачено на кейсы</div></div>
-      ${admBars(S, [['dep', '#4ade80'], ['out', '#f472b6'], ['spent', '#fb923c']], lbl)}</div>
-    <div class="adm-tiles" style="margin-top:14px">
-      <div class="adm-tile" style="--ac:#f472b6"><span>Ставки (банк)</span><b>${money(+T.jp)}</b><small>разыграно за период</small></div>
-      <div class="adm-tile" style="--ac:#22d3ee"><span>Начислено админом</span><b>${money(+T.grants)}</b><small>за период</small></div>
-      <div class="adm-tile" style="--ac:#a78bfa"><span>Средний чек</span><b>${T.depN ? money(+T.dep / T.depN) : '—'}</b><small>на одно пополнение</small></div>
-      <div class="adm-tile" style="--ac:#facc15"><span>Прибыль с кейсов</span><b>${(+T.spent - +T.won < 0 ? '−' : '') + money(Math.abs(+T.spent - +T.won))}</b><small>потрачено − выдано</small></div>
-    </div>
-    <div id="astUpg"><div class="adm-load"><span class="spinner"></span>Апгрейд…</div></div>`;
-  admUpgLoad(f, t, hours, lbl);
+async function admTabData(box, render) {
+  box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Считаем…</div>';
+  let D; try { D = await admFetch(); } catch (e) { return (box.innerHTML = admErr(e) + '<div class="ax-empty">Нужны supabase/stats.sql, admin2.sql, admin_bets.sql, stats_cases.sql.</div>'); }
+  if (!$('#admBody') || box !== $('#admBody')) return;
+  render(box, D);
 }
-/* апгрейд за период: сколько, % побед, ставки и выдано, прибыль, по множителям */
-async function admUpgLoad(f, t, hours, lbl) {
-  const { data: d, error } = await sb.rpc('admin_upg', { p_from: f.toISOString(), p_to: t.toISOString(), p_bucket: hours ? 'hour' : 'day' });
-  const box = $('#astUpg'); if (!box) return;
-  if (error) return (box.innerHTML = `<h3 class="ast-h">${ic.up}Апгрейд</h3>` + admErr(error) + '<div class="empty" style="margin-top:8px">Запустите supabase/admin2.sql в Supabase.</div>');
-  const T = d.total, S = d.series || [], pr = +T.stake - +T.won, wr = T.n ? T.wins / T.n : 0;
-  const kpi = (t_, v, sub, ac, cls = '') => `<div class="adm-kpi ${cls}" style="--ac:${ac}"><span class="ak-t">${t_}</span><b>${v}</b><small>${sub}</small></div>`;
-  const band = lo => lo === 20 ? 'x20+' : `x${String(lo).replace('.', ',')}–${{ 1: '1,5', 1.5: '2', 2: '3', 3: '5', 5: '10', 10: '20' }[lo]}`;
-  box.innerHTML = `<h3 class="ast-h">${ic.up}Апгрейд</h3>
-    <div class="adm-kpis">
-      ${kpi('Апгрейдов', fmt(T.n), `${fmt(T.players)} игроков · средний множитель ×${String(T.avgX).replace('.', ',')}`, '#22d3ee')}
-      ${kpi('Побед', pctS(wr), `${fmt(T.wins)} успешных из ${fmt(T.n)}`, '#4ade80')}
-      ${kpi('Поставлено / выдано', money(+T.stake), `выдано скинов на ${money(+T.won)}${+T.stake ? ' · отдаёт ' + pctS(+T.won / +T.stake) : ''}`, '#f5c76b')}
-      ${kpi('Прибыль с апгрейда', (pr < 0 ? '−' : '') + money(Math.abs(pr)), `крупнейший выигрыш ${money(+T.maxWin)}${+T.maxX ? ' · ×' + (+T.maxX).toFixed(1).replace('.', ',') : ''}`, pr >= 0 ? '#4ade80' : '#ff5d5d', pr >= 0 ? 'pos' : 'neg')}
+function axDash(box, D) {
+  const T = D.T, s = D.sum, days = D.rows.filter(r => r.game);
+  const best = days.slice().sort((a, b) => b.game - a.game)[0], worst = days.slice().sort((a, b) => a.game - b.game)[0];
+  const lossDays = D.rows.filter(r => r.game < 0).length;
+  // требует внимания: кейсы, отдающие больше 100% (за период от 10 открытий или за всё время от 30), удача ≠ ×1, убыточные дни
+  const hot = [];
+  D.cp.forEach(r => { const c = caseById(r.c); if (c && +r.n >= 10 && +r.won > +r.spent) hot.push(`Кейс <b>${esc(c.name)}</b> за период отдаёт <b class="neg">${pctS(+r.won / +r.spent)}</b> (${fmt(r.n)} откр., ${sgn(+r.spent - +r.won)})`); });
+  Object.entries(D.csAll).forEach(([id, k]) => { const c = caseById(id); if (c && !c.rc && k.n >= 30 && k.won > k.spent && !hot.some(h => h.includes(esc(c.name)))) hot.push(`Кейс <b>${esc(c.name)}</b> за всё время отдаёт <b class="neg">${pctS(k.won / k.spent)}</b> (${sgn(k.spent - k.won)})`); });
+  CASES.filter(c => (c.luck || 1) !== 1).forEach(c => hot.push(`У кейса <b>${esc(c.name)}</b> удача ×${(c.luck || 1).toFixed(2).replace('.', ',')} — расчётная отдача ${pctS(caseRtp(c))}`));
+  if (+D.UT.stake && +D.UT.won > +D.UT.stake) hot.push(`Апгрейд за период в минусе: <b class="neg">${sgn(upgOr(D))}</b>`);
+  if (lossDays) hot.push(`Убыточных ${D.hours ? 'часов' : 'дней'} за период: <b class="neg">${lossDays}</b>`);
+  box.innerHTML = `
+    <div class="ax-kpis">
+      ${axKpi('Игровая прибыль', sgn(s.game), 'кейсы + апгрейд + ставки', tone(s.game))}
+      ${axKpi('Пополнения', money(+T.dep), `${fmt(T.depN)} платежей`)}
+      ${axKpi('Выведено в Steam', money(+T.out), `${fmt(T.outN)} предм.`)}
+      ${axKpi('Онлайн сейчас', fmt(+D.snap.online || 0), `пик за период ${fmt(T.peak)}`)}
+      ${axKpi('Новые игроки', fmt(+T.reg), `всего ${fmt(+D.snap.users || 0)}`)}
+      ${axKpi('На балансах игроков', money(D.now.bal), `и скинов на ${money(D.now.hold)}`)}
     </div>
-    <div class="adm-grid2">
-      <div class="adm-panel"><div class="adm-ph"><h3>Апгрейд по ${hours ? 'часам' : 'дням'}</h3><div class="ast-leg"><i style="--c:#f5c76b"></i>поставлено<i style="--c:#4ade80"></i>выдано</div></div>
-        ${admBars(S, [['stake', '#f5c76b'], ['won', '#4ade80']], lbl)}</div>
-      <div class="adm-panel"><div class="adm-ph"><h3>По множителям</h3></div>
-        ${(d.byX || []).length ? `<div class="adm-ct"><div class="act-h aux"><span>Множитель</span><span>Попыток</span><span>Побед</span><span>Отдаёт</span><span>Прибыль</span></div>
-          ${d.byX.map(r => { const p = +r.stake - +r.won, rt = +r.stake ? +r.won / +r.stake : 0; return `<div class="act-r aux"><span class="act-c">${band(+r.lo)}</span><span>${fmt(r.n)}</span><span>${pctS(r.n ? r.wins / r.n : 0)}</span>
-            <span class="act-rtp ${rt > 1 ? 'neg' : ''}"><i style="width:${Math.min(100, rt * 50).toFixed(0)}%"></i>${pctS(rt)}</span><span class="${p < 0 ? 'neg' : 'pos'}">${(p < 0 ? '−' : '+') + money(Math.abs(p))}</span></div>`; }).join('')}</div>`
-          : '<div class="empty">Нет апгрейдов за период</div>'}</div>
+    ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { name: 'Прибыль', tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }),
+      `<div class="ax-note">${best ? `лучший <b class="pos">${best.full} ${sgn(best.game)}</b>` : ''}${worst && worst.game < 0 ? ` · худший <b class="neg">${worst.full} ${sgn(worst.game)}</b>` : ''}</div>`)}
+    <div class="ax-g2">
+      ${axCard('Из чего прибыль', `<div class="ax-split">${[['Кейсы', s.cases, +T.spent, +T.won, `${fmt(T.opens)} откр.`], ['Апгрейд', s.upgP, +D.UT.stake || 0, +D.UT.won || 0, `${fmt(D.UT.n || 0)} попыток`], ['Ставки', s.betsP, +D.BT.bets || 0, 0, `${fmt(D.BT.live || 0)} раундов с игроками`]]
+        .map(([n, v, a, b, sub]) => `<div class="ax-sr"><span>${n}<small>${sub}</small></span><span class="num">${n === 'Ставки' ? (a ? 'ставки ' + money(a) : '—') : a ? 'отдаёт ' + pctS(b / a) : '—'}</span><b class="num ${tone(v)}">${sgn(v)}</b></div>`).join('')}
+        <div class="ax-sr ax-sr-t"><span>Итого</span><span></span><b class="num ${tone(s.game)}">${sgn(s.game)}</b></div></div>`)}
+      ${axCard('Требует внимания', hot.length ? `<ul class="ax-warn">${hot.slice(0, 8).map(h => `<li>${h}</li>`).join('')}</ul>` : '<div class="ax-empty ok">Всё в порядке</div>')}
     </div>`;
+}
+const upgOr = D => (+D.UT.stake || 0) - (+D.UT.won || 0);
+function axMoney(box, D) {
+  const T = D.T, N = D.now;
+  box.innerHTML = `
+    <div class="ax-kpis">
+      ${axKpi('Пополнения', money(+T.dep), `${fmt(T.depN)} платежей · средний чек ${T.depN ? money(+T.dep / T.depN) : '—'}`)}
+      ${axKpi('Выведено в Steam', money(+T.out), `${fmt(T.outN)} предм.`)}
+      ${axKpi('Пополнения − выводы', sgn(+T.dep - +T.out), 'поток денег за период', tone(+T.dep - +T.out))}
+      ${axKpi('Игровая прибыль', sgn(D.sum.game), 'кейсы + апгрейд + ставки', tone(D.sum.game))}
+      ${axKpi('Начислено админом', sgn(+T.grants), 'начисления минус списания за период')}
+      ${axKpi('Чистая прибыль', sgn(N.net), 'за всё время: пополнения − выводы − балансы − скины игроков', tone(N.net))}
+    </div>
+    ${axCard(`Пополнения − выводы по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.flow, { tip: r => [['Пополнения', money(r.dep)], ['Выведено', money(r.out)], ['Разница', sgn(r.flow)]] }))}
+    ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }))}
+    ${axCard('Обязательства перед игроками — сейчас', `<div class="ax-split">
+      <div class="ax-sr"><span>На балансах игроков<small>рубли, которые игроки могут потратить</small></span><span></span><b class="num">${money(N.bal)}</b></div>
+      <div class="ax-sr"><span>Скины в инвентарях<small>${fmt(N.holdN)} предм. по ценам каталога</small></span><span></span><b class="num">${money(N.hold)}</b></div>
+      <div class="ax-sr"><span>R-COIN у игроков</span><span></span><b class="num">${rc(+D.snap.rcoin || 0)}</b></div></div>`)}
+    ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Пополнения', r => money(r.dep), num], ['Выведено', r => money(r.out), num], ['Поток', r => sgn(r.flow), tn('flow')],
+      ['Кейсы', r => sgn(r.cases), tn('cases')], ['Апгрейд', r => sgn(r.upgP), tn('upgP')], ['Ставки', r => sgn(r.betsP), tn('betsP')], ['Игровая прибыль', r => sgn(r.game), tn('game')]],
+      D.rows.slice().reverse(), { full: 'Итого', dep: +T.dep, out: +T.out, flow: +T.dep - +T.out, cases: D.sum.cases, upgP: D.sum.upgP, betsP: D.sum.betsP, game: D.sum.game }))}`;
+}
+function axOnline(box, D) {
+  const T = D.T;
+  box.innerHTML = `
+    <div class="ax-kpis">
+      ${axKpi('Онлайн сейчас', fmt(+D.snap.online || 0), 'игроки, активные за 10 мин')}
+      ${axKpi('Пик онлайна', fmt(T.peak), 'устройств одновременно')}
+      ${axKpi('Средний онлайн', String(T.avg).replace('.', ','), 'устройств одновременно')}
+      ${axKpi('Посетители', fmt(T.visitors), 'уникальных устройств')}
+      ${axKpi('Игроки', fmt(T.players), 'вошли в аккаунт')}
+      ${axKpi('Регистрации', fmt(T.reg), 'новых аккаунтов')}
+    </div>
+    ${axCard(`Онлайн по ${D.hours ? 'часам' : 'дням'}`, axLine(D.rows, [['peak', '#e5e7eb', 'пик'], ['avg', '#60a5fa', 'средний'], ['visitors', '#a78bfa', 'посетители']]))}
+    ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Пик', r => fmt(r.peak), num], ['Средний', r => String(r.avg).replace('.', ','), num], ['Посетители', r => fmt(r.visitors), num], ['Игроки', r => fmt(r.players), num], ['Регистрации', r => fmt(r.reg), num]],
+      D.rows.slice().reverse(), { full: 'Итого', peak: +T.peak, avg: +T.avg, visitors: +T.visitors, players: +T.players, reg: +T.reg }))}
+    <p class="ax-foot">Без админов и тестовых адресов. Посетитель — устройство (браузер). ${D.hours ? '' : 'Дни — по UTC (Москва = UTC+3).'}</p>`;
+}
+function axCases(box, D) {
+  const T = D.T, per = Object.fromEntries(D.cp.map(r => [r.c, r]));
+  const list = CASES.filter(c => !c.rc).map(c => { const p = per[c.id] || {}, a = D.csAll[c.id] || {}; return { c, name: c.name, price: c.price, n: +p.n || 0, players: +p.players || 0, spent: +p.spent || 0, won: +p.won || 0, profit: (+p.spent || 0) - (+p.won || 0), an: a.n || 0, aSpent: a.spent || 0, aWon: a.won || 0, aProfit: (a.spent || 0) - (a.won || 0) }; })
+    .sort((x, y) => y.spent - x.spent || y.aSpent - x.aSpent);
+  const free = +T.spent - D.cp.reduce((x, r) => x + +r.spent, 0);
+  box.innerHTML = `
+    <div class="ax-kpis">
+      ${axKpi('Открыто кейсов', fmt(T.opens), 'за период')}
+      ${axKpi('Потрачено', money(+T.spent))}
+      ${axKpi('Выдано', money(+T.won))}
+      ${axKpi('Кейсы отдают', pctOr(+T.won, +T.spent), 'стоимость выпавшего ÷ потрачено')}
+      ${axKpi('Прибыль с кейсов', sgn(D.sum.cases), '', tone(D.sum.cases))}
+      ${axKpi('Кейсов на сайте', `${CASES.filter(c => !c.disabled).length} / ${CASES.length}`, 'открыто / всего')}
+    </div>
+    ${axCard('Кейсы за период и за всё время', axTable([['Кейс', r => `<span class="ax-cs"><img src="${caseThumb(r.c)}" alt="">${esc(r.name)}${r.c.disabled ? ' <i>закрыт</i>' : ''}</span>`], ['Цена', r => money(r.price), num],
+      ['Открытий', r => fmt(r.n), num], ['Игроков', r => fmt(r.players), num], ['Потрачено', r => money(r.spent), num], ['Выдано', r => money(r.won), num], ['Отдаёт', r => r.spent ? pctS(r.won / r.spent) : '—', r => 'num ' + (r.spent && r.won > r.spent ? 'neg' : '')], ['Прибыль', r => r.spent ? sgn(r.profit) : '—', tn('profit')],
+      ['Всего откр.', r => fmt(r.an), 'num sep'], ['Отдаёт всего', r => r.aSpent ? pctS(r.aWon / r.aSpent) : '—', r => 'num ' + (r.aSpent && r.aWon > r.aSpent ? 'neg' : '')], ['Прибыль всего', r => r.aSpent ? sgn(r.aProfit) : '—', tn('aProfit')]], list),
+      free > 1 ? `<div class="ax-note">ещё ${money(free)} — открытия до включения учёта по кейсам</div>` : '')}
+    <h2 class="ax-h2">Управление кейсами</h2><div id="axCasesMgr"></div>`;
+  admCases($('#axCasesMgr', box));
+}
+function axBets(box, D) {
+  const B = D.BT;
+  if (D.betsErr) return (box.innerHTML = admErr(D.betsErr) + '<div class="ax-empty">Запустите supabase/admin_bets.sql в Supabase.</div>');
+  box.innerHTML = `
+    <div class="ax-kpis">
+      ${axKpi('Раундов', fmt(+B.rounds || 0), `с игроками — ${fmt(+B.live || 0)}`)}
+      ${axKpi('Игроков ставило', fmt(+B.players || 0))}
+      ${axKpi('Ставки игроков', money(+B.bets || 0), `весь банк ${money(+B.pot || 0)}`)}
+      ${axKpi('Побед игроков', fmt(+B.pwins || 0), +B.live ? `из ${fmt(B.live)} раундов с игроками` : '')}
+      ${axKpi('Прибыль со ставок', sgn(+B.profit || 0), 'боты — это сайт', tone(+B.profit || 0))}
+      ${axKpi('Самый большой банк', money(+B.maxPot || 0))}
+    </div>
+    ${axCard(`Прибыль со ставок по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.betsP, { tip: r => [['Раундов с игроками', fmt(r.bLive)], ['Ставки игроков', money(r.bBets)], ['Побед игроков', fmt(r.bWins)], ['Прибыль', sgn(r.betsP)]] }))}
+    ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Раундов', r => fmt(r.bRounds), num], ['С игроками', r => fmt(r.bLive), num], ['Игроков', r => fmt(r.bPlayers), num], ['Ставки игроков', r => money(r.bBets), num], ['Побед игроков', r => fmt(r.bWins), num], ['Прибыль', r => sgn(r.betsP), tn('betsP')]],
+      D.rows.slice().reverse(), { full: 'Итого', bRounds: +B.rounds || 0, bLive: +B.live || 0, bPlayers: +B.players || 0, bBets: +B.bets || 0, bWins: +B.pwins || 0, betsP: +B.profit || 0 }))}
+    <p class="ax-foot">Прибыль раунда: выиграл бот — сайту ставки игроков; выиграл игрок — ставки игроков минус весь банк.</p>`;
+}
+function axUpg(box, D) {
+  const U = D.UT, pr = upgOr(D);
+  const band = lo => lo === 20 ? 'x20+' : `x${String(lo).replace('.', ',')}–${{ 1: '1,5', 1.5: '2', 2: '3', 3: '5', 5: '10', 10: '20' }[lo]}`;
+  box.innerHTML = `
+    <div class="ax-kpis">
+      ${axKpi('Апгрейдов', fmt(+U.n || 0), `${fmt(+U.players || 0)} игроков · средний ×${String(U.avgX || 0).replace('.', ',')}`)}
+      ${axKpi('Побед', pctOr(+U.wins || 0, +U.n || 0), `${fmt(+U.wins || 0)} из ${fmt(+U.n || 0)}`)}
+      ${axKpi('Поставлено', money(+U.stake || 0))}
+      ${axKpi('Выдано', money(+U.won || 0), +U.stake ? `отдаёт ${pctS(+U.won / +U.stake)}` : '')}
+      ${axKpi('Прибыль с апгрейда', sgn(pr), '', tone(pr))}
+      ${axKpi('Крупнейший выигрыш', money(+U.maxWin || 0), +U.maxX ? `×${(+U.maxX).toFixed(1).replace('.', ',')}` : '')}
+    </div>
+    ${axCard(`Прибыль с апгрейда по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.upgP, { tip: r => [['Попыток', fmt(r.uN)], ['Побед', fmt(r.uWins)], ['Поставлено', money(r.uStake)], ['Выдано', money(r.uWon)], ['Прибыль', sgn(r.upgP)]] }))}
+    <div class="ax-g2">
+      ${axCard('По множителям', axTable([['Множитель', r => band(+r.lo)], ['Попыток', r => fmt(r.n), num], ['Побед', r => pctOr(+r.wins, +r.n), num], ['Отдаёт', r => pctOr(+r.won, +r.stake), r => 'num ' + (+r.won > +r.stake ? 'neg' : '')], ['Прибыль', r => sgn(+r.stake - +r.won), r => 'num ' + tone(+r.stake - +r.won)]], D.UX))}
+      ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Попыток', r => fmt(r.uN), num], ['Побед', r => fmt(r.uWins), num], ['Поставлено', r => money(r.uStake), num], ['Прибыль', r => sgn(r.upgP), tn('upgP')]], D.rows.filter(r => r.uN).reverse()))}
+    </div>`;
+}
+function axPlayers(box, D) {
+  const top = D.players.filter(p => p.dep || p.spent || p.bal || p.hold).sort((a, b) => b.profit - a.profit);
+  const N = D.now;
+  box.innerHTML = `
+    <div class="ax-kpis">
+      ${axKpi('Игроков всего', fmt(+D.snap.users || D.players.length), `+${fmt(+D.snap.new24 || 0)} за сутки`)}
+      ${axKpi('Новых за период', fmt(+D.T.reg))}
+      ${axKpi('Активных за период', fmt(+D.T.players), 'вошли в аккаунт')}
+      ${axKpi('Пополнили (всего)', fmt(D.players.filter(p => p.dep > 0).length), `на ${money(N.depAll)}`)}
+      ${axKpi('На балансах', money(N.bal))}
+      ${axKpi('Прибыль с игроков', sgn(N.net), 'пополнили − вывели − балансы − скины', tone(N.net))}
+    </div>
+    ${axCard('Игроки по прибыли для сайта — за всё время', axTable([['Игрок', r => `${esc(r.name)}${r.admin ? ' <i class="ax-tag">админ</i>' : ''}`], ['Пополнил', r => money(r.dep), num], ['Потратил на кейсы', r => money(r.spent), num], ['Открыл', r => fmt(r.opened), num], ['Вывел', r => money(r.out), num], ['Баланс', r => money(r.bal), num], ['Скины', r => money(r.hold), num], ['Прибыль сайта', r => sgn(r.profit), tn('profit')], ['С нами с', r => new Date(r.reg).toLocaleDateString('ru-RU'), 'num']], top.slice(0, 50)))}
+    <h2 class="ax-h2">Поиск и управление</h2><div id="axPlayersMgr"></div>`;
+  admPlayers($('#axPlayersMgr', box));
+}
+function admDraw() {
+  const box = $('#admBody'); if (!box) return;
+  $$('#admTabs [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === admTab));
+  if (!sb) return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
+  const R = { dash: axDash, money: axMoney, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, players: axPlayers };
+  if (admTab === 'tours') return admTours(box);
+  admTabData(box, R[admTab] || axDash);
 }
 /* ---------- выгрузка статистики в Excel (.xlsx, библиотека SheetJS грузится по кнопке) ---------- */
 let xlsxLib = null;
@@ -4575,27 +4694,6 @@ async function admXls(btn) {
     toast(`Выгружено: ${period}${cp.error ? ' · по кейсам за период нет данных — запустите supabase/stats_cases.sql' : ''}`, cp.error ? 'info' : undefined);
   } catch (e) { toast('Не выгружено: ' + (e.message || e), 'err'); }
   btn.disabled = false; btn.innerHTML = was;
-}
-// линейный график (SVG): несколько рядов
-function admLine(S, keys, lbl) {
-  if (!S.length) return '<div class="empty">Нет данных за период</div>';
-  const W = 1000, H = 220, P = 26, mx = Math.max(1, ...S.flatMap(r => keys.map(([k]) => +r[k]))), n = S.length;
-  const X = i => P + (n === 1 ? (W - 2 * P) / 2 : i * (W - 2 * P) / (n - 1)), Y = v => H - P - (v / mx) * (H - 2 * P);
-  const step = Math.ceil(n / 12);
-  return `<svg class="ast-svg" viewBox="0 0 ${W} ${H + 16}" preserveAspectRatio="none">
-    ${[0, .5, 1].map(k => `<line x1="${P}" x2="${W - P}" y1="${Y(mx * k)}" y2="${Y(mx * k)}" class="ast-grid"/><text x="2" y="${Y(mx * k) + 4}" class="ast-ax">${fmt(mx * k)}</text>`).join('')}
-    ${keys.map(([k, c]) => `<path d="M${S.map((r, i) => X(i).toFixed(1) + ' ' + Y(+r[k]).toFixed(1)).join('L')}" fill="none" stroke="${c}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}
-    ${keys.map(([k, c]) => S.map((r, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(+r[k]).toFixed(1)}" r="3" fill="${c}"><title>${lbl(r)}: ${r[k]}</title></circle>`).join('')).join('')}
-    ${S.map((r, i) => i % step ? '' : `<text x="${X(i)}" y="${H + 12}" class="ast-ax" text-anchor="middle">${lbl(r)}</text>`).join('')}
-  </svg>`;
-}
-// столбики по группам
-function admBars(S, keys, lbl) {
-  if (!S.length) return '<div class="empty">Нет данных за период</div>';
-  const mx = Math.max(1, ...S.flatMap(r => keys.map(([k]) => +r[k]))), step = Math.ceil(S.length / 12);
-  return `<div class="ast-bars">${S.map((r, i) => `<div class="ast-g" title="${lbl(r)}">
-    <div class="ast-gb">${keys.map(([k, c]) => `<i style="height:${(+r[k] / mx * 100).toFixed(1)}%;background:${c}" title="${lbl(r)}: ${money(+r[k])}"></i>`).join('')}</div>
-    <span>${i % step ? '' : lbl(r)}</span></div>`).join('')}</div><div class="ast-max">макс. ${money(mx)}</div>`;
 }
 /* ---------- кейсы: закрыть / открыть, множитель удачи ---------- */
 /* сохранить правки кейсов / разделов в site_cfg; пустая правка кейса — удаляется (кейс как в коде) */
