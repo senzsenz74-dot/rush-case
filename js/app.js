@@ -400,7 +400,7 @@ const CASES = [
   {
     id: 'coco', name: 'CO-CO', price: 60, tag: 'Фарм', tagIc: 'star', rtp: .82,
     sub: 'Фарм-кейс жёлтых скинов: дроп от 5 ₽, ~13% открытий окупаются. Джекпоты — AK-47 | Fuel Injector, MP9 | Bulldozer, M4A1-S | Golden Coil',
-    th: { a: '#f5c518' }, img: 'assets/case-coco.webp',
+    th: { a: '#f5c518' }, img: 'assets/case-chick.webp',
     // точные шансы: [скин, износ, шанс, редкость по таблице (необязательно)]. Шансы нормируются к 100%. Таблица заказчика ×0,84 + 13 жёлтых скинов (16%), затем +10 жёлтых 40–95 ₽ (5%); свои скины — из списка жёлтых csgobroker.cc — итог ×0,95; окупаемость ≈ 83%
     exact: [
       ['Nova | Mandrel', 'FN', .1512], ['Tec-9 | Citric Acid', 'FN', .1176], ['XM1014 | XoooM', 'FN', .0924],
@@ -1039,7 +1039,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-coco.webp':1.1321};
+const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
 const caseThumb = c => !c.img ? '' : c.custom ? c.img : c.img.replace(/\.webp$/, '-s.webp');
 function caseArt(c, cls = '', badge = '') {
