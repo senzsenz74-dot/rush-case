@@ -4612,7 +4612,7 @@ function axBars(rows, val, o = {}) {
   return `<div class="ax-bars" style="--z:${(z * 100).toFixed(2)}%">
     <div class="ax-y"><span style="top:0">${fa(mp)}</span><span style="top:${(z * 100).toFixed(2)}%">0</span>${mn ? `<span style="top:100%">${fa(-mn)}</span>` : ''}</div>
     <div class="ax-plot"><i class="ax-zero"></i>${rows.map((r, i) => { const v = vs[i], h = Math.abs(v) / span * 100, up = v >= 0;
-      const mk = best.has(i) ? `<em class="ax-mk pos" style="${up ? `bottom:${((1 - z) * 100 + h).toFixed(2)}%` : ''}">${f(v)}</em>` : worst.has(i) ? `<em class="ax-mk neg" style="top:${(z * 100 + h).toFixed(2)}%">${f(v)}</em>` : '';
+      const mk = best.has(i) ? `<em class="ax-mk pos" style="${up ? `bottom:${((1 - z) * 100 + h).toFixed(2)}%` : ''}">${f(v)}</em>` : worst.has(i) ? `<em class="ax-mk neg${z * 100 + h > 82 ? ' in' : ''}" style="top:${(z * 100 + h).toFixed(2)}%">${f(v)}</em>` : '';
       return `<div class="ax-col${best.has(i) ? ' best' : ''}${worst.has(i) ? ' worst' : ''}${v < 0 ? ' loss' : ''}${o.day ? ' click' : ''}" tabindex="0"${o.day ? ` data-day="${r.t}"` : ''}>
         <i class="ax-bar ${up ? 'up' : 'dn'}" style="${up ? `bottom:${((1 - z) * 100).toFixed(2)}%` : `top:${(z * 100).toFixed(2)}%`};height:${Math.max(v ? .6 : 0, h).toFixed(2)}%;animation-delay:${Math.min(i * 14, 600)}ms"></i>${mk}
         <span class="ax-x">${i % step ? '' : r.lbl}</span>

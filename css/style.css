@@ -3828,3 +3828,8 @@ a.plink{color:inherit;text-decoration:none}a.plink:hover{color:var(--gold)}
 .m-dep:has(.dpl){width:min(1020px,100%)}
 .dpl-methods{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media (max-width:720px){.dpl-methods{grid-template-columns:1fr}}
+/* разбор дня: окно шире, суммы целиком; подпись худшего столбика у самого низа — внутри столбика, не на подписях часов */
+.modal.m-axday{max-width:1480px;width:calc(100vw - 32px)}
+.m-axday .ax-v{font-size:19px;text-overflow:clip}
+.ax-mk.neg.in{transform:translate(-50%,calc(-100% - 4px));background:rgba(20,10,10,.85)}
+@media (max-width:1180px){.m-axday .ax-v{font-size:17px}}
