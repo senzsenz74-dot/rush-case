@@ -3725,3 +3725,17 @@ body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#0
 .top-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.top-tools #topSearch{width:280px}
 a.plink{color:inherit;text-decoration:none}a.plink:hover{color:var(--gold)}
 @media (max-width:900px){.pp-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pp-grid{grid-template-columns:1fr}.top-tools #topSearch{width:100%}}
+/* ---------- выводы в Steam: статусы в профиле, настройки в админке ---------- */
+.wd-list{display:flex;flex-direction:column;gap:6px;margin-top:14px;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid var(--stroke)}
+.wd-h{font:800 13px var(--ff-h);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.wd-row{display:flex;align-items:center;gap:12px;padding:6px 8px;border-radius:12px;background:rgba(255,255,255,.03)}
+.wd-row img{width:56px;height:42px;object-fit:contain;flex:none}
+.wd-row .n{flex:1;min-width:0;font-weight:700;font-size:13.5px}
+.wd-row .n small{display:block;font-weight:600;font-size:12px;color:var(--txt2)}
+.wd-row .s{font-weight:800;font-size:12.5px;white-space:nowrap}
+.wd-row .p{font-weight:800;color:var(--gold);white-space:nowrap;min-width:70px;text-align:right}
+.mk-cfg{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px}
+.mk-cfg label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ax-mut)}
+.mk-cfg label.mk-sw{flex-direction:row;align-items:center;gap:8px;height:36px;color:var(--ax-txt);font-size:13px}
+.ax-inp{height:36px;width:150px;padding:0 10px;border-radius:9px;background:var(--ax-card);border:1px solid var(--ax-line);color:var(--ax-txt);font:600 13px var(--ff-b,inherit)}
+@media (max-width:600px){.wd-row{flex-wrap:wrap}.wd-row .n{flex-basis:calc(100% - 70px)}}

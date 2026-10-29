@@ -1026,7 +1026,7 @@ function sbApply(d) {
   const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin || 0);
 }
 const SRV_ERR = { 'amount mismatch': 'Сумма оплаты не совпала — напишите в поддержку', 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
-  'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку',
+  'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку', 'withdraw limit': 'Лимит выводов на сегодня исчерпан — попробуйте завтра',
   'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка',
   'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
 // вызов серверной функции: при ошибке — понятное сообщение и null
@@ -1056,7 +1056,7 @@ function logEv(kind, amount = 0, won = 0, x = 0) {
 setTimeout(() => logEv('hb'), 3000);
 setInterval(() => { if (!document.hidden) logEv('hb'); }, 120000);
 // ставки старого локального режима (без номера раунда) возвращаем в инвентарь; ставки в общих раундах ждут итога
-st.inv.forEach(x => { if (x.st === 'pend') x.st = 'out'; if (x.st === 'bet' && !x.round) x.st = 'own'; });
+st.inv.forEach(x => { if (x.st === 'pend' && !x.wid) x.st = 'out'; if (x.st === 'bet' && !x.round) x.st = 'own'; });
 // износ пропал из каталога (отсеянная цена) — меняем на основной износ того же скина
 const fixName = n => SK[n] ? n : (SK[n.replace(/ \([^()]*\)$/, '')] || {}).name || n;
 st.inv.forEach(x => { x.n = fixName(x.n); });
@@ -3435,7 +3435,7 @@ function mountBonus() {
    PROFILE
    ========================================================= */
 let pfTab = 'inv';
-const STATUS = { own: ['В инвентаре', 'st-ok'], sold: ['Продан', 'st-mute'], out: ['Выведен в Steam', 'st-ok'], pend: ['Отправляется…', 'st-warn'], upg: ['Сгорел в апгрейде', 'st-bad'], con: ['Использован в контракте', 'st-mute'], bet: ['В ставке', 'st-warn'], jp: ['Поставлен в ставки', 'st-mute'] };
+const STATUS = { own: ['В инвентаре', 'st-ok'], sold: ['Продан', 'st-mute'], out: ['Выведен в Steam', 'st-ok'], pend: ['Выводится в Steam…', 'st-warn'], upg: ['Сгорел в апгрейде', 'st-bad'], con: ['Использован в контракте', 'st-mute'], bet: ['В ставке', 'st-warn'], jp: ['Поставлен в ставки', 'st-mute'] };
 const fromName = f => f === 'jackpot' ? 'Ставки' : f === 'upgrade' ? 'Апгрейд' : f === 'contract' ? 'Контракт' : (caseById(f) ? 'Кейс «' + caseById(f).name + '»' : f);
 function pageProfile() {
   if (!st.user) return `<section class="container"><div class="empty-big">${ic.user}<h2>Войдите в аккаунт</h2><p>Чтобы видеть инвентарь, историю дропов и статистику.</p><button class="btn btn-primary btn-lg" data-act="login">${ic.login}Войти</button></div></section>`;
@@ -3507,12 +3507,13 @@ function drawPf() {
         <div class="t"><span class="tr-ic">${ic.steam}</span><span>Трейд-ссылка Steam<small>Нужна для вывода скинов. <a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></small></span></div>
         <div class="inp-row"><input class="inp" id="tradeInp" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade)}"><button class="btn btn-accent" id="tradeSave">Сохранить</button></div>
       </div>
+      <div id="wdList"></div>
       <div class="items-grid inv-grid" id="invGrid">${sorted.map(x => {
         const s = SK[x.n];
         return `<div class="icard inv-card r-${s.r}"><span class="ic-st">${fromName(x.from)}</span><img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="ic-w">${esc(s.w)}</div><div class="ic-f">${esc(s.f)}</div><div class="ic-p">${money(s.p)}</div>
           <div class="inv-acts"><button class="btn btn-accent" data-sell="${x.id}">Продать</button><button class="btn btn-dark" data-wd="${x.id}" title="Вывести в Steam">${ic.send}</button></div></div>`;
       }).join('')}</div>${list.length ? '' : '<p class="inv-hint">Инвентарь пуст — выпавшие предметы займут эти места. <a href="#/cases">Открыть кейс</a></p>'}`;
-    invFill();
+    invFill(); drawWd();
     $('#tradeSave').onclick = () => {
       const v = $('#tradeInp').value.trim();
       if (!/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/.test(v)) { $('#tradeInp').classList.add('err'); return toast('Неверный формат трейд-ссылки', 'err'); }
@@ -3575,15 +3576,36 @@ function drawPf() {
     }).join('')}</div>` : `<div class="empty">${ic.history}История пока пуста</div>`;
   }
 }
+/* ---------- вывод в Steam через market.csgo: заявка → покупка на маркете → обмен игроку (supabase/market.sql, functions/market) ---------- */
+const WD_ST = { wait: ['Проверяется', 'st-warn', 'заявку проверяет администратор'], new: ['В очереди', 'st-warn', 'покупаем предмет на маркете'], buying: ['Покупаем', 'st-warn', 'покупаем предмет на маркете'],
+  sent: ['Примите обмен', 'st-warn', 'продавец отправляет обмен — примите его в Steam'], prot: ['Получен', 'st-ok', 'обмен принят, идёт защита обмена Steam'], done: ['Выведен', 'st-ok', 'предмет в вашем инвентаре Steam'], fail: ['Отменён', 'st-bad', ''] };
+const wdKick = () => { try { fetch(`${SB_URL}/functions/v1/market?action=tick`, { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: '{}' }).catch(() => {}); } catch (e) { /* без сети */ } };
+let wdTimer = 0, wdSeen = '';
+async function drawWd() {
+  const box = $('#wdList'); clearTimeout(wdTimer); if (!box || !sb || !st.user || !st.user.sb) return;
+  const { data } = await sb.rpc('my_withdrawals'); if (!$('#wdList')) return;
+  const day = Date.now() - 864e5, list = (data || []).filter(w => !['done', 'fail'].includes(w.status) || Date.parse(w.ts) > day).slice(0, 8);
+  const active = list.some(w => !['done', 'fail'].includes(w.status));
+  const sig = list.map(w => w.id + w.status).join();
+  if (wdSeen && sig !== wdSeen) { wdSeen = sig; await sbRefresh(); return drawPf(); } // статус поменялся — инвентарь обновить (отменённый предмет вернулся)
+  wdSeen = sig;
+  box.innerHTML = list.length ? `<div class="wd-list"><b class="wd-h">Выводы в Steam</b>${list.map(w => {
+    const s = SK[w.n], [t, cls, hint] = WD_ST[w.status] || ['—', '', ''];
+    return `<div class="wd-row"><img src="${s ? imgUrl(s, 's') : ''}" alt=""><div class="n">${esc(s ? s.name : w.n)}<small>${esc(w.status === 'fail' ? w.err || 'вывод отменён — предмет возвращён в инвентарь' : hint)}</small></div>
+      ${w.status === 'sent' ? `<a class="btn btn-accent btn-sm" href="https://steamcommunity.com/my/tradeoffers/" target="_blank" rel="noopener">${ic.steam}Обмены</a>` : ''}<span class="s ${cls}">${t}</span><span class="p">${money(+w.price)}</span></div>`;
+  }).join('')}</div>` : '';
+  if (active) { wdTimer = setTimeout(() => { wdKick(); drawWd(); }, 15000); }
+}
 function withdraw(id) {
   const it = st.inv.find(x => x.id === id); if (!it || it.st !== 'own') return;
   if (!st.trade) { const ti = $('#tradeInp'); if (ti) { ti.classList.add('err'); ti.focus(); } return toast('Сначала укажите трейд-ссылку Steam', 'err'); }
   const s = SK[it.n];
-  const m = modal(`<div class="wd r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><h2>Вывод предмета</h2><p>${esc(s.name)} · ${money(s.p)}<br>Бот отправит обмен на вашу трейд-ссылку. Примите его в течение 10 минут.</p><button class="btn btn-primary btn-lg btn-block" id="wdGo">${ic.send}Вывести в Steam</button></div>`, 'm-wd');
+  const m = modal(`<div class="wd r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><h2>Вывод предмета</h2><p>${esc(s.name)} · ${money(s.p)}<br>Мы купим этот предмет на маркете, и продавец отправит его обменом на вашу трейд-ссылку. Обычно это занимает несколько минут — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.</p><button class="btn btn-primary btn-lg btn-block" id="wdGo">${ic.send}Вывести в Steam</button></div>`, 'm-wd');
   $('#wdGo', m).onclick = async () => {
-    const b = $('#wdGo', m); b.disabled = true; b.innerHTML = '<span class="spinner"></span>Бот готовит обмен…';
-    const r = await srv('withdraw', { p_id: id }); closeModal(); if ($('#pfBody')) drawPf();
-    if (r) toast(`Обмен отправлен: <b>${esc(s.name)}</b>. Примите его в Steam`);
+    const b = $('#wdGo', m); b.disabled = true; b.innerHTML = '<span class="spinner"></span>Создаём заявку…';
+    const r = await srv('withdraw', { p_id: id }); closeModal();
+    if (r) { wdKick(); wdSeen = ''; toast(r.status === 'wait' ? `Заявка на вывод <b>${esc(s.name)}</b> принята — её проверит администратор` : `Выводим <b>${esc(s.name)}</b> — статус в профиле, примите обмен в Steam`); }
+    if ($('#pfBody')) drawPf();
   };
 }
 
@@ -3592,7 +3614,7 @@ function withdraw(id) {
    ========================================================= */
 const FAQ = [
   ['Как пополнить баланс?', 'Нажмите на баланс в шапке сайта или «Пополнить» в профиле. Доступны СБП, банковские карты, криптовалюта и скины. Промокод RUSH35 даёт +35% к сумме.'],
-  ['Как вывести скин в Steam?', 'Укажите трейд-ссылку в профиле, затем нажмите «Вывести» на нужном предмете. Бот отправит обмен в течение пары минут — примите его в Steam.'],
+  ['Как вывести скин в Steam?', 'Укажите трейд-ссылку в профиле, затем нажмите «Вывести» на нужном предмете. Мы купим предмет на маркете, и продавец отправит обмен на вашу трейд-ссылку — примите его в Steam. Статус вывода виден в профиле; если обмен не состоится, предмет вернётся в инвентарь.'],
   ['Почему не приходит обмен?', 'Проверьте, что ваш инвентарь Steam открыт, на аккаунте нет торговой блокировки и трейд-ссылка актуальна. Если проблема осталась — напишите в поддержку.'],
   ['Насколько честно выпадает дроп?', 'Результат определяется на сервере в момент нажатия «Открыть» — рулетка лишь показывает уже выпавший предмет. Подкрутить его во время анимации невозможно.'],
   ['Что такое апгрейд?', 'Вы ставите предмет или часть баланса и выбираете скин дороже. Шанс зависит от соотношения цен (максимум 80%). Если стрелка остановится в зелёной зоне — получаете скин, иначе ставка сгорает.'],
@@ -4721,24 +4743,63 @@ async function admDayView(t0) {
     ${axCard('Кейсы за день — сколько отдал и сколько забрал', axTable([['Кейс', r => r.c ? `<span class="ax-cs"><img src="${caseThumb(r.c)}" alt="">${esc(r.c.name)}</span>` : esc(r.id)], ['Открытий', r => fmt(r.n), num], ['Игроков', r => fmt(r.players), num], ['Забрал у игроков', r => money(r.spent), num], ['Отдал игрокам', r => money(r.won), num], ['Отдаёт', r => pctS(r.won / (r.spent || 1)), r => 'num ' + (r.won > r.spent ? 'neg' : '')], ['Итог для сайта', r => sgn(r.profit), tn('profit')]], cl.slice().sort((a, b) => b.spent - a.spent)))}
     ${(top.data || []).length ? axCard('Крупнейшие выигрыши игроков', axTable([['Время', r => new Date(r.ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })], ['Игрок', r => plink(r.pid, esc(r.name || '—'))], ['Где', r => r.kind === 'upg' ? `апгрейд ×${(+r.x).toFixed(1).replace('.', ',')}` : `кейс «${esc((caseById(r.c) || {}).name || r.c || '')}»${+r.x > 1 ? ' ×' + r.x : ''}`], ['Поставил', r => money(+r.amount), num], ['Получил', r => money(+r.won), num], ['Для сайта', r => sgn(-r.net), 'num neg']], top.data)) : ''}`;
 }
-/* ---------- выводы в Steam: заявки игроков с трейд-ссылкой и Steam-профилем ---------- */
-function axOut(box, D) {
+/* ---------- выводы в Steam: заявки через market.csgo (статусы, одобрение, настройки автовывода) + старые выводы ---------- */
+const WD_ADM = { wait: ['ждёт решения', 'warn'], new: ['в очереди', 'warn'], buying: ['покупается', 'warn'], sent: ['ждёт принятия обмена', 'warn'], prot: ['получен, защита обмена', 'pos'], done: ['выведен', 'pos'], fail: ['отменён', 'neg'] };
+async function axOut(box, D) {
   const [f, t] = [D.f, D.t];
-  const all = D.outs.slice().sort((a, b) => b.ts - a.ts), inP = all.filter(o => o.ts >= +f && o.ts < +t);
+  box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем заявки…</div>';
+  const [wr, cr] = await Promise.all([sb.from('withdrawals').select('*').order('id', { ascending: false }).limit(500), sb.from('market_cfg').select('*').maybeSingle()]);
+  if (!box.isConnected) return;
+  if (wr.error) return (box.innerHTML = admErr(wr.error) + '<p class="ax-foot">Выполните supabase/market.sql в Supabase.</p>');
+  const W = wr.data || [], C = cr.data || {}, P = Object.fromEntries(D.players.map(p => [p.id, p]));
+  const inP = W.filter(w => +new Date(w.created_at) >= +f && +new Date(w.created_at) < +t), done = inP.filter(w => w.status === 'done' || w.status === 'prot');
+  const openW = W.filter(w => !['done', 'fail'].includes(w.status)), need = W.filter(w => w.status === 'wait');
+  const paid = done.reduce((a, w) => a + (+w.paid || 0), 0), cost = done.reduce((a, w) => a + +w.price, 0);
+  const legacy = D.outs.filter(o => !W.some(w => w.uid === o.uid && w.n === o.n)).sort((a, b) => b.ts - a.ts);
+  const dt = v => new Date(v).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const item = n => { const s = SK[n]; return s ? `<span class="ax-cs"><img src="${imgUrl(s, 's')}" alt="">${esc(s.name)}</span>` : esc(n); };
+  const who = u => { const p = P[u] || {}; return plink(p.pid, esc(p.name || '?')) + (p.steamid ? ` <a class="ax-tag" href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steamid)}" target="_blank" rel="noopener">Steam</a>` : ''); };
   box.innerHTML = `
     <div class="ax-kpis">
-      ${axKpi('Выводов за период', fmt(inP.length), money(inP.reduce((a, o) => a + o.p, 0)))}
-      ${axKpi('Выводов всего', fmt(all.length), money(all.reduce((a, o) => a + o.p, 0)))}
-      ${axKpi('Игроков выводило', fmt(new Set(all.map(o => o.uid)).size))}
-      ${axKpi('Без трейд-ссылки', fmt(all.filter(o => !o.trade).length), 'у игрока ссылка удалена')}
-      ${axKpi('Средний вывод', all.length ? money(all.reduce((a, o) => a + o.p, 0) / all.length) : '—')}
-      ${axKpi('Крупнейший', all.length ? money(Math.max(...all.map(o => o.p))) : '—')}
+      ${axKpi('Ждут решения', fmt(need.length), need.length ? money(need.reduce((a, w) => a + +w.price, 0)) : 'нет', need.length ? 'neg' : '')}
+      ${axKpi('В процессе', fmt(openW.length - need.length), 'покупка и обмен')}
+      ${axKpi('Выведено за период', fmt(done.length), money(cost))}
+      ${axKpi('Заплачено маркету', money(paid), cost ? `${pctS(paid / cost)} от цены сайта` : '—', paid > cost ? 'neg' : 'pos')}
+      ${axKpi('Отменено за период', fmt(inP.filter(w => w.status === 'fail').length))}
+      ${axKpi('Баланс маркета', C.balance != null ? money(+C.balance) : '—', C.balance_at ? 'на ' + dt(C.balance_at) : '<button class="ax-btn ax-sm" id="mkBal">Узнать</button>')}
     </div>
-    ${axCard('Предметы, выведенные в Steam', axTable([['Дата', r => new Date(r.ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + (r.exact ? '' : ' <i class="ax-tag" title="время дропа: заявка сделана до учёта времени вывода">≈</i>')],
-      ['Игрок', r => plink(r.pid, esc(r.name)) + (r.pid ? ` <i class="ax-tag">#${r.pid}</i>` : '')], ['Предмет', r => { const s = SK[r.n]; return s ? `<span class="ax-cs"><img src="${imgUrl(s, 's')}" alt="">${esc(s.name)}</span>` : esc(r.n); }], ['Цена', r => money(r.p), num],
-      ['Трейд-ссылка', r => r.trade ? `<span class="ax-acts"><a class="ax-btn ax-sm" href="${esc(r.trade)}" target="_blank" rel="noopener">Открыть</a><button class="ax-btn ax-sm" data-act="copy" data-copy="${esc(r.trade)}">Копировать</button></span>` : '<span class="neg">нет ссылки</span>'],
-      ['Steam', r => r.steamid ? `<a class="ax-btn ax-sm" href="https://steamcommunity.com/profiles/${encodeURIComponent(r.steamid)}" target="_blank" rel="noopener">Профиль</a>` : '<span class="ax-mute">вход по почте</span>']], all))}
-    <p class="ax-foot">Автовывода через Lis-Skins пока нет: предметы отправляются вручную по трейд-ссылке. «≈» — у старых заявок время вывода не записывалось, показано время дропа.</p>`;
+    ${axCard('Настройки автовывода (market.csgo)', `<div class="mk-cfg">
+      <label class="mk-sw"><input type="checkbox" id="mkAuto" ${C.auto ? 'checked' : ''}> Автовывод включён</label>
+      <label>Автоматически до, ₽<input class="ax-inp" id="mkMax" type="number" min="0" step="100" value="${+C.auto_max || 0}"></label>
+      <label>Переплата на маркете до, %<input class="ax-inp" id="mkOver" type="number" min="0" max="100" step="1" value="${+C.over_pct || 0}"></label>
+      <label>Заявок в сутки на игрока<input class="ax-inp" id="mkDay" type="number" min="1" step="1" value="${+C.day_max || 10}"></label>
+      <button class="ax-btn" id="mkSave">Сохранить</button><button class="ax-btn" id="mkBal2">Обновить баланс</button></div>
+      <p class="ax-foot">Дороже порога и при выключенном автовыводе заявки ждут вашего решения. Цена покупки — не дороже цены сайта + переплата; если на маркете дороже или предмета нет, заявка возвращается сюда.</p>`)}
+    ${axCard('Заявки на вывод', W.length ? axTable([['Дата', r => dt(r.created_at)], ['Игрок', r => who(r.uid)], ['Предмет', r => item(r.n)], ['Цена', r => money(+r.price), num], ['Куплено за', r => r.paid ? money(+r.paid) : '—', num],
+      ['Статус', r => { const [tx, cl] = WD_ADM[r.status] || [r.status, '']; return `<b class="${cl}">${tx}</b>${r.err ? `<small class="ax-mute" style="display:block">${esc(r.err)}</small>` : ''}`; }],
+      ['', r => `<span class="ax-acts">${r.status === 'wait' ? `<button class="ax-btn ax-sm" data-wd="approve" data-id="${r.id}">Купить</button>` : ''}${['wait', 'new'].includes(r.status) ? `<button class="ax-btn ax-sm" data-wd="back" data-id="${r.id}">Вернуть игроку</button>` : ''}${['wait', 'new', 'sent'].includes(r.status) ? `<button class="ax-btn ax-sm" data-wd="done" data-id="${r.id}" title="Отправили сами — отметить выведенным">Отправлен вручную</button>` : ''}${['wait', 'new'].includes(r.status) ? `<button class="ax-btn ax-sm" data-act="copy" data-copy="${esc(r.trade)}">Трейд-ссылка</button>` : ''}</span>`]], W) : '<p class="ax-mute">Заявок ещё не было.</p>')}
+    ${legacy.length ? axCard('Выводы до подключения маркета', axTable([['Дата', r => dt(r.ts)], ['Игрок', r => plink(r.pid, esc(r.name))], ['Предмет', r => item(r.n)], ['Цена', r => money(r.p), num],
+      ['Трейд-ссылка', r => r.trade ? `<button class="ax-btn ax-sm" data-act="copy" data-copy="${esc(r.trade)}">Копировать</button>` : '<span class="neg">нет ссылки</span>']], legacy)) : ''}`;
+  const bal = async () => {
+    const { data: ses } = await sb.auth.getSession();
+    const r = await fetch(`${SB_URL}/functions/v1/market?action=balance`, { method: 'POST', headers: { apikey: SB_KEY, authorization: 'Bearer ' + (ses.session ? ses.session.access_token : ''), 'content-type': 'application/json' }, body: '{}' }).then(x => x.json()).catch(() => ({ error: 'нет связи' }));
+    if (r.error) return toast('Маркет: ' + r.error, 'err');
+    toast(`Баланс маркета: <b>${money(r.money)}</b>`); axOut(box, D);
+  };
+  [$('#mkBal', box), $('#mkBal2', box)].forEach(b => { if (b) b.onclick = bal; });
+  $('#mkSave', box).onclick = async () => {
+    const { error } = await sb.rpc('admin_market_cfg', { p: { auto: $('#mkAuto', box).checked, auto_max: +$('#mkMax', box).value, over_pct: +$('#mkOver', box).value, day_max: +$('#mkDay', box).value } });
+    toast(error ? 'Ошибка: ' + error.message : 'Настройки вывода сохранены', error ? 'err' : '');
+  };
+  $$('[data-wd]', box).forEach(b => b.onclick = async () => {
+    const act = b.dataset.wd;
+    if (act !== 'approve' && !confirm(act === 'back' ? 'Отменить заявку и вернуть предмет игроку?' : 'Отметить, что предмет отправлен игроку вручную?')) return;
+    b.disabled = true;
+    const { error } = await sb.rpc('admin_wd', { p_id: +b.dataset.id, p_act: act });
+    if (error) return toast('Ошибка: ' + error.message, 'err');
+    if (act === 'approve') wdKick();
+    toast(act === 'approve' ? 'Заявка отправлена на покупку' : act === 'back' ? 'Предмет возвращён игроку' : 'Отмечено как выведенное'); axOut(box, D);
+  });
 }
 function admDraw() {
   const box = $('#admBody'); if (!box) return;
