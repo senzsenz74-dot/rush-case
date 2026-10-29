@@ -9,7 +9,7 @@ create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
   uid uuid not null references public.profiles(id) on delete cascade,
   amount numeric not null check (amount >= 100 and amount <= 1000000),
-  method text not null default 'sbp' check (method in ('sbp', 'card')),
+  method text not null default 'sbp',
   promo text,
   provider text not null,
   status text not null default 'pending' check (status in ('pending', 'paid', 'failed', 'refunded')),
@@ -19,6 +19,9 @@ create table if not exists public.payments (
   created_at timestamptz not null default now(),
   paid_at timestamptz
 );
+-- способы оплаты: СБП, карта РФ, зарубежная карта, криптовалюта
+alter table public.payments drop constraint if exists payments_method_check;
+alter table public.payments add constraint payments_method_check check (method in ('sbp', 'card', 'intl', 'crypto'));
 create index if not exists payments_uid on public.payments (uid, created_at desc);
 create unique index if not exists payments_ext on public.payments (provider, ext_id) where ext_id is not null;
 alter table public.payments enable row level security;

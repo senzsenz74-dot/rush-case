@@ -1,10 +1,13 @@
 // RUSH CASE — приём оплаты (Supabase Edge Function «payment»). Проверку JWT для функции ВЫКЛЮЧИТЬ:
 // уведомления кассы приходят без токена; игрока проверяем сами по его токену в заголовке Authorization.
 //
-//   POST /functions/v1/payment?action=create   (игрок)  {amount, method: 'sbp'|'card', promo?} → {url}  — переход на оплату
+//   POST /functions/v1/payment?action=status   (сайт)   → {live, methods} — подключена ли касса и какие способы показывать
+//   POST /functions/v1/payment?action=create   (игрок)  {amount, method: 'sbp'|'card'|'intl'|'crypto', promo?} → {url}  — переход на оплату
 //   POST /functions/v1/payment?action=webhook  (касса)  уведомление → проверка подписи → pay_credit
 //
-// Секреты (Edge Functions → Secrets): PAY_PROVIDER (имя адаптера ниже), PAY_SHOP_ID, PAY_SECRET, PAY_SECRET2 (если касса даёт второй ключ).
+// Секреты (Edge Functions → Secrets): PAY_PROVIDER (имя адаптера ниже), PAY_SHOP_ID, PAY_SECRET, PAY_SECRET2 (если касса даёт второй ключ),
+//   PAY_API_URL (адрес создания платежа у кассы), PAY_METHODS — какие способы показывать, через запятую (по умолчанию sbp,card,intl,crypto).
+// Пока PAY_PROVIDER не задан, сайт показывает окно оплаты, но способы — «скоро» (подписка на Telegram и пополнение через поддержку).
 // Чтобы подключить кассу: дописать её адаптер в PROVIDERS (2 функции по её документации) и задать секреты.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -64,6 +67,8 @@ Deno.serve(async (req) => {
   const url = new URL(req.url), action = url.searchParams.get('action');
   const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
   const P = PROVIDERS[env('PAY_PROVIDER')];
+  const METHODS = (env('PAY_METHODS') || 'sbp,card,intl,crypto').split(',').map(x => x.trim()).filter(x => ['sbp', 'card', 'intl', 'crypto'].includes(x));
+  if (action === 'status') return json({ live: !!P, methods: METHODS });
   if (!P) return json({ error: 'payments disabled' }, 503);
 
   // 1) игрок создаёт платёж
@@ -72,7 +77,7 @@ Deno.serve(async (req) => {
     const { data: u } = await admin.auth.getUser(token);
     if (!u?.user) return json({ error: 'not authenticated' }, 401);
     const b = await req.json().catch(() => ({}));
-    const amount = Math.round(+b.amount), method = b.method === 'card' ? 'card' : 'sbp';
+    const amount = Math.round(+b.amount), method = METHODS.includes(b.method) ? b.method : METHODS[0] || 'sbp';
     if (!(amount >= 100 && amount <= 1000000)) return json({ error: 'bad amount' }, 400);
     const promo = typeof b.promo === 'string' && /^[A-Za-z0-9]{2,24}$/.test(b.promo) ? b.promo.toUpperCase() : null;
     const { data: pay, error } = await admin.from('payments').insert({ uid: u.user.id, amount, method, promo, provider: env('PAY_PROVIDER') }).select('id, amount, method').single();
