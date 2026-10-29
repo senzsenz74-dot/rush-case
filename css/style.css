@@ -1950,7 +1950,7 @@ img.rc-ic.big{filter:drop-shadow(0 3px 0 #6b4306) drop-shadow(0 6px 0 #3a2403) d
 .st-ic{flex:none;display:grid;place-items:center;width:42px;height:42px;border-radius:12px;color:var(--gold);background:rgba(243,193,79,.1);border:1px solid rgba(243,193,79,.25)}
 .st-ic svg{width:20px;height:20px}
 .st-tile b{display:block;font:800 19px var(--ff-h);color:#fff6e0}
-.st-tile span{display:block;font-size:12px;color:var(--txt2);margin-top:2px}
+.st-tile>div>span{display:block;font-size:12px;color:var(--txt2);margin-top:2px}
 .st-tile small{display:block;font-size:11.5px;color:var(--txt3);margin-top:3px}
 .st-tile.good b{color:#4ade80}.st-tile.bad b{color:#ff8a8a}
 .st-row{display:grid;grid-template-columns:1fr 1.2fr 1.2fr;gap:12px;margin-top:12px}
@@ -3771,3 +3771,20 @@ a.plink{color:inherit;text-decoration:none}a.plink:hover{color:var(--gold)}
 .ref-f small{font-size:12px;color:var(--txt3);white-space:nowrap}
 .ref-f i{font-style:normal;font-weight:800;color:var(--gold);min-width:70px;text-align:right}
 @media (max-width:600px){.ref-link{flex-direction:column}.ref-stats b{font-size:16px}}
+/* статистика профиля: иконки по центру, лучший дроп по центру с подсветкой редкости, анимация появления */
+.st-tile{position:relative;overflow:hidden;animation:stIn .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 60ms);transition:border-color .2s,transform .2s}
+.st-tile:hover{border-color:rgba(243,193,79,.3);transform:translateY(-2px)}
+.st-tile>div{min-width:0}
+.st-ic svg{display:block}
+.cu{font-style:normal;font-variant-numeric:tabular-nums}
+.st-best{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative;overflow:hidden;border-color:color-mix(in srgb,var(--rc-a) 35%,rgba(255,255,255,.07))}
+.st-best h3{align-self:stretch}
+.st-best::after{content:"";position:absolute;left:15%;right:15%;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--rc-a);box-shadow:0 0 18px var(--rc-a)}
+.st-best img{display:block;margin:6px auto 4px;width:78%;max-width:240px;filter:drop-shadow(0 14px 16px rgba(0,0,0,.6)) drop-shadow(0 0 22px color-mix(in srgb,var(--rc-a) 45%,transparent));animation:stFloat 4s ease-in-out infinite}
+.st-best .sb-n,.st-best .sb-p{text-align:center}
+.st-bar i b{transform-origin:left;animation:stGrow 1s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(.2s + var(--i,0) * 90ms)}
+@keyframes stIn{from{opacity:0;transform:translateY(10px)}}
+@keyframes stGrow{from{transform:scaleX(0)}}
+@keyframes stFloat{50%{transform:translateY(-7px) rotate(-1.5deg)}}
+@media (prefers-reduced-motion:reduce){.st-tile,.st-bar i b,.st-best img{animation:none}}
+.profile .pf-seg b:empty{display:none}

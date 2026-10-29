@@ -3518,6 +3518,17 @@ function invFill() {
 }
 window.addEventListener('resize', () => { if ($('#invGrid')) invFill(); });
 const dstr = ts => new Date(ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+/* статистика: числа «набегают» от нуля (cu — число с форматом, countUp — запустить анимацию в блоке) */
+const CU_F = { int: fmt, money, pct: v => Math.round(v) + '%' };
+const cu = (n, f = 'int') => `<i class="cu" data-n="${+n || 0}" data-f="${f}">${CU_F[f](+n || 0)}</i>`;
+function countUp(root, ms = 1100) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const els = $$('.cu', root).map(e => ({ e, n: +e.dataset.n, f: CU_F[e.dataset.f] || fmt })).filter(x => x.n);
+  if (!els.length) return;
+  const t0 = performance.now(), ease = t => 1 - Math.pow(1 - t, 3);
+  const step = now => { const k = Math.min(1, (now - t0) / ms), v = ease(k); els.forEach(x => { x.e.textContent = x.f(k < 1 ? x.n * v : x.n); }); if (k < 1 && els[0].e.isConnected) requestAnimationFrame(step); };
+  els.forEach(x => { x.e.textContent = x.f(0); }); requestAnimationFrame(step);
+}
 function drawPf() {
   const body = $('#pfBody'); if (!body) return;
   $$('#pfTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === pfTab));
@@ -3564,20 +3575,21 @@ function drawPf() {
     const topCases = Object.entries(perCase).sort((a, b) => b[1].n - a[1].n).slice(0, 5);
     const rcIn = (st.rlog || []).filter(x => x.v > 0).reduce((t, x) => t + x.v, 0), rcOut = Math.abs((st.rlog || []).filter(x => x.v < 0).reduce((t, x) => t + x.v, 0));
     const upgWr = S.upg ? S.upgWin / S.upg * 100 : 0, roi = S.spent ? dropSum / S.spent * 100 : 0;
-    const tile = (icn, v, t, sub = '', cls = '') => `<div class="st-tile ${cls}"><span class="st-ic">${icn}</span><div><b>${v}</b><span>${t}</span>${sub ? `<small>${sub}</small>` : ''}</div></div>`;
+    let ti = 0;
+    const tile = (icn, v, t, sub = '', cls = '') => `<div class="st-tile ${cls}" style="--i:${ti++}"><span class="st-ic">${icn}</span><div><b>${v}</b><span>${t}</span>${sub ? `<small>${sub}</small>` : ''}</div></div>`;
     body.innerHTML = `<div class="st-grid">
-        ${tile(ic.box, fmt(S.opened), 'Кейсов открыто', `потрачено ${money(S.spent)}`)}
-        ${tile(ic.gem, money(dropSum), 'Выпало из кейсов', `средний дроп ${fromCases.length ? money(dropSum / fromCases.length) : '—'}`)}
-        ${tile(ic.trend, roi ? roi.toFixed(0) + '%' : '—', 'Окупаемость', 'стоимость дропа / потрачено', roi >= 100 ? 'good' : roi ? 'bad' : '')}
-        ${tile(ic.wallet, money(S.dep || 0), 'Пополнено', `баланс сейчас ${money(st.balance)}`)}
-        ${tile(ic.up, `${S.upgWin} / ${S.upg}`, 'Апгрейдов: побед / всего', S.upg ? `успешных ${upgWr.toFixed(1)}%` : 'ещё не было')}
-        ${tile(ic.swap, fmt(S.con), 'Контрактов', '')}
-        ${tile(ic.coin, money(sumOf(by('sold'))), 'Продано предметов', `${by('sold').length} шт.`)}
-        ${tile(ic.send, fmt(by('out').length), 'Выведено в Steam', by('out').length ? money(sumOf(by('out'))) : '')}
+        ${tile(ic.box, cu(S.opened), 'Кейсов открыто', `потрачено ${money(S.spent)}`)}
+        ${tile(ic.gem, cu(dropSum, 'money'), 'Выпало из кейсов', `средний дроп ${fromCases.length ? money(dropSum / fromCases.length) : '—'}`)}
+        ${tile(ic.trend, roi ? cu(roi, 'pct') : '—', 'Окупаемость', 'стоимость дропа / потрачено', roi >= 100 ? 'good' : roi ? 'bad' : '')}
+        ${tile(ic.wallet, cu(S.dep || 0, 'money'), 'Пополнено', `баланс сейчас ${money(st.balance)}`)}
+        ${tile(ic.up, `${cu(S.upgWin)} / ${cu(S.upg)}`, 'Апгрейдов: побед / всего', S.upg ? `успешных ${upgWr.toFixed(1)}%` : 'ещё не было')}
+        ${tile(ic.swap, cu(S.con), 'Контрактов', '')}
+        ${tile(ic.coin, cu(sumOf(by('sold')), 'money'), 'Продано предметов', `${by('sold').length} шт.`)}
+        ${tile(ic.send, cu(by('out').length), 'Выведено в Steam', by('out').length ? money(sumOf(by('out'))) : '')}
       </div>
       <div class="st-row">
-        <div class="st-card st-best r-${best ? best.r : 'milspec'}"><h3>Лучший дроп</h3>${best ? `<img src="${imgUrl(best, 'l')}" alt=""><div class="sb-n"><span>${esc(best.w)}</span>${esc(best.f)}</div><div class="sb-p">${money(best.p)}</div>` : `<div class="muted">Пока нет</div>`}</div>
-        <div class="st-card"><h3>Любимые кейсы</h3>${topCases.length ? topCases.map(([id, d]) => { const c = caseById(id); const mx = topCases[0][1].n; return `<div class="st-bar"><span>${esc(c.name)}</span><i><b style="width:${(d.n / mx * 100).toFixed(0)}%;background:${c.th.a}"></b></i><em>${d.n}</em></div>`; }).join('') : '<div class="muted">Откройте пару кейсов</div>'}</div>
+        <div class="st-card st-best r-${best ? best.r : 'milspec'}"><h3>Лучший дроп</h3>${best ? `<img src="${imgUrl(best, 'l')}" alt=""><div class="sb-n"><span>${esc(best.w)}</span>${esc(best.f)}</div><div class="sb-p">${cu(best.p, 'money')}</div>` : `<div class="muted">Пока нет</div>`}</div>
+        <div class="st-card"><h3>Любимые кейсы</h3>${topCases.length ? topCases.map(([id, d]) => { const c = caseById(id); const mx = topCases[0][1].n; return `<div class="st-bar" style="--i:${topCases.findIndex(t => t[0] === id)}"><span>${esc(c.name)}</span><i><b style="width:${(d.n / mx * 100).toFixed(0)}%;background:${c.th.a}"></b></i><em>${cu(d.n)}</em></div>`; }).join('') : '<div class="muted">Откройте пару кейсов</div>'}</div>
         <div class="st-card"><h3>Аккаунт</h3>
           <div class="st-kv"><span>Ранг</span><b>${rk.cur.n}</b></div>
           <div class="st-kv"><span>До следующего</span><b>${rk.next ? money(rk.left) : 'максимум'}</b></div>
@@ -3587,6 +3599,7 @@ function drawPf() {
           <div class="st-kv"><span>На сайте с</span><b>${new Date(st.user.reg).toLocaleDateString('ru-RU')}</b></div>
         </div>
       </div>`;
+    countUp(body);
   } else if (pfTab === 'rc') {
     body.innerHTML = `<div class="pf-rc" id="rcoins">
       <div class="rc-head"><img class="rc-ic big" src="assets/rcoin.webp" alt="" aria-hidden="true"><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах</small></div></div>
