@@ -3,7 +3,7 @@
 -- Поток: сайт → функция payment (create) создаёт счёт в payments и ссылку на оплату у кассы →
 --        касса присылает уведомление на payment (webhook) → функция проверяет подпись → pay_credit зачисляет баланс.
 -- Зачисляет только серверная роль (ключ функции), игрок напрямую не может. Повторное уведомление не зачисляет дважды.
--- Запуск: SQL Editor → вставить → Run.
+-- Запуск: SQL Editor → вставить → Run. Перед этим — supabase/referral.sql (реферальные начисления).
 -- =====================================================================
 create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
@@ -46,11 +46,13 @@ begin
     select * into pr from public.promo_codes where code = upper(pay.promo) and t = 'dep';
     if found and not (d->'promos' ? pr.code) then bonus := greatest(bonus, pr.v); d := jsonb_set(d, '{promos}', (d->'promos') || to_jsonb(pr.code)); end if;
   end if;
+  bonus := greatest(bonus, public._ref_first_bonus(pay.uid, (d->'stats'->>'dep')::numeric));  -- пришёл по ссылке друга: бонус к первому пополнению
   total := round(pay.amount * (1 + bonus / 100), 2);
   d := public._bal(jsonb_set(d, '{depBonus}', '0'), total);
   d := jsonb_set(d, '{stats}', coalesce(d->'stats', '{}') || jsonb_build_object('dep', coalesce((d->'stats'->>'dep')::numeric, 0) + pay.amount));
   d := public._rc(d, pay.amount * 0.005, 'Пополнение');
   update public.profiles set data = d, updated_at = now() where id = pay.uid;
+  perform public._ref_reward(pay.uid, pay.amount);  -- 5% пригласившему (если срок не вышел)
   update public.payments set status = 'paid', ext_id = coalesce(p_ext, ext_id), credited = total, raw = p_raw, paid_at = now() where id = p_id;
   insert into public.site_events (uid, sid, kind, amount, won, x) values (pay.uid, 'pay-' || left(p_id::text, 8), 'dep', pay.amount, 0, 0);
   return jsonb_build_object('ok', true, 'credited', total);

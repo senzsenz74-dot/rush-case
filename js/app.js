@@ -1043,6 +1043,33 @@ async function sbRefresh() {
   if (data) { sbApply(Object.assign(freshProfile(), data.data || {})); if (data.luck != null) st.user.luck = +data.luck; }
 }
 addEventListener('visibilitychange', () => { if (document.hidden) sbPush(); });
+/* ---------- реферальная программа (supabase/referral.sql): ссылка ?ref=<ID>, 5% от пополнений друга, другу — бонус к первому пополнению ---------- */
+const REF_DEF = { pct: 5, friend_pct: 10, days: 30 };
+// пришёл по ссылке друга: запоминаем ID до входа и убираем его из адреса; после входа — привязка на сервере (только новые аккаунты)
+(() => { try { const r = new URLSearchParams(location.search).get('ref'); if (r && /^\d{1,12}$/.test(r)) { localStorage.setItem('rc.ref', r); const u = new URL(location.href); u.searchParams.delete('ref'); history.replaceState(null, '', u.pathname + u.search + u.hash); } } catch (e) { /* приватный режим */ } })();
+async function refClaim() {
+  let r; try { r = localStorage.getItem('rc.ref'); } catch (e) { return; }
+  if (!r || !sb || !st.user || !st.user.sb) return;
+  const { data, error } = await sb.rpc('set_ref', { p_ref: r });
+  if (error) return; // нет связи — попробуем при следующем входе
+  try { localStorage.removeItem('rc.ref'); } catch (e) { /* */ }
+  if (data && data.ok) toast(`Вас пригласил <b>${esc(data.name)}</b> — бонус к первому пополнению`);
+}
+const refIntro = c => `<b>${c.pct}%</b> от пополнений друзей в течение ${c.days} дней после их регистрации — сразу вам на баланс. Друг получает <b>+${c.friend_pct}%</b> к первому пополнению.`;
+async function drawRef() {
+  const box = $('#refCard'); if (!box) return;
+  const head = c => `<header class="bn-h"><span class="bn-ic">${ic.users}</span><div><h3>Пригласи друга</h3><p>${refIntro(c)}</p></div></header>`;
+  if (!sb || !st.user || !st.user.sb) { box.innerHTML = head(REF_DEF) + `<button class="btn btn-primary" data-act="login">Войти и получить ссылку</button>`; return; }
+  const { data: R, error } = await sb.rpc('my_referrals'); if (!$('#refCard')) return;
+  if (error || !R) { box.innerHTML = head(REF_DEF) + '<p class="bn-note">Реферальная программа скоро заработает.</p>'; return; }
+  const link = `${location.origin}${location.pathname}?ref=${R.pid}`, active = R.friends.filter(f => f.left > 0).length;
+  box.innerHTML = head(R) + `
+    ${R.by ? `<div class="ref-by">${ic.users}<span>Вас пригласил <b>${esc(R.by)}</b>${R.bonus ? ` — <em>+${R.friend_pct}% к первому пополнению</em>` : ''}</span></div>` : ''}
+    <div class="ref-link"><input class="inp" readonly value="${esc(link)}" onclick="this.select()"><button class="btn btn-primary" data-act="copy" data-copy="${esc(link)}">${ic.copy}Копировать</button></div>
+    <div class="ref-stats"><div><span>Приглашено</span><b>${fmt(R.count)}</b></div><div><span>Приносят доход</span><b>${fmt(active)}</b></div><div><span>Заработано</span><b>${money(+R.earned)}</b></div></div>
+    ${R.friends.length ? `<div class="ref-list">${R.friends.map(f => `<div class="ref-f">${ava({ name: f.name, ava: f.ava }, 'xs')}<b>${plink(f.pid, esc(f.name))}</b><small>${f.left > 0 ? `ещё ${f.left} ${plural(f.left, 'день', 'дня', 'дней')}` : 'срок вышел'}</small><i>${+f.earned ? '+' + money(+f.earned) : '—'}</i></div>`).join('')}</div>`
+      : '<p class="bn-note">Отправьте ссылку друзьям — они появятся здесь после регистрации. Начисления — с онлайн-пополнений.</p>'}`;
+}
 /* журнал для статистики админки: пульс онлайна (раз в 2 мин с открытой вкладки), пополнения, выводы, открытия кейсов */
 // SID — номер устройства (хранится в браузере постоянно): посетитель = устройство, а не вкладка
 const SID = (() => { try { let s = localStorage.getItem('rc.vid'); if (!s) { s = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem('rc.vid', s); } return s; } catch (e) { return 'x' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); } })();
@@ -3346,10 +3373,7 @@ function pageBonus() {
         </article>
       </div>
     </div>
-    <article class="bn-card bn-ref">
-      <span class="bn-ic">${ic.users}</span>
-      <div><h3>Пригласи друга <em class="bn-soon">Скоро</em></h3><p>Реферальная программа: 5% от пополнений друзей вам, +50 ₽ другу при регистрации. Запустим вместе с онлайн-оплатой.</p></div>
-    </article>
+    <article class="bn-card bn-ref" id="refCard"><header class="bn-h"><span class="bn-ic">${ic.users}</span><div><h3>Пригласи друга</h3><p>${refIntro(REF_DEF)}</p></div></header></article>
     ${secTitle('Ранги')}
     <div class="ranks">${RANKS.map((r, i) => `<div class="rank${i === rk.i && st.user ? ' cur' : ''}${i > rk.i ? ' locked' : ''}">${rankIcon(r, i)}<h4>${r.n}</h4><small>от ${money(r.min)} в кейсах</small><span class="cb">${r.cb ? 'Кэшбэк ' + r.cb + '%' : 'Старт'}</span></div>`).join('')}</div>
   </section>`;
@@ -3357,6 +3381,7 @@ function pageBonus() {
 function pickDaily() { const t = DAILY.reduce((a, d) => a + d.w, 0); let r = Math.random() * t; for (const d of DAILY) { r -= d.w; if (r <= 0) return d; } return DAILY[0]; }
 const coinCard = (d, win) => `<div class="coin-card r-${d.r}${win ? ' is-win' : ''}"><span class="coin">₽</span><b>${d.v} ₽</b></div>`;
 function mountBonus() {
+  drawRef();
   const btn = $('#dailyBtn');
   const ready = () => { const n = bonusReady(), e = $('#bnReady'); if (!e) return; e.innerHTML = n ? `<i></i>Доступно сейчас: <b>${n}</b>` : `${ic.check}Всё собрано — заходите завтра`; e.classList.toggle('all', !n); };
   const upd = () => {
@@ -3827,7 +3852,7 @@ async function sbLoadProfile(session) {
   if (p.is_admin) try { localStorage.setItem('rc.adm', '1'); } catch (e) { /* */ }
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
   renderUser(); route();
-  jpClaim(false); jpResolveMine(); claimGrants();
+  jpClaim(false); jpResolveMine(); claimGrants(); refClaim();
   return true;
 }
 // начисления от администратора: забираем при входе, раз в 30 с и при возврате на вкладку
