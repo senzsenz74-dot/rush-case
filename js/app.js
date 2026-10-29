@@ -4536,8 +4536,8 @@ function admFetch(force) {
       const d = p.data || {}, inv = d.inv || [], s = d.stats || {};
       let pOut = 0, pHold = 0;
       for (const it of inv) { if (it.st === 'out' || it.st === 'pend') { pOut += P(it); outs.push({ uid: p.id, pid: p.pid, name: p.name, steamid: p.steamid, trade: d.trade || '', n: it.n, p: P(it), ts: +(it.ot || it.ts) || 0, exact: !!it.ot }); } else if (it.st === 'own' || it.st === 'bet') { pHold += P(it); holdN++; } }
-      bal += +d.balance || 0; hold += pHold; depAll += +s.dep || 0; outAll += pOut;
-      if (s.cs) for (const [id, v] of Object.entries(s.cs)) { const k = csAll[id] = csAll[id] || { n: 0, spent: 0, won: 0 }; k.n += +v.n || 0; k.spent += +v.spent || 0; k.won += +v.won || 0; }
+      if (!p.is_admin) { bal += +d.balance || 0; hold += pHold; depAll += +s.dep || 0; outAll += pOut; }
+      if (s.cs && !p.is_admin) for (const [id, v] of Object.entries(s.cs)) { const k = csAll[id] = csAll[id] || { n: 0, spent: 0, won: 0 }; k.n += +v.n || 0; k.spent += +v.spent || 0; k.won += +v.won || 0; }
       players.push({ id: p.id, pid: p.pid, name: p.name, admin: p.is_admin, reg: p.created_at, dep: +s.dep || 0, spent: +s.spent || 0, opened: +s.opened || 0, out: pOut, bal: +d.balance || 0, hold: pHold, profit: (+s.dep || 0) - pOut - (+d.balance || 0) - pHold });
     }
     const T = per.data.total, UT = (upg.data && upg.data.total) || {}, BT = (bets.data && bets.data.total) || {};
@@ -4739,7 +4739,7 @@ function axUpg(box, D) {
     </div>
     ${axCard(`Прибыль с апгрейда по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.upgP, { day: !D.hours, tip: r => [['Попыток', fmt(r.uN)], ['Побед', fmt(r.uWins)], ['Поставлено', money(r.uStake)], ['Выдано', money(r.uWon)], ['Прибыль', sgn(r.upgP)]] }))}
     <div class="ax-g2">
-      ${axCard('По множителям', axTable([['Множитель', r => band(+r.lo)], ['Попыток', r => fmt(r.n), num], ['Побед', r => pctOr(+r.wins, +r.n), num], ['Отдаёт', r => pctOr(+r.won, +r.stake), r => 'num ' + (+r.won > +r.stake ? 'neg' : '')], ['Прибыль', r => sgn(+r.stake - +r.won), r => 'num ' + tone(+r.stake - +r.won)]], D.UX))}
+      ${axCard('По множителям', axTable([['Множитель', r => band(+r.lo)], ['Попыток', r => fmt(r.n), num], ['Побед', r => pctOr(+r.wins, +r.n), num], ['Поставлено', r => money(+r.stake), num], ['Выдано', r => money(+r.won), num], ['Отдаёт', r => pctOr(+r.won, +r.stake), r => 'num ' + (+r.won > +r.stake ? 'neg' : '')], ['Прибыль', r => sgn(+r.stake - +r.won), r => 'num ' + tone(+r.stake - +r.won)]], D.UX) + '<p class="ax-foot">Прибыль = поставлено (скины и деньги, которые игроки закинули) − выдано (скины, которые они выиграли). Если игрок гоняет выигранный скин по кругу, каждая попытка считается заново, поэтому «поставлено» может быть больше пополнений. Админские аккаунты не учитываются.</p>')}
       ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Попыток', r => fmt(r.uN), num], ['Побед', r => fmt(r.uWins), num], ['Поставлено', r => money(r.uStake), num], ['Прибыль', r => sgn(r.upgP), tn('upgP')]], D.rows.filter(r => r.uN).reverse()))}
     </div>`;
 }
