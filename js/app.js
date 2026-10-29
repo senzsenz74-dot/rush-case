@@ -3473,7 +3473,7 @@ function pageProfile() {
         <div class="pfh-best r-${best ? best.r : 'milspec'}"><span>${ic.trophy}Лучший дроп</span>${best ? `<b><img src="${imgUrl(best, 's')}" alt="">${money(best.p)}</b>` : '<b>—</b>'}</div>
       </div>
     </div>
-    <div class="tabs-row"><div class="seg pf-seg" id="pfTabs"><button data-tab="inv">${ic.box}Инвентарь<b id="invCnt"></b></button><button data-tab="stats">${ic.trend}Статистика</button><button data-tab="rc"><img class="rc-ic" src="assets/rcoin.webp" alt="">R-COIN</button><button data-tab="hist">${ic.history}История</button><button data-tab="team">${ic.users}Команда</button></div><div class="sum" id="invSum"></div></div>
+    <div class="tabs-row"><div class="seg pf-seg" id="pfTabs"><button data-tab="inv">${ic.box}Инвентарь<b id="invCnt"></b></button><button data-tab="wd">${ic.steam}Выводы<b id="wdCnt"></b></button><button data-tab="stats">${ic.trend}Статистика</button><button data-tab="rc"><img class="rc-ic" src="assets/rcoin.webp" alt="">R-COIN</button><button data-tab="hist">${ic.history}История</button><button data-tab="team">${ic.users}Команда</button></div><div class="sum" id="invSum"></div></div>
     <div id="pfBody"></div>
   </section>`;
 }
@@ -3500,6 +3500,7 @@ function drawPf() {
   $('#invCnt').textContent = list.length;
   $('#invSum').innerHTML = '';
   if (pfTab === 'team') return drawTeamTab(body);
+  if (pfTab === 'wd') return drawWdTab(body);
   if (pfTab === 'inv') {
     $('#invSum').innerHTML = list.length ? `Стоимость: <b>${money(sum)}</b> &nbsp;<button class="btn btn-accent btn-sm" id="sellAllInv">${ic.coin}Продать всё</button>` : '';
     const sorted = list.slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
@@ -3507,7 +3508,7 @@ function drawPf() {
         <div class="t"><span class="tr-ic">${ic.steam}</span><span>Трейд-ссылка Steam<small>Нужна для вывода скинов. <a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></small></span></div>
         <div class="inp-row"><input class="inp" id="tradeInp" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade)}"><button class="btn btn-accent" id="tradeSave">Сохранить</button></div>
       </div>
-      <div id="wdList"></div>
+      <div id="wdNote"></div>
       <div class="items-grid inv-grid" id="invGrid">${sorted.map(x => {
         const s = SK[x.n];
         return `<div class="icard inv-card r-${s.r}"><span class="ic-st">${fromName(x.from)}</span><img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="ic-w">${esc(s.w)}</div><div class="ic-f">${esc(s.f)}</div><div class="ic-p">${money(s.p)}</div>
@@ -3581,20 +3582,35 @@ const WD_ST = { wait: ['Проверяется', 'st-warn', 'заявку про
   sent: ['Примите обмен', 'st-warn', 'продавец отправляет обмен — примите его в Steam'], prot: ['Получен', 'st-ok', 'обмен принят, идёт защита обмена Steam'], done: ['Выведен', 'st-ok', 'предмет в вашем инвентаре Steam'], fail: ['Отменён', 'st-bad', ''] };
 const wdKick = () => { try { fetch(`${SB_URL}/functions/v1/market?action=tick`, { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: '{}' }).catch(() => {}); } catch (e) { /* без сети */ } };
 let wdTimer = 0, wdSeen = '';
+// вкладка «Выводы» в профиле (вся история) + в инвентаре — короткая плашка, пока что-то выводится; число активных — на кнопке вкладки
 async function drawWd() {
-  const box = $('#wdList'); clearTimeout(wdTimer); if (!box || !sb || !st.user || !st.user.sb) return;
-  const { data } = await sb.rpc('my_withdrawals'); if (!$('#wdList')) return;
-  const day = Date.now() - 864e5, list = (data || []).filter(w => !['done', 'fail'].includes(w.status) || Date.parse(w.ts) > day).slice(0, 8);
-  const active = list.some(w => !['done', 'fail'].includes(w.status));
+  clearTimeout(wdTimer); if (!$('#pfBody') || !sb || !st.user || !st.user.sb) return;
+  const { data } = await sb.rpc('my_withdrawals'); if (!$('#pfBody')) return;
+  const list = data || [], act = list.filter(w => !['done', 'fail'].includes(w.status));
   const sig = list.map(w => w.id + w.status).join();
   if (wdSeen && sig !== wdSeen) { wdSeen = sig; await sbRefresh(); return drawPf(); } // статус поменялся — инвентарь обновить (отменённый предмет вернулся)
   wdSeen = sig;
-  box.innerHTML = list.length ? `<div class="wd-list"><b class="wd-h">Выводы в Steam</b>${list.map(w => {
-    const s = SK[w.n], [t, cls, hint] = WD_ST[w.status] || ['—', '', ''];
-    return `<div class="wd-row"><img src="${s ? imgUrl(s, 's') : ''}" alt=""><div class="n">${esc(s ? s.name : w.n)}<small>${esc(w.status === 'fail' ? w.err || 'вывод отменён — предмет возвращён в инвентарь' : hint)}</small></div>
-      ${w.status === 'sent' ? `<a class="btn btn-accent btn-sm" href="https://steamcommunity.com/my/tradeoffers/" target="_blank" rel="noopener">${ic.steam}Обмены</a>` : ''}<span class="s ${cls}">${t}</span><span class="p">${money(+w.price)}</span></div>`;
-  }).join('')}</div>` : '';
-  if (active) { wdTimer = setTimeout(() => { wdKick(); drawWd(); }, 15000); }
+  const cnt = $('#wdCnt'); if (cnt) cnt.textContent = act.length || '';
+  const note = $('#wdNote');
+  if (note) { note.innerHTML = act.length ? `<button class="wd-note" id="wdGoTab">${ic.steam}<span>${act.length} ${plural(act.length, 'предмет выводится', 'предмета выводятся', 'предметов выводятся')} в Steam</span><b>Смотреть статус →</b></button>` : ''; const g = $('#wdGoTab'); if (g) g.onclick = () => { pfTab = 'wd'; drawPf(); }; }
+  const box = $('#wdList');
+  if (box) {
+    const row = w => {
+      const s = SK[w.n], [t, cls, hint] = WD_ST[w.status] || ['—', '', ''];
+      return `<div class="wd-row r-${s ? s.r : 'milspec'}"><img src="${s ? imgUrl(s, 's') : ''}" alt=""><div class="n">${esc(s ? s.name : w.n)}<small>${esc(w.status === 'fail' ? w.err || 'вывод отменён — предмет возвращён в инвентарь' : hint)}</small></div>
+        ${w.status === 'sent' ? `<a class="btn btn-accent btn-sm" href="https://steamcommunity.com/my/tradeoffers/" target="_blank" rel="noopener">${ic.steam}Обмены</a>` : ''}<span class="d">${dstr(Date.parse(w.ts))}</span><span class="s ${cls}">${t}</span><span class="p">${money(+w.price)}</span></div>`;
+    };
+    const fin = list.filter(w => ['done', 'fail'].includes(w.status));
+    box.innerHTML = list.length ? `${act.length ? `<div class="wd-list"><b class="wd-h">Сейчас выводятся</b>${act.map(row).join('')}</div>` : ''}${fin.length ? `<div class="wd-list"><b class="wd-h">История выводов</b>${fin.map(row).join('')}</div>` : ''}`
+      : `<div class="empty">${ic.steam}Выводов пока не было<small>Нажмите на кнопку со стрелкой у предмета в инвентаре, чтобы вывести его в Steam</small></div>`;
+  }
+  if (act.length) wdTimer = setTimeout(() => { wdKick(); drawWd(); }, 15000);
+}
+function drawWdTab(body) {
+  body.innerHTML = `<div class="wd-tab">
+    <div class="wd-info">${ic.steam}<span>Мы покупаем предмет на маркете, и продавец отправляет его обменом на вашу трейд-ссылку — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.${st.trade ? '' : ' <b>Сначала укажите трейд-ссылку во вкладке «Инвентарь».</b>'}</span></div>
+    <div id="wdList"><div class="ax-load"><span class="spinner"></span>Загружаем выводы…</div></div></div>`;
+  drawWd();
 }
 function withdraw(id) {
   const it = st.inv.find(x => x.id === id); if (!it || it.st !== 'own') return;
@@ -3604,7 +3620,8 @@ function withdraw(id) {
   $('#wdGo', m).onclick = async () => {
     const b = $('#wdGo', m); b.disabled = true; b.innerHTML = '<span class="spinner"></span>Создаём заявку…';
     const r = await srv('withdraw', { p_id: id }); closeModal();
-    if (r) { wdKick(); wdSeen = ''; toast(r.status === 'wait' ? `Заявка на вывод <b>${esc(s.name)}</b> принята — её проверит администратор` : `Выводим <b>${esc(s.name)}</b> — статус в профиле, примите обмен в Steam`); }
+    if (r) { wdKick(); wdSeen = ''; toast(r.status === 'wait' ? `Заявка на вывод <b>${esc(s.name)}</b> принята — её проверит администратор` : `Выводим <b>${esc(s.name)}</b> — примите обмен в Steam, статус во вкладке «Выводы»`); }
+    if (r) pfTab = 'wd';
     if ($('#pfBody')) drawPf();
   };
 }
