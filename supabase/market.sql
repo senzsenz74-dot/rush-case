@@ -181,6 +181,12 @@ revoke all on function public.admin_market_cfg(jsonb) from public, anon;
 grant execute on function public.admin_wd(bigint, text) to authenticated;
 grant execute on function public.admin_market_cfg(jsonb) to authenticated;
 
+-- ---------- права (в Supabase новые таблицы и закрытые функции не получают их сами) ----------
+grant select on public.withdrawals, public.market_cfg to authenticated;
+grant all on public.withdrawals, public.market_cfg, public.market_names to service_role;
+grant usage, select on sequence public.withdrawals_id_seq to service_role;
+grant execute on function public.market_tick(int), public.market_claim(int), public.market_set(bigint, text, jsonb), public.market_balance(numeric) to service_role;
+
 -- ---------- раз в минуту — проверка заявок (pg_cron + pg_net) ----------
 create extension if not exists pg_cron;
 create extension if not exists pg_net with schema extensions;
