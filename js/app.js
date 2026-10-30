@@ -1577,7 +1577,7 @@ function renderFooter() {
     <div class="ft-col"><h4>Поддержка</h4><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a><a href="https://t.me/rushcasse" target="_blank" rel="noopener">Telegram-канал</a>
       <div class="pay"><span>СБП</span><span>МИР</span><span>VISA</span><span>MC</span></div></div>
   </div>
-  <div class="container ft-bottom"><span class="age">18+</span><p>© ${new Date().getFullYear()} RUSH CASE. Сайт не аффилирован с Valve Corporation. Counter-Strike 2 и Steam — товарные знаки Valve Corporation. Все изображения предметов принадлежат их правообладателям.<br><span class="ft-req">${LEGAL.name} · ИНН ${LEGAL.inn} · ОГРНИП ${LEGAL.ogrnip} · <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></p></div>`;
+  <div class="container ft-bottom"><span class="age">18+</span><p>© ${new Date().getFullYear()} RUSH CASE. Сайт не аффилирован с Valve Corporation. Counter-Strike 2 и Steam — товарные знаки Valve Corporation. Все изображения предметов принадлежат их правообладателям.<br><span class="ft-req"><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></p></div>`;
 }
 
 /* ---------- live feed ---------- */
@@ -3742,8 +3742,8 @@ function mountFaq() {
    ДОКУМЕНТЫ: соглашение, конфиденциальность, оплата и возврат, реквизиты; подтверждение 18+
    Тексты — рабочие шаблоны, перед запуском их стоит показать юристу.
    ========================================================= */
-const LEGAL = { name: 'ИП Андреев Виталий Витальевич', short: 'ИП Андреев В. В.', inn: '545210831401', ogrnip: '324547600078326', mail: 'rushcasesupport@gmail.com', site: 'RUSH CASE', date: '28.10.2026' };
-const legalReq = () => `<div class="lg-req"><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}</span><span>ОГРНИП ${LEGAL.ogrnip}</span><span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></div>`;
+const LEGAL = { name: 'Администрация сайта RUSH CASE', short: 'Администрация RUSH CASE', mail: 'rushcasesupport@gmail.com', site: 'RUSH CASE', date: '28.10.2026' };
+const legalReq = () => `<div class="lg-req"><b>${LEGAL.name}</b><span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></div>`;
 const LEGAL_DOCS = {
   terms: { t: 'Пользовательское соглашение', body: () => `
     <h3>1. Общие положения</h3>
@@ -3769,7 +3769,7 @@ const LEGAL_DOCS = {
     <p>Администрация вправе изменять Соглашение. Новая редакция действует с момента публикации на Сайте.</p>
     <h3>8. Контакты</h3>${legalReq()}` },
   privacy: { t: 'Политика конфиденциальности', body: () => `
-    <h3>1. Оператор</h3><p>Оператор персональных данных — ${LEGAL.name}, ИНН ${LEGAL.inn}. Политика действует в отношении данных, которые Сайт получает от Пользователя.</p>
+    <h3>1. Оператор</h3><p>Оператор персональных данных — ${LEGAL.name}. Политика действует в отношении данных, которые Сайт получает от Пользователя.</p>
     <h3>2. Какие данные мы обрабатываем</h3>
     <ul><li>Steam ID, ник и аватар Steam (при входе через Steam) либо адрес e-mail (при регистрации по почте);</li>
       <li>трейд-ссылку Steam, историю операций, инвентарь, баланс;</li>
@@ -3795,7 +3795,7 @@ const LEGAL_DOCS = {
       <li>Не возвращаются: бонусы, начисления по промокодам, R-COIN, средства от продажи предметов и выигрыши.</li></ul>
     <h3>4. Ошибочные платежи</h3><p>Если платёж прошёл, а баланс не зачислился в течение часа, напишите в поддержку с данными платежа — мы проверим и зачислим или вернём средства.</p>
     <h3>5. Отказ в обслуживании</h3><p>При подозрении на мошенничество, использование чужой карты или нарушение Соглашения Администрация вправе приостановить операции до выяснения обстоятельств.</p>
-    <h3>6. Реквизиты</h3>${legalReq()}` },
+    <h3>6. Контакты</h3>${legalReq()}` },
 };
 function pageDoc(key) {
   const d = LEGAL_DOCS[key];
