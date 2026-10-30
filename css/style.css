@@ -4009,3 +4009,15 @@ body:has(.sw-panel.in) .sw-fring{animation:none;opacity:0}
 #axSupDash{margin-top:12px}
 #axSupDash .sup-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
 @media (max-width:1180px){#axSupDash .sup-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* поддержка: активные / архив */
+.sup-seg{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px;background:var(--ax-card);border-bottom:1px solid var(--ax-line)}
+.sup-seg button{height:32px;border-radius:8px;border:0;background:none;color:var(--ax-mut);font:700 12.5px var(--ff-b,inherit);cursor:pointer}
+.sup-seg button.on{background:rgba(255,255,255,.08);color:#fff}
+.sup-seg button i{font-style:normal;margin-left:4px;opacity:.7}
+.sup-form.gone{display:none}
+.sup-lock.arch{margin:0 12px 12px;border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.04)}
+.sup-lock.arch svg{color:var(--ax-mut)}
+.sup-old{align-self:center;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1px dashed rgba(255,255,255,.18);background:none;color:var(--ax-mut);font:600 12px var(--ff-b,inherit);cursor:pointer}
+.sup-old svg{width:14px;height:14px}.sup-old:hover{color:#fff}
+.sup-oldbox{display:flex;flex-direction:column;gap:8px;opacity:.55}
+.sup-sep{align-self:center;margin:6px 0;font-size:11px;color:var(--ax-mut);text-transform:uppercase;letter-spacing:.08em;opacity:1}
