@@ -1485,7 +1485,7 @@ function renderUser() {
   // шапка: единый блок — баланс, бонусы R-COIN (значок и число), «+» и аватарка с меню
   ua.innerHTML = `<div class="wal wal-c">
       <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><small>Баланс</small><b id="balance">${money(st.balance)}</b></div>
-      <a class="rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><img class="rc-ic" src="assets/rcoin.webp" alt="Бонусы"><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
+      <a class="rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><small>Бонусы</small><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
       <button class="wal-dep" data-act="deposit" title="Пополнить баланс" aria-label="Пополнить баланс">${ic.plus}</button>
     <div class="ubox">
       <button class="ubtn" id="ubtn" aria-haspopup="true" aria-label="Меню профиля">${ava(st.user)}${ic.chev}</button>

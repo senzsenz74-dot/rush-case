@@ -4060,3 +4060,9 @@ body:has(.sw-panel.in) .sw-fring{animation:none;opacity:0}
   .wal-c .wal-dep{width:32px;height:32px;border-radius:9px}.wal-c .wal-dep svg{width:17px;height:17px}
   .wal-c .ubox{margin-left:3px}.wal-c .ubtn .ava{width:32px;height:32px;border-radius:9px;font-size:13px}
 }
+/* бонусы в шапке — подписью, как баланс */
+.wal-c .rc,.wal-c .rc:hover{flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;line-height:1}
+.wal-c .rc small{font:700 9.5px var(--ff-h);letter-spacing:.14em;text-transform:uppercase;color:var(--txt3)}
+.wal-c .rc b{font-size:17px}
+@media (max-width:720px){.wal-c .bal small,.wal-c .rc small{display:block;font-size:8px;letter-spacing:.1em}.wal-c .rc b{font-size:14px}.wal-c .rc,.wal-c .rc:hover{height:auto}}
+@media (max-width:520px){.wal-c .rc b{font-size:13px}.wal-c .bal small,.wal-c .rc small{font-size:7.5px}}
