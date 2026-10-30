@@ -4734,9 +4734,9 @@ async function supAdmTop() {
   await supBotLoad(); if (!el.isConnected) return;
   const notif = window.Notification ? Notification.permission : 'denied';
   el.innerHTML = `<div class="sup-bot ${supBot ? 'ok' : ''}">${ic.tg}<span>${supBot ? `Бот <b>@${esc(supBot)}</b> подключён — сообщения из Telegram приходят сюда` : 'Telegram-бот не подключён: создайте бота в @BotFather, сохраните токен в Supabase → Edge Functions → Secrets как <b>TG_BOT_TOKEN</b>, затем нажмите «Подключить бота»'}</span>
-    <button class="ax-btn ax-sm" id="supSetup">${supBot ? 'Переподключить' : 'Подключить бота'}</button></div>
+    ${admOwner() ? `<button class="ax-btn ax-sm" id="supSetup">${supBot ? 'Переподключить' : 'Подключить бота'}</button>` : ''}</div>
     ${notif === 'default' ? '<button class="ax-btn ax-sm" id="supNotif">Включить уведомления браузера</button>' : notif === 'granted' ? '<span class="ax-mute">Уведомления браузера включены</span>' : ''}`;
-  $('#supSetup', el).onclick = async () => {
+  if ($('#supSetup', el)) $('#supSetup', el).onclick = async () => {
     const { data: ses } = await sb.auth.getSession();
     const r = await fetch(`${SB_URL}/functions/v1/support-bot?action=setup`, { method: 'POST', headers: { apikey: SB_KEY, authorization: 'Bearer ' + (ses.session ? ses.session.access_token : ''), 'content-type': 'application/json' }, body: '{}' }).then(x => x.json()).catch(() => ({ error: 'нет связи' }));
     if (r.error) return toast('Бот: ' + r.error, 'err');
@@ -4844,10 +4844,21 @@ function pageAdmin() {
   if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
   return `<section class="container cases-wide ax" id="adm">
     <header class="ax-top"><div class="ax-ttl"><span>Админ-панель</span><h1>RUSH CASE</h1></div><div class="ax-period" id="axPeriod"></div></header>
-    <nav class="ax-tabs" id="admTabs">${ADM_TABS.map(([k, t]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${t}${k === 'support' ? '<i class="ax-badge" id="admSupBadge" hidden></i>' : ''}</button>`).join('')}</nav>
-    <div id="admBody"></div>
+    <nav class="ax-tabs" id="admTabs"></nav>
+    <div id="admBody"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div>
   </section>`;
 }
+/* роль в админке: владелец — всё; сотрудник — только вкладки, отмеченные владельцем (права проверяет и сервер, supabase/roles.sql) */
+let admMe = null;
+async function admRole() {
+  if (admMe && admMe.uid === st.user.id) return admMe;
+  const { data, error } = await sb.rpc('my_staff');
+  // до запуска roles.sql функции нет — админка как раньше
+  admMe = { uid: st.user.id, role: error ? 'owner' : (data && data.role) || 'staff', perms: (data && data.perms) || [] };
+  return admMe;
+}
+const admOwner = () => !admMe || admMe.role === 'owner';
+const admTabs = () => admOwner() ? ADM_TABS : ADM_TABS.filter(([k]) => admMe.perms.includes(k));
 /* каталог цен и составы встроенных кейсов → на сервер (выпадение считает сервер по этим данным); грузим, если на сайте что-то поменялось */
 async function admSync(force) {
   const cat = Object.keys(SK).map(k => [k, Math.round(SK[k].p * 100) / 100, SK[k].c || 'skin']).filter(x => x[1] > 0);
@@ -4865,10 +4876,15 @@ async function admSync(force) {
   }
   toast(`Сервер обновлён: ${fmt(cat.length)} предметов, ${cases.length} кейсов`);
 }
-function mountAdmin() {
+async function mountAdmin() {
   if (!$('#adm')) return;
-  if (sb) admSync();
-  if (!ADM_TABS.some(([k]) => k === admTab)) admTab = 'dash';
+  if (sb) await admRole();
+  if (!$('#adm')) return;
+  const tabs = admTabs();
+  if (sb && admOwner()) admSync();
+  if (!tabs.some(([k]) => k === admTab)) admTab = tabs.length ? tabs[0][0] : '';
+  $('#admTabs').innerHTML = tabs.map(([k, t]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${t}${k === 'support' ? '<i class="ax-badge" id="admSupBadge" hidden></i>' : ''}</button>`).join('');
+  if (!tabs.length) return ($('#admBody').innerHTML = `<div class="empty">${ic.shield}Владелец ещё не открыл вам разделы админки.</div>`);
   admPeriodBar();
   $$('#admTabs [data-t]').forEach(b => b.onclick = () => { admTab = b.dataset.t; try { localStorage.setItem('rc.admTab', admTab); } catch (e) { /* */ } admDraw(); });
   admDraw();
@@ -4889,6 +4905,19 @@ const tone = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
 // кратко для шкалы графика: 4,98 млн ₽ / 12 тыс ₽
 const cmp = v => { const a = Math.abs(v), s_ = v < 0 ? '−' : v > 0 ? '+' : ''; return s_ + (a >= 1e6 ? (a / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace('.', ',') + ' млн' : a >= 1e4 ? Math.round(a / 1e3) + ' тыс' : fmt(a)) + ' ₽'; };
 let admData = null;
+// подпись: часы — по вашему времени, дни — дата сервера (UTC)
+const admLbl = (t_, hours) => { const d = new Date(t_); return hours ? `${pad(d.getHours())}:00` : `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}`; };
+const admFull = (t_, hours) => { const d = new Date(t_); return hours ? `${pad(d.getDate())}.${pad(d.getMonth() + 1)} ${pad(d.getHours())}:00` : `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`; };
+/* онлайн для сотрудника — без денег (admin_online) */
+async function admStaffOnline(box) {
+  box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Считаем…</div>';
+  const [f, t] = admRangeDates(), hours = (t - f) / 36e5 <= 48;
+  const { data, error } = await sb.rpc('admin_online', { p_from: f.toISOString(), p_to: t.toISOString(), p_bucket: hours ? 'hour' : 'day' });
+  if (!box.isConnected) return;
+  if (error) return (box.innerHTML = admErr(error));
+  const rows = (data.series || []).map(r => ({ t: r.t, lbl: admLbl(r.t, hours), full: admFull(r.t, hours), peak: +r.peak, avg: +r.avg, visitors: +r.visitors, players: +r.players, reg: +r.reg }));
+  axOnline(box, { hours, rows, T: data.total || {}, snap: { online: data.online } });
+}
 function admFetch(force) {
   const [f, t] = admRangeDates(), key = `${+f}-${+t}`;
   if (!force && admData && admData.key === key && Date.now() - admData.at < 60000) return admData.p;
@@ -4900,9 +4929,7 @@ function admFetch(force) {
     if (per.error) throw per.error;
     const by = (arr) => Object.fromEntries((arr || []).map(r => [String(r.t), r]));
     const U = by(upg.data && upg.data.series), B = by(bets.data && bets.data.series);
-    // подпись: часы — по вашему времени, дни — дата сервера (UTC)
-    const lbl = t_ => { const d = new Date(t_); return hours ? `${pad(d.getHours())}:00` : `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}`; };
-    const full = t_ => { const d = new Date(t_); return hours ? `${pad(d.getDate())}.${pad(d.getMonth() + 1)} ${pad(d.getHours())}:00` : `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`; };
+    const lbl = t_ => admLbl(t_, hours), full = t_ => admFull(t_, hours);
     const rows = (per.data.series || []).map(r => {
       const u = U[String(r.t)] || {}, b = B[String(r.t)] || {};
       const cases = +r.spent - +r.won, upgP = (+u.stake || 0) - (+u.won || 0), betsP = +b.profit || 0;
@@ -4973,17 +5000,17 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
   box.innerHTML = `<div class="ax-seg">${[['today', 'Сегодня'], ['yest', 'Вчера'], ['7d', '7 дней'], ['30d', '30 дней'], ['90d', '90 дней'], ['all', 'Всё время']].map(([k, n]) => `<button data-k="${k}" class="${admRange.k === k ? 'on' : ''}">${n}</button>`).join('')}</div>
     <div class="ax-dates"><input type="date" id="axFrom" value="${admIso(f)}"><i>—</i><input type="date" id="axTo" value="${admIso(new Date(+t - 864e5))}"><button class="ax-btn" id="axGo">Показать</button></div>
-    <button class="ax-btn" id="axRe" title="Обновить данные">${ic.history || '↻'}</button><button class="ax-btn ax-btn-p" id="axXls">Excel</button>`;
+    <button class="ax-btn" id="axRe" title="Обновить данные">${ic.history || '↻'}</button>${admOwner() ? '<button class="ax-btn ax-btn-p" id="axXls">Excel</button>' : ''}`;
   $$('.ax-seg [data-k]', box).forEach(b => b.onclick = () => { admRange = { k: b.dataset.k }; admPeriodBar(); admDraw(); });
   $('#axGo', box).onclick = () => { const a = $('#axFrom', box).value, b = $('#axTo', box).value; if (!a || !b || a > b) return toast('Проверьте даты', 'err'); admRange = { k: 'custom', from: a, to: b }; admPeriodBar(); admDraw(); };
   $('#axRe', box).onclick = () => { admData = null; admDraw(); };
-  $('#axXls', box).onclick = e => admXls(e.currentTarget);
+  if ($('#axXls', box)) $('#axXls', box).onclick = e => admXls(e.currentTarget);
 }
 async function admTabData(box, render) {
   box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Считаем…</div>';
@@ -5199,17 +5226,26 @@ async function admDayView(t0) {
 }
 /* ---------- выводы в Steam: заявки через market.csgo (статусы, одобрение, настройки автовывода) + старые выводы ---------- */
 const WD_ADM = { wait: ['ждёт решения', 'warn'], new: ['в очереди', 'warn'], buying: ['покупается', 'warn'], sent: ['ждёт принятия обмена', 'warn'], prot: ['получен, защита обмена', 'pos'], done: ['выведен', 'pos'], fail: ['отменён', 'neg'] };
+// D = null — сотрудник: без денег маркета и настроек, решает только заявки «ждут решения»
 async function axOut(box, D) {
-  const [f, t] = [D.f, D.t];
+  const own = !!D, [f, t] = D ? [D.f, D.t] : admRangeDates();
   box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем заявки…</div>';
-  const [wr, cr] = await Promise.all([sb.from('withdrawals').select('*').order('id', { ascending: false }).limit(500), sb.from('market_cfg').select('*').maybeSingle()]);
+  const [wr, cr] = await Promise.all([sb.from('withdrawals').select('*').order('id', { ascending: false }).limit(own ? 500 : 200), own ? sb.from('market_cfg').select('*').maybeSingle() : { data: {} }]);
   if (!box.isConnected) return;
   if (wr.error) return (box.innerHTML = admErr(wr.error) + '<p class="ax-foot">Выполните supabase/market.sql в Supabase.</p>');
-  const W = wr.data || [], C = cr.data || {}, P = Object.fromEntries(D.players.map(p => [p.id, p]));
+  const W = wr.data || [], C = cr.data || {};
+  let P;
+  if (D) P = Object.fromEntries(D.players.map(p => [p.id, p]));
+  else {
+    const uids = [...new Set(W.map(w => w.uid))];
+    const { data: pr } = uids.length ? await sb.from('profiles').select('id, pid, name, steamid').in('id', uids) : { data: [] };
+    if (!box.isConnected) return;
+    P = Object.fromEntries((pr || []).map(p => [p.id, p]));
+  }
   const inP = W.filter(w => +new Date(w.created_at) >= +f && +new Date(w.created_at) < +t), done = inP.filter(w => w.status === 'done' || w.status === 'prot');
   const openW = W.filter(w => !['done', 'fail'].includes(w.status)), need = W.filter(w => w.status === 'wait');
   const paid = done.reduce((a, w) => a + (+w.paid || 0), 0), cost = done.reduce((a, w) => a + +w.price, 0);
-  const legacy = D.outs.filter(o => !W.some(w => w.uid === o.uid && w.n === o.n)).sort((a, b) => b.ts - a.ts);
+  const legacy = !D ? [] : D.outs.filter(o => !W.some(w => w.uid === o.uid && w.n === o.n)).sort((a, b) => b.ts - a.ts);
   const dt = v => new Date(v).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const item = n => { const s = SK[n]; return s ? `<span class="ax-cs"><img src="${imgUrl(s, 's')}" alt="">${esc(s.name)}</span>` : esc(n); };
   const who = u => { const p = P[u] || {}; return plink(p.pid, esc(p.name || '?')) + (p.steamid ? ` <a class="ax-tag" href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steamid)}" target="_blank" rel="noopener">Steam</a>` : ''); };
@@ -5218,11 +5254,11 @@ async function axOut(box, D) {
       ${axKpi('Ждут решения', fmt(need.length), need.length ? money(need.reduce((a, w) => a + +w.price, 0)) : 'нет', need.length ? 'neg' : '')}
       ${axKpi('В процессе', fmt(openW.length - need.length), 'покупка и обмен')}
       ${axKpi('Выведено за период', fmt(done.length), money(cost))}
-      ${axKpi('Заплачено маркету', money(paid), cost ? `${pctS(paid / cost)} от цены сайта` : '—', paid > cost ? 'neg' : 'pos')}
+      ${own ? axKpi('Заплачено маркету', money(paid), cost ? `${pctS(paid / cost)} от цены сайта` : '—', paid > cost ? 'neg' : 'pos') : ''}
       ${axKpi('Отменено за период', fmt(inP.filter(w => w.status === 'fail').length))}
-      ${axKpi('Баланс маркета', C.balance != null ? money(+C.balance) : '—', C.balance_at ? 'на ' + dt(C.balance_at) : '<button class="ax-btn ax-sm" id="mkBal">Узнать</button>')}
+      ${own ? axKpi('Баланс маркета', C.balance != null ? money(+C.balance) : '—', C.balance_at ? 'на ' + dt(C.balance_at) : '<button class="ax-btn ax-sm" id="mkBal">Узнать</button>') : ''}
     </div>
-    ${axCard('Настройки автовывода (market.csgo)', `<div class="mk-cfg">
+    ${!own ? '<p class="ax-foot">Вы решаете заявки «ждут решения» — скины дороже порога автовывода: «Купить» (отправить на покупку), «Вернуть игроку» или «Отправлен вручную».</p>' : axCard('Настройки автовывода (market.csgo)', `<div class="mk-cfg">
       <label class="mk-sw"><input type="checkbox" id="mkAuto" ${C.auto ? 'checked' : ''}> Автовывод включён</label>
       <label>Автоматически до, ₽<input class="ax-inp" id="mkMax" type="number" min="0" step="100" value="${+C.auto_max || 0}"></label>
       <label>Переплата на маркете до, %<input class="ax-inp" id="mkOver" type="number" min="0" max="100" step="1" value="${+C.over_pct || 0}"></label>
@@ -5231,7 +5267,7 @@ async function axOut(box, D) {
       <p class="ax-foot">Дороже порога и при выключенном автовыводе заявки ждут вашего решения. Цена покупки — не дороже цены сайта + переплата; если на маркете дороже или предмета нет, заявка возвращается сюда.</p>`)}
     ${axCard('Заявки на вывод', W.length ? axTable([['Дата', r => dt(r.created_at)], ['Игрок', r => who(r.uid)], ['Предмет', r => item(r.n)], ['Цена', r => money(+r.price), num], ['Куплено за', r => r.paid ? money(+r.paid) : '—', num],
       ['Статус', r => { const [tx, cl] = WD_ADM[r.status] || [r.status, '']; return `<b class="${cl}">${tx}</b>${r.err ? `<small class="ax-mute" style="display:block">${esc(r.err)}</small>` : ''}`; }],
-      ['', r => `<span class="ax-acts">${r.status === 'wait' ? `<button class="ax-btn ax-sm" data-wd="approve" data-id="${r.id}">Купить</button>` : ''}${['wait', 'new'].includes(r.status) ? `<button class="ax-btn ax-sm" data-wd="back" data-id="${r.id}">Вернуть игроку</button>` : ''}${['wait', 'new', 'sent'].includes(r.status) ? `<button class="ax-btn ax-sm" data-wd="done" data-id="${r.id}" title="Отправили сами — отметить выведенным">Отправлен вручную</button>` : ''}${['wait', 'new'].includes(r.status) ? `<button class="ax-btn ax-sm" data-act="copy" data-copy="${esc(r.trade)}">Трейд-ссылка</button>` : ''}</span>`]], W) : '<p class="ax-mute">Заявок ещё не было.</p>')}
+      ['', r => !own && r.status !== 'wait' ? '' : `<span class="ax-acts">${r.status === 'wait' ? `<button class="ax-btn ax-sm" data-wd="approve" data-id="${r.id}">Купить</button>` : ''}${['wait', 'new'].includes(r.status) ? `<button class="ax-btn ax-sm" data-wd="back" data-id="${r.id}">Вернуть игроку</button>` : ''}${['wait', 'new', 'sent'].includes(r.status) ? `<button class="ax-btn ax-sm" data-wd="done" data-id="${r.id}" title="Отправили сами — отметить выведенным">Отправлен вручную</button>` : ''}${['wait', 'new'].includes(r.status) ? `<button class="ax-btn ax-sm" data-act="copy" data-copy="${esc(r.trade)}">Трейд-ссылка</button>` : ''}</span>`]], W) : '<p class="ax-mute">Заявок ещё не было.</p>')}
     ${legacy.length ? axCard('Выводы до подключения маркета', axTable([['Дата', r => dt(r.ts)], ['Игрок', r => plink(r.pid, esc(r.name))], ['Предмет', r => item(r.n)], ['Цена', r => money(r.p), num],
       ['Трейд-ссылка', r => r.trade ? `<button class="ax-btn ax-sm" data-act="copy" data-copy="${esc(r.trade)}">Копировать</button>` : '<span class="neg">нет ссылки</span>']], legacy)) : ''}`;
   const bal = async () => {
@@ -5241,7 +5277,7 @@ async function axOut(box, D) {
     toast(`Баланс маркета: <b>${money(r.money)}</b>`); axOut(box, D);
   };
   [$('#mkBal', box), $('#mkBal2', box)].forEach(b => { if (b) b.onclick = bal; });
-  $('#mkSave', box).onclick = async () => {
+  if (own) $('#mkSave', box).onclick = async () => {
     const { error } = await sb.rpc('admin_market_cfg', { p: { auto: $('#mkAuto', box).checked, auto_max: +$('#mkMax', box).value, over_pct: +$('#mkOver', box).value, day_max: +$('#mkDay', box).value } });
     toast(error ? 'Ошибка: ' + error.message : 'Настройки вывода сохранены', error ? 'err' : '');
   };
@@ -5253,6 +5289,52 @@ async function axOut(box, D) {
     if (error) return toast('Ошибка: ' + error.message, 'err');
     if (act === 'approve') wdKick();
     toast(act === 'approve' ? 'Заявка отправлена на покупку' : act === 'back' ? 'Предмет возвращён игроку' : 'Отмечено как выведенное'); axOut(box, D);
+  });
+}
+/* ---------- сотрудники (только владелец): кому какие вкладки, график смен (для отчётов) ---------- */
+const STAFF_PERMS = [['support', 'Поддержка'], ['out', 'Выводы Steam'], ['online', 'Онлайн'], ['players', 'Игроки (поиск, без начислений)']];
+const WDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const STAFF_ERR = { 'player not found': 'Игрок с таким ID не найден', 'is owner': 'Это владелец — у него и так все права', forbidden: 'Только владелец может менять сотрудников' };
+async function admStaff(box) {
+  box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем сотрудников…</div>';
+  const { data, error } = await sb.rpc('admin_staff_list');
+  if (!box.isConnected) return;
+  if (error) return (box.innerHTML = admErr(error) + '<p class="ax-foot">Выполните supabase/roles.sql в Supabase.</p>');
+  const L = data || [], owners = L.filter(s => s.role === 'owner'), staff = L.filter(s => s.role === 'staff');
+  const who = s => `<span class="at-u">${ava({ name: s.name || '?', ava: s.ava }, 'xs')}<span><b><i class="at-id">#${s.pid}</i>${plink(s.pid, esc(s.name || '?'))}</b><small>в команде с ${new Date(s.since).toLocaleDateString('ru-RU')}</small></span></span>`;
+  const row = s => { const sc = s.schedule || {}, days = sc.days || [], P = s.perms || []; return `<div class="sf-row" data-pid="${s.pid}" data-uid="${s.uid}">
+      <div class="sf-who">${who(s)}</div>
+      <div class="sf-perms">${STAFF_PERMS.map(([k, n]) => `<label class="sf-chk"><input type="checkbox" data-p="${k}" ${P.includes(k) ? 'checked' : ''}>${n}</label>`).join('')}</div>
+      <div class="sf-sch"><span class="sf-days">${WDAYS.map((d, i) => `<label class="sf-day"><input type="checkbox" data-d="${i + 1}" ${days.includes(i + 1) ? 'checked' : ''}><i>${d}</i></label>`).join('')}</span>
+        <span class="sf-time"><input type="time" class="ax-inp" data-f value="${esc(sc.from || '10:00')}"><i>—</i><input type="time" class="ax-inp" data-to value="${esc(sc.to || '22:00')}"><small>по Москве</small></span></div>
+      <div class="sf-acts"><input class="ax-inp sf-note" data-n placeholder="Заметка" maxlength="200" value="${esc(s.note || '')}"><button class="ax-btn ax-btn-p ax-sm" data-save>Сохранить</button><button class="ax-btn ax-sm" data-del>Снять права</button></div></div>`; };
+  box.innerHTML = `
+    ${axCard('Добавить сотрудника', `<div class="sf-add"><input class="ax-inp" id="sfPid" type="number" min="1" placeholder="ID игрока, например 100123"><button class="ax-btn ax-btn-p" id="sfAdd">Добавить</button></div>
+      <p class="ax-foot">Игрок получит доступ в админку без разделов — отметьте галочками, что ему можно, задайте график и нажмите «Сохранить». Права действуют сразу; сотруднику достаточно обновить страницу.</p>`)}
+    ${axCard(`Сотрудники <small class="ax-mute">${staff.length}</small>`, staff.length ? `<div class="sf-list">${staff.map(row).join('')}</div>` : '<p class="ax-mute">Сотрудников пока нет.</p>')}
+    ${axCard('Владельцы', `<div class="sf-own">${owners.map(who).join('')}</div>
+      <p class="ax-foot">Сотрудник не видит и не может менять: шансы и удачу кейсов, удачу игроков, начисления, кассу и деньги на дашборде, промокоды, настройки маркета, витрину, турниры и этот раздел. Выводы — только заявки «ждут решения» (дороже порога автовывода). График смен нужен для отчётов.</p>`)}`;
+  const err = e => STAFF_ERR[e.message] || 'Ошибка: ' + e.message;
+  $('#sfAdd', box).onclick = async () => {
+    const pid = +$('#sfPid', box).value;
+    if (!pid) return toast('Впишите ID игрока', 'err');
+    if (L.some(s => +s.pid === pid)) return toast('Этот игрок уже в списке', 'err');
+    const { data: r, error: e } = await sb.rpc('admin_staff_save', { p_pid: pid, p_perms: [], p_schedule: {}, p_note: null });
+    if (e) return toast(err(e), 'err');
+    toast(`${esc(r.name || '#' + pid)} — теперь сотрудник. Отметьте ему разделы`); admStaff(box);
+  };
+  $$('.sf-row', box).forEach(el => {
+    $('[data-save]', el).onclick = async () => {
+      const perms = $$('[data-p]', el).filter(x => x.checked).map(x => x.dataset.p), days = $$('[data-d]', el).filter(x => x.checked).map(x => +x.dataset.d);
+      const { error: e } = await sb.rpc('admin_staff_save', { p_pid: +el.dataset.pid, p_perms: perms, p_schedule: { days, from: $('[data-f]', el).value, to: $('[data-to]', el).value }, p_note: $('[data-n]', el).value });
+      toast(e ? err(e) : 'Сохранено', e ? 'err' : '');
+    };
+    $('[data-del]', el).onclick = async () => {
+      if (!confirm('Снять права сотрудника? Он больше не сможет зайти в админку.')) return;
+      const { error: e } = await sb.rpc('admin_staff_remove', { p_uid: el.dataset.uid });
+      if (e) return toast(err(e), 'err');
+      toast('Права сняты'); admStaff(box);
+    };
   });
 }
 /* ---------- промокоды: создать (общий или персональный), % к пополнению или ₽ на баланс, срок, лимит активаций, вкл/выкл ---------- */
@@ -5309,6 +5391,9 @@ function admDraw() {
   $$('#admTabs [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === admTab));
   if (!sb) return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
   const R = { dash: axDash, money: axMoney, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, out: axOut, players: axPlayers };
+  if (!admTabs().some(([k]) => k === admTab)) return;
+  if (!admOwner()) return admTab === 'online' ? admStaffOnline(box) : admTab === 'out' ? axOut(box, null) : admTab === 'players' ? admPlayers(box) : admSupport(box);
+  if (admTab === 'staff') return admStaff(box);
   if (admTab === 'tours') return admTours(box);
   if (admTab === 'shop') return admCases(box);
   if (admTab === 'support') return admSupport(box);
@@ -5664,6 +5749,7 @@ function admCaseEditor(row, done, base) {
 /* ---------- игроки: поиск, начисление баланса ---------- */
 let admQ = '';
 async function admPlayers(box) {
+  const own = admOwner();
   box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Игроки</h3>
       <div class="search adm-search"><input class="inp" id="admQ" placeholder="ID, ник или e-mail" value="${esc(admQ)}" autocomplete="off">${ic.search}</div></div>
     <div id="admList"><div class="adm-load"><span class="spinner"></span>Загружаем игроков…</div></div></div>`;
@@ -5678,8 +5764,9 @@ async function admPlayers(box) {
     list.innerHTML = `<div class="adm-tbl"><div class="at-h"><span>Игрок</span><span>Баланс</span><span>Открыто</span><span>Потрачено</span><span>Удача</span><span>Был</span><span></span></div>
       ${data.map(p => `<div class="at-r" data-uid="${p.id}" data-name="${esc(p.name)}" data-luck="${+p.luck || 1}" data-pid="${p.pid || ''}">
         <span class="at-u">${ava({ name: p.name }, 'xs')}<span><b>${p.pid ? `<i class="at-id">#${p.pid}</i>` : ''}${plink(p.pid, esc(p.name))}${p.is_admin ? ' <i class="at-adm">админ</i>' : ''}</b><small>${esc(p.email || '')} · с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</small></span></span>
-        <span class="at-bal">${money(+p.balance)}<small>R ${rc(+p.rcoin)}</small></span><span>${fmt(+p.opened)}</span><span>${money(+p.spent)}</span><span><button class="at-luck${(+p.luck || 1) > 1 ? ' up' : (+p.luck || 1) < 1 ? ' dn' : ''}">×${(+p.luck || 1).toFixed(2).replace('.', ',')}</button></span><span>${ago(p.last_seen)}</span>
-        <span><button class="btn btn-dark btn-sm at-give">${ic.plus}Начислить</button></span></div>`).join('')}</div>`;
+        <span class="at-bal">${money(+p.balance)}<small>R ${rc(+p.rcoin)}</small></span><span>${fmt(+p.opened)}</span><span>${money(+p.spent)}</span><span><button class="at-luck${(+p.luck || 1) > 1 ? ' up' : (+p.luck || 1) < 1 ? ' dn' : ''}"${own ? '' : ' disabled'}>×${(+p.luck || 1).toFixed(2).replace('.', ',')}</button></span><span>${ago(p.last_seen)}</span>
+        <span>${own ? `<button class="btn btn-dark btn-sm at-give">${ic.plus}Начислить</button>` : ''}</span></div>`).join('')}</div>`;
+    if (!own) return; // сотрудник: только поиск и просмотр
     $$('.at-give', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admGive(r.dataset.uid, r.dataset.name, load); });
     $$('.at-luck', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admLuck(r.dataset.uid, r.dataset.name, r.dataset.pid, +r.dataset.luck, load); });
   };
