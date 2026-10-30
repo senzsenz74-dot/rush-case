@@ -1809,13 +1809,19 @@ const CASE_DESC = {
 const HERO_SKIN = 'AK-47 | Золотая арабеска';
 let statOpened = 1284590;
 /* баннер-слайдер (верх страницы кейсов) */
+const HELLO_END = Date.parse('2026-11-04T00:00:00+03:00'); // промокод HELLO25 и его баннер — до конца 3 ноября
 function heroHtml() {
+  const hello = Date.now() < HELLO_END;
   const embers = Array.from({ length: 22 }, () => `<i style="left:${rand(2, 98)}%;--d:${rand(4, 9)}s;--dl:${rand(0, 8)}s;--x:${rand(-40, 40)}px;--s:${rand(.6, 1.4)}"></i>`).join('');
   const dust = Array.from({ length: 34 }, () => `<i style="left:${rand(0, 100)}%;top:${rand(0, 100)}%;--d:${rand(9, 18)}s;--dl:${rand(-18, 0)}s;--x:${rand(-60, 60)}px;--y:${rand(-50, 50)}px;--s:${rand(.4, 1.2)}"></i>`).join('');
   return `<section class="hero3">
     <div class="h3-frame hs" id="heroSlider">
       <div class="hs-track">
-        <div class="hs-slide on" data-i="0">
+        ${hello ? `<div class="hs-slide on">
+          <img class="h3-img hs-cover" src="assets/hero-hello25.webp" alt="Промокод HELLO25 даёт тебе 25% на пополнение" data-nw="1983" data-nh="793">
+          <button class="hs-hot hs-all" data-act="promo-dep" data-code="HELLO25" aria-label="Скопировать промокод HELLO25 и пополнить баланс"></button>
+        </div>` : ''}
+        <div class="hs-slide${hello ? '' : ' on'}" data-i="0">
           <img class="h3-img hs-cover" src="assets/hero-open.webp" alt="Мы открылись! Участвуй в розыгрыше — итоги 20.11" data-nw="1983" data-nh="793">
           <!-- кнопка «Участвуй в розыгрыше» нарисована на картинке: зона клика — в пикселях картинки (data-box), пересчитывается под обрезку cover -->
           <a class="hs-hot hs-tg" href="https://t.me/rushcasse" target="_blank" rel="noopener" data-box="212,376,918,188" aria-label="Участвуй в розыгрыше — Telegram-канал RUSH CASE"></a>
@@ -1843,7 +1849,7 @@ function heroHtml() {
       </div>
       <button class="hs-arr hs-prev" aria-label="Предыдущий баннер">${ic.left}</button>
       <button class="hs-arr hs-next" aria-label="Следующий баннер">${ic.right}</button>
-      <div class="hs-dots"><button class="on" data-go="0" aria-label="Баннер 1"></button><button data-go="1" aria-label="Баннер 2"></button><button data-go="2" aria-label="Баннер 3"></button><button data-go="3" aria-label="Баннер 4"></button></div>
+      <div class="hs-dots">${Array.from({ length: hello ? 5 : 4 }, (_, k) => `<button class="${k ? '' : 'on'}" data-go="${k}" aria-label="Баннер ${k + 1}"></button>`).join('')}</div>
     </div>
   </section>`;
 }
@@ -4075,9 +4081,9 @@ function paySoon(x, amount) {
   </div>`, 'm-dps');
   $('#dpsSup', m).onclick = () => { closeModal(); openDepositSupport(amount); };
 }
-async function openDeposit(need = 0) {
+async function openDeposit(need = 0, promo = null) {
   if (!st.user) return openAuth('login');
-  let amount = Math.max(100, Math.ceil((need || 500) / 50) * 50), method = null, code = null, refPct = 0;
+  let amount = Math.max(100, Math.ceil((need || 500) / 50) * 50), method = null, code = promo, refPct = 0;
   const bonusPct = () => Math.max(st.depBonus || 0, refPct);
   const m = modal(`<div class="dpx dpl">
     <div class="dpx-head">
@@ -4093,7 +4099,7 @@ async function openDeposit(need = 0) {
         <div class="dep-amt"><input class="inp" id="depAmt" type="number" min="100" step="50" value="${amount}" inputmode="numeric"><span>₽</span></div>
         <div class="amounts">${[300, 500, 1000, 2500, 5000, 10000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
         <div class="dpx-step"><i>3</i>Промокод <span class="dpl-opt">если есть</span></div>
-        <div class="inp-row"><input class="inp" id="depPromo" placeholder="Например, RUSH35" autocomplete="off" spellcheck="false" maxlength="24"><button class="btn btn-dark" id="depPromoBtn">Применить</button></div>
+        <div class="inp-row"><input class="inp" id="depPromo" value="${esc(promo || '')}" placeholder="Например, RUSH35" autocomplete="off" spellcheck="false" maxlength="24"><button class="btn btn-dark" id="depPromoBtn">Применить</button></div>
       </section>
       <aside class="dpl-sum">
         <div class="dpx-step">Итого</div>
@@ -6052,6 +6058,7 @@ document.addEventListener('click', e => {
   else if (act === 'deposit') openDeposit(+a.dataset.need || 0);
   else if (act === 'logout') logout();
   else if (act === 'copy') copyText(a.dataset.copy);
+  else if (act === 'promo-dep') { copyText(a.dataset.code); openDeposit(0, a.dataset.code); }
   else if (act === 'streamer') streamerToggle();
   else if (act === 'hero-reg') st.user ? (location.hash = '#/bonus') : openAuth('reg');
   else if (act === 'go') location.hash = a.dataset.href;

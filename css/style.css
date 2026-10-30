@@ -4073,3 +4073,4 @@ body:has(.sw-panel.in) .sw-fring{animation:none;opacity:0}
 .streamer #tradeInp{-webkit-text-security:disc;text-security:disc}
 .pf-stream.on,.um-stream.on{color:#f5c76b!important;border-color:rgba(245,199,107,.45)!important}
 .pf-stream span{margin-left:2px}
+button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit}

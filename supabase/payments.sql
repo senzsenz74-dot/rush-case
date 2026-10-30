@@ -46,7 +46,7 @@ begin
   d := public._norm(d);
   bonus := coalesce((d->>'depBonus')::numeric, 0);
   if pay.promo is not null then
-    select * into pr from public.promo_codes where code = upper(pay.promo) and t = 'dep';
+    select * into pr from public.promo_codes where code = upper(pay.promo) and t = 'dep' and (expires_at is null or expires_at > now());
     if found and not (d->'promos' ? pr.code) then bonus := greatest(bonus, pr.v); d := jsonb_set(d, '{promos}', (d->'promos') || to_jsonb(pr.code)); end if;
   end if;
   bonus := greatest(bonus, public._ref_first_bonus(pay.uid, (d->'stats'->>'dep')::numeric));  -- пришёл по ссылке друга: бонус к первому пополнению
