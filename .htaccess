@@ -3,12 +3,13 @@ Options -Indexes
 DirectoryIndex index.html
 
 RewriteEngine On
-# основной адрес — rush-case.online: www и rush-case.ru → rush-case.online (тот же протокол)
+# основной адрес — https://rush-case.online: www и rush-case.ru → туда же
 RewriteCond %{HTTP_HOST} !^rush-case\.online$ [NC]
-RewriteRule ^ %{REQUEST_SCHEME}://rush-case.online%{REQUEST_URI} [L,R=301]
-# http → https — включить, когда в Beget будут выпущены SSL-сертификаты:
-# RewriteCond %{HTTPS} off
-# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+RewriteRule ^ https://rush-case.online%{REQUEST_URI} [L,R=301]
+# http → https (сертификат Let's Encrypt выпущен 31.10.2026); обе проверки — чтобы не зациклиться за прокси Beget
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteRule ^ https://rush-case.online%{REQUEST_URI} [L,R=301]
 
 # сжатие текстовых файлов
 <IfModule mod_deflate.c>
