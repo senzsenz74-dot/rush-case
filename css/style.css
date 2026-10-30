@@ -4021,48 +4021,36 @@ body:has(.sw-panel.in) .sw-fring{animation:none;opacity:0}
 .sup-old svg{width:14px;height:14px}.sup-old:hover{color:#fff}
 .sup-oldbox{display:flex;flex-direction:column;gap:8px;opacity:.55}
 .sup-sep{align-self:center;margin:6px 0;font-size:11px;color:var(--ax-mut);text-transform:uppercase;letter-spacing:.08em;opacity:1}
-/* ===== шапка, вариант C: единый блок — баланс, бонусы, «+», аватарка ===== */
-.wal.wal-c{position:relative;display:flex;align-items:center;gap:4px;height:54px;padding:5px 5px 5px 16px;border-radius:16px;
-  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),#0d0c0a;border:1px solid rgba(243,193,79,.28);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 24px -14px rgba(0,0,0,.9)}
-.wal-c .bal{display:flex;flex-direction:column;justify-content:center;height:auto;padding:0 12px 0 0;gap:2px;cursor:pointer;line-height:1;border:0;background:none}
-.wal-c .bal small{font:700 9.5px var(--ff-h);letter-spacing:.14em;text-transform:uppercase;color:var(--txt3)}
-.wal-c .bal b{font:800 17px var(--ff-h);color:#fff6e0;font-variant-numeric:tabular-nums;white-space:nowrap}
-.wal-c .bal:hover b{color:#fff}
-.wal-c .rc,.wal-c .rc:hover{position:relative;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;margin-right:6px;border:0;border-left:1px solid rgba(243,193,79,.22);border-radius:0;background:none;box-shadow:none;text-decoration:none}
-.wal-c .rc img.rc-ic{width:20px;height:20px}
-.wal-c .rc b{font:800 14px var(--ff-h);color:var(--gold-hi,#ffe9ab);font-variant-numeric:tabular-nums}
-.wal-c .rc:hover b{color:#fff}
-.wal-c .rc.bump .rc-ic{animation:rcBump .6s cubic-bezier(.2,1.6,.4,1)}
-.wal-c .wal-dep{display:grid;place-items:center;width:42px;height:42px;padding:0;border-radius:12px;border:0;cursor:pointer;color:#1a1204;
-  background:linear-gradient(180deg,#ffeaa6,#f6c650 50%,#d6941f);box-shadow:0 6px 16px -6px rgba(246,198,80,.9),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .15s,filter .2s}
-.wal-c .wal-dep:hover{filter:brightness(1.08);transform:translateY(-1px)}
-.wal-c .wal-dep svg{width:20px;height:20px;stroke-width:2.8}
-.wal-c .ubox{margin-left:4px}
-.wal-c .ubtn{gap:2px;padding:0;background:none;border:0}
-.wal-c .ubtn .ava{width:42px;height:42px;border-radius:12px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.18)}
-.wal-c .ubtn svg{width:14px;height:14px;margin-right:2px}
+/* ===== шапка, вариант F: бонусы слева (подарок и число), баланс сросшийся с «+», аватарка ===== */
+.wal.wal-f{display:flex;align-items:center;gap:12px;height:auto;padding:0;background:none;border:0;box-shadow:none}
+.wal-f .rc,.wal-f .rc:hover{position:relative;display:inline-flex;align-items:center;gap:6px;height:auto;padding:4px 2px;border:0;border-radius:8px;background:none;box-shadow:none;text-decoration:none;color:var(--gold)}
+.wal-f .rc-gift{display:grid;place-items:center;color:var(--gold)}
+.wal-f .rc-gift svg{width:19px;height:19px}
+.wal-f .rc b{font:800 15px var(--ff-h);color:var(--gold-hi,#ffe9ab);font-variant-numeric:tabular-nums}
+.wal-f .rc:hover b,.wal-f .rc:hover .rc-gift{color:#fff}
+.wal-f .rc.bump .rc-gift{animation:rcBump .6s cubic-bezier(.2,1.6,.4,1)}
+.wal-btn{display:flex;align-items:stretch;height:46px;border-radius:14px;overflow:hidden;border:1px solid rgba(243,193,79,.32);
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),#0d0c0a;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 24px -14px rgba(0,0,0,.9);transition:border-color .2s}
+.wal-btn:hover{border-color:rgba(243,193,79,.6)}
+.wal-f .bal{display:flex;align-items:center;height:auto;padding:0 14px 0 16px;gap:0;border:0;background:none;cursor:pointer}
+.wal-f .bal b{font:800 17px var(--ff-h);color:#fff6e0;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wal-f .wal-dep{display:grid;place-items:center;width:46px;padding:0;border:0;border-radius:0;cursor:pointer;color:#1a1204;
+  background:linear-gradient(180deg,#ffeaa6,#f6c650 50%,#d6941f);box-shadow:inset 0 1px 0 rgba(255,255,255,.55);transition:filter .2s}
+.wal-f .wal-dep:hover{filter:brightness(1.08)}
+.wal-f .wal-dep svg{width:21px;height:21px;stroke-width:2.8}
+.wal-f .ubox{margin-left:2px}
 @media (max-width:720px){
-  .wal.wal-c{height:46px;padding:4px 4px 4px 12px;gap:2px}
-  .wal-c .bal{padding-right:8px}.wal-c .bal small{display:none}.wal-c .bal b{font-size:14px}
-  .wal-c .rc,.wal-c .rc:hover{height:28px;padding:0 8px;margin-right:4px}
-  .wal-c .rc img.rc-ic{width:16px;height:16px}.wal-c .rc b{font-size:12px}
-  .wal-c .wal-dep{width:36px;height:36px;border-radius:10px}
-  .wal-c .ubtn .ava{width:36px;height:36px;border-radius:10px}
-  .wal-c .ubtn svg{display:none}
+  .wal.wal-f{gap:8px}
+  .wal-f .rc-gift svg{width:16px;height:16px}.wal-f .rc b{font-size:13px}
+  .wal-btn{height:40px;border-radius:12px}
+  .wal-f .bal{padding:0 10px 0 12px}.wal-f .bal b{font-size:14px}
+  .wal-f .wal-dep{width:40px}
 }
-@media (max-width:520px){.wal-c .rc,.wal-c .rc:hover{display:inline-flex}}
 @media (max-width:520px){
-  .wal.wal-c{height:42px;padding:3px 3px 3px 9px;gap:0;border-radius:13px}
-  .wal-c .bal{padding-right:6px}.wal-c .bal b{font-size:13px}
-  .wal-c .rc,.wal-c .rc:hover{height:24px;padding:0 6px;margin-right:5px;gap:4px}
-  .wal-c .rc img.rc-ic{width:14px;height:14px}.wal-c .rc b{font-size:11px}
-  .wal-c .wal-dep{width:32px;height:32px;border-radius:9px}.wal-c .wal-dep svg{width:17px;height:17px}
-  .wal-c .ubox{margin-left:3px}.wal-c .ubtn .ava{width:32px;height:32px;border-radius:9px;font-size:13px}
+  .wal.wal-f{gap:6px}
+  .wal-f .rc,.wal-f .rc:hover{display:inline-flex;gap:4px}
+  .wal-f .rc-gift svg{width:15px;height:15px}.wal-f .rc b{font-size:12px}
+  .wal-btn{height:36px;border-radius:11px}
+  .wal-f .bal{padding:0 8px 0 10px}.wal-f .bal b{font-size:13px}
+  .wal-f .wal-dep{width:34px}.wal-f .wal-dep svg{width:17px;height:17px}
 }
-/* бонусы в шапке — подписью, как баланс */
-.wal-c .rc,.wal-c .rc:hover{flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;line-height:1}
-.wal-c .rc small{font:700 9.5px var(--ff-h);letter-spacing:.14em;text-transform:uppercase;color:var(--txt3)}
-.wal-c .rc b{font-size:17px}
-@media (max-width:720px){.wal-c .bal small,.wal-c .rc small{display:block;font-size:8px;letter-spacing:.1em}.wal-c .rc b{font-size:14px}.wal-c .rc,.wal-c .rc:hover{height:auto}}
-@media (max-width:520px){.wal-c .rc b{font-size:13px}.wal-c .bal small,.wal-c .rc small{font-size:7.5px}}
