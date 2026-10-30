@@ -1474,6 +1474,7 @@ document.addEventListener('click', e => { if (!e.target.closest('#nav') && !e.ta
 let shownBal = null;
 const toggleSound = () => { st.sound = !st.sound; save(); if (st.sound) Snd.click(); renderUser(); };
 function renderUser() {
+  setTimeout(() => { if (typeof supAdmBadge === 'function' && st.user && st.user.admin) supAdmBadge(); });
   const ua = $('#userArea'); if (!ua) return;
   if (!st.user) {
     ua.innerHTML = `<button class="icon-btn" id="sndBtn" title="Звук" aria-label="Звук">${st.sound ? ic.sound : ic.mute}</button>
@@ -1493,7 +1494,7 @@ function renderUser() {
         <div class="um-h">${ava(st.user, 'xs')}<b>${esc(st.user.name)}${st.user.pid ? `<small>ID ${st.user.pid}</small>` : ''}</b></div>
         <a href="#/profile">${ic.user}Профиль и инвентарь</a>
         <a href="#/bonus">${ic.gift}Бонусы</a>
-        ${st.user.admin ? `<a href="#/admin" class="um-admin">${ic.shield}Админ-панель</a>` : ''}
+        ${st.user.admin ? `<a href="#/admin" class="um-admin">${ic.shield}Админ-панель</a><a href="#/admin" class="um-sup" data-act="admsup">${ic.chat}Поддержка<i class="sup-pulse" id="umSupN"></i></a>` : ''}
         <button id="umSound">${st.sound ? ic.sound : ic.mute}Звук: ${st.sound ? 'вкл' : 'выкл'}</button>
         <button data-act="logout">${ic.logout}Выйти</button>
       </div>
@@ -4618,6 +4619,8 @@ function supClose() { sup.open = false; const p = $('#swPanel'); if (!p) return;
 const supAdm = { ch: null, unread: 0, cur: null };
 function supAdmBadge() {
   const b = $('#admSupBadge'); if (b) { b.textContent = supAdm.unread || ''; b.hidden = !supAdm.unread; }
+  document.body.classList.toggle('sup-alert', !!supAdm.unread);
+  const u = $('#umSupN'); if (u) u.textContent = supAdm.unread || '';
   document.title = document.title.replace(/^\(\d+\) /, '');
   if (supAdm.unread) document.title = `(${supAdm.unread}) ${document.title}`;
 }
@@ -5167,6 +5170,7 @@ async function axOut(box, D) {
 }
 function admDraw() {
   const box = $('#admBody'); if (!box) return;
+  supAdmBadge(); // счётчик новых обращений на вкладке «Поддержка»
   $$('#admTabs [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === admTab));
   if (!sb) return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
   const R = { dash: axDash, money: axMoney, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, out: axOut, players: axPlayers };
@@ -5962,6 +5966,7 @@ document.addEventListener('click', e => {
   const act = a.dataset.act;
   if (act === 'login') { supClose(); openAuth('login'); }
   else if (act === 'support') supOpen();
+  else if (act === 'admsup') { admTab = 'support'; try { localStorage.setItem('rc.admTab', 'support'); } catch (e2) { /* */ } if ($('#admBody')) admDraw(); }
   else if (act === 'register') openAuth('reg');
   else if (act === 'deposit') openDeposit(+a.dataset.need || 0);
   else if (act === 'logout') logout();

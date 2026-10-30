@@ -3945,3 +3945,17 @@ body:has(#adm) .sw-fab,body:has(#adm) .sw-panel{display:none!important}
 #supStats{margin-bottom:12px}
 #supStats .ax-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
 @media (max-width:1180px){#supStats .ax-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* новые обращения в поддержку: красный пульсирующий кружок (вкладка, аватарка в шапке, меню) и выделенные диалоги */
+@keyframes supPulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.75)}70%{box-shadow:0 0 0 9px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+.ax-tabs button .ax-badge{animation:supPulse 1.4s infinite}
+.ax-tabs button:has(.ax-badge:not([hidden])){color:#fff}
+.sup-alert .ubtn{position:relative}
+.sup-alert .ubtn::after{content:"";position:absolute;top:-2px;right:-2px;width:13px;height:13px;border-radius:50%;background:#ef4444;border:2px solid #0b0b0c;animation:supPulse 1.4s infinite}
+.um-sup{display:none!important}
+.sup-alert .um-sup{display:flex!important;color:#fca5a5!important}
+.um-sup .sup-pulse{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:10px;display:grid;place-items:center;background:#ef4444;color:#fff;font:800 11px var(--ff-b,inherit);font-style:normal;animation:supPulse 1.4s infinite}
+.sup-th.new{background:rgba(239,68,68,.07);box-shadow:inset 3px 0 0 #ef4444}
+.sup-th.new:hover{background:rgba(239,68,68,.11)}
+.sup-th.new .sup-n{animation:supPulse 1.4s infinite}
+.sup-alert .ubtn::after{right:auto;left:36px;top:-3px}
