@@ -11,6 +11,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const fmt = n => Math.round(n).toLocaleString('ru-RU');
 /* деньги с копейками: целые — без дробной части, иначе до 2 знаков (0,45 ₽) */
+const moneyN = n => money(n).replace(/\s?₽$/, '');
 const money = n => { const r = Math.round(n * 100) / 100; return (Number.isInteger(r) ? fmt(r) : r.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + ' ₽'; };
 const rand = (a, b) => a + Math.random() * (b - a);
 const randi = (a, b) => Math.floor(rand(a, b + 1));
@@ -1485,17 +1486,18 @@ function renderUser() {
   // шапка: плашка баланса, на её уголке — бейдж бонусов (подарок и число), кнопка «+», аватарка с меню
   ua.innerHTML = `<div class="wal wal-g">
       <div class="wal-chip">
-        <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><span class="bal-ic">${ic.wallet}</span><b id="balance">${money(st.balance)}</b></div>
+        <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><i class="cn cn-lg" aria-hidden="true">₽</i><b id="balance">${moneyN(st.balance)}</b></div>
         <a class="rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><span class="rc-gift">${ic.gift}</span><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
       </div>
       <button class="wal-dep" data-act="deposit" title="Пополнить баланс" aria-label="Пополнить баланс">${ic.plus}</button>
     <div class="ubox">
       <button class="ubtn" id="ubtn" aria-haspopup="true" aria-label="Меню профиля">${ava(st.user)}${ic.chev}</button>
       <div class="umenu hidden" id="umenu">
-        <div class="um-h">${ava(st.user, 'xs')}<b>${esc(st.user.name)}${st.user.pid ? `<small>ID ${st.user.pid}</small>` : ''}</b></div>
+        <div class="um-h">${ava(st.user, 'xs')}<b>${esc(st.user.name)}${st.user.pid ? `<small>ID <span class="priv">${st.user.pid}</span></small>` : ''}</b></div>
         <a href="#/profile">${ic.user}Профиль и инвентарь</a>
         <a href="#/bonus">${ic.gift}Бонусы</a>
         ${st.user.admin ? `<a href="#/admin" class="um-admin">${ic.shield}Админ-панель</a><a href="#/admin" class="um-sup" data-act="admsup">${ic.chat}Поддержка<i class="sup-pulse" id="umSupN"></i></a>` : ''}
+        <button data-act="streamer" class="um-stream${st.streamer ? ' on' : ''}">${st.streamer ? ic.eyeOff : ic.eye}Режим стримера: ${st.streamer ? 'вкл' : 'выкл'}</button>
         <button id="umSound">${st.sound ? ic.sound : ic.mute}Звук: ${st.sound ? 'вкл' : 'выкл'}</button>
         <button data-act="logout">${ic.logout}Выйти</button>
       </div>
@@ -1525,13 +1527,42 @@ function spendRcoin(v, note) {
   (st.rlog = st.rlog || []).unshift({ v: -v, note, ts: Date.now() }); if (st.rlog.length > 60) st.rlog.length = 60;
   save(); const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin);
 }
+/* режим стримера (настройка в браузере): вместо «₽» — золотая монета, ID и трейд-ссылка скрыты. Работает на всех страницах:
+   каждый знак «₽» в тексте страницы меняется на монету сразу, как появляется (в том числе в анимациях чисел) */
+function curSwap(root) {
+  if (!st.streamer || !root || root.nodeType === 3 && !(root = root.parentNode)) return;
+  if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.nodeValue.includes('₽') && !(n.parentElement && n.parentElement.closest('script,style,textarea,.cn')) ? 1 : 2 });
+  const list = []; while (w.nextNode()) list.push(w.currentNode);
+  list.forEach(n => {
+    const fr = document.createDocumentFragment();
+    n.nodeValue.split('₽').forEach((p, i) => { if (i) { const c = document.createElement('i'); c.className = 'cn'; c.setAttribute('aria-label', 'монет'); fr.appendChild(c); } if (p) fr.appendChild(document.createTextNode(p.replace(/\u00a0$|\s$/, '\u2009'))); });
+    n.replaceWith(fr);
+  });
+}
+let curObs = null;
+function streamerApply() {
+  document.body.classList.toggle('streamer', !!st.streamer);
+  if (st.streamer && !curObs) {
+    curObs = new MutationObserver(ms => { if (!st.streamer) return; ms.forEach(m => { if (m.type === 'characterData') curSwap(m.target); else m.addedNodes.forEach(curSwap); }); });
+    curObs.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+  if (!st.streamer && curObs) { curObs.disconnect(); curObs = null; }
+  if (st.streamer) { curSwap(document.body); document.title = document.title.replace(/₽/g, ''); }
+}
+function streamerToggle() {
+  st.streamer = !st.streamer; save();
+  if (!st.streamer) { location.reload(); return; } // вернуть «₽» на все страницы — проще перезагрузить
+  streamerApply(); renderUser(); route();
+  toast('Режим стримера включён: вместо рублей — монеты, ID и трейд-ссылка скрыты');
+}
 function setBalance(v) {
   const from = shownBal == null ? st.balance : shownBal;
   st.balance = Math.max(0, Math.round(v * 100) / 100); save();
   const el = $('#balance'); if (!el) return;
   cancelAnimationFrame(balAnim);
   const t0 = performance.now(), to = st.balance;
-  const step = now => { const k = Math.min(1, (now - t0) / 600), e = 1 - (1 - k) ** 3; shownBal = from + (to - from) * e; el.textContent = money(shownBal); if (k < 1) balAnim = requestAnimationFrame(step); };
+  const step = now => { const k = Math.min(1, (now - t0) / 600), e = 1 - (1 - k) ** 3; shownBal = from + (to - from) * e; el.textContent = moneyN(shownBal); if (k < 1) balAnim = requestAnimationFrame(step); };
   balAnim = requestAnimationFrame(step);
   const b = el.closest('.bal'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
 }
@@ -3478,7 +3509,7 @@ function pageProfile() {
         <div class="pfh-info">
           <h1>${esc(u.name)}</h1>
           <div class="pfh-chips">
-            <button class="pfh-chip" data-act="copy" data-copy="${u.pid || u.rid || u.id}" title="Скопировать ID">ID ${u.pid || u.rid || u.id}${ic.copy}</button>
+            <button class="pfh-chip" data-act="copy" data-copy="${u.pid || u.rid || u.id}" title="Скопировать ID">ID <span class="priv">${u.pid || u.rid || u.id}</span>${ic.copy}</button>
             <span class="pfh-chip">${u.via === 'steam' ? ic.steam + 'Steam' : ic.user + esc(u.email || '')}</span>
             <span class="pfh-chip">${ic.clock}с ${new Date(u.reg).toLocaleDateString('ru-RU')}</span>
           </div>
@@ -3493,7 +3524,7 @@ function pageProfile() {
         <div class="pfh-wallet">
           <div class="pfw-bal"><span>Баланс</span><b>${money(st.balance)}</b></div>
           <div class="pfw-rc"><img class="rc-ic" src="assets/rcoin.webp" alt=""><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b></div>
-          <div class="pfw-btns"><button class="btn btn-primary" data-act="deposit">${ic.plus}Пополнить</button><button class="btn btn-dark" data-act="logout" title="Выйти" aria-label="Выйти">${ic.logout}</button></div>
+          <div class="pfw-btns"><button class="btn btn-primary" data-act="deposit">${ic.plus}Пополнить</button><button class="btn btn-dark pf-stream${st.streamer ? ' on' : ''}" data-act="streamer" title="Режим стримера: вместо рублей — монеты, личные данные скрыты">${st.streamer ? ic.eyeOff : ic.eye}<span>Стример</span></button><button class="btn btn-dark" data-act="logout" title="Выйти" aria-label="Выйти">${ic.logout}</button></div>
         </div>
       </div>
       <div class="pfh-stats">
@@ -4124,7 +4155,7 @@ function openDepositSupport(sum = 500) {
         <div class="dep-amt"><input class="inp" id="depAmt" type="number" min="100" step="50" value="${amount}" inputmode="numeric"><span>₽</span></div>
         <div class="amounts">${[300, 500, 1000, 2500, 5000, 10000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
         <div class="dpx-step"><i>2</i>Заявка для поддержки</div>
-        <div class="dpx-req"><div><span>ID игрока</span><b>${esc(id)}</b></div><div><span>Ник</span><b>${esc(st.user.name)}</b></div><div><span>Сумма</span><b id="depReqAmt"></b></div></div>
+        <div class="dpx-req"><div><span>ID игрока</span><b class="priv">${esc(id)}</b></div><div><span>Ник</span><b>${esc(st.user.name)}</b></div><div><span>Сумма</span><b id="depReqAmt"></b></div></div>
         <div class="dpx-acts">
           <button class="btn btn-primary btn-lg" id="depCopy">${ic.copy}Скопировать заявку</button>
           ${SUPPORT.tg ? `<a class="btn btn-dark btn-lg" id="depTg" href="https://t.me/${SUPPORT.tg}" target="_blank" rel="noopener">${ic.tg}Telegram</a>` : ''}
@@ -6021,6 +6052,7 @@ document.addEventListener('click', e => {
   else if (act === 'deposit') openDeposit(+a.dataset.need || 0);
   else if (act === 'logout') logout();
   else if (act === 'copy') copyText(a.dataset.copy);
+  else if (act === 'streamer') streamerToggle();
   else if (act === 'hero-reg') st.user ? (location.hash = '#/bonus') : openAuth('reg');
   else if (act === 'go') location.hash = a.dataset.href;
 });
@@ -6038,7 +6070,7 @@ document.addEventListener('error', e => {
 }, true);
 
 /* ---------- init ---------- */
-renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit(); supMount(); // кнопка чата поддержки — на всех страницах
+renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit(); supMount(); streamerApply(); // кнопка чата поддержки — на всех страницах
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
 // экран загрузки закрывается сам (index.html: window.plFinish) — по окончании загрузки или через 7 с
 })();
