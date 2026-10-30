@@ -4528,7 +4528,7 @@ const sup = { th: null, ids: new Set(), ch: null, open: false, unread: 0, rated:
 const STARS = n => '★'.repeat(n) + '☆'.repeat(5 - n);
 function supMount() {
   if ($('#swFab')) return;
-  document.body.insertAdjacentHTML('beforeend', `<button class="sw-fab" id="swFab" aria-label="Чат поддержки">${ic.chat}<i class="sw-badge" id="swBadge" hidden></i></button>
+  document.body.insertAdjacentHTML('beforeend', `<button class="sw-fab" id="swFab" aria-label="Чат поддержки"><span class="sw-fring" aria-hidden="true"></span><svg class="sw-fic" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4C8.8 4 3 8.9 3 15c0 3.2 1.6 6.1 4.2 8.1L6 28.2c-.1.5.4.9.9.7l5.6-2.6c1.1.3 2.3.4 3.5.4 7.2 0 13-4.9 13-11S23.2 4 16 4z" fill="currentColor"/><circle cx="10.5" cy="15" r="1.9" fill="#f5c76b"/><circle cx="16" cy="15" r="1.9" fill="#f5c76b"/><circle cx="21.5" cy="15" r="1.9" fill="#f5c76b"/></svg><span class="sw-flbl">Поддержка</span><i class="sw-fon" aria-hidden="true"></i><i class="sw-badge" id="swBadge" hidden></i></button>
     <div class="sw-panel" id="swPanel" role="dialog" aria-label="Чат поддержки" hidden>
       <header class="sw-head"><span class="sw-ava">${ic.chat}</span><div><b>Поддержка RUSH CASE</b><small><i class="sw-dot"></i>${SUP_TIME}</small></div><button class="sw-x" id="swClose" aria-label="Закрыть">${ic.close}</button></header>
       <div class="sw-body" id="swBody"></div>
