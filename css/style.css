@@ -4098,3 +4098,7 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
 .sf-acts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.sf-note{flex:1;min-width:160px}
 .sf-own{display:flex;flex-wrap:wrap;gap:12px 28px}
 @media (max-width:700px){.sf-row{grid-template-columns:1fr}.sf-sch{grid-column:1}.sf-add .ax-inp{width:100%}}
+/* админка: «Бухгалтерия» — формы записи */
+.fin-form{margin-bottom:14px}.fin-form .fin-note{flex:1;min-width:180px}.fin-form .fin-note .ax-inp{width:100%}
+.fin-form select.ax-inp{width:200px}
+@media (max-width:600px){.fin-form label,.fin-form select.ax-inp,.fin-form .ax-inp{width:100%}}

@@ -4924,8 +4924,10 @@ function admFetch(force) {
   const hours = (t - f) / 36e5 <= 48, bucket = hours ? 'hour' : 'day', args = { p_from: f.toISOString(), p_to: t.toISOString() };
   const p = Promise.all([
     sb.rpc('admin_period', { ...args, p_bucket: bucket }), sb.rpc('admin_upg', { ...args, p_bucket: bucket }), sb.rpc('admin_bets', { ...args, p_bucket: bucket }),
-    sb.rpc('admin_cases_period', args), sb.rpc('admin_stats'), sb.from('profiles').select('id, pid, name, data, created_at, is_admin, steamid')
-  ]).then(([per, upg, bets, cp, snap, prof]) => {
+    sb.rpc('admin_cases_period', args), sb.rpc('admin_stats'), sb.from('profiles').select('id, pid, name, data, created_at, is_admin, steamid'),
+    sb.from('withdrawals').select('id, uid, n, price, paid, status, created_at').order('id', { ascending: false }).limit(10000),
+    sb.from('fin_ops').select('*').order('op_date', { ascending: false }).order('id', { ascending: false }).limit(5000)
+  ]).then(([per, upg, bets, cp, snap, prof, wd, fo]) => {
     if (per.error) throw per.error;
     const by = (arr) => Object.fromEntries((arr || []).map(r => [String(r.t), r]));
     const U = by(upg.data && upg.data.series), B = by(bets.data && bets.data.series);
@@ -4952,8 +4954,16 @@ function admFetch(force) {
     }
     const T = per.data.total, UT = (upg.data && upg.data.total) || {}, BT = (bets.data && bets.data.total) || {};
     const cases = +T.spent - +T.won, upgP = (+UT.stake || 0) - (+UT.won || 0), betsP = +BT.profit || 0;
+    // бухгалтерия: выводы — сколько заплатили маркету (отправленные вручную — по цене сайта), в процессе — долг игроку по цене сайта,
+    // выводы до маркета — по ценам каталога; ручные расходы — fin_ops (до запуска finance.sql — пусто). Админские аккаунты не считаем.
+    const adm = new Set(players.filter(p => p.admin).map(p => p.id)), W = (wd.data || []).filter(w => !adm.has(w.uid)), ops = fo.error ? [] : fo.data || [];
+    let outPaid = 0, outPend = 0;
+    for (const w of W) { if (w.status === 'done' || w.status === 'prot') outPaid += w.paid ? wdPaid(w) : +w.price; else if (w.status !== 'fail') outPend += +w.price; }
+    const outOld = outs.filter(o => !adm.has(o.uid) && !W.some(w => w.uid === o.uid && w.n === o.n)).reduce((a, o) => a + o.p, 0);
+    const expAll = ops.filter(o => o.kind === 'expense').reduce((a, o) => a + +o.amount, 0);
+    const fin = { W, ops, opsErr: fo.error, outPaid, outPend, outOld, expAll };
     return { hours, f, t, rows, T, UT, UX: (upg.data && upg.data.byX) || [], BT, cp: cp.data || [], cpErr: cp.error, betsErr: bets.error, snap: snap.data || {},
-      now: { bal, hold, holdN, depAll, outAll, net: depAll - outAll - bal - hold }, players, csAll, outs,
+      now: { bal, hold, holdN, depAll, outAll, net: depAll - expAll - outPaid - outPend - outOld - bal - hold, netPl: depAll - outAll - bal - hold }, fin, players, csAll, outs,
       sum: { cases, upgP, betsP, game: cases + upgP + betsP } };
   });
   admData = { key, at: Date.now(), p }; p.catch(() => { admData = null; });
@@ -5000,7 +5010,7 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -5032,7 +5042,7 @@ function axDash(box, D) {
   if (lossDays) hot.push(`Убыточных ${D.hours ? 'часов' : 'дней'} за период: <b class="neg">${lossDays}</b>`);
   box.innerHTML = `
     <div class="ax-kpis">
-      ${axKpi('Чистая прибыль', sgn(D.now.net), 'за всё время: пополнения − выводы − балансы − скины игроков', tone(D.now.net))}
+      ${axKpi('Чистая прибыль', sgn(D.now.net), 'за всё время: пополнения − расходы − выводы − балансы − скины игроков', tone(D.now.net))}
       ${axKpi('Игровая прибыль', sgn(s.game), 'за период: кейсы + апгрейд + ставки', tone(s.game))}
       ${axKpi('Пополнения', money(+T.dep), `${fmt(T.depN)} платежей за период`)}
       ${axKpi('Выведено в Steam', money(+T.out), `${fmt(T.outN)} предм. за период`)}
@@ -5087,7 +5097,7 @@ function axMoney(box, D) {
       ${axKpi('Пополнения − выводы', sgn(+T.dep - +T.out), 'поток денег за период', tone(+T.dep - +T.out))}
       ${axKpi('Игровая прибыль', sgn(D.sum.game), 'кейсы + апгрейд + ставки', tone(D.sum.game))}
       ${axKpi('Начислено админом', sgn(+T.grants), 'начисления минус списания за период')}
-      ${axKpi('Чистая прибыль', sgn(N.net), 'за всё время: пополнения − выводы − балансы − скины игроков', tone(N.net))}
+      ${axKpi('Чистая прибыль', sgn(N.net), 'за всё время: пополнения − расходы − выводы − балансы − скины игроков · подробно в «Бухгалтерии»', tone(N.net))}
     </div>
     ${axCard(`Пополнения − выводы по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.flow, { day: !D.hours, tip: r => [['Пополнения', money(r.dep)], ['Выведено', money(r.out)], ['Разница', sgn(r.flow)]] }))}
     ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { day: !D.hours, tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }))}
@@ -5194,7 +5204,7 @@ function axPlayers(box, D) {
       ${axKpi('Активных за период', fmt(+D.T.players), 'вошли в аккаунт')}
       ${axKpi('Пополнили (всего)', fmt(D.players.filter(p => p.dep > 0).length), `на ${money(N.depAll)}`)}
       ${axKpi('На балансах', money(N.bal))}
-      ${axKpi('Прибыль с игроков', sgn(N.net), 'пополнили − вывели − балансы − скины', tone(N.net))}
+      ${axKpi('Прибыль с игроков', sgn(N.netPl), 'пополнили − вывели − балансы − скины', tone(N.netPl))}
     </div>
     ${axCard('Игроки по прибыли для сайта — за всё время', axTable([['Игрок', r => `${plink(r.pid, esc(r.name))}${r.admin ? ' <i class="ax-tag">админ</i>' : ''}`], ['Пополнил', r => money(r.dep), num], ['Потратил на кейсы', r => money(r.spent), num], ['Открыл', r => fmt(r.opened), num], ['Вывел', r => money(r.out), num], ['Баланс', r => money(r.bal), num], ['Скины', r => money(r.hold), num], ['Прибыль сайта', r => sgn(r.profit), tn('profit')], ['С нами с', r => new Date(r.reg).toLocaleDateString('ru-RU'), 'num']], top.slice(0, 50)))}
     <h2 class="ax-h2">Поиск и управление</h2><div id="axPlayersMgr"></div>`;
@@ -5314,6 +5324,77 @@ async function axOut(box, D) {
     toast(act === 'approve' ? 'Заявка отправлена на покупку' : act === 'back' ? 'Предмет возвращён игроку' : 'Отмечено как выведенное'); axOut(box, D);
   });
 }
+/* ---------- бухгалтерия (только владелец): расходы (выводы — сами, остальное вручную), пополнения маркета, обналичивание, чистая прибыль ---------- */
+const FIN_CAT = { ads: 'Реклама / блогеры', services: 'Сервисы и хостинг', salary: 'Зарплата сотрудникам', fee: 'Комиссия кассы', other: 'Другое' };
+async function axBooks(box, D) {
+  const F = D.fin, N = D.now, from = admIso(D.f), to = admIso(D.t);
+  const inP = o => o.op_date >= from && o.op_date < to, inPt = w => +new Date(w.created_at) >= +D.f && +new Date(w.created_at) < +D.t;
+  const sum = a => a.reduce((s, o) => s + +o.amount, 0);
+  const exp = F.ops.filter(o => o.kind === 'expense'), mk = F.ops.filter(o => o.kind === 'market'), cash = F.ops.filter(o => o.kind === 'cashout');
+  const wdP = F.W.filter(w => (w.status === 'done' || w.status === 'prot') && inPt(w)), wdCost = w => w.paid ? wdPaid(w) : +w.price;
+  const expP = exp.filter(inP), outP = wdP.reduce((a, w) => a + wdCost(w), 0), cashP = sum(cash.filter(inP)), cashAll = sum(cash);
+  const fees = sum(exp.filter(o => o.cat === 'fee')), kassa = N.depAll - fees - cashAll;
+  const mkAll = sum(mk), mkSpent = F.W.filter(w => w.paid && (w.status === 'done' || w.status === 'prot')).reduce((a, w) => a + wdPaid(w), 0);
+  const byCat = Object.keys(FIN_CAT).map(k => [k, sum(exp.filter(o => o.cat === k))]).filter(x => x[1]);
+  const dd = s => s.split('-').reverse().join('.');
+  const wdName = n => (SK[n] && SK[n].name) || n;
+  // строки расходов за период: выводы (авто) + ручные
+  const rows = [...wdP.map(w => ({ d: w.created_at.slice(0, 10), what: 'Вывод скина', note: wdName(w.n) + (w.paid ? '' : ' — отправлен вручную, по цене сайта'), v: wdCost(w), auto: true })),
+    ...expP.map(o => ({ d: o.op_date, what: FIN_CAT[o.cat] || 'Расход', note: o.note || '', v: +o.amount, id: o.id }))].sort((a, b) => b.d.localeCompare(a.d) || (b.id || 0) - (a.id || 0));
+  const del = r => r.id ? `<button class="ax-btn ax-sm" data-fdel="${r.id}">Удалить</button>` : '<i class="ax-tag">авто</i>';
+  const form = (k, sel) => `<div class="mk-cfg fin-form" data-kind="${k}">${sel ? `<label>Статья<select class="ax-inp" data-c>${Object.entries(FIN_CAT).map(([c, n]) => `<option value="${c}">${n}</option>`).join('')}</select></label>` : ''}
+    <label>Дата<input class="ax-inp" type="date" data-d value="${admIso(new Date())}"></label><label>Сумма, ₽<input class="ax-inp" type="number" min="0.01" step="0.01" data-a></label>
+    <label class="fin-note">Заметка<input class="ax-inp" data-n maxlength="300" placeholder="${k === 'cashout' ? 'например: с кассы на Сбер' : k === 'market' ? 'например: СБП' : 'кому, за что'}"></label><button class="ax-btn ax-btn-p" data-add>Добавить</button></div>`;
+  box.innerHTML = `
+    ${F.opsErr ? '<p class="ax-foot neg">Выполните supabase/finance.sql в Supabase — без него ручные записи не сохраняются.</p>' : ''}
+    <div class="ax-kpis">
+      ${axKpi('Пополнения', money(+D.T.dep), 'от игроков за период')}
+      ${axKpi('Расходы', money(sum(expP) + outP), `выводы ${money(outP)} · прочее ${money(sum(expP))}`)}
+      ${axKpi('Обналичено', money(cashP), `за период · всего ${money(cashAll)}`)}
+      ${axKpi('Остаток в кассе', money(kassa), 'пополнения − комиссия кассы − обналичено, за всё время', kassa < 0 ? 'neg' : '')}
+      ${axKpi('Чистая прибыль', sgn(N.net), 'за всё время, расчёт ниже', tone(N.net))}
+    </div>
+    ${axCard('Чистая прибыль — за всё время', `<div class="ax-split">
+      <div class="ax-sr"><span>Пополнения игроков</span><span></span><b class="num pos">+${money(N.depAll)}</b></div>
+      ${byCat.map(([k, v]) => `<div class="ax-sr"><span>${FIN_CAT[k]}<small>расход, внесён вручную</small></span><span></span><b class="num neg">−${money(v)}</b></div>`).join('')}
+      <div class="ax-sr"><span>Выводы скинов<small>сколько заплачено маркету; отправленные вручную — по цене сайта</small></span><span></span><b class="num neg">−${money(F.outPaid)}</b></div>
+      ${F.outPend ? `<div class="ax-sr"><span>Выводы в процессе<small>ещё не куплены — по цене сайта</small></span><span></span><b class="num neg">−${money(F.outPend)}</b></div>` : ''}
+      ${F.outOld ? `<div class="ax-sr"><span>Выводы до подключения маркета<small>по ценам каталога</small></span><span></span><b class="num neg">−${money(F.outOld)}</b></div>` : ''}
+      <div class="ax-sr"><span>Балансы игроков<small>рубли; бонусы R-COIN не считаются</small></span><span></span><b class="num neg">−${money(N.bal)}</b></div>
+      <div class="ax-sr"><span>Скины в инвентарях<small>${fmt(N.holdN)} предм. по ценам каталога</small></span><span></span><b class="num neg">−${money(N.hold)}</b></div>
+      <div class="ax-sr ax-sr-t"><span>Чистая прибыль</span><span></span><b class="num ${tone(N.net)}">${sgn(N.net)}</b></div></div>
+      <p class="ax-foot">Пополнения маркета и обналичивание — перемещение денег, на прибыль не влияют. Админские аккаунты не считаются.</p>`)}
+    ${axCard('Расходы за период', `${form('expense', true)}
+      ${axTable([['Дата', r => dd(r.d)], ['Статья', r => r.what], ['Что', r => esc(r.note)], ['Сумма', r => money(r.v), num], ['', del]], rows)}`)}
+    ${axCard('Обналичивание — деньги пришли на карту', `<div class="ax-kpis">
+        ${axKpi('За период', money(cashP), `${fmt(cash.filter(inP).length)} поступл.`)}${axKpi('За всё время', money(cashAll), `${fmt(cash.length)} поступл.`)}${axKpi('Остаток в кассе', money(kassa), 'ещё не выведено на карту', kassa < 0 ? 'neg' : '')}</div>
+      ${form('cashout')}
+      ${axTable([['Дата', r => dd(r.op_date)], ['Сумма', r => money(+r.amount), num], ['Заметка', r => esc(r.note || '')], ['', del]], cash.filter(inP))}
+      <p class="ax-foot">Вносите только то, что пришло на карту и доступно для трат. Движения внутри сайта сюда не записываются.</p>`)}
+    ${axCard('Маркет (market.csgo)', `<div class="ax-kpis">
+        ${axKpi('Пополнено всего', money(mkAll), `${fmt(mk.length)} пополн.`)}${axKpi('Потрачено на выводы', money(mkSpent), 'за всё время')}${axKpi('Должно остаться', money(mkAll - mkSpent), 'пополнено − потрачено')}
+        <div id="finMk">${axKpi('Баланс маркета', '…')}</div></div>
+      ${form('market')}
+      ${axTable([['Дата', r => dd(r.op_date)], ['Сумма', r => money(+r.amount), num], ['Заметка', r => esc(r.note || '')], ['', del]], mk.slice(0, 50))}
+      <p class="ax-foot">Пополнения маркета вносите вручную. Если «Должно остаться» сильно меньше баланса маркета — скорее всего, какое-то пополнение не внесено.</p>`)}`;
+  sb.from('market_cfg').select('balance, balance_at').maybeSingle().then(({ data: c }) => { const el = $('#finMk', box); if (el) el.outerHTML = axKpi('Баланс маркета', c && c.balance != null ? money(+c.balance) : '—', c && c.balance_at ? 'на ' + new Date(c.balance_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'обновите в «Выводах Steam»'); });
+  const reload = () => { admData = null; admDraw(); };
+  $$('.fin-form', box).forEach(fm => $('[data-add]', fm).onclick = async e => {
+    const a = +$('[data-a]', fm).value, d = $('[data-d]', fm).value;
+    if (!(a > 0)) return toast('Впишите сумму', 'err');
+    if (!d) return toast('Выберите дату', 'err');
+    const btn = e.currentTarget; btn.disabled = true;
+    const { error } = await sb.rpc('admin_fin_add', { p_kind: fm.dataset.kind, p_cat: $('[data-c]', fm) ? $('[data-c]', fm).value : null, p_amount: a, p_date: d, p_note: $('[data-n]', fm).value });
+    if (error) { btn.disabled = false; return toast('Не сохранено: ' + error.message, 'err'); }
+    toast('Записано'); reload();
+  });
+  $$('[data-fdel]', box).forEach(b => b.onclick = async () => {
+    if (!confirm('Удалить запись?')) return;
+    const { error } = await sb.rpc('admin_fin_delete', { p_id: +b.dataset.fdel });
+    if (error) return toast('Ошибка: ' + error.message, 'err');
+    toast('Удалено'); reload();
+  });
+}
 /* ---------- сотрудники (только владелец): кому какие вкладки, график смен (для отчётов) ---------- */
 const STAFF_PERMS = [['support', 'Поддержка'], ['out', 'Выводы Steam'], ['online', 'Онлайн'], ['players', 'Игроки (поиск, без начислений)']];
 const WDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -5413,7 +5494,7 @@ function admDraw() {
   supAdmBadge(); // счётчик новых обращений на вкладке «Поддержка»
   $$('#admTabs [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === admTab));
   if (!sb) return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
-  const R = { dash: axDash, money: axMoney, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, out: axOut, players: axPlayers };
+  const R = { dash: axDash, money: axMoney, books: axBooks, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, out: axOut, players: axPlayers };
   if (!admTabs().some(([k]) => k === admTab)) return;
   if (!admOwner()) return admTab === 'online' ? admStaffOnline(box) : admTab === 'out' ? axOut(box, null) : admTab === 'players' ? admPlayers(box) : admSupport(box);
   if (admTab === 'staff') return admStaff(box);
