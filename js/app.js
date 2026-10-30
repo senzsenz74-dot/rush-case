@@ -3684,11 +3684,20 @@ function pageFaq() {
     <div class="page-head"><h1>Вопросы и ответы</h1><p>Всё, что нужно знать об открытии кейсов, выводе и бонусах.</p></div>
     <div class="faq">
       <div class="acc">${FAQ.map(([q, a], i) => `<details${i === 0 ? ' open' : ''}><summary><span class="q">${i + 1}</span>${q}</summary><div class="a">${a}</div></details>`).join('')}</div>
-      <aside class="support"><img src="assets/soldier.png" alt=""><h3>Нужна помощь?</h3><p>Поддержка отвечает 24/7. Среднее время ответа — 3 минуты.</p><button class="btn btn-primary btn-block" id="chatBtn">${ic.chat}Написать в чат</button><a class="btn btn-dark btn-block" href="#/terms">Пользовательское соглашение</a></aside>
+      <aside class="support sp2">
+        <div class="sp2-head"><span class="sp2-ic">${ic.chat}</span><div><h3>Нужна помощь?</h3><span class="sp2-on"><i></i>Поддержка на связи</span></div></div>
+        <p>${SUP_TIME}. Напишите в чат на сайте или в Telegram — ответит живой человек, не бот.</p>
+        <button class="btn btn-primary btn-block" id="chatBtn">${ic.chat}Написать в чат</button>
+        <a class="btn btn-tg btn-block" id="supTgBtn" href="#" target="_blank" rel="noopener" hidden>${ic.tg}Написать в Telegram</a>
+        <div class="sp2-links"><a href="#/terms">Пользовательское соглашение</a><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></div>
+      </aside>
     </div>
   </section>`;
 }
-function mountFaq() { $('#chatBtn').onclick = () => toast('Чат поддержки подключится после интеграции виджета', 'info'); }
+function mountFaq() {
+  $('#chatBtn').onclick = () => supOpen();
+  supBotLoad().then(bot => { const t = $('#supTgBtn'); if (t && bot) { t.href = `https://t.me/${bot}`; t.hidden = false; } });
+}
 /* =========================================================
    ДОКУМЕНТЫ: соглашение, конфиденциальность, оплата и возврат, реквизиты; подтверждение 18+
    Тексты — рабочие шаблоны, перед запуском их стоит показать юристу.
@@ -3867,7 +3876,7 @@ async function sbLoadProfile(session) {
   if (p.is_admin) try { localStorage.setItem('rc.adm', '1'); } catch (e) { /* */ }
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
   renderUser(); route();
-  jpClaim(false); jpResolveMine(); claimGrants(); refClaim();
+  jpClaim(false); jpResolveMine(); claimGrants(); refClaim(); supInit(); supAdmInit();
   return true;
 }
 // начисления от администратора: забираем при входе, раз в 30 с и при возврате на вкладку
@@ -4504,13 +4513,200 @@ function jpOpenBet() {
    АДМИН-ПАНЕЛЬ: дашборд, кейсы (закрыть / удача), игроки (начислить баланс).
    Права проверяет база (is_admin в profiles, функции admin_* — см. supabase/admin.sql).
    ========================================================= */
+/* =========================================================
+   ЧАТ ПОДДЕРЖКИ: виджет на сайте (вошедшие игроки) + Telegram-бот → один чат в админке (supabase/support.sql, functions/support-bot)
+   ========================================================= */
+const SUP_TIME = 'Отвечаем ежедневно, обычно за 15 минут';
+let supBot = null; // @ник бота поддержки (из функции support-bot), '' — бот не подключён
+const supBotLoad = () => supBot !== null ? Promise.resolve(supBot) : fetch(`${SB_URL}/functions/v1/support-bot?action=info`, { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: '{}' })
+  .then(r => r.json()).then(j => (supBot = (j && j.bot) || ''), () => (supBot = ''));
+const supTime = ts => { const d = new Date(ts), now = new Date(); return d.toDateString() === now.toDateString() ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+const supText = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, '<br>');
+// ---------- виджет игрока ----------
+const sup = { th: null, ids: new Set(), ch: null, open: false, unread: 0 };
+function supMount() {
+  if ($('#swFab')) return;
+  document.body.insertAdjacentHTML('beforeend', `<button class="sw-fab" id="swFab" aria-label="Чат поддержки">${ic.chat}<i class="sw-badge" id="swBadge" hidden></i></button>
+    <div class="sw-panel" id="swPanel" role="dialog" aria-label="Чат поддержки" hidden>
+      <header class="sw-head"><span class="sw-ava">${ic.chat}</span><div><b>Поддержка RUSH CASE</b><small><i class="sw-dot"></i>${SUP_TIME}</small></div><button class="sw-x" id="swClose" aria-label="Закрыть">${ic.close}</button></header>
+      <div class="sw-body" id="swBody"></div>
+      <div class="sw-foot" id="swFoot"></div>
+    </div>`);
+  $('#swFab').onclick = () => (sup.open ? supClose() : supOpen());
+  $('#swClose').onclick = supClose;
+}
+function supBadge() { const b = $('#swBadge'); if (!b) return; b.hidden = !sup.unread; b.textContent = sup.unread > 9 ? '9+' : sup.unread; }
+const supBubble = m => `<div class="sw-m ${m.from_admin ? 'in' : 'out'}" data-id="${m.id}"><div>${supText(m.text)}</div><small>${m.from_admin ? esc(m.admin_name || 'Поддержка') + ' · ' : ''}${supTime(m.created_at)}</small></div>`;
+function supAppend(list) {
+  const box = $('#swMsgs'); if (!box) return;
+  const fresh = list.filter(m => !sup.ids.has(m.id)); fresh.forEach(m => sup.ids.add(m.id));
+  if (!fresh.length) return;
+  $('#swHello') && $('#swHello').remove();
+  box.insertAdjacentHTML('beforeend', fresh.map(supBubble).join(''));
+  box.scrollTop = box.scrollHeight;
+}
+function supListen() {
+  if (!sb || !sup.th || sup.ch) return;
+  sup.ch = sb.channel('sup-' + sup.th).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_msgs', filter: `thread=eq.${sup.th}` }, p => {
+    const m = p.new; if (!m) return;
+    if (sup.open) { supAppend([m]); if (m.from_admin) sb.rpc('support_seen').then(() => {}, () => {}); }
+    else if (m.from_admin) { sup.unread++; supBadge(); Snd.tone(880, .12, 'sine', .06); Snd.tone(1320, .18, 'sine', .05, .1); toast(`Ответ поддержки: ${esc(m.text.slice(0, 80))}`, 'info'); }
+  }).subscribe();
+}
+// после входа: есть ли диалог и непрочитанные ответы
+async function supInit() {
+  supMount(); supBotLoad();
+  if (!sb || !st.user || !st.user.sb) return;
+  const { data } = await sb.from('support_threads').select('id, unread_user').eq('uid', st.user.id).maybeSingle();
+  if (data) { sup.th = data.id; sup.unread = data.unread_user || 0; supBadge(); supListen(); }
+}
+async function supOpen() {
+  supMount(); sup.open = true;
+  const p = $('#swPanel'); p.hidden = false; requestAnimationFrame(() => p.classList.add('in'));
+  const body = $('#swBody'), foot = $('#swFoot');
+  await supBotLoad();
+  const tgBtn = supBot ? `<a class="btn btn-tg btn-block" href="https://t.me/${supBot}" target="_blank" rel="noopener">${ic.tg}Написать в Telegram</a>` : '';
+  if (!st.user || !st.user.sb) {
+    body.innerHTML = `<div class="sw-guest"><span class="sw-ava big">${ic.chat}</span><b>Войдите, чтобы написать в чат</b><p>Так мы сразу увидим ваш аккаунт и быстрее поможем. Не получается войти — напишите нам в Telegram.</p>
+      <button class="btn btn-primary btn-block" data-act="login">Войти</button>${tgBtn}</div>`;
+    foot.innerHTML = ''; return;
+  }
+  body.innerHTML = `<div class="sw-msgs" id="swMsgs"><div class="sw-m in" id="swHello"><div>Здравствуйте, ${esc(st.user.name)}! 👋<br>Опишите вопрос — ответим здесь же. ${SUP_TIME.toLowerCase()}.</div><small>Поддержка</small></div></div>`;
+  foot.innerHTML = `<form class="sw-form" id="swForm"><textarea id="swInp" rows="1" maxlength="2000" placeholder="Напишите сообщение…"></textarea><button class="sw-send" aria-label="Отправить">${ic.send}</button></form>
+    ${supBot ? `<a class="sw-tg" href="https://t.me/${supBot}" target="_blank" rel="noopener">${ic.tg}Удобнее в Telegram? @${esc(supBot)}</a>` : ''}`;
+  sup.ids = new Set();
+  const inp = $('#swInp');
+  inp.oninput = () => { inp.style.height = 'auto'; inp.style.height = Math.min(120, inp.scrollHeight) + 'px'; };
+  inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#swForm').requestSubmit(); } };
+  $('#swForm').onsubmit = async e => {
+    e.preventDefault(); const t = inp.value.trim(); if (!t) return;
+    inp.value = ''; inp.oninput();
+    const r = await srv('support_send', { p_text: t });
+    if (!r) { inp.value = t; return; }
+    if (!sup.th) { sup.th = r.thread; supListen(); }
+    supLoad();
+  };
+  if (sup.th) await supLoad();
+  sup.unread = 0; supBadge(); if (sup.th) sb.rpc('support_seen').then(() => {}, () => {});
+  setTimeout(() => inp.focus(), 50);
+}
+async function supLoad() {
+  if (!sup.th) return;
+  const { data } = await sb.from('support_msgs').select('id, from_admin, admin_name, text, created_at').eq('thread', sup.th).order('id', { ascending: false }).limit(100);
+  supAppend((data || []).reverse());
+}
+function supClose() { sup.open = false; const p = $('#swPanel'); if (!p) return; p.classList.remove('in'); setTimeout(() => { if (!sup.open) p.hidden = true; }, 200); }
+
+// ---------- админка: уведомления о новых сообщениях на любой странице ----------
+const supAdm = { ch: null, unread: 0, cur: null };
+function supAdmBadge() {
+  const b = $('#admSupBadge'); if (b) { b.textContent = supAdm.unread || ''; b.hidden = !supAdm.unread; }
+  document.title = document.title.replace(/^\(\d+\) /, '');
+  if (supAdm.unread) document.title = `(${supAdm.unread}) ${document.title}`;
+}
+async function supAdmCount() {
+  const { data } = await sb.from('support_threads').select('unread_admin').gt('unread_admin', 0);
+  supAdm.unread = (data || []).reduce((a, t) => a + t.unread_admin, 0); supAdmBadge();
+}
+function supAdmInit() {
+  if (!sb || !st.user || !st.user.admin || supAdm.ch) return;
+  supAdmCount();
+  supAdm.ch = sb.channel('sup-admin').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_msgs' }, async p => {
+    const m = p.new; if (!m) return;
+    const here = $('#supChat') && supAdm.cur === m.thread;
+    if (!m.from_admin && !(here && !document.hidden)) {
+      Snd.tone(660, .14, 'sine', .08); Snd.tone(990, .2, 'sine', .07, .12);
+      toast(`💬 Новое сообщение в поддержку: ${esc(m.text.slice(0, 90))}`, 'info');
+      if (window.Notification && Notification.permission === 'granted' && document.hidden) {
+        try { const n = new Notification('RUSH CASE — поддержка', { body: m.text.slice(0, 140), tag: 'sup-' + m.thread }); n.onclick = () => { window.focus(); admTab = 'support'; location.hash = '#/admin'; if ($('#admBody')) admDraw(); }; } catch (e) { /* */ }
+      }
+    }
+    if ($('#supList')) supAdmList();
+    if (here) { supAdmAppend([m]); if (!m.from_admin && !document.hidden) await sb.rpc('admin_support_seen', { p_thread: m.thread }); }
+    supAdmCount();
+  }).subscribe();
+}
+// ---------- админка: вкладка «Поддержка» ----------
+async function admSupport(box) {
+  box.innerHTML = `<div class="sup-top" id="supTop"></div>
+    <div class="sup"><aside class="sup-list" id="supList"><div class="ax-load"><span class="spinner"></span>Загружаем диалоги…</div></aside>
+    <section class="sup-chat" id="supChat"><div class="sup-empty">${ic.chat}<b>Выберите диалог</b><span>Сообщения с сайта и из Telegram-бота приходят сюда сразу.</span></div></section></div>`;
+  supAdmTop(); supAdmList();
+}
+async function supAdmTop() {
+  const el = $('#supTop'); if (!el) return;
+  await supBotLoad(); if (!el.isConnected) return;
+  const notif = window.Notification ? Notification.permission : 'denied';
+  el.innerHTML = `<div class="sup-bot ${supBot ? 'ok' : ''}">${ic.tg}<span>${supBot ? `Бот <b>@${esc(supBot)}</b> подключён — сообщения из Telegram приходят сюда` : 'Telegram-бот не подключён: создайте бота в @BotFather, сохраните токен в Supabase → Edge Functions → Secrets как <b>TG_BOT_TOKEN</b>, затем нажмите «Подключить бота»'}</span>
+    <button class="ax-btn ax-sm" id="supSetup">${supBot ? 'Переподключить' : 'Подключить бота'}</button></div>
+    ${notif === 'default' ? '<button class="ax-btn ax-sm" id="supNotif">Включить уведомления браузера</button>' : notif === 'granted' ? '<span class="ax-mute">Уведомления браузера включены</span>' : ''}`;
+  $('#supSetup', el).onclick = async () => {
+    const { data: ses } = await sb.auth.getSession();
+    const r = await fetch(`${SB_URL}/functions/v1/support-bot?action=setup`, { method: 'POST', headers: { apikey: SB_KEY, authorization: 'Bearer ' + (ses.session ? ses.session.access_token : ''), 'content-type': 'application/json' }, body: '{}' }).then(x => x.json()).catch(() => ({ error: 'нет связи' }));
+    if (r.error) return toast('Бот: ' + r.error, 'err');
+    supBot = r.bot || ''; toast(`Бот @${esc(supBot)} подключён`); supAdmTop();
+  };
+  const nb = $('#supNotif', el); if (nb) nb.onclick = () => Notification.requestPermission().then(supAdmTop);
+}
+async function supAdmList() {
+  const el = $('#supList'); if (!el) return;
+  const { data: T, error } = await sb.from('support_threads').select('*').order('last_at', { ascending: false }).limit(200);
+  if (!el.isConnected) return;
+  if (error) return (el.innerHTML = admErr(error) + '<p class="ax-foot">Выполните supabase/support.sql.</p>');
+  const uids = (T || []).filter(t => t.uid).map(t => t.uid);
+  const { data: P } = uids.length ? await sb.from('profiles').select('id, pid, name, ava, data, steamid').in('id', uids) : { data: [] };
+  supAdm.P = Object.fromEntries((P || []).map(p => [p.id, p])); supAdm.T = Object.fromEntries((T || []).map(t => [t.id, t]));
+  el.innerHTML = (T || []).length ? T.map(t => { const p = supAdm.P[t.uid] || {}; const nm = t.uid ? p.name || 'Игрок' : t.tg_name || 'Telegram';
+    return `<button class="sup-th${t.id === supAdm.cur ? ' on' : ''}${t.unread_admin ? ' new' : ''}" data-th="${t.id}">${t.uid ? ava({ name: nm, ava: p.ava }, 'xs') : `<span class="sup-tgava">${ic.tg}</span>`}
+      <span class="sup-th-t"><b>${esc(nm)}</b><small>${t.uid ? (p.pid ? '#' + p.pid : 'сайт') : t.tg_user ? '@' + esc(t.tg_user) : 'Telegram'} · ${supTime(t.last_at)}</small><em>${esc(t.last_text || '')}</em></span>${t.unread_admin ? `<i class="sup-n">${t.unread_admin}</i>` : ''}</button>`; }).join('')
+    : `<div class="sup-empty sm">${ic.chat}<span>Пока никто не писал.</span></div>`;
+  $$('[data-th]', el).forEach(b => b.onclick = () => supAdmOpen(+b.dataset.th));
+}
+const supAdmBubble = m => `<div class="sup-m ${m.from_admin ? 'out' : 'in'}" data-id="${m.id}"><div>${supText(m.text)}</div><small>${m.from_admin ? esc(m.admin_name || 'Админ') + ' · ' : m.src === 'tg' ? 'Telegram · ' : 'Сайт · '}${supTime(m.created_at)}</small></div>`;
+function supAdmAppend(list) {
+  const box = $('#supMsgs'); if (!box) return;
+  const have = new Set($$('[data-id]', box).map(e => +e.dataset.id));
+  const fresh = list.filter(m => !have.has(m.id)); if (!fresh.length) return;
+  box.insertAdjacentHTML('beforeend', fresh.map(supAdmBubble).join('')); box.scrollTop = box.scrollHeight;
+}
+async function supAdmOpen(id) {
+  supAdm.cur = id; const el = $('#supChat'); if (!el) return;
+  $$('#supList [data-th]').forEach(b => b.classList.toggle('on', +b.dataset.th === id));
+  const t = supAdm.T[id] || {}, p = supAdm.P[t.uid] || {}, d = p.data || {};
+  const who = t.uid ? `${ava({ name: p.name || 'Игрок', ava: p.ava }, 'sm')}<div><b>${plink(p.pid, esc(p.name || 'Игрок'))}${p.pid ? ` <i class="ax-tag">#${p.pid}</i>` : ''}</b><small>Сайт · баланс ${money(+d.balance || 0)} · предметов ${(d.inv || []).filter(x => x.st === 'own').length}${p.steamid ? ` · <a href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steamid)}" target="_blank" rel="noopener">Steam</a>` : ''}</small></div>`
+    : `<span class="sup-tgava">${ic.tg}</span><div><b>${esc(t.tg_name || 'Telegram')}</b><small>Telegram${t.tg_user ? ` · <a href="https://t.me/${esc(t.tg_user)}" target="_blank" rel="noopener">@${esc(t.tg_user)}</a>` : ''} · ответ уйдёт от имени бота</small></div>`;
+  el.innerHTML = `<header class="sup-head">${who}</header><div class="sup-msgs" id="supMsgs"><div class="ax-load"><span class="spinner"></span></div></div>
+    <form class="sup-form" id="supForm"><textarea id="supInp" rows="2" maxlength="4000" placeholder="Ответ… (Enter — отправить, Shift+Enter — новая строка)"></textarea><button class="ax-btn sup-send">${ic.send}Отправить</button></form>`;
+  const { data } = await sb.from('support_msgs').select('*').eq('thread', id).order('id', { ascending: false }).limit(300);
+  if (supAdm.cur !== id || !$('#supMsgs')) return;
+  $('#supMsgs').innerHTML = ''; supAdmAppend((data || []).reverse());
+  if (t.unread_admin) { await sb.rpc('admin_support_seen', { p_thread: id }); t.unread_admin = 0; supAdmList(); supAdmCount(); }
+  const inp = $('#supInp');
+  inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#supForm').requestSubmit(); } };
+  $('#supForm').onsubmit = async e => {
+    e.preventDefault(); const text = inp.value.trim(); if (!text) return;
+    const btn = $('.sup-send', e.target); btn.disabled = true;
+    let err = null;
+    if (t.tg_chat && !t.uid) {
+      const { data: ses } = await sb.auth.getSession();
+      const r = await fetch(`${SB_URL}/functions/v1/support-bot?action=reply`, { method: 'POST', headers: { apikey: SB_KEY, authorization: 'Bearer ' + (ses.session ? ses.session.access_token : ''), 'content-type': 'application/json' }, body: JSON.stringify({ thread: id, text }) }).then(x => x.json()).catch(() => ({ error: 'нет связи' }));
+      err = r.error;
+    } else { const { error } = await sb.rpc('admin_support_reply', { p_thread: id, p_text: text }); err = error && error.message; }
+    btn.disabled = false;
+    if (err) return toast('Не отправлено: ' + err, 'err');
+    inp.value = ''; inp.focus();
+    const { data: nw } = await sb.from('support_msgs').select('*').eq('thread', id).order('id', { ascending: false }).limit(5);
+    supAdmAppend((nw || []).reverse());
+  };
+  inp.focus();
+}
 let admTab = (() => { try { return localStorage.getItem('rc.admTab') || 'dash'; } catch (e) { return 'dash'; } })();
 const pctS = v => (v * 100).toFixed(v < .1 ? 2 : 1).replace('.', ',') + '%';
 function pageAdmin() {
   if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
   return `<section class="container cases-wide ax" id="adm">
     <header class="ax-top"><div class="ax-ttl"><span>Админ-панель</span><h1>RUSH CASE</h1></div><div class="ax-period" id="axPeriod"></div></header>
-    <nav class="ax-tabs" id="admTabs">${ADM_TABS.map(([k, t]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${t}</button>`).join('')}</nav>
+    <nav class="ax-tabs" id="admTabs">${ADM_TABS.map(([k, t]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${t}${k === 'support' ? '<i class="ax-badge" id="admSupBadge" hidden></i>' : ''}</button>`).join('')}</nav>
     <div id="admBody"></div>
   </section>`;
 }
@@ -4639,7 +4835,7 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['shop', 'Управление витриной'], ['tours', 'Турниры']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['shop', 'Управление витриной'], ['tours', 'Турниры']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -4926,6 +5122,7 @@ function admDraw() {
   const R = { dash: axDash, money: axMoney, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, out: axOut, players: axPlayers };
   if (admTab === 'tours') return admTours(box);
   if (admTab === 'shop') return admCases(box);
+  if (admTab === 'support') return admSupport(box);
   admTabData(box, R[admTab] || axDash);
 }
 /* ---------- выгрузка статистики в Excel (.xlsx, библиотека SheetJS грузится по кнопке) ---------- */
@@ -5713,7 +5910,8 @@ window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0,
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
   const act = a.dataset.act;
-  if (act === 'login') openAuth('login');
+  if (act === 'login') { supClose(); openAuth('login'); }
+  else if (act === 'support') supOpen();
   else if (act === 'register') openAuth('reg');
   else if (act === 'deposit') openDeposit(+a.dataset.need || 0);
   else if (act === 'logout') logout();
@@ -5735,7 +5933,7 @@ document.addEventListener('error', e => {
 }, true);
 
 /* ---------- init ---------- */
-renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit();
+renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit(); supMount(); // кнопка чата поддержки — на всех страницах
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
 // экран загрузки закрывается сам (index.html: window.plFinish) — по окончании загрузки или через 7 с
 })();
