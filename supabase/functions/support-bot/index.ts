@@ -5,6 +5,7 @@
 //   POST ?action=webhook  (Telegram) сообщение в боте → диалог в админке (support_threads / support_msgs)
 //   POST ?action=setup    (админ)    подключить бота: Telegram начнёт присылать сообщения сюда
 //   POST ?action=reply    (админ)    {thread, text} — ответ из админки уходит в Telegram от имени бота
+//   (отвечать и закрывать может только админ, за которым закреплено обращение — supabase/support_owner.sql)
 //   POST ?action=close    (админ)    {thread} — обращение закрыто: в Telegram — просьба оценить помощь кнопками ⭐1–5
 //
 // Секрет (Edge Functions → Secrets): TG_BOT_TOKEN — токен бота от @BotFather. После него — кнопка «Подключить бота» в админке.
@@ -96,6 +97,9 @@ Deno.serve(async req => {
       if (!text) return json({ error: 'empty' }, 400);
       const { data: th } = await db.from('support_threads').select('id, tg_chat').eq('id', +b.thread).maybeSingle();
       if (!th) return json({ error: 'not found' }, 404);
+      // отвечать может только ответственный за обращение (свободное — закрепится за ответившим)
+      const { error: own } = await db.rpc('_support_must_own', { p_thread: th.id, p_admin: admin.id });
+      if (own) return json({ error: own.message }, 403);
       if (th.tg_chat) {
         const r = await tg('sendMessage', { chat_id: th.tg_chat, text });
         if (!r.ok) return json({ error: r.description || 'telegram error' }, 502);

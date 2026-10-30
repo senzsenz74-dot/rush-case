@@ -3989,3 +3989,15 @@ body:has(.sw-panel.in) .sw-fring{animation:none;opacity:0}
 .sup-adm-r i{font-style:normal;font:800 16px var(--ff-h);color:#f5c76b;white-space:nowrap}.sup-adm-r i.pos{color:#4ade80}.sup-adm-r i.neg{color:#f87171}
 .sup-adm-r small{font-size:11px;color:var(--ax-mut);white-space:nowrap}
 .sup-adm-d{display:block;margin-top:4px;font-size:11px;color:var(--ax-mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* поддержка: ответственный за обращение */
+.sup-acts{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.sup-head .sup-acts .sup-close,.sup-head .sup-acts .sup-chip{margin-left:0}
+.sup-who{padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(245,199,107,.1);border:1px solid rgba(245,199,107,.3);color:#f5c76b;white-space:nowrap}
+.sup-who.me{background:rgba(74,222,128,.1);border-color:rgba(74,222,128,.35);color:#86efac}
+.sup-pass{width:auto;height:30px;padding:0 8px;font-size:12px}
+.sup-take{background:rgba(245,199,107,.12);border-color:rgba(245,199,107,.4);color:#f5c76b}
+.sup-own{display:inline-block;margin-top:3px;padding:1px 7px;border-radius:6px;font-size:10.5px;font-weight:700;background:rgba(245,199,107,.1);color:#f5c76b}
+.sup-own.me{background:rgba(74,222,128,.1);color:#86efac}
+.sup-lock{display:flex;align-items:center;gap:10px;margin:0 12px;padding:10px 12px;border-radius:10px;background:rgba(245,199,107,.07);border:1px solid rgba(245,199,107,.25);font-size:12.5px;color:var(--ax-mut)}
+.sup-lock svg{width:16px;height:16px;color:#f5c76b;flex:none}.sup-lock b{color:#fff}
+.sup-form.off{opacity:.4;pointer-events:none}

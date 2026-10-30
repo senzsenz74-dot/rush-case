@@ -4631,7 +4631,12 @@ async function supAdmCount() {
 function supAdmInit() {
   if (!sb || !st.user || !st.user.admin || supAdm.ch) return;
   supAdmCount();
-  supAdm.ch = sb.channel('sup-admin').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_msgs' }, async p => {
+  supAdm.ch = sb.channel('sup-admin').on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, async p => {
+    if (!$('#supList')) return;
+    await supAdmList();
+    const k = p.new || {};
+    if (k.thread === supAdm.cur && (k.owner || null) !== ((supAdm.own || {}).owner || null)) supAdmOpen(supAdm.cur);
+  }).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_msgs' }, async p => {
     const m = p.new; if (!m) return;
     const here = $('#supChat') && supAdm.cur === m.thread;
     if (!m.from_admin && !(here && !document.hidden)) {
@@ -4686,7 +4691,7 @@ async function supAdmTop() {
 }
 async function supAdmList() {
   const el = $('#supList'); if (!el) return;
-  const [{ data: T, error }, { data: K }] = await Promise.all([sb.from('support_threads').select('*').order('last_at', { ascending: false }).limit(200), sb.from('support_tickets').select('id, thread, closed_at, rating').order('id', { ascending: false }).limit(1000)]);
+  const [{ data: T, error }, { data: K }] = await Promise.all([sb.from('support_threads').select('*').order('last_at', { ascending: false }).limit(200), sb.from('support_tickets').select('id, thread, closed_at, rating, owner, owner_name').order('id', { ascending: false }).limit(1000)]);
   supAdm.K = {}; (K || []).forEach(k => { if (!supAdm.K[k.thread]) supAdm.K[k.thread] = k; }); // последнее обращение диалога
   if (!el.isConnected) return;
   if (error) return (el.innerHTML = admErr(error) + '<p class="ax-foot">Выполните supabase/support.sql.</p>');
@@ -4695,7 +4700,7 @@ async function supAdmList() {
   supAdm.P = Object.fromEntries((P || []).map(p => [p.id, p])); supAdm.T = Object.fromEntries((T || []).map(t => [t.id, t]));
   el.innerHTML = (T || []).length ? T.map(t => { const p = supAdm.P[t.uid] || {}; const nm = t.uid ? p.name || 'Игрок' : t.tg_name || 'Telegram';
     return `<button class="sup-th${t.id === supAdm.cur ? ' on' : ''}${t.unread_admin ? ' new' : ''}" data-th="${t.id}">${t.uid ? ava({ name: nm, ava: p.ava }, 'xs') : `<span class="sup-tgava">${ic.tg}</span>`}
-      <span class="sup-th-t"><b>${esc(nm)}</b><small>${t.uid ? (p.pid ? '#' + p.pid : 'сайт') : t.tg_user ? '@' + esc(t.tg_user) : 'Telegram'} · ${supTime(t.last_at)}</small><em>${esc(t.last_text || '')}</em></span>${supAdm.K[t.id] && !supAdm.K[t.id].closed_at ? '<i class="sup-open" title="Обращение открыто"></i>' : ''}${t.unread_admin ? `<i class="sup-n">${t.unread_admin}</i>` : ''}</button>`; }).join('')
+      <span class="sup-th-t"><b>${esc(nm)}</b><small>${t.uid ? (p.pid ? '#' + p.pid : 'сайт') : t.tg_user ? '@' + esc(t.tg_user) : 'Telegram'} · ${supTime(t.last_at)}</small><em>${esc(t.last_text || '')}</em>${supAdm.K[t.id] && !supAdm.K[t.id].closed_at && supAdm.K[t.id].owner ? `<span class="sup-own${supAdm.K[t.id].owner === st.user.id ? ' me' : ''}">${supAdm.K[t.id].owner === st.user.id ? 'у вас' : 'у ' + esc(supAdm.K[t.id].owner_name || 'админа')}</span>` : ''}</span>${supAdm.K[t.id] && !supAdm.K[t.id].closed_at ? '<i class="sup-open" title="Обращение открыто"></i>' : ''}${t.unread_admin ? `<i class="sup-n">${t.unread_admin}</i>` : ''}</button>`; }).join('')
     : `<div class="sup-empty sm">${ic.chat}<span>Пока никто не писал.</span></div>`;
   $$('[data-th]', el).forEach(b => b.onclick = () => supAdmOpen(+b.dataset.th));
 }
@@ -4710,18 +4715,33 @@ function supAdmAppend(list) {
 }
 async function supAdmOpen(id) {
   supAdm.cur = id; const el = $('#supChat'); if (!el) return;
+  const keep = $('#supInp') && supAdm.curShown === id ? $('#supInp').value : '';
+  const { data: own } = await sb.rpc('admin_support_take', { p_thread: id, p_force: false });
+  if (supAdm.cur !== id) return;
+  supAdm.own = own || {}; supAdm.curShown = id;
+  if (own && own.ticket && supAdm.K[id]) { supAdm.K[id].owner = own.owner; supAdm.K[id].owner_name = own.owner_name; }
+  if (!supAdm.admins) { const { data: A } = await sb.from('profiles').select('id, name').eq('is_admin', true); supAdm.admins = A || []; }
   $$('#supList [data-th]').forEach(b => b.classList.toggle('on', +b.dataset.th === id));
   const t = supAdm.T[id] || {}, p = supAdm.P[t.uid] || {}, d = p.data || {};
   const who = t.uid ? `${ava({ name: p.name || 'Игрок', ava: p.ava }, 'sm')}<div><b>${plink(p.pid, esc(p.name || 'Игрок'))}${p.pid ? ` <i class="ax-tag">#${p.pid}</i>` : ''}</b><small>Сайт · баланс ${money(+d.balance || 0)} · предметов ${(d.inv || []).filter(x => x.st === 'own').length}${p.steamid ? ` · <a href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steamid)}" target="_blank" rel="noopener">Steam</a>` : ''}</small></div>`
     : `<span class="sup-tgava">${ic.tg}</span><div><b>${esc(t.tg_name || 'Telegram')}</b><small>Telegram${t.tg_user ? ` · <a href="https://t.me/${esc(t.tg_user)}" target="_blank" rel="noopener">@${esc(t.tg_user)}</a>` : ''} · ответ уйдёт от имени бота</small></div>`;
   const k = supAdm.K[id];
-  const stat = k && !k.closed_at ? `<button class="ax-btn ax-sm sup-close" id="supClose">${ic.check}Обращение закрыто</button>` : k ? `<span class="sup-chip">Закрыто${k.rating ? ' · ' + STARS(k.rating) : ' · ждём оценку'}</span>` : '';
-  el.innerHTML = `<header class="sup-head">${who}${stat}</header><div class="sup-msgs" id="supMsgs"><div class="ax-load"><span class="spinner"></span></div></div>
-    <form class="sup-form" id="supForm"><textarea id="supInp" rows="2" maxlength="4000" placeholder="Ответ… (Enter — отправить, Shift+Enter — новая строка)"></textarea><button class="ax-btn sup-send">${ic.send}Отправить</button></form>`;
+  const O = supAdm.own || {}, mine = !O.ticket || O.mine, others = supAdm.admins.filter(a => a.id !== st.user.id);
+  const ownBox = O.ticket ? (O.mine ? `<span class="sup-who me">В работе у вас</span>${others.length ? `<select class="ax-inp sup-pass" id="supPass"><option value="">Передать…</option>${others.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select>` : ''}`
+    : `<span class="sup-who">В работе у ${esc(O.owner_name || 'админа')}</span>${O.can_take ? '<button class="ax-btn ax-sm sup-take" id="supTake">Забрать себе</button>' : ''}`) : '';
+  const stat = k && !k.closed_at ? ownBox + (mine ? `<button class="ax-btn ax-sm sup-close" id="supClose">${ic.check}Обращение закрыто</button>` : '') : k ? `<span class="sup-chip">Закрыто${k.rating ? ' · ' + STARS(k.rating) : ' · ждём оценку'}</span>` : '';
+  el.innerHTML = `<header class="sup-head">${who}<div class="sup-acts">${stat}</div></header><div class="sup-msgs" id="supMsgs"><div class="ax-load"><span class="spinner"></span></div></div>
+    ${mine ? '' : `<div class="sup-lock">${ic.shield}<span>Обращение ведёт <b>${esc(O.owner_name || 'другой админ')}</b> — отвечать может только он. Попросите передать чат${O.can_take ? ' или заберите: клиент ждёт ответа больше 15 минут' : ''}.</span></div>`}
+    <form class="sup-form${mine ? '' : ' off'}" id="supForm"><textarea id="supInp" rows="2" maxlength="4000" placeholder="Ответ… (Enter — отправить, Shift+Enter — новая строка)"></textarea><button class="ax-btn sup-send">${ic.send}Отправить</button></form>`;
   const { data } = await sb.from('support_msgs').select('*').eq('thread', id).order('id', { ascending: false }).limit(300);
   if (supAdm.cur !== id || !$('#supMsgs')) return;
   $('#supMsgs').innerHTML = ''; supAdmAppend((data || []).reverse());
   if (t.unread_admin) { await sb.rpc('admin_support_seen', { p_thread: id }); t.unread_admin = 0; supAdmList(); supAdmCount(); }
+  if (keep && $('#supInp')) $('#supInp').value = keep;
+  const ps = $('#supPass');
+  if (ps) ps.onchange = async () => { if (!ps.value) return; const nm = ps.selectedOptions[0].textContent; const { error } = await sb.rpc('admin_support_pass', { p_thread: id, p_to: ps.value }); if (error) { ps.value = ''; return toast('Не передано: ' + error.message, 'err'); } toast(`Обращение передано: ${esc(nm)}`); await supAdmList(); supAdmOpen(id); };
+  const tk = $('#supTake');
+  if (tk) tk.onclick = async () => { tk.disabled = true; const { error } = await sb.rpc('admin_support_take', { p_thread: id, p_force: true }); if (error) { tk.disabled = false; return toast(error.message.includes('not waiting') ? 'Клиенту уже ответили — забрать нельзя' : 'Ошибка: ' + error.message, 'err'); } toast('Обращение теперь у вас'); await supAdmList(); supAdmOpen(id); };
   const cb = $('#supClose');
   if (cb) cb.onclick = async () => {
     cb.disabled = true; let err = null;
@@ -4746,7 +4766,7 @@ async function supAdmOpen(id) {
       err = r.error;
     } else { const { error } = await sb.rpc('admin_support_reply', { p_thread: id, p_text: text }); err = error && error.message; }
     btn.disabled = false;
-    if (err) return toast('Не отправлено: ' + err, 'err');
+    if (err) { const m = /chat owned by (.*)/.exec(err); return toast(m ? `Обращение ведёт ${esc(m[1])} — отвечать может только он` : 'Не отправлено: ' + err, 'err'); }
     inp.value = ''; inp.focus();
     const { data: nw } = await sb.from('support_msgs').select('*').eq('thread', id).order('id', { ascending: false }).limit(5);
     supAdmAppend((nw || []).reverse());
