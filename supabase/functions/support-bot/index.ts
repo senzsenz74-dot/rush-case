@@ -5,6 +5,7 @@
 //   POST ?action=webhook  (Telegram) сообщение в боте → диалог в админке (support_threads / support_msgs)
 //   POST ?action=setup    (админ)    подключить бота: Telegram начнёт присылать сообщения сюда
 //   POST ?action=reply    (админ)    {thread, text} — ответ из админки уходит в Telegram от имени бота
+//   POST ?action=close    (админ)    {thread} — обращение закрыто: в Telegram — просьба оценить помощь кнопками ⭐1–5
 //
 // Секрет (Edge Functions → Secrets): TG_BOT_TOKEN — токен бота от @BotFather. После него — кнопка «Подключить бота» в админке.
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -21,13 +22,15 @@ const tg = async (method: string, body: Record<string, unknown> = {}) => {
 const hookSecret = async () => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('rc-hook:' + env('TG_BOT_TOKEN'))))].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 48);
 let botName: string | null = null;
 const getBot = async () => { if (botName === null) { const r = await tg('getMe'); botName = r.ok ? r.result.username : ''; } return botName; };
-async function adminName(req: Request) {
+async function adminOf(req: Request) {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   const { data: u } = await db.auth.getUser(token);
   if (!u?.user) return null;
   const { data: p } = await db.from('profiles').select('name, is_admin').eq('id', u.user.id).maybeSingle();
-  return p?.is_admin ? (p.name || 'Поддержка') : null;
+  return p?.is_admin ? { id: u.user.id, name: p.name || 'Поддержка' } : null;
 }
+const STARS = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
+const ASK = 'Спасибо за честную оценку. Напишите, пожалуйста, коротко — что можно было сделать лучше?';
 const WELCOME = 'Здравствуйте! Это поддержка RUSH CASE 👋\nНапишите вопрос одним сообщением — ответим здесь же. Отвечаем ежедневно, обычно за 15 минут.\nЕсли вопрос по аккаунту — укажите ваш ID на сайте (он в профиле).';
 
 Deno.serve(async req => {
@@ -40,6 +43,24 @@ Deno.serve(async req => {
     if (action === 'webhook') {
       if (req.headers.get('x-telegram-bot-api-secret-token') !== await hookSecret()) return json({ error: 'forbidden' }, 403);
       const u = await req.json().catch(() => ({}));
+      const cq = u.callback_query;
+      if (cq) {
+        const mt = /^rate:(\d+):([1-5])$/.exec(cq.data || ''), chat = cq.message?.chat?.id;
+        if (mt && chat) {
+          const { data: k } = await db.from('support_tickets').select('id, thread, support_threads!inner(tg_chat)').eq('id', +mt[1]).maybeSingle();
+          // @ts-ignore — вложенная строка диалога
+          if (k && Number(k.support_threads?.tg_chat) === Number(chat)) {
+            const { data: r } = await db.rpc('_support_rate', { p_ticket: k.id, p_stars: +mt[2] });
+            const n = r?.rating || +mt[2];
+            await tg('answerCallbackQuery', { callback_query_id: cq.id, text: r?.ok ? 'Спасибо за оценку!' : 'Оценка уже сохранена' });
+            await tg('editMessageText', { chat_id: chat, message_id: cq.message.message_id, text: `Обращение закрыто. Ваша оценка: ${STARS(n)} — спасибо!` });
+            if (r?.ok && n < 4) await tg('sendMessage', { chat_id: chat, text: ASK });
+            return json({ ok: true });
+          }
+        }
+        await tg('answerCallbackQuery', { callback_query_id: cq.id });
+        return json({ ok: true });
+      }
       const m = u.message;
       if (!m || !m.chat || m.chat.type !== 'private') return json({ ok: true });
       const chat = m.chat.id, from = m.from || {};
@@ -58,12 +79,12 @@ Deno.serve(async req => {
       return json({ ok: true });
     }
 
-    const admin = await adminName(req);
+    const admin = await adminOf(req);
     if (!admin) return json({ error: 'forbidden' }, 403);
 
     if (action === 'setup') {
       const url = `${env('SUPABASE_URL')}/functions/v1/support-bot?action=webhook`;
-      const r = await tg('setWebhook', { url, secret_token: await hookSecret(), allowed_updates: ['message'], drop_pending_updates: false });
+      const r = await tg('setWebhook', { url, secret_token: await hookSecret(), allowed_updates: ['message', 'callback_query'], drop_pending_updates: false });
       if (!r.ok) return json({ error: r.description || 'telegram error' }, 502);
       botName = null;
       return json({ ok: true, bot: await getBot() });
@@ -79,9 +100,21 @@ Deno.serve(async req => {
         const r = await tg('sendMessage', { chat_id: th.tg_chat, text });
         if (!r.ok) return json({ error: r.description || 'telegram error' }, 502);
       }
-      const { data: id, error } = await db.rpc('_support_add', { p_thread: th.id, p_text: text, p_src: 'admin', p_admin: admin });
+      const { data: id, error } = await db.rpc('_support_add', { p_thread: th.id, p_text: text, p_src: 'admin', p_admin: admin.name });
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true, id });
+    }
+    if (action === 'close') {
+      const b = await req.json().catch(() => ({}));
+      const { data: th } = await db.from('support_threads').select('id, tg_chat, uid').eq('id', +b.thread).maybeSingle();
+      if (!th) return json({ error: 'not found' }, 404);
+      const { data: r, error } = await db.rpc('_support_close', { p_thread: th.id, p_admin: admin.id });
+      if (error) return json({ error: error.message }, 400);
+      if (th.tg_chat && !th.uid) {
+        const t = r.ticket;
+        await tg('sendMessage', { chat_id: th.tg_chat, text: 'Обращение закрыто ✅\nПожалуйста, оцените качество помощи:', reply_markup: { inline_keyboard: [[1, 2, 3, 4, 5].map(n => ({ text: n + ' ⭐', callback_data: `rate:${t}:${n}` }))] } });
+      }
+      return json({ ok: true, ticket: r.ticket });
     }
     return json({ error: 'bad action' }, 400);
   } catch (e) {

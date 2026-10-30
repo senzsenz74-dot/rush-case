@@ -4523,7 +4523,8 @@ const supBotLoad = () => supBot !== null ? Promise.resolve(supBot) : fetch(`${SB
 const supTime = ts => { const d = new Date(ts), now = new Date(); return d.toDateString() === now.toDateString() ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
 const supText = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, '<br>');
 // ---------- виджет игрока ----------
-const sup = { th: null, ids: new Set(), ch: null, open: false, unread: 0 };
+const sup = { th: null, ids: new Set(), ch: null, open: false, unread: 0, rated: {} };
+const STARS = n => '★'.repeat(n) + '☆'.repeat(5 - n);
 function supMount() {
   if ($('#swFab')) return;
   document.body.insertAdjacentHTML('beforeend', `<button class="sw-fab" id="swFab" aria-label="Чат поддержки">${ic.chat}<i class="sw-badge" id="swBadge" hidden></i></button>
@@ -4536,21 +4537,36 @@ function supMount() {
   $('#swClose').onclick = supClose;
 }
 function supBadge() { const b = $('#swBadge'); if (!b) return; b.hidden = !sup.unread; b.textContent = sup.unread > 9 ? '9+' : sup.unread; }
-const supBubble = m => `<div class="sw-m ${m.from_admin ? 'in' : 'out'}" data-id="${m.id}"><div>${supText(m.text)}</div><small>${m.from_admin ? esc(m.admin_name || 'Поддержка') + ' · ' : ''}${supTime(m.created_at)}</small></div>`;
+const supRateBox = k => sup.rated[k] ? `<div class="sw-rated">Ваша оценка: <b>${STARS(sup.rated[k])}</b> — спасибо!</div>` : `<div class="sw-stars" data-tk="${k}">${[1, 2, 3, 4, 5].map(n => `<button data-st="${n}" aria-label="${n} из 5">★</button>`).join('')}</div>`;
+const supBubble = m => m.kind === 'rate' ? `<div class="sw-m in sw-rate" data-id="${m.id}"><div>${supText(m.text)}</div><div class="sw-rbox" data-rk="${m.ticket}">${supRateBox(m.ticket)}</div><small>${supTime(m.created_at)}</small></div>`
+  : `<div class="sw-m ${m.from_admin ? 'in' : 'out'}" data-id="${m.id}"><div>${supText(m.text)}</div><small>${m.from_admin ? esc(m.admin_name || 'Поддержка') + ' · ' : ''}${supTime(m.created_at)}</small></div>`;
+// звёзды: подсветка при наведении, оценка — один раз
+function supStars(box) {
+  $$('.sw-stars', box).forEach(w => {
+    const bs = $$('button', w), hl = n => bs.forEach((b, i) => b.classList.toggle('on', i < n));
+    bs.forEach(b => { b.onmouseenter = () => hl(+b.dataset.st); b.onclick = async () => {
+      const k = +w.dataset.tk, n = +b.dataset.st; w.style.pointerEvents = 'none';
+      const r = await srv('support_rate', { p_ticket: k, p_stars: n }); w.style.pointerEvents = '';
+      if (!r) return; sup.rated[k] = r.rating || n; $$(`[data-rk="${k}"]`).forEach(e => { e.innerHTML = supRateBox(k); });
+      supLoad();
+    }; });
+    w.onmouseleave = () => hl(0);
+  });
+}
 function supAppend(list) {
   const box = $('#swMsgs'); if (!box) return;
   const fresh = list.filter(m => !sup.ids.has(m.id)); fresh.forEach(m => sup.ids.add(m.id));
   if (!fresh.length) return;
   $('#swHello') && $('#swHello').remove();
   box.insertAdjacentHTML('beforeend', fresh.map(supBubble).join(''));
-  box.scrollTop = box.scrollHeight;
+  supStars(box); box.scrollTop = box.scrollHeight;
 }
 function supListen() {
   if (!sb || !sup.th || sup.ch) return;
   sup.ch = sb.channel('sup-' + sup.th).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_msgs', filter: `thread=eq.${sup.th}` }, p => {
     const m = p.new; if (!m) return;
     if (sup.open) { supAppend([m]); if (m.from_admin) sb.rpc('support_seen').then(() => {}, () => {}); }
-    else if (m.from_admin) { sup.unread++; supBadge(); Snd.tone(880, .12, 'sine', .06); Snd.tone(1320, .18, 'sine', .05, .1); toast(`Ответ поддержки: ${esc(m.text.slice(0, 80))}`, 'info'); }
+    else if (m.from_admin) { sup.unread++; supBadge(); Snd.tone(880, .12, 'sine', .06); Snd.tone(1320, .18, 'sine', .05, .1); toast(m.kind === 'rate' ? 'Поддержка закрыла обращение — оцените, пожалуйста, помощь' : `Ответ поддержки: ${esc(m.text.slice(0, 80))}`, 'info'); }
   }).subscribe();
 }
 // после входа: есть ли диалог и непрочитанные ответы
@@ -4592,7 +4608,8 @@ async function supOpen() {
 }
 async function supLoad() {
   if (!sup.th) return;
-  const { data } = await sb.from('support_msgs').select('id, from_admin, admin_name, text, created_at').eq('thread', sup.th).order('id', { ascending: false }).limit(100);
+  const [{ data }, { data: K }] = await Promise.all([sb.from('support_msgs').select('id, from_admin, admin_name, text, created_at, kind, ticket').eq('thread', sup.th).order('id', { ascending: false }).limit(100), sb.from('support_tickets').select('id, rating').eq('thread', sup.th)]);
+  (K || []).forEach(k => { if (k.rating) sup.rated[k.id] = k.rating; });
   supAppend((data || []).reverse());
 }
 function supClose() { sup.open = false; const p = $('#swPanel'); if (!p) return; p.classList.remove('in'); setTimeout(() => { if (!sup.open) p.hidden = true; }, 200); }
@@ -4621,17 +4638,33 @@ function supAdmInit() {
         try { const n = new Notification('RUSH CASE — поддержка', { body: m.text.slice(0, 140), tag: 'sup-' + m.thread }); n.onclick = () => { window.focus(); admTab = 'support'; location.hash = '#/admin'; if ($('#admBody')) admDraw(); }; } catch (e) { /* */ }
       }
     }
-    if ($('#supList')) supAdmList();
+    if ($('#supList')) { await supAdmList(); if (m.kind || !m.from_admin) supAdmStats(); if (supAdm.cur === m.thread && m.kind) supAdmOpen(m.thread); }
     if (here) { supAdmAppend([m]); if (!m.from_admin && !document.hidden) await sb.rpc('admin_support_seen', { p_thread: m.thread }); }
     supAdmCount();
   }).subscribe();
 }
 // ---------- админка: вкладка «Поддержка» ----------
 async function admSupport(box) {
-  box.innerHTML = `<div class="sup-top" id="supTop"></div>
+  box.innerHTML = `<div class="sup-top" id="supTop"></div><div id="supStats"></div>
     <div class="sup"><aside class="sup-list" id="supList"><div class="ax-load"><span class="spinner"></span>Загружаем диалоги…</div></aside>
     <section class="sup-chat" id="supChat"><div class="sup-empty">${ic.chat}<b>Выберите диалог</b><span>Сообщения с сайта и из Telegram-бота приходят сюда сразу.</span></div></section></div>`;
-  supAdmTop(); supAdmList();
+  supAdmTop(); supAdmList(); supAdmStats();
+}
+// обращения за период админки: пришло, закрыто, открыто сейчас, оценки, по админам, низкие оценки
+async function supAdmStats() {
+  const el = $('#supStats'); if (!el) return;
+  const [f, t] = admRangeDates();
+  const { data: S, error } = await sb.rpc('admin_support_stats', { p_from: f.toISOString(), p_to: t.toISOString() });
+  if (!el.isConnected) return;
+  if (error) return (el.innerHTML = '<p class="ax-foot">Выполните supabase/support_tickets.sql — появятся обращения и оценки.</p>');
+  const st5 = S.stars || {}, rated = +S.rated || 0;
+  el.innerHTML = `<div class="ax-kpis">
+      ${axKpi('Обращений за период', fmt(+S.opened))}${axKpi('Закрыто за период', fmt(+S.closed))}${axKpi('Открыто сейчас', fmt(+S.open_now), '', +S.open_now ? 'neg' : 'pos')}
+      ${axKpi('Средняя оценка', S.avg ? `${String(S.avg).replace('.', ',')} ★` : '—', `оценили ${fmt(rated)}`, S.avg >= 4.5 ? 'pos' : S.avg && S.avg < 4 ? 'neg' : '')}
+      ${axKpi('Оценки', rated ? [5, 4, 3, 2, 1].map(n => `${n}★ ${fmt(+st5[n] || 0)}`).join(' · ') : '—')}
+    </div>
+    ${(S.admins || []).length ? `<div class="ax-g2">${axCard('По админам', axTable([['Админ', r => esc(r.name)], ['Закрыл', r => fmt(+r.closed), num], ['Оценили', r => fmt(+r.rated), num], ['Средняя', r => r.avg ? String(r.avg).replace('.', ',') + ' ★' : '—', num], ['Оценок 1–3', r => fmt(+r.low), r => 'num ' + (+r.low ? 'neg' : '')]], S.admins))}
+      ${axCard('Низкие оценки', (S.low || []).length ? axTable([['Когда', r => supTime(r.rated_at)], ['Клиент', r => esc(r.client || '—')], ['Оценка', r => `<b class="neg">${STARS(+r.rating)}</b>`], ['Комментарий', r => r.comment ? esc(r.comment) : '<span class="ax-mute">нет</span>'], ['Закрыл', r => esc(r.closed_by_name || '—')]], S.low) : '<p class="ax-mute">Низких оценок нет 👍</p>')}</div>` : ''}`;
 }
 async function supAdmTop() {
   const el = $('#supTop'); if (!el) return;
@@ -4650,7 +4683,8 @@ async function supAdmTop() {
 }
 async function supAdmList() {
   const el = $('#supList'); if (!el) return;
-  const { data: T, error } = await sb.from('support_threads').select('*').order('last_at', { ascending: false }).limit(200);
+  const [{ data: T, error }, { data: K }] = await Promise.all([sb.from('support_threads').select('*').order('last_at', { ascending: false }).limit(200), sb.from('support_tickets').select('id, thread, closed_at, rating').order('id', { ascending: false }).limit(1000)]);
+  supAdm.K = {}; (K || []).forEach(k => { if (!supAdm.K[k.thread]) supAdm.K[k.thread] = k; }); // последнее обращение диалога
   if (!el.isConnected) return;
   if (error) return (el.innerHTML = admErr(error) + '<p class="ax-foot">Выполните supabase/support.sql.</p>');
   const uids = (T || []).filter(t => t.uid).map(t => t.uid);
@@ -4658,11 +4692,13 @@ async function supAdmList() {
   supAdm.P = Object.fromEntries((P || []).map(p => [p.id, p])); supAdm.T = Object.fromEntries((T || []).map(t => [t.id, t]));
   el.innerHTML = (T || []).length ? T.map(t => { const p = supAdm.P[t.uid] || {}; const nm = t.uid ? p.name || 'Игрок' : t.tg_name || 'Telegram';
     return `<button class="sup-th${t.id === supAdm.cur ? ' on' : ''}${t.unread_admin ? ' new' : ''}" data-th="${t.id}">${t.uid ? ava({ name: nm, ava: p.ava }, 'xs') : `<span class="sup-tgava">${ic.tg}</span>`}
-      <span class="sup-th-t"><b>${esc(nm)}</b><small>${t.uid ? (p.pid ? '#' + p.pid : 'сайт') : t.tg_user ? '@' + esc(t.tg_user) : 'Telegram'} · ${supTime(t.last_at)}</small><em>${esc(t.last_text || '')}</em></span>${t.unread_admin ? `<i class="sup-n">${t.unread_admin}</i>` : ''}</button>`; }).join('')
+      <span class="sup-th-t"><b>${esc(nm)}</b><small>${t.uid ? (p.pid ? '#' + p.pid : 'сайт') : t.tg_user ? '@' + esc(t.tg_user) : 'Telegram'} · ${supTime(t.last_at)}</small><em>${esc(t.last_text || '')}</em></span>${supAdm.K[t.id] && !supAdm.K[t.id].closed_at ? '<i class="sup-open" title="Обращение открыто"></i>' : ''}${t.unread_admin ? `<i class="sup-n">${t.unread_admin}</i>` : ''}</button>`; }).join('')
     : `<div class="sup-empty sm">${ic.chat}<span>Пока никто не писал.</span></div>`;
   $$('[data-th]', el).forEach(b => b.onclick = () => supAdmOpen(+b.dataset.th));
 }
-const supAdmBubble = m => `<div class="sup-m ${m.from_admin ? 'out' : 'in'}" data-id="${m.id}"><div>${supText(m.text)}</div><small>${m.from_admin ? esc(m.admin_name || 'Админ') + ' · ' : m.src === 'tg' ? 'Telegram · ' : 'Сайт · '}${supTime(m.created_at)}</small></div>`;
+const supAdmBubble = m => m.kind === 'rate' ? `<div class="sup-sys" data-id="${m.id}">✅ Обращение закрыто · ${esc(m.admin_name || 'админ')} · ${supTime(m.created_at)} — клиенту отправлена просьба оценить</div>`
+  : m.kind === 'rated' ? `<div class="sup-sys rated" data-id="${m.id}">${esc(m.text)} · ${supTime(m.created_at)}</div>`
+  : `<div class="sup-m ${m.from_admin ? 'out' : 'in'}" data-id="${m.id}"><div>${supText(m.text)}</div><small>${m.from_admin ? esc(m.admin_name || 'Админ') + ' · ' : m.src === 'tg' ? 'Telegram · ' : 'Сайт · '}${supTime(m.created_at)}</small></div>`;
 function supAdmAppend(list) {
   const box = $('#supMsgs'); if (!box) return;
   const have = new Set($$('[data-id]', box).map(e => +e.dataset.id));
@@ -4675,12 +4711,26 @@ async function supAdmOpen(id) {
   const t = supAdm.T[id] || {}, p = supAdm.P[t.uid] || {}, d = p.data || {};
   const who = t.uid ? `${ava({ name: p.name || 'Игрок', ava: p.ava }, 'sm')}<div><b>${plink(p.pid, esc(p.name || 'Игрок'))}${p.pid ? ` <i class="ax-tag">#${p.pid}</i>` : ''}</b><small>Сайт · баланс ${money(+d.balance || 0)} · предметов ${(d.inv || []).filter(x => x.st === 'own').length}${p.steamid ? ` · <a href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steamid)}" target="_blank" rel="noopener">Steam</a>` : ''}</small></div>`
     : `<span class="sup-tgava">${ic.tg}</span><div><b>${esc(t.tg_name || 'Telegram')}</b><small>Telegram${t.tg_user ? ` · <a href="https://t.me/${esc(t.tg_user)}" target="_blank" rel="noopener">@${esc(t.tg_user)}</a>` : ''} · ответ уйдёт от имени бота</small></div>`;
-  el.innerHTML = `<header class="sup-head">${who}</header><div class="sup-msgs" id="supMsgs"><div class="ax-load"><span class="spinner"></span></div></div>
+  const k = supAdm.K[id];
+  const stat = k && !k.closed_at ? `<button class="ax-btn ax-sm sup-close" id="supClose">${ic.check}Обращение закрыто</button>` : k ? `<span class="sup-chip">Закрыто${k.rating ? ' · ' + STARS(k.rating) : ' · ждём оценку'}</span>` : '';
+  el.innerHTML = `<header class="sup-head">${who}${stat}</header><div class="sup-msgs" id="supMsgs"><div class="ax-load"><span class="spinner"></span></div></div>
     <form class="sup-form" id="supForm"><textarea id="supInp" rows="2" maxlength="4000" placeholder="Ответ… (Enter — отправить, Shift+Enter — новая строка)"></textarea><button class="ax-btn sup-send">${ic.send}Отправить</button></form>`;
   const { data } = await sb.from('support_msgs').select('*').eq('thread', id).order('id', { ascending: false }).limit(300);
   if (supAdm.cur !== id || !$('#supMsgs')) return;
   $('#supMsgs').innerHTML = ''; supAdmAppend((data || []).reverse());
   if (t.unread_admin) { await sb.rpc('admin_support_seen', { p_thread: id }); t.unread_admin = 0; supAdmList(); supAdmCount(); }
+  const cb = $('#supClose');
+  if (cb) cb.onclick = async () => {
+    cb.disabled = true; let err = null;
+    if (t.tg_chat && !t.uid) {
+      const { data: ses } = await sb.auth.getSession();
+      const r = await fetch(`${SB_URL}/functions/v1/support-bot?action=close`, { method: 'POST', headers: { apikey: SB_KEY, authorization: 'Bearer ' + (ses.session ? ses.session.access_token : ''), 'content-type': 'application/json' }, body: JSON.stringify({ thread: id }) }).then(x => x.json()).catch(() => ({ error: 'нет связи' }));
+      err = r.error;
+    } else { const { error } = await sb.rpc('admin_support_close', { p_thread: id }); err = error && error.message; }
+    if (err) { cb.disabled = false; return toast('Не закрыто: ' + err, 'err'); }
+    toast('Обращение закрыто — клиенту отправлена просьба оценить помощь');
+    await supAdmList(); supAdmOpen(id); supAdmStats();
+  };
   const inp = $('#supInp');
   inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#supForm').requestSubmit(); } };
   $('#supForm').onsubmit = async e => {

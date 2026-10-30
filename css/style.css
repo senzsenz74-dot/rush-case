@@ -3927,3 +3927,21 @@ a.plink{color:inherit;text-decoration:none}a.plink:hover{color:var(--gold)}
 .sp2 [hidden],.sw-panel [hidden]{display:none!important}
 .sp2-head h3{font-size:17px;line-height:1.15}
 body:has(#adm) .sw-fab,body:has(#adm) .sw-panel{display:none!important}
+
+/* поддержка: оценка обращения (виджет) */
+.sw-rbox{margin-top:8px}
+.sw-stars{display:flex;gap:4px}
+.sw-stars button{width:34px;height:34px;border-radius:10px;border:1px solid rgba(245,199,107,.3);background:rgba(245,199,107,.06);color:rgba(245,199,107,.45);font-size:19px;line-height:1;cursor:pointer;transition:transform .12s,color .12s,background .12s}
+.sw-stars button.on{color:#f5c76b;background:rgba(245,199,107,.18);transform:scale(1.08)}
+.sw-rated{font-size:12.5px;color:var(--txt2)}.sw-rated b{color:#f5c76b;letter-spacing:1px}
+/* поддержка: админка — закрытие и статистика */
+.sup-open{width:9px;height:9px;border-radius:50%;background:#4ade80;flex:none;box-shadow:0 0 0 3px rgba(74,222,128,.15)}
+.sup-head .sup-close,.sup-head .sup-chip{margin-left:auto}
+.sup-close{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.4);color:#86efac}
+.sup-close svg{width:14px;height:14px}
+.sup-chip{padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid var(--ax-line);font-size:12px;color:var(--ax-mut);white-space:nowrap}
+.sup-sys{align-self:center;max-width:90%;padding:6px 12px;border-radius:999px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);color:#86efac;font-size:12px;text-align:center}
+.sup-sys.rated{background:rgba(245,199,107,.08);border-color:rgba(245,199,107,.25);color:#f5c76b}
+#supStats{margin-bottom:12px}
+#supStats .ax-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media (max-width:1180px){#supStats .ax-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
