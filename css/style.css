@@ -4001,3 +4001,11 @@ body:has(.sw-panel.in) .sw-fring{animation:none;opacity:0}
 .sup-lock{display:flex;align-items:center;gap:10px;margin:0 12px;padding:10px 12px;border-radius:10px;background:rgba(245,199,107,.07);border:1px solid rgba(245,199,107,.25);font-size:12.5px;color:var(--ax-mut)}
 .sup-lock svg{width:16px;height:16px;color:#f5c76b;flex:none}.sup-lock b{color:#fff}
 .sup-form.off{opacity:.4;pointer-events:none}
+/* поддержка: мои цифры во вкладке, общие — на дашборде */
+.sup-me{display:flex;align-items:center;gap:28px;flex-wrap:wrap;margin-bottom:12px;padding:14px 18px;border-radius:12px;background:var(--ax-card);border:1px solid var(--ax-line)}
+.sup-me-t{font:700 14px var(--ff-b,inherit);color:#fff;margin-right:auto}.sup-me-t small{display:block;font-size:11.5px;color:var(--ax-mut);font-weight:500}
+.sup-me div b{display:block;font:800 22px var(--ff-h);color:#fff}.sup-me div b.pos{color:#4ade80}.sup-me div b.neg{color:#f87171}.sup-me div b.gold{color:#f5c76b}
+.sup-me div small{font-size:11.5px;color:var(--ax-mut)}
+#axSupDash{margin-top:12px}
+#axSupDash .sup-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media (max-width:1180px){#axSupDash .sup-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}

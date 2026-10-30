@@ -4646,7 +4646,7 @@ function supAdmInit() {
         try { const n = new Notification('RUSH CASE — поддержка', { body: m.text.slice(0, 140), tag: 'sup-' + m.thread }); n.onclick = () => { window.focus(); admTab = 'support'; location.hash = '#/admin'; if ($('#admBody')) admDraw(); }; } catch (e) { /* */ }
       }
     }
-    if ($('#supList')) { await supAdmList(); if (m.kind || !m.from_admin) supAdmStats(); if (supAdm.cur === m.thread && m.kind) supAdmOpen(m.thread); }
+    if ($('#supList')) { await supAdmList(); if (m.kind || !m.from_admin) supMyStats(); if (supAdm.cur === m.thread && m.kind) supAdmOpen(m.thread); }
     if (here) { supAdmAppend([m]); if (!m.from_admin && !document.hidden) await sb.rpc('admin_support_seen', { p_thread: m.thread }); }
     supAdmCount();
   }).subscribe();
@@ -4656,17 +4656,32 @@ async function admSupport(box) {
   box.innerHTML = `<div class="sup-top" id="supTop"></div><div id="supStats"></div>
     <div class="sup"><aside class="sup-list" id="supList"><div class="ax-load"><span class="spinner"></span>Загружаем диалоги…</div></aside>
     <section class="sup-chat" id="supChat"><div class="sup-empty">${ic.chat}<b>Выберите диалог</b><span>Сообщения с сайта и из Telegram-бота приходят сюда сразу.</span></div></section></div>`;
-  supAdmTop(); supAdmList(); supAdmStats();
+  supAdmTop(); supAdmList(); supMyStats();
+}
+// мои обращения за период админки: закрыл, оценили, средняя оценка, сейчас в работе
+async function supMyStats() {
+  const el = $('#supStats'); if (!el) return;
+  const [f, t] = admRangeDates();
+  const [{ data: C, error }, { data: O }] = await Promise.all([
+    sb.from('support_tickets').select('rating').eq('closed_by', st.user.id).gte('closed_at', f.toISOString()).lt('closed_at', t.toISOString()).limit(5000),
+    sb.from('support_tickets').select('id').eq('owner', st.user.id).is('closed_at', null)]);
+  if (!el.isConnected) return;
+  if (error) return (el.innerHTML = '');
+  const r = (C || []).filter(x => x.rating), avg = r.length ? r.reduce((a, x) => a + x.rating, 0) / r.length : 0;
+  el.innerHTML = `<div class="sup-me"><span class="sup-me-t">Мои обращения <small>за выбранный период</small></span>
+    <div><b>${fmt((C || []).length)}</b><small>закрыто</small></div>
+    <div><b class="${!avg ? '' : avg >= 4.5 ? 'pos' : avg < 4 ? 'neg' : 'gold'}">${avg ? avg.toFixed(2).replace('.', ',').replace(/,?0+$/, '') + ' ★' : '—'}</b><small>средняя оценка · оценили ${fmt(r.length)}</small></div>
+    <div><b>${fmt((O || []).length)}</b><small>сейчас в работе у вас</small></div></div>`;
 }
 // обращения за период админки: пришло, закрыто, открыто сейчас, оценки, по админам, низкие оценки
-async function supAdmStats() {
-  const el = $('#supStats'); if (!el) return;
+async function supAdmStats(el = $('#axSupDash')) {
+  if (!el) return;
   const [f, t] = admRangeDates();
   const { data: S, error } = await sb.rpc('admin_support_stats', { p_from: f.toISOString(), p_to: t.toISOString() });
   if (!el.isConnected) return;
   if (error) return (el.innerHTML = '<p class="ax-foot">Выполните supabase/support_tickets.sql — появятся обращения и оценки.</p>');
   const st5 = S.stars || {}, rated = +S.rated || 0;
-  el.innerHTML = `<div class="ax-kpis">
+  el.innerHTML = `<h2 class="ax-h2">Поддержка</h2><div class="ax-kpis sup-kpis">
       ${axKpi('Обращений за период', fmt(+S.opened))}${axKpi('Закрыто за период', fmt(+S.closed))}${axKpi('Открыто сейчас', fmt(+S.open_now), '', +S.open_now ? 'neg' : 'pos')}
       ${axKpi('Средняя оценка', S.avg ? `${String(S.avg).replace('.', ',')} ★` : '—', `оценили ${fmt(rated)}`, S.avg >= 4.5 ? 'pos' : S.avg && S.avg < 4 ? 'neg' : '')}
       <div class="ax-kpi sup-adm"><span class="ax-l">Оценка админов</span>${(S.admins || []).filter(r => r.name !== '—').length ? (S.admins || []).filter(r => r.name !== '—').map(r => `<div class="sup-adm-r"><b>${esc(r.name)}</b><i class="${!r.avg ? '' : r.avg >= 4.5 ? 'pos' : r.avg < 4 ? 'neg' : ''}">${r.avg ? String(r.avg).replace('.', ',') + ' ★' : '—'}</i><small>${fmt(+r.rated)} из ${fmt(+r.closed)}</small></div>`).join('') : '<b class="ax-v">—</b>'}${rated ? `<small class="sup-adm-d">${[5, 4, 3, 2, 1].map(n => `${n}★ ${fmt(+st5[n] || 0)}`).join(' · ')}</small>` : ''}</div>
@@ -4752,7 +4767,7 @@ async function supAdmOpen(id) {
     } else { const { error } = await sb.rpc('admin_support_close', { p_thread: id }); err = error && error.message; }
     if (err) { cb.disabled = false; return toast('Не закрыто: ' + err, 'err'); }
     toast('Обращение закрыто — клиенту отправлена просьба оценить помощь');
-    await supAdmList(); supAdmOpen(id); supAdmStats();
+    await supAdmList(); supAdmOpen(id); supMyStats();
   };
   const inp = $('#supInp');
   inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#supForm').requestSubmit(); } };
@@ -4955,7 +4970,9 @@ function axDash(box, D) {
         .map(([n, v, a, b, sub]) => `<div class="ax-sr"><span>${n}<small>${sub}</small></span><span class="num">${n === 'Ставки' ? (a ? 'ставки ' + money(a) : '—') : a ? 'отдаёт ' + pctS(b / a) : '—'}</span><b class="num ${tone(v)}">${sgn(v)}</b></div>`).join('')}
         <div class="ax-sr ax-sr-t"><span>Итого</span><span></span><b class="num ${tone(s.game)}">${sgn(s.game)}</b></div></div>`)}
       ${axCard('Требует внимания', hot.length ? `<ul class="ax-warn">${hot.slice(0, 8).map(h => `<li>${h}</li>`).join('')}</ul>` : '<div class="ax-empty ok">Всё в порядке</div>')}
-    </div>`;
+    </div>
+    <div id="axSupDash"></div>`;
+  supAdmStats($('#axSupDash', box));
 }
 /* самый убыточный (больше всех отдал сверх потраченного) и самый популярный кейс: за период, если нет открытий — за всё время */
 function axCaseDuo(D) {
