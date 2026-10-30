@@ -7,6 +7,9 @@
 //   POST ?action=reply    (админ)    {thread, text} — ответ из админки уходит в Telegram от имени бота
 //   (отвечать и закрывать может только админ, за которым закреплено обращение — supabase/support_owner.sql)
 //   POST ?action=close    (админ)    {thread} — обращение закрыто: в Telegram — просьба оценить помощь кнопками ⭐1–5
+//   POST ?action=shop_new (админ)    {id} — заявка сотрудника на витрину → в чат владельцев с кнопками ✅ / ❌ (supabase/shop_requests.sql)
+//   POST ?action=shop_upd (админ)    {id} — решение принято на сайте → обновить сообщение в чате владельцев
+//   В группе владельцев: «/link@бот КОД» (код — в админке, вкладка «Сотрудники») привязывает чат.
 //
 // Секрет (Edge Functions → Secrets): TG_BOT_TOKEN — токен бота от @BotFather. После него — кнопка «Подключить бота» в админке.
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -30,6 +33,22 @@ async function adminOf(req: Request) {
   const { data: p } = await db.from('profiles').select('name, is_admin').eq('id', u.user.id).maybeSingle();
   return p?.is_admin ? { id: u.user.id, name: p.name || 'Поддержка' } : null;
 }
+// заявки на витрину: текст сообщения в чате владельцев
+const SR_ST: Record<string, string> = { approved: '✅ Одобрено', rejected: '❌ Отклонено', failed: '⚠️ Одобрено, но не применилось' };
+function srText(r: Record<string, any>, sync = false) {
+  const lines = (Array.isArray(r.lines) ? r.lines : []).slice(0, 40).map((l: string) => '• ' + String(l).slice(0, 300));
+  let t = `📝 Заявка №${r.id} — ${r.title}\nОт: ${r.name || 'сотрудник'}\n\n${lines.join('\n') || '(без описания)'}`;
+  if (r.status && r.status !== 'pending') {
+    const at = r.decided_at ? new Date(r.decided_at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    t += `\n\n${SR_ST[r.status] || r.status}: ${r.decided_name || ''}${at ? ', ' + at : ''}`;
+    if (r.err) t += `\nОшибка: ${r.err}`;
+    if (sync && r.status === 'approved') t += '\n⚠️ Цены и шансы встроенных кейсов попадут на сервер, когда владелец откроет админку на сайте.';
+  }
+  return t.slice(0, 4000);
+}
+const srKeys = (id: number) => ({ inline_keyboard: [[{ text: '✅ Одобрить', callback_data: `sr:${id}:1` }, { text: '❌ Отклонить', callback_data: `sr:${id}:0` }]] });
+const ownerChat = async () => { const { data } = await db.from('bot_cfg').select('v').eq('k', 'owner_chat').maybeSingle(); return data?.v ? Number(data.v) : null; };
+
 const STARS = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
 const ASK = 'Спасибо за честную оценку. Напишите, пожалуйста, коротко — что можно было сделать лучше?';
 const WELCOME = 'Здравствуйте! Это поддержка RUSH CASE 👋\nНапишите вопрос одним сообщением — ответим здесь же. Отвечаем ежедневно, обычно за 15 минут.\nЕсли вопрос по аккаунту — укажите ваш ID на сайте (он в профиле).';
@@ -46,6 +65,17 @@ Deno.serve(async req => {
       const u = await req.json().catch(() => ({}));
       const cq = u.callback_query;
       if (cq) {
+        // заявка на витрину: решает только привязанный чат владельцев (проверяет shop_decide_tg)
+        const sr = /^sr:(\d+):([01])$/.exec(cq.data || '');
+        if (sr && cq.message?.chat?.id) {
+          const who = [cq.from?.first_name, cq.from?.last_name].filter(Boolean).join(' ') || cq.from?.username || 'Telegram';
+          const { data: d, error } = await db.rpc('shop_decide_tg', { p_id: +sr[1], p_ok: sr[2] === '1', p_chat: cq.message.chat.id, p_name: who });
+          if (error) { await tg('answerCallbackQuery', { callback_query_id: cq.id, text: /not owners chat/.test(error.message) ? 'Решать можно только в чате владельцев' : 'Ошибка: ' + error.message, show_alert: true }); return json({ ok: true }); }
+          const { data: r } = await db.from('shop_requests').select('*').eq('id', +sr[1]).maybeSingle();
+          await tg('answerCallbackQuery', { callback_query_id: cq.id, text: d?.ok ? (SR_ST[d.status] || 'Готово') : `Уже решено: ${d?.by || ''}` });
+          if (r) await tg('editMessageText', { chat_id: cq.message.chat.id, message_id: cq.message.message_id, text: srText(r, !!d?.sync) });
+          return json({ ok: true });
+        }
         const mt = /^rate:(\d+):([1-5])$/.exec(cq.data || ''), chat = cq.message?.chat?.id;
         if (mt && chat) {
           const { data: k } = await db.from('support_tickets').select('id, thread, support_threads!inner(tg_chat)').eq('id', +mt[1]).maybeSingle();
@@ -63,6 +93,13 @@ Deno.serve(async req => {
         return json({ ok: true });
       }
       const m = u.message;
+      // привязка чата владельцев: «/link@бот КОД» (в личке — «/link КОД»)
+      const lk = /^\/link(?:@\w+)?\s+([A-Za-z0-9]{4,12})\s*$/.exec(m?.text || '');
+      if (lk && m.chat) {
+        const { data: ok } = await db.rpc('bot_link_chat', { p_code: lk[1], p_chat: m.chat.id, p_title: m.chat.title || [m.from?.first_name, m.from?.last_name].filter(Boolean).join(' ') });
+        await tg('sendMessage', { chat_id: m.chat.id, text: ok ? 'Чат владельцев привязан ✅ Сюда будут приходить заявки сотрудников на изменение витрины.' : 'Код неверный или устарел — возьмите новый в админке (вкладка «Сотрудники»).' });
+        return json({ ok: true });
+      }
       if (!m || !m.chat || m.chat.type !== 'private') return json({ ok: true });
       const chat = m.chat.id, from = m.from || {};
       const name = [from.first_name, from.last_name].filter(Boolean).join(' ') || 'Без имени', user = from.username || null;
@@ -119,6 +156,22 @@ Deno.serve(async req => {
         await tg('sendMessage', { chat_id: th.tg_chat, text: 'Обращение закрыто ✅\nПожалуйста, оцените качество помощи:', reply_markup: { inline_keyboard: [[1, 2, 3, 4, 5].map(n => ({ text: n + ' ⭐', callback_data: `rate:${t}:${n}` }))] } });
       }
       return json({ ok: true, ticket: r.ticket });
+    }
+    if (action === 'shop_new' || action === 'shop_upd') {
+      const b = await req.json().catch(() => ({}));
+      const { data: r } = await db.from('shop_requests').select('*').eq('id', +b.id).maybeSingle();
+      if (!r) return json({ error: 'not found' }, 404);
+      const chat = await ownerChat();
+      if (!chat) return json({ ok: true, tg: false });
+      if (action === 'shop_new') {
+        if (r.uid !== admin.id || r.tg_msg || r.status !== 'pending') return json({ ok: true, tg: false });
+        const s = await tg('sendMessage', { chat_id: chat, text: srText(r), reply_markup: srKeys(r.id) });
+        if (!s.ok) return json({ error: s.description || 'telegram error' }, 502);
+        await db.from('shop_requests').update({ tg_msg: s.result.message_id }).eq('id', r.id);
+        return json({ ok: true, tg: true });
+      }
+      if (r.tg_msg && r.status !== 'pending') await tg('editMessageText', { chat_id: chat, message_id: r.tg_msg, text: srText(r, !!b.sync) });
+      return json({ ok: true });
     }
     return json({ error: 'bad action' }, 400);
   } catch (e) {

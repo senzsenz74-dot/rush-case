@@ -5396,9 +5396,21 @@ async function axBooks(box, D) {
   });
 }
 /* ---------- сотрудники (только владелец): кому какие вкладки, график смен (для отчётов) ---------- */
-const STAFF_PERMS = [['support', 'Поддержка'], ['out', 'Выводы Steam'], ['online', 'Онлайн'], ['players', 'Игроки (поиск, без начислений)']];
+const STAFF_PERMS = [['support', 'Поддержка'], ['out', 'Выводы Steam'], ['online', 'Онлайн'], ['players', 'Игроки (поиск, без начислений)'], ['shop', 'Управление витриной (через подтверждение)']];
 const WDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const STAFF_ERR = { 'player not found': 'Игрок с таким ID не найден', 'is owner': 'Это владелец — у него и так все права', forbidden: 'Только владелец может менять сотрудников' };
+// чат владельцев: сюда бот присылает заявки сотрудников на витрину (кнопки ✅ / ❌); привязка — кодом из админки
+async function sfTg(el, code) {
+  if (!el) return;
+  const [{ data, error }] = await Promise.all([sb.rpc('admin_owner_chat', { p_new_code: !!code }), supBotLoad()]);
+  if (!el.isConnected) return;
+  if (error) return (el.innerHTML = '<p class="ax-foot">Выполните supabase/shop_requests.sql в Supabase.</p>');
+  const bot = supBot ? '@' + supBot : 'бота поддержки';
+  el.innerHTML = `${data.chat ? `<p>Привязан чат <b>${esc(data.title || data.chat)}</b>${data.linked_at ? ` <small class="ax-mute">с ${new Date(data.linked_at).toLocaleDateString('ru-RU')}</small>` : ''} — сюда приходят заявки сотрудников на витрину.</p>` : '<p class="neg">Чат не привязан — заявки видны только здесь, в «Управлении витриной».</p>'}
+    ${data.code ? `<ol class="sf-tg-steps"><li>Создайте группу в Telegram со вторым владельцем.</li><li>Добавьте в неё ${esc(bot)}.</li><li>Отправьте в группе сообщение (код действует 30 минут):<br><button class="ax-btn ax-sm" data-act="copy" data-copy="/link@${esc(supBot || 'бот')} ${data.code}"><b>/link@${esc(supBot || 'бот')} ${data.code}</b> — копировать</button></li><li>Бот ответит «Чат владельцев привязан ✅». Потом обновите эту страницу.</li></ol>`
+      : `<button class="ax-btn" id="sfTgCode">${data.chat ? 'Привязать другой чат' : 'Привязать чат'}</button>`}`;
+  const b = $('#sfTgCode', el); if (b) b.onclick = () => sfTg(el, true);
+}
 async function admStaff(box) {
   box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем сотрудников…</div>';
   const { data, error } = await sb.rpc('admin_staff_list');
@@ -5417,7 +5429,9 @@ async function admStaff(box) {
       <p class="ax-foot">Игрок получит доступ в админку без разделов — отметьте галочками, что ему можно, задайте график и нажмите «Сохранить». Права действуют сразу; сотруднику достаточно обновить страницу.</p>`)}
     ${axCard(`Сотрудники <small class="ax-mute">${staff.length}</small>`, staff.length ? `<div class="sf-list">${staff.map(row).join('')}</div>` : '<p class="ax-mute">Сотрудников пока нет.</p>')}
     ${axCard('Владельцы', `<div class="sf-own">${owners.map(who).join('')}</div>
-      <p class="ax-foot">Сотрудник не видит и не может менять: шансы и удачу кейсов, удачу игроков, начисления, кассу и деньги на дашборде, промокоды, настройки маркета, витрину, турниры и этот раздел. Выводы — только заявки «ждут решения» (дороже порога автовывода). График смен нужен для отчётов.</p>`)}`;
+      <p class="ax-foot">Сотрудник не видит и не может менять: удачу кейсов и игроков, начисления, кассу, бухгалтерию и деньги на дашборде, промокоды, настройки маркета, турниры и этот раздел. Витрина — только заявками, которые одобряет владелец (в Telegram или в «Управлении витриной»). Выводы — только заявки «ждут решения» (дороже порога автовывода). График смен нужен для отчётов.</p>`)}
+    ${axCard('Telegram — чат владельцев', '<div id="sfTg"><span class="ax-mute">Загружаем…</span></div>')}`;
+  sfTg($('#sfTg', box));
   const err = e => STAFF_ERR[e.message] || 'Ошибка: ' + e.message;
   $('#sfAdd', box).onclick = async () => {
     const pid = +$('#sfPid', box).value;
@@ -5496,7 +5510,7 @@ function admDraw() {
   if (!sb) return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
   const R = { dash: axDash, money: axMoney, books: axBooks, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, out: axOut, players: axPlayers };
   if (!admTabs().some(([k]) => k === admTab)) return;
-  if (!admOwner()) return admTab === 'online' ? admStaffOnline(box) : admTab === 'out' ? axOut(box, null) : admTab === 'players' ? admPlayers(box) : admSupport(box);
+  if (!admOwner()) return admTab === 'online' ? admStaffOnline(box) : admTab === 'out' ? axOut(box, null) : admTab === 'players' ? admPlayers(box) : admTab === 'shop' ? admCases(box) : admSupport(box);
   if (admTab === 'staff') return admStaff(box);
   if (admTab === 'tours') return admTours(box);
   if (admTab === 'shop') return admCases(box);
@@ -5596,8 +5610,61 @@ async function cfgSave(rows) {
 }
 const cfgErr = e => toast('Не сохранено: ' + e.message + (/site_cfg/.test(e.message) ? ' — запустите supabase/site_cfg.sql' : ''), 'err');
 /* правка кейса → caseCfg + применить на месте + загрузить кейсы на сервер */
+/* ---------- витрина для сотрудника: правка не пишется сразу, а уходит заявкой владельцу (чат владельцев в Telegram + админка) — supabase/shop_requests.sql ---------- */
+const supBotCall = async (action, body) => {
+  const { data: ses } = await sb.auth.getSession();
+  return fetch(`${SB_URL}/functions/v1/support-bot?action=${action}`, { method: 'POST', headers: { apikey: SB_KEY, authorization: 'Bearer ' + (ses.session ? ses.session.access_token : ''), 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(x => x.json()).catch(() => ({ error: 'нет связи' }));
+};
+async function shopAsk(lines, ops) {
+  const { data: id, error } = await sb.rpc('shop_request', { p_title: 'Витрина', p_lines: lines, p_ops: ops });
+  if (error) { toast('Не отправлено: ' + error.message + (/shop_request/.test(error.message) ? ' — запустите supabase/shop_requests.sql' : ''), 'err'); return false; }
+  supBotCall('shop_new', { id });
+  toast(`Заявка №${id} отправлена владельцу — изменения появятся на сайте после одобрения`);
+  return true;
+}
+const CFG_LBL = { name: 'название', sub: 'подпись', price: 'цена', a: 'цвет', img: 'картинка', block: 'раздел', isNew: '«Новое»', hit: '«Хит»', ord: 'порядок', items: 'предметы и шансы' };
+const shopVal = (k, v) => v == null ? '—' : k === 'price' ? money(+v) : k === 'block' ? ((CASE_BLOCKS.find(b => b.id === v) || {}).t || v) : typeof v === 'boolean' ? (v ? 'вкл' : 'выкл') : k === 'ord' ? '№' + (+v + 1) : String(v).slice(0, 60);
+// что меняется в кейсе — одной строкой: «Кейс «Сифон»: цена 100 ₽ → 150 ₽, «Хит» выкл → вкл»
+function shopCaseLine(id, nv) {
+  const c = caseById(id), nm = `Кейс «${(c && c.name) || id}»`;
+  if (!nv || !Object.keys(nv).length) return `${nm}: вернуть к исходному виду`;
+  const old = caseCfg[id] || {}, cur = c ? { name: c.name, sub: c.sub || '', price: c.price, block: caseBlockId(c), isNew: isNewCase(c), hit: isHitCase(c), ord: caseOrd(c) } : {};
+  const ch = Object.keys(CFG_LBL).filter(k => JSON.stringify(old[k]) !== JSON.stringify(nv[k])).map(k =>
+    k === 'items' ? `предметы и шансы (${(nv.items || []).length} шт.)` : k === 'img' ? 'новая картинка' : k === 'a' ? 'цвет' : `${CFG_LBL[k]} ${shopVal(k, cur[k])} → ${nv[k] == null ? 'как было в коде' : shopVal(k, nv[k])}`);
+  return `${nm}: ${ch.join(', ') || 'без изменений'}`;
+}
+// заявки: владельцу — ждут решения (Одобрить / Отклонить) и последние решённые; сотруднику — его заявки и статусы
+async function shopReqs(el) {
+  if (!el) return;
+  const own = admOwner();
+  const { data, error } = await sb.from('shop_requests').select('*').order('id', { ascending: false }).limit(own ? 40 : 20);
+  if (!el.isConnected || error) return; // до запуска shop_requests.sql — без блока
+  const L = data || [], pend = L.filter(r => r.status === 'pending');
+  if (!L.length) return (el.innerHTML = own ? '' : '<p class="ax-foot">Ваши правки витрины уходят владельцу на подтверждение — статус появится здесь.</p>');
+  const ST = { pending: ['ждёт решения', 'warn'], approved: ['одобрено', 'pos'], rejected: ['отклонено', 'neg'], failed: ['не применилось', 'neg'] };
+  const dt = v => new Date(v).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const row = r => `<div class="sr-row" data-id="${r.id}"><div class="sr-h"><b>№${r.id}</b><span>${esc(r.name || '')} · ${dt(r.created_at)}</span><b class="${(ST[r.status] || [])[1] || ''}">${(ST[r.status] || [r.status])[0]}</b>${r.status !== 'pending' && r.decided_name ? `<small class="ax-mute">${esc(r.decided_name)}${r.decided_at ? ', ' + dt(r.decided_at) : ''}</small>` : ''}</div>
+    <ul>${(r.lines || []).map(l => `<li>${esc(l)}</li>`).join('')}</ul>${r.err ? `<small class="neg">${esc(r.err)}</small>` : ''}
+    ${own && r.status === 'pending' ? '<div class="sr-acts"><button class="ax-btn ax-btn-p ax-sm" data-ok="1">Одобрить</button><button class="ax-btn ax-sm" data-ok="0">Отклонить</button></div>' : ''}</div>`;
+  const list = own ? pend.concat(L.filter(r => r.status !== 'pending').slice(0, 5)) : L;
+  el.innerHTML = `<div class="adm-panel sr"><div class="adm-ph"><h3>${own ? 'Заявки сотрудников' : 'Мои заявки'}${pend.length ? `<i class="sr-n">${pend.length}</i>` : ''}</h3></div>${list.map(row).join('')}</div>`;
+  $$('[data-ok]', el).forEach(b => b.onclick = async () => {
+    const id = +b.closest('.sr-row').dataset.id, ok = b.dataset.ok === '1';
+    if (!ok && !confirm('Отклонить заявку?')) return;
+    b.disabled = true;
+    const { data: d, error: e } = await sb.rpc('admin_shop_decide', { p_id: id, p_ok: ok });
+    if (e) { b.disabled = false; return toast('Ошибка: ' + e.message, 'err'); }
+    supBotCall('shop_upd', { id, sync: d.sync });
+    if (!d.ok) toast('Заявку уже решили: ' + esc(d.by || ''), 'err');
+    else if (d.status === 'failed') toast('Не применилось: ' + esc(d.err || ''), 'err');
+    else toast(ok ? 'Одобрено — обновляем витрину…' : 'Отклонено');
+    // одобрено — перезагрузка: витрина возьмёт новые данные, а админка отправит изменённые кейсы на сервер
+    if (d.ok && d.status === 'approved') setTimeout(() => location.reload(), 900); else shopReqs(el);
+  });
+}
 async function caseCfgPut(changes) { // { id: правка | null }
   const rows = Object.entries(changes).map(([id, v]) => ({ k: 'case:' + id, v }));
+  if (!admOwner()) return shopAsk(Object.entries(changes).map(([id, v]) => shopCaseLine(id, v)), rows.map(r => ({ t: 'cfg', k: r.k, v: r.v && Object.keys(r.v).length ? r.v : null })));
   const e = await cfgSave(rows); if (e) { cfgErr(e); return false; }
   Object.entries(changes).forEach(([id, v]) => { if (v && Object.keys(v).length) caseCfg[id] = v; else delete caseCfg[id]; const c = caseById(id); if (c) { applyCaseCfg(c); applyLuck(c, c.luck || 1); } });
   CASES.sort((a, b) => a.price - b.price);
@@ -5614,20 +5681,22 @@ function admCases(box) {
         <span class="ac-acts"><button class="ac-edit">${ic.edit || '✎'}Изменить</button><button class="ac-tg${nw ? ' on' : ''}" data-tg="isNew">Новое</button><button class="ac-tg ac-hit${ht ? ' on' : ''}" data-tg="hit">Хит</button>${c.custom ? '<button class="ac-del">Удалить</button>' : ''}</span></div>
       <div class="ac-m"><span>Окупаемость</span><b class="ac-rtp">${pctS(caseRtp(c))}</b></div>
       <div class="ac-m"><span>Дороже кейса</span><b class="ac-win">${pctS(caseWin(c))}</b></div>
-      <div class="ac-luck"><span>Удача <b class="ac-lv">×${l.toFixed(2)}</b></span><input type="range" min="0.5" max="3" step="0.05" value="${l}" class="ac-r"></div>
+      <div class="ac-luck"${admOwner() ? '' : ' style="display:none"'}><span>Удача <b class="ac-lv">×${l.toFixed(2)}</b></span><input type="range" min="0.5" max="3" step="0.05" value="${l}" class="ac-r"></div>
       <label class="switch ac-sw"><input type="checkbox" class="ac-open"${c.disabled ? '' : ' checked'}><i></i><span>${c.disabled ? 'Закрыт' : 'Открыт'}</span></label>
       <button class="btn btn-primary btn-sm ac-save" disabled>Сохранить</button>
     </div>`;
   };
   const groups = CASE_BLOCKS.map(b => ({ b, list: blockCases(b) }));
-  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="btn btn-ghost btn-sm" id="acBlocks">${ic.menu || ''}Разделы</button><button class="btn btn-ghost btn-sm" id="acCloseAll">Закрыть все</button><button class="btn btn-ghost btn-sm" id="acOpenAll">Открыть все</button><button class="btn btn-primary btn-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Изменить» — название, цена, картинка, раздел и наполнение любого кейса. Стрелки — порядок внутри раздела. «Новое» и «Хит» — метки на карточке (хиты показываются в популярных на главной). «Удача» умножает шанс всех предметов дороже кейса. Изменения у игроков — после обновления страницы.</p></div>
+  box.innerHTML = `<div id="shopReq"></div>${admOwner() ? "" : `<p class="ax-foot sr-note">Вы — сотрудник: любые правки витрины уходят владельцу на подтверждение (Telegram и админка) и появятся на сайте после одобрения. Удачу кейсов меняет только владелец.</p>`}<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="btn btn-ghost btn-sm" id="acBlocks">${ic.menu || ''}Разделы</button><button class="btn btn-ghost btn-sm" id="acCloseAll">Закрыть все</button><button class="btn btn-ghost btn-sm" id="acOpenAll">Открыть все</button><button class="btn btn-primary btn-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Изменить» — название, цена, картинка, раздел и наполнение любого кейса. Стрелки — порядок внутри раздела. «Новое» и «Хит» — метки на карточке (хиты показываются в популярных на главной). «Удача» умножает шанс всех предметов дороже кейса. Изменения у игроков — после обновления страницы.</p></div>
     ${groups.map(({ b, list }) => `<div class="ac-grp" style="--bc:${b.a}"><div class="ac-gh"><b>${esc(b.t)}</b><span>${list.length} ${plural(list.length, 'кейс', 'кейса', 'кейсов')}</span></div>
       <div class="adm-cases">${list.length ? list.map((c, i) => row(c, i, list.length)).join('') : '<div class="empty">Пусто — перенесите сюда кейс через «Изменить»</div>'}</div></div>`).join('')}</div>`;
+  shopReqs($('#shopReq', box));
   $('#acNew', box).onclick = () => admCaseEditor(null, () => admCases(box));
   $('#acBlocks', box).onclick = () => admBlocks(() => admCases(box));
   // все кейсы разом: удача у каждого остаётся своя
   const setAll = async (off, btn) => {
     if (off && !confirm('Закрыть все кейсы? Игроки не смогут их открывать, пока вы не откроете обратно.')) return;
+    if (!admOwner()) { if (await shopAsk([`${off ? 'Закрыть' : 'Открыть'} все кейсы (${CASES.length})`], CASES.map(c => ({ t: 'open', id: c.id, disabled: off })))) admCases(box); return; }
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     const now = new Date().toISOString();
     const { error } = await sb.from('case_settings').upsert(CASES.map(c => ({ id: c.id, disabled: off, luck: c.luck || 1, updated_at: now, updated_by: st.user.id })));
@@ -5643,12 +5712,13 @@ function admCases(box) {
     // метки «Новое» / «Хит» — сразу
     $$('.ac-tg', el).forEach(b => b.onclick = async () => {
       const k = b.dataset.tg, on = !b.classList.contains('on'); b.disabled = true;
+      if (k === 'isNew' && c.custom && !admOwner()) { if (!(await shopAsk([`Кейс «${c.name}»: «Новое» ${on ? 'вкл' : 'выкл'}`], [{ t: 'new', id: c.id, on }]))) b.disabled = false; else admCases(box); return; }
       if (k === 'isNew' && c.custom) {
         const { error } = await sb.from('custom_cases').update({ is_new: on }).eq('id', c.id);
         if (error) { b.disabled = false; return toast('Не сохранено: ' + error.message, 'err'); }
         const rw = customCaseRows.find(x => x.id === c.id); if (rw) rw.is_new = on; c.isNew = on;
       } else if (!(await caseCfgPut({ [c.id]: { ...(caseCfg[c.id] || {}), [k]: on } }))) { b.disabled = false; return; }
-      toast(`«${esc(c.name)}»: ${k === 'hit' ? 'Хит' : 'Новое'} ${on ? 'включено' : 'выключено'}`); admCases(box);
+      if (admOwner()) toast(`«${esc(c.name)}»: ${k === 'hit' ? 'Хит' : 'Новое'} ${on ? 'включено' : 'выключено'}`); admCases(box);
     });
     // порядок внутри раздела: всем кейсам раздела проставляем номера и меняем местами соседей
     const move = async d => {
@@ -5661,6 +5731,7 @@ function admCases(box) {
     $('.ac-up', el).onclick = () => move(-1); $('.ac-dn', el).onclick = () => move(1);
     const dl = $('.ac-del', el); if (dl) dl.onclick = async () => {
       if (!confirm(`Удалить кейс «${c.name}»? Игроки больше не смогут его открыть (уже выпавшие скины останутся).`)) return;
+      if (!admOwner()) { if (await shopAsk([`Удалить кейс «${c.name}»`], [{ t: 'case_del', id: c.id }])) admCases(box); return; }
       const { error } = await sb.from('custom_cases').delete().eq('id', c.id);
       if (error) return toast('Не удалено: ' + error.message, 'err');
       removeCustomCase(c.id); customCaseRows = customCaseRows.filter(x => x.id !== c.id); toast(`Кейс «${esc(c.name)}» удалён`); admCases(box);
@@ -5675,6 +5746,7 @@ function admCases(box) {
     };
     r.oninput = preview; sw.onchange = preview;
     save.onclick = async () => {
+      if (!admOwner()) { save.disabled = true; if (await shopAsk([`Кейс «${c.name}»: ${sw.checked ? 'открыть' : 'закрыть'}`], [{ t: 'open', id: c.id, disabled: !sw.checked }])) admCases(box); else save.disabled = false; return; }
       save.disabled = true; save.innerHTML = '<span class="spinner"></span>';
       const { error } = await sb.from('case_settings').upsert({ id: c.id, disabled: !sw.checked, luck: +r.value, updated_at: new Date().toISOString(), updated_by: st.user.id });
       save.textContent = 'Сохранить';
@@ -5714,6 +5786,11 @@ function admBlocks(done) {
     if (B.some(b => !b.t.trim())) return toast('У каждого раздела должно быть название', 'err');
     const btn = $('#ablSave', m); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     const v = B.map(b => ({ ...b, t: b.t.trim(), sub: b.sub.trim(), wm: b.wm.trim() || b.t.trim().slice(0, 8).toUpperCase() }));
+    if (!admOwner()) {
+      const was = CASE_BLOCKS.map(b => b.t).join(', '), now = v.map(b => b.t).join(', ');
+      if (await shopAsk([`Разделы витрины: ${was === now ? 'подписи, значки, цвета' : was + ' → ' + now}`], [{ t: 'cfg', k: 'blocks', v }])) { closeModal(); done && done(); } else { btn.disabled = false; btn.textContent = 'Сохранить'; }
+      return;
+    }
     const e = await cfgSave([{ k: 'blocks', v }]);
     if (e) { btn.disabled = false; btn.textContent = 'Сохранить'; return cfgErr(e); }
     CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...v.map(b => ({ ...b, ids: [] })));
@@ -5813,7 +5890,7 @@ function admCaseEditor(row, done, base) {
   v('cedCancel').onclick = closeModal;
   const rs = v('cedReset'); if (rs) rs.onclick = async () => {
     if (!confirm(`Вернуть кейс «${base.name}» к исходному виду из кода? Пропадут все правки: название, цена, картинка, раздел, метки, порядок, наполнение.`)) return;
-    rs.disabled = true; if (await caseCfgPut({ [base.id]: null })) { closeModal(); toast(`«${esc(base.name)}» — как было`); done && done(); } else rs.disabled = false;
+    rs.disabled = true; if (await caseCfgPut({ [base.id]: null })) { closeModal(); if (admOwner()) toast(`«${esc(base.name)}» — как было`); done && done(); } else rs.disabled = false;
   };
   v('cedSave').onclick = async () => {
     const id = v('cedId').value.trim().toLowerCase(), name = v('cedName').value.trim(), p = price(), tot = E.items.reduce((a, x) => a + x.ch, 0);
@@ -5836,10 +5913,19 @@ function admCaseEditor(row, done, base) {
       if (blk !== caseBlockId(base)) delete o.ord; // в новом разделе — в конец по умолчанию
       if (itemsDirty) o.items = E.items.map(x => ({ n: x.n, ch: Math.round(x.ch / tot * 1e8) / 1e8 }));
       if (!(await caseCfgPut({ [id]: o }))) return fail();
-      closeModal(); toast(`Кейс «${esc(name)}» обновлён — у игроков после обновления страницы`); done && done(); return;
+      closeModal(); if (admOwner()) toast(`Кейс «${esc(name)}» обновлён — у игроков после обновления страницы`); done && done(); return;
     }
     const rec = { id, name, price: p, img: E.img, accent: acc, block: blk, is_new: isNew, sub: sub || null,
       items: E.items.map(x => ({ n: x.n, ch: Math.round(x.ch / tot * 1e8) / 1e8 })), updated_at: new Date().toISOString() };
+    if (!admOwner()) { // сотрудник: кейс из панели — заявкой владельцу
+      const old = customCaseRows.find(x => x.id === id), ops = [{ t: 'case', row: rec }];
+      if (hit !== (old ? isHitCase(caseById(id) || {}) : false)) ops.push({ t: 'cfg', k: 'case:' + id, v: { ...(caseCfg[id] || {}), hit } });
+      const L = { name: 'название', price: 'цена', img: 'картинка', accent: 'цвет', block: 'раздел', is_new: '«Новое»', sub: 'подпись', items: 'предметы и шансы' };
+      const lines = [old ? `Кейс «${name}»: ${Object.keys(L).filter(k => JSON.stringify(old[k] == null ? null : k === 'price' ? +old[k] : old[k]) !== JSON.stringify(rec[k] == null ? null : rec[k])).map(k => k === 'price' ? `цена ${money(+old.price)} → ${money(p)}` : L[k]).join(', ') || 'без изменений'}${ops.length > 1 ? `, «Хит» ${hit ? 'вкл' : 'выкл'}` : ''}`
+        : `Новый кейс «${name}» (${id}): ${money(p)}, ${rec.items.length} предм., раздел «${shopVal('block', blk)}»`];
+      if (!(await shopAsk(lines, ops))) return fail();
+      closeModal(); done && done(); return;
+    }
     const { error } = await sb.from('custom_cases').upsert(rec);
     if (error) { fail(); return toast('Не сохранено: ' + error.message, 'err'); }
     customCaseRows = customCaseRows.filter(x => x.id !== id).concat(rec);

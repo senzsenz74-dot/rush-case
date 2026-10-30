@@ -4102,3 +4102,12 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
 .fin-form{margin-bottom:14px}.fin-form .fin-note{flex:1;min-width:180px}.fin-form .fin-note .ax-inp{width:100%}
 .fin-form select.ax-inp{width:200px}
 @media (max-width:600px){.fin-form label,.fin-form select.ax-inp,.fin-form .ax-inp{width:100%}}
+/* админка: заявки сотрудников на витрину */
+.sr{margin-bottom:16px}.sr .adm-ph h3{display:flex;align-items:center;gap:8px}
+.sr-n{font-style:normal;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#ef4444;color:#fff;font:800 11px/20px var(--ff-b,inherit);text-align:center}
+.sr-row{padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--ax-line,rgba(255,255,255,.08));margin-top:10px}
+.sr-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;font-size:13px}.sr-h span{color:var(--ax-mut,#9ca3af)}
+.sr-row ul{margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.55}
+.sr-acts{display:flex;gap:8px;margin-top:10px}
+.sr-note{margin:0 0 12px}
+.sf-tg-steps{margin:8px 0 0;padding-left:20px;line-height:1.8;font-size:13px}.sf-tg-steps .ax-btn{margin-top:4px}

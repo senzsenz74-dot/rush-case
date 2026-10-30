@@ -24,7 +24,7 @@ end $$;
 create table if not exists public.staff (
   uid uuid primary key references public.profiles(id) on delete cascade,
   role text not null default 'staff' check (role in ('owner', 'staff')),
-  perms text[] not null default '{}',          -- вкладки сотрудника: support, out, online, players
+  perms text[] not null default '{}',          -- вкладки сотрудника: support, out, online, players, shop (витрина — через заявки, shop_requests.sql)
   schedule jsonb not null default '{}',        -- график смен (для отчётов): {"days":[1..7], "from":"10:00", "to":"22:00"}
   note text,
   created_at timestamptz not null default now(),
@@ -136,7 +136,7 @@ end $$;
 
 create or replace function public.admin_staff_save(p_pid bigint, p_perms text[], p_schedule jsonb default '{}', p_note text default null) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare u uuid; nm text; ok text[] := array['support', 'out', 'online', 'players'];
+declare u uuid; nm text; ok text[] := array['support', 'out', 'online', 'players', 'shop'];
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
   select id, name into u, nm from public.profiles where pid = p_pid;
