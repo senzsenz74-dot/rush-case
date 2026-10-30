@@ -1482,12 +1482,11 @@ function renderUser() {
     $('#sndBtn').onclick = toggleSound;
     shownBal = null; return;
   }
-  ua.innerHTML = `<div class="wal">
-      <a class="wal-it rc" href="#/profile" title="R-COIN — бонусы за открытия кейсов. 1 R = 1 ₽"><img class="rc-ic" src="assets/rcoin.webp" alt="" aria-hidden="true"><span class="wal-tx"><small>R-COIN</small><b id="rcoin">${rc(st.rcoin || 0)}</b></span></a>
-      <i class="wal-sep" aria-hidden="true"></i>
-      <div class="wal-it bal" data-act="deposit" title="Пополнить баланс"><span class="bal-ic">${ic.coin}</span><span class="wal-tx"><small>Баланс</small><b id="balance">${money(st.balance)}</b></span></div>
-      <button class="wal-plus" data-act="deposit" title="Пополнить баланс" aria-label="Пополнить баланс">${ic.plus}</button>
-    </div>
+  // шапка: единый блок — баланс, бонусы R-COIN (значок и число), «+» и аватарка с меню
+  ua.innerHTML = `<div class="wal wal-c">
+      <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><small>Баланс</small><b id="balance">${money(st.balance)}</b></div>
+      <a class="rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><img class="rc-ic" src="assets/rcoin.webp" alt="Бонусы"><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
+      <button class="wal-dep" data-act="deposit" title="Пополнить баланс" aria-label="Пополнить баланс">${ic.plus}</button>
     <div class="ubox">
       <button class="ubtn" id="ubtn" aria-haspopup="true" aria-label="Меню профиля">${ava(st.user)}${ic.chev}</button>
       <div class="umenu hidden" id="umenu">
@@ -1498,6 +1497,7 @@ function renderUser() {
         <button id="umSound">${st.sound ? ic.sound : ic.mute}Звук: ${st.sound ? 'вкл' : 'выкл'}</button>
         <button data-act="logout">${ic.logout}Выйти</button>
       </div>
+    </div>
     </div>`;
   $('#ubtn').onclick = e => { e.stopPropagation(); $('#umenu').classList.toggle('hidden'); };
   $('#umSound').onclick = toggleSound;
