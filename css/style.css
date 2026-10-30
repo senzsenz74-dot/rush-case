@@ -2956,8 +2956,8 @@ html{overflow-x:clip}
 @media (max-width:760px){.hbm{grid-template-columns:1fr}.hbm-c{flex-direction:row;align-items:center}}
 .hbm-t .hb2-dot{font-size:0;letter-spacing:0}
 .hbm-t .hb2-dot:not(:empty)::before{margin-right:0}
-/* баннер — заметная обводка, чтобы не сливался с фоном */
-.tr .h3-frame{border:1.5px solid rgba(245,199,107,.45);box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 24px -4px rgba(245,199,107,.35),0 24px 50px -24px rgba(0,0,0,.95)}
+/* баннер — заметная обводка, чтобы не сливался с фоном (без свечения) */
+.tr .h3-frame{border:1.5px solid rgba(245,199,107,.45);box-shadow:0 0 0 1px rgba(0,0,0,.6),0 24px 50px -24px rgba(0,0,0,.95)}
 /* баннер держит свои пропорции (картинка не обрезается, кнопки на месте); колонка бонусов подстраивается под его высоту */
 @media (min-width:1181px){.tr{align-items:start}.tr-side{position:relative;align-self:stretch}.tr-side .hbm{position:absolute;inset:0}.tr .h3-frame,.tr .hs-track{height:auto}.tr .hs-track{aspect-ratio:2000/667}}
 .tr .h3-btns{left:9.2%;bottom:7%;gap:12px}
