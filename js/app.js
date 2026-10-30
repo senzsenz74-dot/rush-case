@@ -4973,7 +4973,7 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['shop', 'Управление витриной'], ['tours', 'Турниры']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -5255,6 +5255,54 @@ async function axOut(box, D) {
     toast(act === 'approve' ? 'Заявка отправлена на покупку' : act === 'back' ? 'Предмет возвращён игроку' : 'Отмечено как выведенное'); axOut(box, D);
   });
 }
+/* ---------- промокоды: создать (общий или персональный), % к пополнению или ₽ на баланс, срок, лимит активаций, вкл/выкл ---------- */
+async function admPromo(box) {
+  box.innerHTML = `<section class="ax-card"><header class="ax-ch"><h3>Новый промокод</h3><span class="ax-mute">тот же код — изменить существующий</span></header>
+    <div class="pr-form">
+      <label>Промокод<input class="ax-inp" id="prCode" placeholder="HELLO25" maxlength="24" style="text-transform:uppercase"></label>
+      <label>Тип<select class="ax-inp" id="prT"><option value="dep">% к пополнению</option><option value="bal">₽ на баланс</option></select></label>
+      <label>Размер<input class="ax-inp" id="prV" type="number" min="1" step="1" placeholder="25"></label>
+      <label>Действует до<input class="ax-inp" id="prExp" type="datetime-local"></label>
+      <label>Сколько человек<input class="ax-inp" id="prMax" type="number" min="1" step="1" placeholder="без лимита"></label>
+      <label>Только для игрока (ID)<input class="ax-inp" id="prPid" placeholder="для всех"></label>
+      <label class="pr-note">Заметка<input class="ax-inp" id="prNote" placeholder="для кого / откуда"></label>
+      <button class="ax-btn pr-save" id="prSave">${ic.plus}Создать</button>
+    </div></section><div id="prList"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div>`;
+  const v = id => $('#' + id, box).value.trim();
+  $('#prSave', box).onclick = async () => {
+    const exp = v('prExp');
+    const { error } = await sb.rpc('admin_promo_save', { p: { code: v('prCode'), t: v('prT'), v: v('prV'), expires_at: exp ? new Date(exp).toISOString() : '', max_uses: v('prMax'), pid: v('prPid'), note: v('prNote'), active: true } });
+    if (error) return toast({ 'bad code': 'Код: 3–24 латинских буквы или цифры', 'bad value': 'Проверьте размер (к пополнению — до 200%)', 'player not found': 'Игрок с таким ID не найден' }[Object.keys({ 'bad code': 1, 'bad value': 1, 'player not found': 1 }).find(k => error.message.includes(k))] || 'Ошибка: ' + error.message, 'err');
+    toast(`Промокод <b>${esc(v('prCode').toUpperCase())}</b> сохранён`); admPromoList();
+  };
+  admPromoList();
+}
+async function admPromoList() {
+  const el = $('#prList'); if (!el) return;
+  const { data, error } = await sb.from('promo_codes').select('*').order('created_at', { ascending: false });
+  if (!el.isConnected) return;
+  if (error) return (el.innerHTML = admErr(error) + '<p class="ax-foot">Выполните supabase/promo_admin.sql.</p>');
+  const uids = (data || []).filter(p => p.only_uid).map(p => p.only_uid);
+  const { data: P } = uids.length ? await sb.from('profiles').select('id, pid, name').in('id', uids) : { data: [] };
+  const PM = Object.fromEntries((P || []).map(p => [p.id, p])), now = Date.now();
+  const state = p => !p.active ? ['выключен', 'neg'] : p.expires_at && Date.parse(p.expires_at) <= now ? ['истёк', 'neg'] : p.max_uses && p.used >= p.max_uses ? ['исчерпан', 'neg'] : ['действует', 'pos'];
+  el.innerHTML = axCard('Промокоды', axTable([['Код', r => `<b>${esc(r.code)}</b>${r.note ? `<small class="ax-mute" style="display:block">${esc(r.note)}</small>` : ''}`],
+    ['Бонус', r => r.t === 'dep' ? `+${+r.v}% к пополнению` : `+${money(+r.v)} на баланс`],
+    ['Использовали', r => `${fmt(+r.used || 0)}${r.max_uses ? ' из ' + fmt(+r.max_uses) : ''}`, num],
+    ['До', r => r.expires_at ? new Date(r.expires_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'бессрочно'],
+    ['Кому', r => r.only_uid ? (PM[r.only_uid] ? plink(PM[r.only_uid].pid, esc(PM[r.only_uid].name)) + ` <i class="ax-tag">#${PM[r.only_uid].pid}</i>` : 'один игрок') : 'всем'],
+    ['Статус', r => { const [t, c] = state(r); return `<b class="${c}">${t}</b>`; }],
+    ['', r => `<span class="ax-acts"><button class="ax-btn ax-sm" data-pe="${esc(r.code)}">Изменить</button><button class="ax-btn ax-sm" data-pa="${esc(r.code)}" data-on="${r.active ? 0 : 1}">${r.active ? 'Выключить' : 'Включить'}</button></span>`]], data || []));
+  $$('[data-pa]', el).forEach(b => b.onclick = async () => { const { error } = await sb.rpc('admin_promo_toggle', { p_code: b.dataset.pa, p_active: b.dataset.on === '1' }); if (error) return toast('Ошибка: ' + error.message, 'err'); admPromoList(); });
+  $$('[data-pe]', el).forEach(b => b.onclick = () => {
+    const p = (data || []).find(x => x.code === b.dataset.pe); if (!p) return;
+    const set = (id, val) => { $('#' + id).value = val; };
+    set('prCode', p.code); set('prT', p.t); set('prV', +p.v); set('prMax', p.max_uses || ''); set('prNote', p.note || '');
+    set('prPid', p.only_uid && PM[p.only_uid] ? PM[p.only_uid].pid : '');
+    if (p.expires_at) { const d = new Date(p.expires_at); set('prExp', new Date(+d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16)); } else set('prExp', '');
+    $('#prSave').innerHTML = `${ic.check}Сохранить`; $('#prCode').scrollIntoView({ block: 'center' });
+  });
+}
 function admDraw() {
   const box = $('#admBody'); if (!box) return;
   supAdmBadge(); // счётчик новых обращений на вкладке «Поддержка»
@@ -5264,6 +5312,7 @@ function admDraw() {
   if (admTab === 'tours') return admTours(box);
   if (admTab === 'shop') return admCases(box);
   if (admTab === 'support') return admSupport(box);
+  if (admTab === 'promo') return admPromo(box);
   admTabData(box, R[admTab] || axDash);
 }
 /* ---------- выгрузка статистики в Excel (.xlsx, библиотека SheetJS грузится по кнопке) ---------- */

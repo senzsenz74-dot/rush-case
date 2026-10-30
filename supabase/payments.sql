@@ -3,7 +3,7 @@
 -- Поток: сайт → функция payment (create) создаёт счёт в payments и ссылку на оплату у кассы →
 --        касса присылает уведомление на payment (webhook) → функция проверяет подпись → pay_credit зачисляет баланс.
 -- Зачисляет только серверная роль (ключ функции), игрок напрямую не может. Повторное уведомление не зачисляет дважды.
--- Запуск: SQL Editor → вставить → Run. Перед этим — supabase/referral.sql (реферальные начисления).
+-- Запуск: SQL Editor → вставить → Run. Перед этим — supabase/referral.sql и promo_admin.sql.
 -- =====================================================================
 create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
@@ -33,7 +33,7 @@ grant select, insert, update on public.payments to service_role;
 -- зачисление оплаты: вызывает только функция payment (серверная роль) после проверки подписи кассы
 create or replace function public.pay_credit(p_id uuid, p_ext text, p_amount numeric, p_raw jsonb default null) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare pay public.payments; d jsonb; bonus numeric := 0; pr record; total numeric;
+declare pay public.payments; d jsonb; bonus numeric := 0; pr public.promo_codes; total numeric;
 begin
   select * into pay from public.payments where id = p_id for update;
   if pay.id is null then raise exception 'payment not found'; end if;
@@ -46,8 +46,8 @@ begin
   d := public._norm(d);
   bonus := coalesce((d->>'depBonus')::numeric, 0);
   if pay.promo is not null then
-    select * into pr from public.promo_codes where code = upper(pay.promo) and t = 'dep' and (expires_at is null or expires_at > now());
-    if found and not (d->'promos' ? pr.code) then bonus := greatest(bonus, pr.v); d := jsonb_set(d, '{promos}', (d->'promos') || to_jsonb(pr.code)); end if;
+    select * into pr from public.promo_codes where code = upper(pay.promo) and t = 'dep';  -- срок, лимит, персональный — promo_admin.sql
+    if found and public._promo_ok(pr, pay.uid) and not (d->'promos' ? pr.code) then bonus := greatest(bonus, pr.v); d := jsonb_set(d, '{promos}', (d->'promos') || to_jsonb(pr.code)); update public.promo_codes set used = used + 1 where code = pr.code; end if;
   end if;
   bonus := greatest(bonus, public._ref_first_bonus(pay.uid, (d->'stats'->>'dep')::numeric));  -- пришёл по ссылке друга: бонус к первому пополнению
   total := round(pay.amount * (1 + bonus / 100), 2);

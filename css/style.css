@@ -4074,3 +4074,11 @@ body:has(.sw-panel.in) .sw-fring{animation:none;opacity:0}
 .pf-stream.on,.um-stream.on{color:#f5c76b!important;border-color:rgba(245,199,107,.45)!important}
 .pf-stream span{margin-left:2px}
 button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit}
+/* админка: промокоды */
+.pr-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end}
+.pr-form label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ax-mut)}
+.pr-form .ax-inp{width:100%}
+.pr-form .pr-note{grid-column:span 3}
+.pr-save{height:36px;justify-content:center}.pr-save svg{width:15px;height:15px}
+#prList{margin-top:12px}
+@media (max-width:900px){.pr-form{grid-template-columns:1fr 1fr}.pr-form .pr-note{grid-column:span 2}}
