@@ -5048,8 +5048,23 @@ function axDash(box, D) {
         <div class="ax-sr ax-sr-t"><span>Итого</span><span></span><b class="num ${tone(s.game)}">${sgn(s.game)}</b></div></div>`)}
       ${axCard('Требует внимания', hot.length ? `<ul class="ax-warn">${hot.slice(0, 8).map(h => `<li>${h}</li>`).join('')}</ul>` : '<div class="ax-empty ok">Всё в порядке</div>')}
     </div>
-    <div id="axSupDash"></div>`;
+    <div id="axWdDash"></div><div id="axSupDash"></div>`;
+  axWdDash($('#axWdDash', box), D);
   supAdmStats($('#axSupDash', box));
+}
+/* дашборд: выводы за период — переплатили маркету сверх цены сайта и сэкономили, когда купили дешевле */
+async function axWdDash(el, D) {
+  if (!el) return;
+  const { data, error } = await sb.from('withdrawals').select('price, paid, status').in('status', ['done', 'prot']).not('paid', 'is', null)
+    .gte('created_at', D.f.toISOString()).lt('created_at', D.t.toISOString()).limit(5000);
+  if (!el.isConnected || error) return;
+  let over = 0, overN = 0, save = 0, saveN = 0;
+  for (const w of data || []) { const d = wdPaid(w) - +w.price; if (d > .005) { over += d; overN++; } else if (d < -.005) { save -= d; saveN++; } }
+  const net = save - over;
+  el.innerHTML = `<h2 class="ax-h2">Выводы скинов</h2><div class="ax-kpis">
+    ${axKpi('Переплачено маркету', money(over), overN ? `в ${fmt(overN)} из ${fmt((data || []).length)} выводов` : 'за период не было', over ? 'neg' : '')}
+    ${axKpi('Сэкономлено', money(save), saveN ? `купили дешевле цены сайта — ${fmt(saveN)} выв.` : 'за период не было', save ? 'pos' : '')}
+    ${axKpi('Итого', sgn(net), 'сэкономлено − переплачено', tone(net))}</div>`;
 }
 /* самый убыточный (больше всех отдал сверх потраченного) и самый популярный кейс: за период, если нет открытий — за всё время */
 function axCaseDuo(D) {
@@ -5225,6 +5240,13 @@ async function admDayView(t0) {
     ${(top.data || []).length ? axCard('Крупнейшие выигрыши игроков', axTable([['Время', r => new Date(r.ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })], ['Игрок', r => plink(r.pid, esc(r.name || '—'))], ['Где', r => r.kind === 'upg' ? `апгрейд ×${(+r.x).toFixed(1).replace('.', ',')}` : `кейс «${esc((caseById(r.c) || {}).name || r.c || '')}»${+r.x > 1 ? ' ×' + r.x : ''}`], ['Поставил', r => money(+r.amount), num], ['Получил', r => money(+r.won), num], ['Для сайта', r => sgn(-r.net), 'num neg']], top.data)) : ''}`;
 }
 /* ---------- выводы в Steam: заявки через market.csgo (статусы, одобрение, настройки автовывода) + старые выводы ---------- */
+// сколько реально заплачено маркету, ₽ (на случай, если маркет вернул копейки — в 20+ раз больше цены сайта)
+const wdPaid = w => { const p = +w.paid || 0; return p > +w.price * 20 ? p / 100 : p; };
+// переплата маркету: «+4,10 ₽ · 21%» (красным), экономия — зелёным; не купленные — потолок цены
+const wdOver = w => {
+  if (w.paid) { const d = wdPaid(w) - +w.price, pc = +w.price ? Math.abs(d) / +w.price : 0; return Math.abs(d) < .005 ? '0' : `<b class="${d > 0 ? 'neg' : 'pos'}">${d > 0 ? '+' : '−'}${money(Math.abs(d))}</b> <small class="ax-mute">${pctS(pc)}</small>`; }
+  return w.max_price && !['done', 'fail'].includes(w.status) ? `<small class="ax-mute">до ${money(+w.max_price)}</small>` : '—';
+};
 const WD_ADM = { wait: ['ждёт решения', 'warn'], new: ['в очереди', 'warn'], buying: ['покупается', 'warn'], sent: ['ждёт принятия обмена', 'warn'], prot: ['получен, защита обмена', 'pos'], done: ['выведен', 'pos'], fail: ['отменён', 'neg'] };
 // D = null — сотрудник: без денег маркета и настроек, решает только заявки «ждут решения»
 async function axOut(box, D) {
@@ -5244,7 +5266,7 @@ async function axOut(box, D) {
   }
   const inP = W.filter(w => +new Date(w.created_at) >= +f && +new Date(w.created_at) < +t), done = inP.filter(w => w.status === 'done' || w.status === 'prot');
   const openW = W.filter(w => !['done', 'fail'].includes(w.status)), need = W.filter(w => w.status === 'wait');
-  const paid = done.reduce((a, w) => a + (+w.paid || 0), 0), cost = done.reduce((a, w) => a + +w.price, 0);
+  const paid = done.reduce((a, w) => a + wdPaid(w), 0), cost = done.reduce((a, w) => a + +w.price, 0);
   const legacy = !D ? [] : D.outs.filter(o => !W.some(w => w.uid === o.uid && w.n === o.n)).sort((a, b) => b.ts - a.ts);
   const dt = v => new Date(v).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const item = n => { const s = SK[n]; return s ? `<span class="ax-cs"><img src="${imgUrl(s, 's')}" alt="">${esc(s.name)}</span>` : esc(n); };
@@ -5266,7 +5288,7 @@ async function axOut(box, D) {
       <label>Заявок в сутки на игрока<input class="ax-inp" id="mkDay" type="number" min="1" step="1" value="${+C.day_max || 10}"></label>
       <button class="ax-btn" id="mkSave">Сохранить</button><button class="ax-btn" id="mkBal2">Обновить баланс</button></div>
       <p class="ax-foot">Дороже порога и при выключенном автовыводе заявки ждут вашего решения. Цена покупки — не дороже цены сайта + переплата (% или ₽ — что больше: скин за 19 ₽ при 10% и 5 ₽ — до 24 ₽); если на маркете дороже или предмета нет, заявка возвращается сюда.</p>`)}
-    ${axCard('Заявки на вывод', W.length ? axTable([['Дата', r => dt(r.created_at)], ['Игрок', r => who(r.uid)], ['Предмет', r => item(r.n)], ['Цена', r => money(+r.price), num], ['Куплено за', r => r.paid ? money(+r.paid) : '—', num],
+    ${axCard('Заявки на вывод', W.length ? axTable([['Дата', r => dt(r.created_at)], ['Игрок', r => who(r.uid)], ['Предмет', r => item(r.n)], ['Цена', r => money(+r.price), num], ['Куплено за', r => r.paid ? money(wdPaid(r)) : '—', num], ...(own ? [['Переплата', wdOver, num]] : []),
       ['Статус', r => { const [tx, cl] = WD_ADM[r.status] || [r.status, '']; return `<b class="${cl}">${tx}</b>${r.err ? `<small class="ax-mute" style="display:block">${esc(r.err)}</small>` : ''}`; }],
       ['', r => !own && r.status !== 'wait' ? '' : `<span class="ax-acts">${r.status === 'wait' ? `<button class="ax-btn ax-sm" data-wd="approve" data-id="${r.id}">Купить</button>` : ''}${['wait', 'new'].includes(r.status) ? `<button class="ax-btn ax-sm" data-wd="back" data-id="${r.id}">Вернуть игроку</button>` : ''}${['wait', 'new', 'sent'].includes(r.status) ? `<button class="ax-btn ax-sm" data-wd="done" data-id="${r.id}" title="Отправили сами — отметить выведенным">Отправлен вручную</button>` : ''}${['wait', 'new'].includes(r.status) ? `<button class="ax-btn ax-sm" data-act="copy" data-copy="${esc(r.trade)}">Трейд-ссылка</button>` : ''}</span>`]], W) : '<p class="ax-mute">Заявок ещё не было.</p>')}
     ${legacy.length ? axCard('Выводы до подключения маркета', axTable([['Дата', r => dt(r.ts)], ['Игрок', r => plink(r.pid, esc(r.name))], ['Предмет', r => item(r.n)], ['Цена', r => money(r.p), num],
