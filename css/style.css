@@ -3959,3 +3959,7 @@ body:has(#adm) .sw-fab,body:has(#adm) .sw-panel{display:none!important}
 .sup-th.new:hover{background:rgba(239,68,68,.11)}
 .sup-th.new .sup-n{animation:supPulse 1.4s infinite}
 .sup-alert .ubtn::after{right:auto;left:36px;top:-3px}
+/* счётчики-кружки: цифра строго по центру (у шрифта сайта смещённая базовая линия) */
+.ax-tabs button .ax-badge,.sup-n,.sw-badge,.um-sup .sup-pulse{display:inline-flex!important;align-items:center;justify-content:center;padding:0 5px;line-height:1;font-family:Arial,Helvetica,sans-serif!important;font-weight:700;font-variant-numeric:tabular-nums;box-sizing:border-box}
+.ax-tabs button .ax-badge[hidden]{display:none!important}
+.sw-badge[hidden]{display:none!important}
