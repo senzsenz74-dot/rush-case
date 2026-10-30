@@ -5262,9 +5262,10 @@ async function axOut(box, D) {
       <label class="mk-sw"><input type="checkbox" id="mkAuto" ${C.auto ? 'checked' : ''}> Автовывод включён</label>
       <label>Автоматически до, ₽<input class="ax-inp" id="mkMax" type="number" min="0" step="100" value="${+C.auto_max || 0}"></label>
       <label>Переплата на маркете до, %<input class="ax-inp" id="mkOver" type="number" min="0" max="100" step="1" value="${+C.over_pct || 0}"></label>
+      <label>или до, ₽ (что больше)<input class="ax-inp" id="mkOverRub" type="number" min="0" max="1000" step="1" value="${C.over_rub != null ? +C.over_rub : 5}"></label>
       <label>Заявок в сутки на игрока<input class="ax-inp" id="mkDay" type="number" min="1" step="1" value="${+C.day_max || 10}"></label>
       <button class="ax-btn" id="mkSave">Сохранить</button><button class="ax-btn" id="mkBal2">Обновить баланс</button></div>
-      <p class="ax-foot">Дороже порога и при выключенном автовыводе заявки ждут вашего решения. Цена покупки — не дороже цены сайта + переплата; если на маркете дороже или предмета нет, заявка возвращается сюда.</p>`)}
+      <p class="ax-foot">Дороже порога и при выключенном автовыводе заявки ждут вашего решения. Цена покупки — не дороже цены сайта + переплата (% или ₽ — что больше: скин за 19 ₽ при 10% и 5 ₽ — до 24 ₽); если на маркете дороже или предмета нет, заявка возвращается сюда.</p>`)}
     ${axCard('Заявки на вывод', W.length ? axTable([['Дата', r => dt(r.created_at)], ['Игрок', r => who(r.uid)], ['Предмет', r => item(r.n)], ['Цена', r => money(+r.price), num], ['Куплено за', r => r.paid ? money(+r.paid) : '—', num],
       ['Статус', r => { const [tx, cl] = WD_ADM[r.status] || [r.status, '']; return `<b class="${cl}">${tx}</b>${r.err ? `<small class="ax-mute" style="display:block">${esc(r.err)}</small>` : ''}`; }],
       ['', r => !own && r.status !== 'wait' ? '' : `<span class="ax-acts">${r.status === 'wait' ? `<button class="ax-btn ax-sm" data-wd="approve" data-id="${r.id}">Купить</button>` : ''}${['wait', 'new'].includes(r.status) ? `<button class="ax-btn ax-sm" data-wd="back" data-id="${r.id}">Вернуть игроку</button>` : ''}${['wait', 'new', 'sent'].includes(r.status) ? `<button class="ax-btn ax-sm" data-wd="done" data-id="${r.id}" title="Отправили сами — отметить выведенным">Отправлен вручную</button>` : ''}${['wait', 'new'].includes(r.status) ? `<button class="ax-btn ax-sm" data-act="copy" data-copy="${esc(r.trade)}">Трейд-ссылка</button>` : ''}</span>`]], W) : '<p class="ax-mute">Заявок ещё не было.</p>')}
@@ -5278,7 +5279,7 @@ async function axOut(box, D) {
   };
   [$('#mkBal', box), $('#mkBal2', box)].forEach(b => { if (b) b.onclick = bal; });
   if (own) $('#mkSave', box).onclick = async () => {
-    const { error } = await sb.rpc('admin_market_cfg', { p: { auto: $('#mkAuto', box).checked, auto_max: +$('#mkMax', box).value, over_pct: +$('#mkOver', box).value, day_max: +$('#mkDay', box).value } });
+    const { error } = await sb.rpc('admin_market_cfg', { p: { auto: $('#mkAuto', box).checked, auto_max: +$('#mkMax', box).value, over_pct: +$('#mkOver', box).value, over_rub: +$('#mkOverRub', box).value, day_max: +$('#mkDay', box).value } });
     toast(error ? 'Ошибка: ' + error.message : 'Настройки вывода сохранены', error ? 'err' : '');
   };
   $$('[data-wd]', box).forEach(b => b.onclick = async () => {

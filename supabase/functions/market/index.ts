@@ -33,8 +33,9 @@ const PLAYER_ERR: Record<number, string> = {
   21: 'инвентарь Steam переполнен — освободите место и выведите снова',
 };
 
-async function buy(w: Record<string, any>, over: number) {
-  const max = Math.round(+w.price * (1 + over / 100) * 100) / 100;
+// потолок цены на маркете: цена сайта + переплата, % или ₽ — что больше (дешёвым скинам 10% мало)
+async function buy(w: Record<string, any>, over: number, overRub = 0) {
+  const max = Math.round(Math.max(+w.price * (1 + over / 100), +w.price + overRub) * 100) / 100;
   const r = await market('buy-for', { hash_name: w.h, price: Math.round(max * 100), partner: w.partner, token: w.token, custom_id: 'rc' + w.id });
   if (r.success) return set(w.id, 'sent', { market_id: String(r.id || ''), max_price: max });
   const code = +r.code || 0, msg = String(r.error || r.message || 'ошибка маркета');
@@ -78,7 +79,7 @@ Deno.serve(async req => {
       const { data: cfg } = await db.rpc('market_tick', { p_sec: 8 });
       if (!cfg || !cfg.id) return json({ skip: true });
       const { data: claimed } = await db.rpc('market_claim', { p_limit: 3 });
-      for (const w of claimed || []) { await buy(w, +cfg.over_pct || 0); await sleep(300); }
+      for (const w of claimed || []) { await buy(w, +cfg.over_pct || 0, +cfg.over_rub || 0); await sleep(300); }
       const checked = await poll();
       return json({ bought: (claimed || []).length, checked });
     }
