@@ -4113,3 +4113,17 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
 .sr-acts{display:flex;gap:8px;margin-top:10px}
 .sr-note{margin:0 0 12px}
 .sf-tg-steps{margin:8px 0 0;padding-left:20px;line-height:1.8;font-size:13px}.sf-tg-steps .ax-btn{margin-top:4px}
+/* лента LIVE на компьютере — закреплённая колонка слева (новые дропы сверху); на планшете и телефоне — полоса сверху */
+@media (min-width:1025px){
+  :root{--lv:0px;--lw:148px}
+  body{padding-left:var(--lw)}
+  .live{position:fixed;left:0;top:0;bottom:0;width:var(--lw);height:auto;flex-direction:column;border-bottom:0;border-right:1px solid var(--stroke);z-index:52}
+  .live-head{width:auto;height:auto;flex-direction:row;justify-content:space-between;gap:8px;padding:12px 10px;border-right:0;border-bottom:1px solid var(--stroke)}
+  .live-tabs{flex-direction:row;width:auto}
+  .live-tabs button{width:auto;padding:0 7px}
+  .live-track{flex-direction:column;-webkit-mask-image:linear-gradient(180deg,#000 85%,transparent);mask-image:linear-gradient(180deg,#000 85%,transparent)}
+  .ld{width:100%;height:94px;border-right:0;border-bottom:2px solid #070708}
+  .ld img{width:72px;top:4px}
+  .ld.enter{animation-name:ldInV}
+  @keyframes ldInV{from{height:0;opacity:0;padding:0}to{height:94px;opacity:1}}
+}
