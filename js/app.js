@@ -1313,8 +1313,6 @@ async function copyText(t) {
 const RINGS = '<div class="ab-rings"><i></i><i></i><i></i></div>';
 /* особые анимации поверх картинки кейса (координаты — % от картинки) */
 const OVERLAYS = {
-  // M0NESY: зелёный дым столбом из открытой крышки (SmokeFx)
-  smoke: () => { queueMicrotask(() => SmokeFx.start()); return '<canvas class="ms-smoke" aria-hidden="true"></canvas>'; },
   // «Баба Боря»: лампа то разгорается, то притухает (огонь — 17,8% / 23,5% картинки 900×855), вокруг летают светлячки
   babka: () => `<i class="bb-lamp" style="left:17.8%;top:23.5%" aria-hidden="true"></i><i class="bb-lamp bb-core" style="left:17.8%;top:23.5%" aria-hidden="true"></i>${Array.from({ length: 14 }, () => `<i class="bb-fly" aria-hidden="true" style="left:${rand(4, 96).toFixed(1)}%;top:${rand(6, 92).toFixed(1)}%;--d:${rand(6, 11).toFixed(1)}s;--dl:-${rand(0, 10).toFixed(1)}s;--x1:${rand(-40, 40).toFixed(0)}px;--y1:${rand(-30, 30).toFixed(0)}px;--x2:${rand(-50, 50).toFixed(0)}px;--y2:${rand(-40, 20).toFixed(0)}px;--x3:${rand(-30, 30).toFixed(0)}px;--y3:${rand(-50, 10).toFixed(0)}px"></i>`).join('')}`,
   // «БАБА ЧАЙ»: цепь с замком (видео, чёрный фон убирается режимом «экран»), фары машины, дым из ствола AWP
@@ -1330,70 +1328,6 @@ const OVERLAYS = {
 /* цепь «БАБА ЧАЙ»: одно скрытое видео рисуется во все canvas.gx-chain, чёрный фон кадра → прозрачность по яркости.
    Когда на странице нет ни одной цепи — видео на паузе */
 /* молнии DONK666: каждый canvas.dk-bolt живёт своим расписанием ударов; один общий rAF на все */
-/* зелёный дым M0NESY: клубы поднимаются из щели между крышкой и корпусом (55–62% высоты картинки) и тают кверху.
-   Спрайты — заранее нарисованные «рваные» облачка (много мягких пятен разной плотности); частица растёт, вращается,
-   её сносит вихрем (сумма синусов от высоты и времени) и в стороны от центра — чтобы не закрывать лицо игрока.
-   Холст шире и выше картинки (дым выходит за края), смешивание «экран» — светлый зелёный по тёмному. */
-const SmokeFx = {
-  raf: 0, sprites: null, last: 0,
-  makeSprites() {
-    const cols = [[61, 255, 106], [25, 214, 84], [140, 255, 120], [18, 170, 70]];
-    this.sprites = Array.from({ length: 8 }, (_, v) => {
-      const S = 160, c = document.createElement('canvas'); c.width = c.height = S;
-      const x = c.getContext('2d'), [r, g, b] = cols[v % cols.length];
-      for (let i = 0; i < 26; i++) { // много мягких пятен: края рваные, середина плотнее
-        const a = Math.random() * 6.283, d = Math.random() ** 1.6 * S * .3, px = S / 2 + Math.cos(a) * d, py = S / 2 + Math.sin(a) * d * .8;
-        const rad = S * (.12 + Math.random() * .22), gr = x.createRadialGradient(px, py, 0, px, py, rad), al = .05 + Math.random() * .08;
-        gr.addColorStop(0, `rgba(${r},${g},${b},${al})`); gr.addColorStop(.55, `rgba(${r},${g},${b},${al * .45})`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
-        x.fillStyle = gr; x.beginPath(); x.arc(px, py, rad, 0, 6.283); x.fill();
-      }
-      const core = x.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S * .22); // светлая сердцевина — «подсветка» дыма
-      core.addColorStop(0, 'rgba(200,255,200,.10)'); core.addColorStop(1, 'rgba(200,255,200,0)');
-      x.fillStyle = core; x.fillRect(0, 0, S, S);
-      return c;
-    });
-  },
-  start() {
-    if (this.raf) return;
-    if (!this.sprites) this.makeSprites();
-    const tick = now => {
-      const cs = $$('canvas.ms-smoke');
-      if (!cs.length) { this.raf = 0; this.last = 0; return; }
-      const dt = Math.min(.3, this.last ? (now - this.last) / 1000 : .016); this.last = now; // редкие кадры (слабый ПК, фон) — плотность та же
-      if (!document.hidden) cs.forEach(c => this.step(c, dt, now / 1000));
-      this.raf = requestAnimationFrame(tick);
-    };
-    this.raf = requestAnimationFrame(tick);
-  },
-  // откуда идёт дым: x — по ширине картинки, y — щель крышки; по бокам гуще, в центре слабее и живёт меньше
-  spawn(st) {
-    const side = Math.random() < .72, ix = side ? (Math.random() < .5 ? .08 + Math.random() * .3 : .62 + Math.random() * .3) : .38 + Math.random() * .24;
-    return { ix, iy: .55 + Math.random() * .07, age: 0, life: (side ? 4.2 : 2.2) + Math.random() * 2, sz: .1 + Math.random() * .08, grow: 1.8 + Math.random() * 1.2,
-      rot: Math.random() * 6.283, vr: (Math.random() - .5) * .5, vy: .07 + Math.random() * .06, out: (ix - .5) * (.05 + Math.random() * .06), ph: Math.random() * 100,
-      spr: Math.random() * st.n | 0, al: side ? .9 : .55 };
-  },
-  step(c, dt, t) {
-    const r = c.getBoundingClientRect(); if (!r.width) return;
-    const box = c.parentElement.getBoundingClientRect(), dpr = Math.min(1.5, devicePixelRatio || 1);
-    const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
-    if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
-    const st = c._st || (c._st = { ps: [], acc: 0, n: this.sprites.length });
-    // частиц на ширину: в витрине меньше, на странице кейса больше
-    const rate = clamp(box.width / 30, 5, 14);
-    st.acc += dt * rate;
-    while (st.acc >= 1) { st.acc--; if (st.ps.length < 45) st.ps.push(this.spawn(st)); }
-    const x = c.getContext('2d'), k = W / r.width, bw = box.width * k, bh = box.height * k, ox = (box.left - r.left) * k, oy = (box.top - r.top) * k;
-    x.clearRect(0, 0, W, H);
-    st.ps = st.ps.filter(p => (p.age += dt) < p.life);
-    for (const p of st.ps) {
-      const f = p.age / p.life, up = p.vy * p.age + .02 * p.age * p.age; // поднимается всё быстрее
-      const swirl = Math.sin(t * .9 + p.ph + p.iy * 9 - up * 7) * .035 * f + Math.sin(t * .37 + p.ph * 1.7) * .02 * f;
-      const px = ox + (p.ix + p.out * p.age + swirl) * bw, py = oy + (p.iy - up) * bh;
-      const s = (p.sz + p.sz * p.grow * f) * bw, a = p.al * (f < .18 ? f / .18 : 1) * (1 - f) ** .9 * .38; // еле заметный
-      x.save(); x.globalAlpha = a; x.translate(px, py); x.rotate(p.rot + p.vr * p.age); x.drawImage(this.sprites[p.spr], -s / 2, -s / 2, s, s); x.restore();
-    }
-  },
-};
 const BoltFx = {
   raf: 0,
   // разряд: ломаная со смещениями + ветки; возвращает массив путей [{pts, w}]
@@ -4024,7 +3958,7 @@ function applyLuck(c, luck) {
 }
 /* кейсы, созданные в админ-панели (таблица custom_cases): шансы заданы явно, картинка — из хранилища */
 // эффекты поверх картинки у кейсов из админки (по id) и пропорции картинки
-const CUSTOM_FX = { bababorya: { overlay: 'babka', ar: 900 / 855 }, monesy: { overlay: 'smoke', ar: 1229 / 1179 } };
+const CUSTOM_FX = { bababorya: { overlay: 'babka', ar: 900 / 855 } };
 function addCustomCase(r) {
   const items = (r.items || []).map(it => SK[it.n] && { s: SK[it.n], ch: +it.ch }).filter(x => x && x.ch > 0);
   if (items.length < 2) return null;
