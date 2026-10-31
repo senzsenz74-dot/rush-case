@@ -1313,6 +1313,10 @@ async function copyText(t) {
 const RINGS = '<div class="ab-rings"><i></i><i></i><i></i></div>';
 /* особые анимации поверх картинки кейса (координаты — % от картинки) */
 const OVERLAYS = {
+  // «Деда Дед» (900×871): лампа мерцает (37,1% / 17,3%), над кружкой лёгкий пар (48,5% / 25%), мошки вьются у лампы и по картинке
+  ded: () => `<i class="bb-lamp" style="left:37.1%;top:17.3%" aria-hidden="true"></i><i class="bb-lamp bb-core" style="left:37.1%;top:17.3%" aria-hidden="true"></i>
+    <span class="dd-steam" style="left:48.5%;top:25%" aria-hidden="true">${[0, 1, 2, 3].map(i => `<i style="--dl:-${(i * 1.1).toFixed(1)}s;--sx:${[-6, 5, -3, 7][i]}px"></i>`).join('')}</span>
+    ${Array.from({ length: 16 }, (_, i) => { const lamp = i < 10; return `<i class="dd-gnat" aria-hidden="true" style="left:${(lamp ? rand(30, 45) : rand(6, 94)).toFixed(1)}%;top:${(lamp ? rand(8, 28) : rand(10, 80)).toFixed(1)}%;--d:${rand(.9, 1.8).toFixed(2)}s;--dl:-${rand(0, 2).toFixed(2)}s;--a:${rand(6, 16).toFixed(0)}px;--b:${rand(5, 14).toFixed(0)}px"></i>`; }).join('')}`,
   // «Баба Боря»: лампа то разгорается, то притухает (огонь — 17,8% / 23,5% картинки 900×855), вокруг летают светлячки
   babka: () => `<i class="bb-lamp" style="left:17.8%;top:23.5%" aria-hidden="true"></i><i class="bb-lamp bb-core" style="left:17.8%;top:23.5%" aria-hidden="true"></i>${Array.from({ length: 14 }, () => `<i class="bb-fly" aria-hidden="true" style="left:${rand(4, 96).toFixed(1)}%;top:${rand(6, 92).toFixed(1)}%;--d:${rand(6, 11).toFixed(1)}s;--dl:-${rand(0, 10).toFixed(1)}s;--x1:${rand(-40, 40).toFixed(0)}px;--y1:${rand(-30, 30).toFixed(0)}px;--x2:${rand(-50, 50).toFixed(0)}px;--y2:${rand(-40, 20).toFixed(0)}px;--x3:${rand(-30, 30).toFixed(0)}px;--y3:${rand(-50, 10).toFixed(0)}px"></i>`).join('')}`,
   // «БАБА ЧАЙ»: цепь с замком (видео, чёрный фон убирается режимом «экран»), фары машины, дым из ствола AWP
@@ -3958,7 +3962,7 @@ function applyLuck(c, luck) {
 }
 /* кейсы, созданные в админ-панели (таблица custom_cases): шансы заданы явно, картинка — из хранилища */
 // эффекты поверх картинки у кейсов из админки (по id) и пропорции картинки
-const CUSTOM_FX = { bababorya: { overlay: 'babka', ar: 900 / 855 } };
+const CUSTOM_FX = { bababorya: { overlay: 'babka', ar: 900 / 855 }, dedaded: { overlay: 'ded', ar: 900 / 871 } };
 function addCustomCase(r) {
   const items = (r.items || []).map(it => SK[it.n] && { s: SK[it.n], ch: +it.ch }).filter(x => x && x.ch > 0);
   if (items.length < 2) return null;
