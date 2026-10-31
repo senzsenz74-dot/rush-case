@@ -4145,3 +4145,7 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
   box-shadow:0 0 3px rgba(255,200,120,.7);animation:ddGnat var(--d) linear var(--dl) infinite}
 @keyframes ddGnat{0%{transform:translate(0,0)}13%{transform:translate(var(--a),calc(var(--b) * -.6))}27%{transform:translate(calc(var(--a) * .3),var(--b))}41%{transform:translate(calc(var(--a) * -.9),calc(var(--b) * .2))}55%{transform:translate(calc(var(--a) * -.4),calc(var(--b) * -1))}69%{transform:translate(calc(var(--a) * .7),calc(var(--b) * -.3))}84%{transform:translate(calc(var(--a) * -.2),calc(var(--b) * .8))}100%{transform:translate(0,0)}}
 @media (prefers-reduced-motion:reduce){.dd-steam i,.dd-gnat{animation:none}.dd-steam{display:none}}
+/* «Попрошайка»: фары ярче — широкий тёплый ореол + яркая белая сердцевина, мерцание мягче (не гаснут) */
+.bg-hl{background:radial-gradient(circle,rgba(255,236,180,.95) 0%,rgba(255,200,110,.55) 20%,rgba(255,160,60,.22) 42%,transparent 68%);animation-name:bgHl}
+.bg-hlc{background:radial-gradient(circle,#fff 0%,rgba(255,250,225,.9) 28%,rgba(255,220,150,.35) 55%,transparent 72%);animation:bgHl 1.7s infinite}
+@keyframes bgHl{0%{opacity:.82}12%{opacity:1}25%{opacity:.88}40%{opacity:1}55%{opacity:.78}70%{opacity:.97}85%{opacity:.86}100%{opacity:.82}}

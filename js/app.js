@@ -1314,7 +1314,7 @@ const RINGS = '<div class="ab-rings"><i></i><i></i><i></i></div>';
 /* особые анимации поверх картинки кейса (координаты — % от картинки) */
 const OVERLAYS = {
   // «Попрошайка» (900×716): фонарь на крышке (24,7% / 15,8%) и фара (28,3% / 41,3%) мерцают, у фонаря вьются мошки
-  beg: () => `<i class="bb-lamp" style="left:24.7%;top:15.8%;width:26%" aria-hidden="true"></i><i class="bb-lamp bb-core" style="left:24.7%;top:15.8%;width:8%" aria-hidden="true"></i><i class="bb-lamp bb-core" style="left:28.3%;top:41.3%;width:9%;animation-delay:-1.1s" aria-hidden="true"></i>
+  beg: () => `<i class="bb-lamp bg-hl" style="left:24.7%;top:15.8%;width:30%" aria-hidden="true"></i><i class="bb-lamp bg-hlc" style="left:24.7%;top:15.8%;width:11%" aria-hidden="true"></i><i class="bb-lamp bg-hl" style="left:28.3%;top:41.3%;width:28%;animation-delay:-1.1s" aria-hidden="true"></i><i class="bb-lamp bg-hlc" style="left:28.3%;top:41.3%;width:12%;animation-delay:-.6s" aria-hidden="true"></i>
     ${Array.from({ length: 8 }, () => `<i class="dd-gnat" aria-hidden="true" style="left:${rand(17, 33).toFixed(1)}%;top:${rand(6, 26).toFixed(1)}%;--d:${rand(.9, 1.8).toFixed(2)}s;--dl:-${rand(0, 2).toFixed(2)}s;--a:${rand(6, 14).toFixed(0)}px;--b:${rand(5, 12).toFixed(0)}px"></i>`).join('')}`,
   // «Деда Дед» (900×871): лампа мерцает (37,1% / 17,3%), над кружкой лёгкий пар (48,5% / 25%), мошки вьются у лампы и по картинке
   ded: () => `<i class="bb-lamp" style="left:37.1%;top:17.3%" aria-hidden="true"></i><i class="bb-lamp bb-core" style="left:37.1%;top:17.3%" aria-hidden="true"></i>
