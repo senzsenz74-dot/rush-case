@@ -4136,3 +4136,6 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
   box-shadow:0 0 6px 2px rgba(255,236,120,.9),0 0 16px 5px rgba(190,255,90,.4);animation:bbFly var(--d) ease-in-out var(--dl) infinite}
 @keyframes bbFly{0%{transform:translate(0,0);opacity:0}14%{opacity:1}32%{transform:translate(var(--x1),var(--y1));opacity:.35}50%{opacity:1}68%{transform:translate(var(--x2),var(--y2));opacity:.55}84%{opacity:.95}100%{transform:translate(var(--x3),var(--y3));opacity:0}}
 @media (prefers-reduced-motion:reduce){.bb-lamp,.bb-fly{animation:none}.bb-fly{opacity:.7}}
+/* M0NESY: зелёный дым над кейсом — холст шире и выше картинки, «экран» поверх */
+.ms-smoke{position:absolute;left:-14%;top:-34%;width:128%;height:134%;pointer-events:none;z-index:4;mix-blend-mode:screen}
+@media (prefers-reduced-motion:reduce){.ms-smoke{display:none}}
