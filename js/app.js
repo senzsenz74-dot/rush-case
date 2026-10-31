@@ -1343,7 +1343,7 @@ const SmokeFx = {
       const x = c.getContext('2d'), [r, g, b] = cols[v % cols.length];
       for (let i = 0; i < 26; i++) { // много мягких пятен: края рваные, середина плотнее
         const a = Math.random() * 6.283, d = Math.random() ** 1.6 * S * .3, px = S / 2 + Math.cos(a) * d, py = S / 2 + Math.sin(a) * d * .8;
-        const rad = S * (.12 + Math.random() * .22), gr = x.createRadialGradient(px, py, 0, px, py, rad), al = .07 + Math.random() * .1;
+        const rad = S * (.12 + Math.random() * .22), gr = x.createRadialGradient(px, py, 0, px, py, rad), al = .05 + Math.random() * .08;
         gr.addColorStop(0, `rgba(${r},${g},${b},${al})`); gr.addColorStop(.55, `rgba(${r},${g},${b},${al * .45})`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
         x.fillStyle = gr; x.beginPath(); x.arc(px, py, rad, 0, 6.283); x.fill();
       }
@@ -1379,9 +1379,9 @@ const SmokeFx = {
     if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
     const st = c._st || (c._st = { ps: [], acc: 0, n: this.sprites.length });
     // частиц на ширину: в витрине меньше, на странице кейса больше
-    const rate = clamp(box.width / 14, 9, 30);
+    const rate = clamp(box.width / 30, 5, 14);
     st.acc += dt * rate;
-    while (st.acc >= 1) { st.acc--; if (st.ps.length < 90) st.ps.push(this.spawn(st)); }
+    while (st.acc >= 1) { st.acc--; if (st.ps.length < 45) st.ps.push(this.spawn(st)); }
     const x = c.getContext('2d'), k = W / r.width, bw = box.width * k, bh = box.height * k, ox = (box.left - r.left) * k, oy = (box.top - r.top) * k;
     x.clearRect(0, 0, W, H);
     st.ps = st.ps.filter(p => (p.age += dt) < p.life);
@@ -1389,7 +1389,7 @@ const SmokeFx = {
       const f = p.age / p.life, up = p.vy * p.age + .02 * p.age * p.age; // поднимается всё быстрее
       const swirl = Math.sin(t * .9 + p.ph + p.iy * 9 - up * 7) * .035 * f + Math.sin(t * .37 + p.ph * 1.7) * .02 * f;
       const px = ox + (p.ix + p.out * p.age + swirl) * bw, py = oy + (p.iy - up) * bh;
-      const s = (p.sz + p.sz * p.grow * f) * bw, a = p.al * (f < .18 ? f / .18 : 1) * (1 - f) ** .9 * 1.5;
+      const s = (p.sz + p.sz * p.grow * f) * bw, a = p.al * (f < .18 ? f / .18 : 1) * (1 - f) ** .9 * .38; // еле заметный
       x.save(); x.globalAlpha = a; x.translate(px, py); x.rotate(p.rot + p.vr * p.age); x.drawImage(this.sprites[p.spr], -s / 2, -s / 2, s, s); x.restore();
     }
   },
