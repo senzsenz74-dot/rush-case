@@ -1313,6 +1313,8 @@ async function copyText(t) {
 const RINGS = '<div class="ab-rings"><i></i><i></i><i></i></div>';
 /* особые анимации поверх картинки кейса (координаты — % от картинки) */
 const OVERLAYS = {
+  // «Баба Боря»: лампа то разгорается, то притухает (огонь — 17,8% / 23,5% картинки 900×855), вокруг летают светлячки
+  babka: () => `<i class="bb-lamp" style="left:17.8%;top:23.5%" aria-hidden="true"></i><i class="bb-lamp bb-core" style="left:17.8%;top:23.5%" aria-hidden="true"></i>${Array.from({ length: 14 }, () => `<i class="bb-fly" aria-hidden="true" style="left:${rand(4, 96).toFixed(1)}%;top:${rand(6, 92).toFixed(1)}%;--d:${rand(6, 11).toFixed(1)}s;--dl:-${rand(0, 10).toFixed(1)}s;--x1:${rand(-40, 40).toFixed(0)}px;--y1:${rand(-30, 30).toFixed(0)}px;--x2:${rand(-50, 50).toFixed(0)}px;--y2:${rand(-40, 20).toFixed(0)}px;--x3:${rand(-30, 30).toFixed(0)}px;--y3:${rand(-50, 10).toFixed(0)}px"></i>`).join('')}`,
   // «БАБА ЧАЙ»: цепь с замком (видео, чёрный фон убирается режимом «экран»), фары машины, дым из ствола AWP
   // блики, пробегающие по форме кейса
   shine: (c, src = c.img) => `<span class="ca-shine" aria-hidden="true" style="-webkit-mask-image:url(${src});mask-image:url(${src})"></span>`,
@@ -3955,6 +3957,8 @@ function applyLuck(c, luck) {
   c.luck = luck;
 }
 /* кейсы, созданные в админ-панели (таблица custom_cases): шансы заданы явно, картинка — из хранилища */
+// эффекты поверх картинки у кейсов из админки (по id) и пропорции картинки
+const CUSTOM_FX = { bababorya: { overlay: 'babka', ar: 900 / 855 } };
 function addCustomCase(r) {
   const items = (r.items || []).map(it => SK[it.n] && { s: SK[it.n], ch: +it.ch }).filter(x => x && x.ch > 0);
   if (items.length < 2) return null;
@@ -3965,7 +3969,7 @@ function addCustomCase(r) {
   c.show = c.items.slice(0, 3).map(s => s.name);
   const i = CASES.findIndex(x => x.id === c.id); if (i >= 0) CASES.splice(i, 1);
   CASES.push(c); CASES.sort((a, b) => a.price - b.price);
-  c.block = r.block; c.isNew = !!r.is_new; applyCaseCfg(c);
+  c.block = r.block; c.isNew = !!r.is_new; if (CUSTOM_FX[r.id]) Object.assign(c, CUSTOM_FX[r.id]); applyCaseCfg(c);
   // раздел «Фарм» — как «Лови аптечку»: по 20–100 за раз, дроп дешевле 100 ₽ сразу на баланс (сервер — supabase/camo_case.sql)
   if (r.block === 'farm') { c.farm = { maxN: 100, sellBelow: 100 }; c.tag = 'Фарм'; c.tagIc = 'trend'; }
   return c;

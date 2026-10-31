@@ -4127,3 +4127,12 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
   .ld.enter{animation-name:ldInV}
   @keyframes ldInV{from{height:0;opacity:0;padding:0}to{height:94px;opacity:1}}
 }
+/* «Баба Боря»: мерцающая лампа и светлячки */
+.bb-lamp{position:absolute;z-index:2;width:34%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;mix-blend-mode:screen;
+  background:radial-gradient(circle,rgba(255,214,120,.7) 0%,rgba(255,160,50,.32) 22%,rgba(255,120,30,.12) 42%,transparent 66%);animation:bbFlicker 3.1s infinite}
+.bb-core{width:11%;background:radial-gradient(circle,rgba(255,250,215,.95) 0%,rgba(255,200,90,.55) 35%,transparent 70%);animation-duration:1.9s;animation-delay:-.7s}
+@keyframes bbFlicker{0%{opacity:.5}7%{opacity:.95}12%{opacity:.62}20%{opacity:1}31%{opacity:.7}44%{opacity:.92}52%{opacity:.4}58%{opacity:.85}71%{opacity:.58}86%{opacity:1}100%{opacity:.5}}
+.bb-fly{position:absolute;z-index:3;width:5px;height:5px;margin:-2.5px;border-radius:50%;pointer-events:none;opacity:0;background:#fff7b0;
+  box-shadow:0 0 6px 2px rgba(255,236,120,.9),0 0 16px 5px rgba(190,255,90,.4);animation:bbFly var(--d) ease-in-out var(--dl) infinite}
+@keyframes bbFly{0%{transform:translate(0,0);opacity:0}14%{opacity:1}32%{transform:translate(var(--x1),var(--y1));opacity:.35}50%{opacity:1}68%{transform:translate(var(--x2),var(--y2));opacity:.55}84%{opacity:.95}100%{transform:translate(var(--x3),var(--y3));opacity:0}}
+@media (prefers-reduced-motion:reduce){.bb-lamp,.bb-fly{animation:none}.bb-fly{opacity:.7}}
