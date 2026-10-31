@@ -3966,6 +3966,8 @@ function addCustomCase(r) {
   const i = CASES.findIndex(x => x.id === c.id); if (i >= 0) CASES.splice(i, 1);
   CASES.push(c); CASES.sort((a, b) => a.price - b.price);
   c.block = r.block; c.isNew = !!r.is_new; applyCaseCfg(c);
+  // раздел «Фарм» — как «Лови аптечку»: по 20–100 за раз, дроп дешевле 100 ₽ сразу на баланс (сервер — supabase/camo_case.sql)
+  if (r.block === 'farm') { c.farm = { maxN: 100, sellBelow: 100 }; c.tag = 'Фарм'; c.tagIc = 'trend'; }
   return c;
 }
 let customCaseRows = [];
