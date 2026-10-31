@@ -512,9 +512,9 @@ const CASES = [
   },
   {
     id: 'medkit', name: 'ЛОВИ АПТЕЧКУ', price: 15, tag: 'Фарм', tagIc: 'trend', rtp: 0.8,
-    sub: 'Фарм-кейс: открывай до 50 штук за раз, ширп сразу продаётся на баланс. Дроп 3–15 ₽, джекпот — AWP | Азимов и Kukri | Crimson Web (1 из 150 000)',
+    sub: 'Фарм-кейс: открывай по 20, 30, 50 или 100 штук за раз, ширп сразу продаётся на баланс. Дроп 3–15 ₽, джекпот — AWP | Азимов и Kukri | Crimson Web (1 из 150 000)',
     th: { a: '#e53935' }, img: 'assets/case-medkit.webp',
-    farm: { maxN: 50, sellBelow: 100 }, // фарм: до 50 кейсов за раз, ширп дешевле 100 ₽ сразу продаётся на баланс
+    farm: { maxN: 100, sellBelow: 100 }, // фарм: 20 / 30 / 50 / 100 кейсов за раз, ширп дешевле 100 ₽ сразу продаётся на баланс
     // ширп 3–15 ₽ (чем дороже — тем чаще, возврат 80%) + AWP | Азимов и Kukri | Crimson Web — вместе 1 из 150 000
     exact: [
       ['ПП-19 Бизон | Городская штриховка', 'WW', 0.001008], ['M249 | Sleet', 'FN', 0.001163], ['MAC-10 | Video Cam', 'FT', 0.00218],
@@ -2323,15 +2323,16 @@ function resetRoulette() {
   rl.classList.remove('spinning', 'revealed', 'vert'); delete rl.dataset.n;
   $('#strips').innerHTML = ''; $('#reveal').innerHTML = '';
 }
-const FARM_N = [1, 3, 5, 10, 25, 50]; // кнопки количества фарм-кейса
+const FARM_N = [20, 30, 50, 100]; // кнопки количества фарм-кейса (видны всегда; не хватает денег — «Пополнить»)
 const MANY_N = 7; // больше — без рулеток, сразу итог
 function ccIdle(c) {
   const cc = $('#cc'); if (!cc) return;
   const have = c.rc ? (st.rcoin || 0) : st.balance;
   const cap = c.farm ? c.farm.maxN : 7, maxN = st.user ? clamp(Math.floor(have / c.price + 1e-9), 1, cap) : cap;
-  // фарм-кейс: x1 x3 x5 x10 x25 x50 (сколько хватает денег); обычный — x1…x7
-  const counts = c.farm ? FARM_N.filter(n => n <= cap && n <= maxN) : Array.from({ length: maxN }, (_, i) => i + 1);
-  if (caseN > maxN || !counts.includes(caseN)) caseN = counts.filter(n => n <= Math.min(caseN, maxN)).pop() || 1;
+  // фарм-кейс: x20 x30 x50 x100 — всегда все (на выбранное не хватает — кнопка «Пополнить»); обычный — x1…x7, сколько хватает денег
+  const counts = c.farm ? FARM_N.filter(n => n <= cap) : Array.from({ length: maxN }, (_, i) => i + 1);
+  if (c.farm) { if (!counts.includes(caseN)) caseN = counts[0]; }
+  else if (caseN > maxN || !counts.includes(caseN)) caseN = counts.filter(n => n <= Math.min(caseN, maxN)).pop() || 1;
   const cost = c.price * caseN;
   let main;
   if (c.disabled) main = `<button class="btn btn-primary btn-xl btn-cham" disabled>${ic.lock || ic.shield}Кейс временно закрыт</button>`;
