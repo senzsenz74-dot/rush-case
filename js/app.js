@@ -1964,9 +1964,11 @@ const secHead = (t, sub, icon, a, n) => `<div class="sh" style="--bc:${a}">
   ${n != null ? `<span class="sh-n">${n} ${plural(n, 'кейс', 'кейса', 'кейсов')}</span>` : ''}
 </div>`;
 /* страница «Кейсы»: группы с тонким заголовком */
+// фон за разделом (по id раздела): картинка во всю ширину, края растушёваны
+const BLOCK_BG = { babushka: 'assets/bg-babushka.webp' };
 const caseBlock = (b, grp) => {
   const list = blockCases(b); if (!list.length) return '';
-  return `<section class="cs-block" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>
+  return `<section class="cs-block cs-b-${b.id}${BLOCK_BG[b.id] ? ' cs-has-bg' : ''}" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>${BLOCK_BG[b.id] ? `<i class="cs-bg" style="background-image:url(${BLOCK_BG[b.id]})" aria-hidden="true"></i>` : ''}
     ${secHead(b.t, b.sub, b.rc ? RC_IMG : ic[b.ic], b.a, list.length)}
     <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${list.map(caseCard).join('')}</div>
   </section>`;

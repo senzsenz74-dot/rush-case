@@ -4150,3 +4150,28 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
 .bg-hlc{background:radial-gradient(circle,#fff 0%,rgba(255,252,232,.92) 28%,rgba(255,225,160,.35) 55%,transparent 72%);animation:bgBlink 1.6s infinite}
 @keyframes bgBlink{0%,42%{opacity:1}50%,92%{opacity:.04}100%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.bg-hl,.bg-hlc{animation:none}}
+/* раздел с фоном (BLOCK_BG): картинка за разделом, края растушёваны в фон сайта */
+.cs-block.cs-has-bg{position:relative;isolation:isolate;padding:22px 22px 30px;margin-left:-22px;margin-right:-22px}
+.cs-has-bg>.cs-bg{position:absolute;inset:0;z-index:-1;background-size:cover;background-position:center;pointer-events:none;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 14%,#000 84%,transparent 100%),linear-gradient(90deg,transparent 0%,#000 6%,#000 94%,transparent 100%);
+  -webkit-mask-composite:source-in;mask-image:linear-gradient(180deg,transparent 0%,#000 14%,#000 84%,transparent 100%),linear-gradient(90deg,transparent 0%,#000 6%,#000 94%,transparent 100%);mask-composite:intersect}
+.cs-has-bg>.cs-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(70% 80% at 50% 55%,rgba(0,0,0,.35),transparent 75%)}
+@media (max-width:720px){.cs-block.cs-has-bg{padding:16px 12px 22px;margin-left:-12px;margin-right:-12px}}
+/* «В гостях у бабушки»: ценник — объёмная деревянная табличка на двух гвоздиках, цена «выжжена» */
+.cs-b-babushka .case-card .cc-price{position:relative;height:40px;padding:0 26px;border-radius:5px;border:1px solid #2e1909;
+  background:
+    radial-gradient(ellipse 9px 4px at 72% 38%,rgba(40,20,6,.45),transparent 70%),
+    repeating-linear-gradient(178deg,rgba(255,220,170,.06) 0 1px,transparent 1px 4px,rgba(40,18,4,.12) 4px 5px,transparent 5px 9px),
+    repeating-linear-gradient(90deg,transparent 0 38px,rgba(40,18,4,.18) 38px 39px,transparent 39px 70px),
+    linear-gradient(180deg,#a8703c 0%,#8a5629 40%,#6c3f1b 78%,#552f13 100%);
+  box-shadow:inset 0 2px 0 rgba(255,215,160,.38),inset 0 -3px 0 rgba(0,0,0,.4),inset 2px 0 0 rgba(255,215,160,.16),inset -2px 0 0 rgba(0,0,0,.28),
+    0 3px 0 #3a200b,0 4px 0 #24130a,0 12px 18px -6px rgba(0,0,0,.85);
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  font:800 18px var(--ff-h);color:#ffe9c4;-webkit-text-fill-color:#ffe9c4;letter-spacing:.02em;
+  text-shadow:0 -1px 0 rgba(30,12,2,.75),0 1px 0 rgba(255,214,160,.3);
+  transform:perspective(280px) rotateX(10deg);transition:transform .25s,filter .25s}
+.cs-b-babushka .case-card .cc-price::before,.cs-b-babushka .case-card .cc-price::after{content:"";position:absolute;top:50%;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#f4efe6 0%,#b3aa9c 35%,#5d564c 75%,#2c2721 100%);box-shadow:0 1px 1px rgba(0,0,0,.7),0 0 0 1px rgba(30,15,5,.6)}
+.cs-b-babushka .case-card .cc-price::before{left:9px}.cs-b-babushka .case-card .cc-price::after{right:9px}
+.cs-b-babushka .case-card:hover .cc-price{background-color:transparent;border-color:#2e1909;filter:brightness(1.12);transform:perspective(280px) rotateX(4deg) translateY(-1px)}
+@media (max-width:720px){.cs-b-babushka .case-card .cc-price{height:34px;padding:0 22px;font-size:15px}}
