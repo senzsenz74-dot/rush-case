@@ -5368,8 +5368,9 @@ function axCrash(box, D) {
       ${axKpi('Ставок', fmt(+C.bets || 0), `${fmt(+C.players || 0)} игроков · забрали ${pctOr(+C.wins || 0, +C.bets || 0)}`)}
       ${axKpi('Поставлено', money(+C.stake || 0), `выдано ${money(+C.won || 0)}`)}
       ${axKpi('Средний взрыв', 'x' + (+C.avgX || 0).toFixed(2), +C.maxX ? `лучший вывод x${(+C.maxX).toFixed(2)} · ${money(+C.maxWin || 0)}` : '')}
-      ${axKpi('Режим сейчас', crModeName(X.mode), '<a href="#/crash">меняется ползунком на странице краша</a>')}
+      ${axKpi('Режим сейчас', crModeName(X.mode), 'ползунок ниже · со следующего раунда')}
     </div>
+    ${axCard('Режим краша', '<div id="axCrMode" class="ax-crmode"><div class="ax-load"><span class="spinner"></span></div></div>')}
     ${axCard(`Прибыль с краша по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.crashP, { day: !D.hours, tip: r => [['Раундов', fmt(r.cRounds)], ['С игроками', fmt(r.cLive)], ['Ставок', fmt(r.cBets)], ['Поставлено', money(r.cStake)], ['Выдано', money(r.cWon)], ['Прибыль', sgn(r.crashP)]] }))}
     <div class="ax-g2">
       ${axCard('На каком x взрывалась бомба', `<div class="ax-split">${bands.map(b => `<div class="ax-sr"><span>${band(+b.lo)}</span><span class="ax-bandbar"><i style="width:${(+b.n / bMax * 100).toFixed(1)}%"></i></span><b class="num">${fmt(+b.n)} · ${pctOr(+b.n, +C.rounds || 0)}</b></div>`).join('')}</div>
@@ -5379,6 +5380,7 @@ function axCrash(box, D) {
     </div>
     ${axCard('Игроки краша — кто сколько поставил и выиграл', (X.players || []).length ? axTable([['Игрок', r => plink(r.pid, esc(r.name || '—'))], ['Ставок', r => fmt(+r.n), num], ['Забрали', r => pctOr(+r.wins, +r.n), num], ['Поставил', r => money(+r.stake), num], ['Получил', r => money(+r.won), num], ['Лучший x', r => r.max_x ? 'x' + (+r.max_x).toFixed(2) : '—', num], ['Для сайта', r => sgn(+r.stake - +r.won), r => 'num ' + tone(+r.stake - +r.won)]], X.players) : '<div class="ax-empty">За период никто не играл</div>')}
     <p class="ax-foot">Боты и админские аккаунты не считаются. Прибыль = поставлено − стоимость выданных скинов. Режим действует со следующего раунда.</p>`;
+  crAdmSlider($('#axCrMode', box));
 }
 /* кто играет в апгрейд: по сумме ставок, с удачей (её множитель действует и на шанс апгрейда) */
 async function axUpgPlayers(el, D) {
@@ -6703,7 +6705,6 @@ function pageCrash() {
         </div>
         <div class="cr-invh"><b>Ваши скины</b><button class="cr-clr" id="crClr">Очистить</button></div>
         <div class="mini-grid cr-inv" id="crInv"></div>
-        <div id="crAdm"></div>
       </aside>
     </div>
   </section>`;
@@ -6716,7 +6717,7 @@ function mountCrash() {
   const ai = $('#crAutoIn'); ai.value = cr.auto; ai.oninput = () => { cr.auto = ai.value; };
   $('#crRules').onclick = crRulesModal;
   $('#crClr').onclick = () => { cr.sel = []; crDrawInv(); };
-  crRender(); crDrawInv(); crAdmSlider(gen);
+  crRender(); crDrawInv();
   crPoll(gen);
   crScene(gen);
   // бомбу можно чуть наклонять мышкой (на телефоне — пальцем); отпустили — выравнивается
@@ -6736,14 +6737,15 @@ function crStop() {
   if (cr.g) { const g = cr.g; cr.g = null; try { g.ro && g.ro.disconnect(); g.ren.dispose(); g.ren.forceContextLoss(); } catch (e) { /* */ } }
   const fx = document.getElementById('crBoomFx'); if (fx) fx.remove();
 }
-/* ползунок режима — только владелец (сервер проверяет is_admin()); действует со следующего раунда */
-async function crAdmSlider(gen) {
-  const box = $('#crAdm'); if (!box || !sb || !st.user || !st.user.admin) return;
+/* ползунок режима краша — в админке, вкладка «Краш»; менять может только владелец (сервер проверяет is_admin()); действует со следующего раунда */
+async function crAdmSlider(box) {
+  if (!box || !sb) return;
   const { data, error } = await sb.rpc('crash_mode');
-  if (error || !data || !crLive(gen)) return;
+  if (!box.isConnected) return;
+  if (error || !data) { box.innerHTML = '<div class="ax-empty">Режим меняет только владелец</div>'; return; }
   const draw = m => {
     const cur = CR_MODES.find(x => x[0] === m) || CR_MODES[2];
-    box.innerHTML = `<div class="cr-adm cr-m${m + 2}"><div class="cr-adm-h"><b>Режим краша</b><span>видите только вы</span></div>
+    box.innerHTML = `<div class="cr-adm cr-m${m + 2}"><div class="cr-adm-h"><b>Режим краша</b><span>только владелец</span></div>
       <input type="range" min="-2" max="2" step="1" value="${m}" id="crModeIn" aria-label="Режим краша">
       <div class="cr-adm-l">${CR_MODES.map(([k, n]) => `<button data-m="${k}" class="${k === m ? 'on' : ''}">${n}</button>`).join('')}</div>
       <small>${cur[1]}: ${cur[2]}. Действует со следующего раунда.</small></div>`;
