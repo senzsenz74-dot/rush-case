@@ -2096,6 +2096,8 @@ function pageCases() {
     <div class="filterbar">
       <div class="search"><input class="inp" id="caseQ" placeholder="Поиск кейса или скина" autocomplete="off">${ic.search}</div>
       <div class="chips" id="chips"><button class="chip on" data-f="all">Все</button><button class="chip" data-f="0-100">до 100 ₽</button><button class="chip" data-f="100-500">100–500 ₽</button><button class="chip" data-f="500-1e9">500+ ₽</button></div>
+      <div class="secs" id="secChips">${CASE_BLOCKS.filter(b => b.id !== 'pop' && blockCases(b).length).map(b => `<button class="chip sec-chip" data-sec="${b.id}" style="--bc:${b.a}"><span class="sec-ic">${b.rc ? RC_IMG : ic[b.ic] || ''}</span>${esc(b.t)}</button>`).join('')}
+        <div class="sec-more" id="secMore" hidden><button class="chip" id="secMoreBtn" aria-haspopup="true">Ещё<b id="secMoreN"></b><i class="sec-car">▾</i></button><div class="sec-pop" id="secPop" hidden></div></div></div>
       <label class="switch"><input type="checkbox" id="availChk"><i></i>Доступные</label>
     </div>
     <div class="cs-blocks">${CASE_BLOCKS.map(b => caseBlock(b, true)).join('')}</div>
@@ -2105,11 +2107,13 @@ function pageCases() {
 function mountCases() {
   heroSlider(); mountHomeBonus();
   let f = 'all';
+  const secSel = new Set(); // выбранные разделы; пусто — все
   const apply = () => {
     const q = $('#caseQ').value.trim().toLowerCase(), avail = $('#availChk').checked;
     let shown = 0;
     $$('.cases-grp .case-card').forEach(card => {
       const p = +card.dataset.price; let ok = true;
+      if (secSel.size && !secSel.has(card.closest('.cases-grp').dataset.grp)) ok = false;
       if (f !== 'all') { const [a, b] = f.split('-').map(Number); ok = p >= a && p < b; }
       if (q && !card.dataset.q.includes(q)) ok = false;
       if (avail && (!st.user || p > st.balance)) ok = false;
@@ -2120,7 +2124,38 @@ function mountCases() {
     $$('.cases-grp').forEach(g => { const any = $$('.case-card:not(.hidden)', g).length > 0; const bl = g.closest('.cs-block'); if (bl) bl.classList.toggle('hidden', !any); });
   };
   $('#caseQ').oninput = apply; $('#availChk').onchange = apply;
-  $$('#chips .chip').forEach(b => b.onclick = () => { f = b.dataset.f; $$('#chips .chip').forEach(x => x.classList.toggle('on', x === b)); apply(); });
+  // «Все» — сброс цены и разделов
+  $$('#chips .chip').forEach(b => b.onclick = () => { f = b.dataset.f; if (f === 'all') secSel.clear(); $$('#chips .chip').forEach(x => x.classList.toggle('on', x === b)); secPaint(); apply(); });
+  // разделы: нажатие оставляет выбранные (можно несколько); не влезшие в строку — в список «Ещё»
+  const row = $('#secChips'), more = $('#secMore'), pop = $('#secPop');
+  if (!row) return;
+  const chips = $$('.sec-chip', row);
+  const secPaint = () => {
+    chips.forEach(c => c.classList.toggle('on', secSel.has(c.dataset.sec)));
+    $$('[data-sec]', pop).forEach(c => c.classList.toggle('on', secSel.has(c.dataset.sec)));
+    const hid = chips.filter(c => c.hidden && secSel.has(c.dataset.sec)).length;
+    $('#secMoreBtn').classList.toggle('on', hid > 0); $('#secMoreN').textContent = hid ? ` · ${hid}` : '';
+  };
+  const toggle = id => { if (secSel.has(id)) secSel.delete(id); else secSel.add(id); secPaint(); apply(); };
+  const fit = () => {
+    if (!row.isConnected) return;
+    chips.forEach(c => { c.hidden = false; }); more.hidden = true;
+    const W = row.clientWidth, GAP = 6, ws = chips.map(c => c.offsetWidth);
+    let total = ws.reduce((a, w) => a + w + GAP, -GAP);
+    if (total > W) {
+      more.hidden = false;
+      const mw = more.offsetWidth + GAP;
+      for (let i = chips.length - 1; i >= 0 && total + mw > W; i--) { chips[i].hidden = true; total -= ws[i] + GAP; }
+    }
+    pop.innerHTML = chips.filter(c => c.hidden).map(c => `<button class="sec-it" data-sec="${c.dataset.sec}" style="--bc:${c.style.getPropertyValue('--bc')}">${c.innerHTML}<i class="sec-ok">✓</i></button>`).join('');
+    $$('[data-sec]', pop).forEach(b => b.onclick = e => { e.stopPropagation(); toggle(b.dataset.sec); });
+    secPaint();
+  };
+  chips.forEach(c => c.onclick = () => toggle(c.dataset.sec));
+  $('#secMoreBtn').onclick = e => { e.stopPropagation(); pop.hidden = !pop.hidden; };
+  if (!mountCases.docClick) document.addEventListener('click', mountCases.docClick = e => { const p = $('#secPop'); if (p && !p.hidden && !e.target.closest('#secMore')) p.hidden = true; });
+  if (window.ResizeObserver) { const ro = new ResizeObserver(() => { if (!row.isConnected) return ro.disconnect(); fit(); }); ro.observe(row); }
+  fit();
 }
 
 /* =========================================================

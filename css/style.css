@@ -4196,3 +4196,20 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
   background:radial-gradient(closest-side,rgba(0,0,0,.75),rgba(0,0,0,.35) 60%,transparent 100%)}
 .cs-b-maps .case-card:not(.cc-closed) .ca-img{filter:drop-shadow(0 0 1px rgba(255,226,180,.55)) drop-shadow(0 0 10px rgba(255,170,80,.18)) drop-shadow(0 14px 16px rgba(0,0,0,.7))}
 .cs-b-maps .case-card.cc-closed .case-art::before{opacity:.35}
+/* панель фильтров: разделы — в той же строке после цен; не влезшие — в список «Ещё» */
+.filterbar .secs{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
+.filterbar .sec-chip{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;flex:none}
+.sec-ic{display:inline-flex;color:var(--bc)}.sec-ic svg,.sec-ic img{width:15px;height:15px}
+.filterbar .sec-chip.on .sec-ic{color:var(--ink)}
+.sec-more{position:relative;flex:none}
+#secMoreBtn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.sec-car{font-style:normal;font-size:11px;opacity:.8}
+.sec-pop{position:absolute;right:0;top:calc(100% + 8px);z-index:60;min-width:240px;max-height:min(60vh,420px);overflow:auto;padding:6px;border-radius:14px;
+  background:linear-gradient(180deg,#1a1713,#100e0b);border:1px solid rgba(255,255,255,.1);box-shadow:0 18px 40px -12px rgba(0,0,0,.9)}
+.sec-it{display:flex;align-items:center;gap:9px;width:100%;padding:9px 10px;border-radius:10px;font-weight:800;font-size:13px;color:rgba(240,234,222,.88);text-align:left}
+.sec-it:hover{background:rgba(255,255,255,.06)}
+.sec-ok{margin-left:auto;font-style:normal;color:var(--gold);opacity:0}
+.sec-it.on{color:#fff;background:rgba(243,193,79,.12)}.sec-it.on .sec-ok{opacity:1}
+@media (max-width:1024px){.filterbar .secs{order:5;flex:1 1 100%}}
+.filterbar .sec-chip[hidden],.sec-more[hidden],.sec-pop[hidden]{display:none}
+.filterbar{position:relative;z-index:30} /* выпадающий список «Ещё» — поверх карточек */
