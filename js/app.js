@@ -1850,7 +1850,7 @@ function heroHtml() {
           <a class="hs-hot hs-tg" href="https://t.me/rushcasse" target="_blank" rel="noopener" data-box="212,376,918,188" aria-label="Участвуй в розыгрыше — Telegram-канал RUSH CASE"></a>
         </div>
         <div class="hs-slide" data-i="1">
-          <img class="h3-img" src="assets/hero-banner.webp" alt="Открывай. Собирай. Побеждай. Твои следующие легендарные скины уже внутри">
+          <img class="h3-img" src="assets/hero-banner-25.webp" alt="Открывай. Собирай. Побеждай. Твои следующие легендарные скины уже внутри">
           <div class="h3-fx" aria-hidden="true"><div class="h2-embers">${embers}</div><div class="h3-dust">${dust}</div></div>
           <div class="h3-btns">
             <a class="btn btn-primary btn-lg" href="#/cases">${ic.box}Открыть кейсы${ic.right}</a>
@@ -1858,12 +1858,12 @@ function heroHtml() {
           </div>
         </div>
         <div class="hs-slide" data-i="2">
-          <img class="h3-img hs-cover" src="assets/hero-bonus.webp" alt="Получи бонус за участие: подпишись на наши соцсети" loading="lazy">
+          <img class="h3-img hs-cover" src="assets/hero-bonus-25.webp" alt="Получи бонус за участие: подпишись на наши соцсети" loading="lazy">
           <!-- кликабельные зоны поверх нарисованных значков и шагов (координаты — % от слайда) -->
-          ${[['Telegram', 22.11], ['ВКонтакте', 28.4], ['YouTube', 35.01], ['TikTok', 41.63]].map(([t, x]) => `<a class="hs-hot hs-soc" href="#/bonus" title="${t} — бонус за подписку" aria-label="${t}" style="left:${x}%;top:64.8%"></a>`).join('')}
-          <a class="hs-hot hs-step" href="#/profile" title="Открыть профиль" style="left:7.97%;top:72.96%;width:12.59%;height:15.52%"></a>
-          <a class="hs-hot hs-step" href="#/bonus" title="Бонусы" style="left:24.24%;top:72.96%;width:14.56%;height:15.52%"></a>
-          <a class="hs-hot hs-step" href="#/bonus" title="Выполнить условия" style="left:42.48%;top:72.96%;width:12.91%;height:15.52%"></a>
+          ${[['Telegram', 22.11], ['ВКонтакте', 28.4], ['YouTube', 35.01], ['TikTok', 41.63]].map(([t, x]) => `<a class="hs-hot hs-soc" href="#/bonus" title="${t} — бонус за подписку" aria-label="${t}" style="left:${x}%;top:61.63%"></a>`).join('')}
+          <a class="hs-hot hs-step" href="#/profile" title="Открыть профиль" style="left:7.97%;top:68%;width:12.59%;height:12.13%"></a>
+          <a class="hs-hot hs-step" href="#/bonus" title="Бонусы" style="left:24.24%;top:68%;width:14.56%;height:12.13%"></a>
+          <a class="hs-hot hs-step" href="#/bonus" title="Выполнить условия" style="left:42.48%;top:68%;width:12.91%;height:12.13%"></a>
         </div>
         <div class="hs-slide" data-i="3">
           <img class="h3-img hs-cover hs-agents" src="assets/hero-agents.webp" alt="Твой сквад. Твой дроп. Кейс с агентами — открой кейс и забери своего легендарного агента" loading="lazy">
@@ -2058,7 +2058,7 @@ function mountHomeBonus() {
     el('hbSub').textContent = left ? 'до следующего подарка' : 'подарок ждёт — заберите его';
     el('hbDot').textContent = left ? '' : 'доступен';
     const b = $('#hbBtn'); if (b) { b.textContent = left ? 'Подробнее' : 'Забрать'; b.classList.toggle('ghost', !!left); }
-    t.closest('.hb2-c').classList.toggle('ready', !left);
+    (t.closest('.hb2-c, .bx') || t).classList.toggle('ready', !left);
   };
   every(tick, 1000);
 }
@@ -2075,16 +2075,17 @@ function mountHome() {
 /* три окна бонусов — компактно, столбиком справа от баннера */
 function bonusMini() {
   const got = (st.socials || []).length, left = dailyLeft(), all = SOCIALS.length;
-  return `<div class="hbm" id="homeBonus">
-    <article class="hb2-c hbm-c hb2-dep" style="--ac:#f5c76b;--ac2:#d99a2b"><i class="hb2-wm" aria-hidden="true">%</i>
-      <div class="hbm-t"><span class="hb2-l">Бонус к пополнению</span><b class="hb2-gold">+35%</b></div>
-      <div class="hbm-a"><button class="hb2-code" data-act="copy" data-copy="RUSH35" title="Скопировать промокод"><span>RUSH35</span><i>${ic.copy}</i></button></div></article>
-    <article class="hb2-c hbm-c hb2-daily${left ? '' : ' ready'}" style="--ac:#ffb547;--ac2:#e0811a"><i class="hb2-wm hb2-wm-ic" aria-hidden="true">${ic.gift}</i>
-      <div class="hbm-t"><span class="hb2-l">Ежедневный бонус <em class="hb2-dot" id="hbDot">${left ? '' : 'доступен'}</em></span><b class="hb2-timer" id="hbTimer">${left ? dailyText() : 'до 250 ₽'}</b><div class="hb2-bar"><i id="hbBar" style="width:${((1 - left / DAILY_MS) * 100).toFixed(1)}%"></i></div></div>
-      <div class="hbm-a"><a class="hb2-btn${left ? ' ghost' : ''}" id="hbBtn" href="#/bonus">${left ? 'Подробнее' : 'Забрать'}</a></div></article>
-    <article class="hb2-c hbm-c hb2-soc" style="--ac:#7ab8ff;--ac2:#3f7fe0"><i class="hb2-wm hb2-wm-ic" aria-hidden="true">${ic.users}</i>
-      <div class="hbm-t"><span class="hb2-l">Бонус за соцсети · ${got}/${all}</span><b class="hb2-blue">+10 ₽ <small>за канал</small></b></div>
-      <div class="hbm-a"><div class="hb2-socs">${SOCIALS.map(x => { const ok = (st.socials || []).includes(x.k); return `<a href="#/bonus" class="hb2-si${ok ? ' ok' : ''}" style="--c:${HB_SOC[x.k] || '#888'}" title="${x.n}">${ic[x.i]}${ok ? `<i>${ic.check}</i>` : ''}</a>`; }).join('')}</div></div></article>
+  // три бонуса в одном стиле: значок в золотом квадрате, подпись, крупное золотое число, одна кнопка справа
+  return `<div class="hbm bxs" id="homeBonus">
+    <article class="bx"><span class="bx-ic" aria-hidden="true"><b>%</b></span>
+      <div class="hbm-t"><span class="bx-l">Бонус к пополнению</span><b class="bx-v">+35%</b></div>
+      <div class="hbm-a"><button class="bx-btn" data-act="copy" data-copy="RUSH35" title="Скопировать промокод">RUSH35<i>${ic.copy}</i></button></div></article>
+    <article class="bx bx-daily${left ? '' : ' ready'}"><span class="bx-ic" aria-hidden="true">${ic.gift}</span>
+      <div class="hbm-t"><span class="bx-l">Ежедневный бонус <em class="bx-dot" id="hbDot">${left ? '' : 'доступен'}</em></span><b class="bx-v" id="hbTimer">${left ? dailyText() : 'до 250 ₽'}</b><div class="bx-bar"><i id="hbBar" style="width:${((1 - left / DAILY_MS) * 100).toFixed(1)}%"></i></div></div>
+      <div class="hbm-a"><a class="bx-btn${left ? ' ghost' : ''}" id="hbBtn" href="#/bonus">${left ? 'Подробнее' : 'Забрать'}</a></div></article>
+    <article class="bx"><span class="bx-ic" aria-hidden="true">${ic.users}</span>
+      <div class="hbm-t"><span class="bx-l">За подписки · ${got}/${all}</span><b class="bx-v">+10 ₽ <small>за канал</small></b></div>
+      <div class="hbm-a"><a class="bx-btn${got >= all ? ' ghost' : ''}" href="#/bonus">${got >= all ? 'Получено' : 'Подписаться'}</a></div></article>
   </div>`;
 }
 function pageCases() {

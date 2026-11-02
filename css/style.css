@@ -2064,7 +2064,7 @@ button.pfh-chip{cursor:pointer}button.pfh-chip:hover{color:var(--gold);border-co
 
 /* ===== слайдер баннеров ===== */
 .hs{overflow:hidden}
-.hs-track{position:relative;aspect-ratio:2000/667}
+.hs-track{position:relative;aspect-ratio:1983/793} /* все баннеры 2,5:1 — влезают целиком */
 .hs-slide{position:absolute;inset:0;opacity:0;visibility:hidden;transform:scale(1.02);transition:opacity .7s ease,transform 1.2s ease,visibility 0s .7s}
 .hs-slide.on{opacity:1;visibility:visible;transform:none;transition:opacity .7s ease,transform 1.2s ease}
 .hs-slide .h3-img{width:100%;height:100%}
@@ -2082,7 +2082,7 @@ button.pfh-chip{cursor:pointer}button.pfh-chip:hover{color:var(--gold);border-co
 .hs-dots button{width:10px;height:10px;padding:0;border-radius:999px;border:0;background:rgba(255,255,255,.35);cursor:pointer;transition:width .3s,background .3s}
 .hs-dots button.on{width:30px;background:var(--g-gold)}
 @media (max-width:1024px){.hs-arr{display:none}.hs-dots{bottom:auto;top:calc(100% - 26px)}}
-@media (max-width:1024px){.hs-track{aspect-ratio:auto}.hs-slide{position:relative;display:none}.hs-slide.on{display:block}.hs-slide .h3-img{height:auto}.hs-cover{aspect-ratio:2000/667}}
+@media (max-width:1024px){.hs-track{aspect-ratio:auto}.hs-slide{position:relative;display:none}.hs-slide.on{display:block}.hs-slide .h3-img{height:auto}.hs-cover{aspect-ratio:1983/793}}
 @media (max-width:1024px){.hs-dots{position:static;transform:none;justify-content:center;margin:12px auto 0}}
 /* страница кейса: кнопки вплотную под рамкой (поверх затухающих персонажей), меньше пустоты до «Содержимого кейса» */
 @media (min-width:1101px){
@@ -2930,7 +2930,7 @@ html{overflow-x:clip}
 .tr .h3-frame::after{display:none}
 .tr .h3-img{-webkit-mask-image:none;mask-image:none;border-radius:0;height:100%;object-fit:cover}
 .tr .hs-track{height:100%;min-height:100%}
-.tr .h3-btns{left:7%;bottom:9%}
+.tr .h3-btns{left:7%;bottom:15.75%}
 .tr .h3-btns .btn{height:46px;padding:0 20px;font-size:13px}
 .tr-side{min-width:0}
 /* компактные окна бонусов */
@@ -2960,12 +2960,12 @@ html{overflow-x:clip}
 /* баннер — заметная обводка, чтобы не сливался с фоном (без свечения) */
 .tr .h3-frame{border:1.5px solid rgba(245,199,107,.45);box-shadow:0 0 0 1px rgba(0,0,0,.6),0 24px 50px -24px rgba(0,0,0,.95)}
 /* баннер держит свои пропорции (картинка не обрезается, кнопки на месте); колонка бонусов подстраивается под его высоту */
-@media (min-width:1181px){.tr{align-items:start}.tr-side{position:relative;align-self:stretch}.tr-side .hbm{position:absolute;inset:0}.tr .h3-frame,.tr .hs-track{height:auto}.tr .hs-track{aspect-ratio:2000/667}}
-.tr .h3-btns{left:9.2%;bottom:7%;gap:12px}
+@media (min-width:1181px){.tr{align-items:start}.tr-side{position:relative;align-self:stretch}.tr-side .hbm{position:absolute;inset:0}.tr .h3-frame,.tr .hs-track{height:auto}.tr .hs-track{aspect-ratio:1983/793}}
+.tr .h3-btns{left:9.2%;bottom:14.1%;gap:12px}
 .tr .h3-btns .btn{height:clamp(36px,3.4vw,46px);padding:0 clamp(14px,1.4vw,20px);font-size:clamp(11px,.9vw,13px)}
 /* кнопки баннера — в размер самого баннера (единицы контейнера), на любом экране под подписью */
 .tr .h3-frame{container-type:inline-size}
-.tr .h3-btns{left:9.2%;bottom:6.5%;gap:1.2cqw}
+.tr .h3-btns{left:9.2%;bottom:13.67%;gap:1.2cqw}
 .tr .h3-btns .btn{height:4.1cqw;min-height:30px;padding:0 1.7cqw;font-size:max(10px,1.12cqw);border-radius:.9cqw;gap:.7cqw}
 .tr .h3-btns .btn svg{width:max(13px,1.5cqw);height:max(13px,1.5cqw)}
 /* фон крупнее на 16% — оружие уходит к краям экрана и не заходит на кейсы (центр картинки пустой) */
@@ -4215,3 +4215,30 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
 
 /* анимации вне экрана — на паузе (класс ставит IntersectionObserver в route): кейсы, светлячки, искры баннера */
 .io-off,.io-off *{animation-play-state:paused!important}
+/* три бонуса справа от баннера — единый стиль: тёмная карточка, значок в золотом квадрате, подпись, золотое число, одна кнопка */
+.bxs{gap:12px}
+.bx{position:relative;display:flex;align-items:center;gap:14px;min-height:0;padding:14px 16px;border-radius:18px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015)),#0f0d0a;border:1px solid rgba(255,214,140,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 30px -18px rgba(0,0,0,.9);transition:border-color .25s,transform .25s}
+.bx::before{content:"";position:absolute;left:18px;right:18px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(245,199,107,.55),transparent)}
+.bx:hover{border-color:rgba(245,199,107,.32);transform:translateY(-2px)}
+.bx-ic{flex:none;display:grid;place-items:center;width:46px;height:46px;border-radius:13px;color:#1a1204;
+  background:linear-gradient(160deg,#ffe29a,#f3c14f 45%,#c9861d);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -2px 0 rgba(120,70,0,.35),0 6px 16px -6px rgba(245,180,60,.55)}
+.bx-ic svg{width:22px;height:22px}.bx-ic b{font:900 22px/1 var(--ff-h)}
+.bx .hbm-t{gap:5px}
+.bx-l{display:flex;align-items:center;gap:8px;white-space:nowrap;font:800 11px var(--ff-h);letter-spacing:.06em;text-transform:uppercase;color:rgba(240,234,222,.62)}
+.bx-v{font:900 26px/1 var(--ff-h);background:var(--g-gold-txt,linear-gradient(180deg,#ffe7a3,#f3c14f));-webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
+.bx-v small{font:700 12px var(--ff,inherit);-webkit-text-fill-color:rgba(255,255,255,.55);color:rgba(255,255,255,.55)}
+.bx-dot{font-style:normal;font-size:0}
+.bx-daily.ready .bx-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80}
+.bx-bar{height:3px;max-width:170px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}.bx-bar i{display:block;height:100%;background:linear-gradient(90deg,#c9861d,#f3c14f)}
+.bx-btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:11px;white-space:nowrap;font:800 12px var(--ff-h);letter-spacing:.04em;text-transform:uppercase;
+  color:#1a1204;background:linear-gradient(180deg,#ffe29a,#f3c14f 55%,#d99a2b);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 8px 18px -10px rgba(245,180,60,.7);text-decoration:none;border:0;cursor:pointer}
+.bx-btn svg{width:15px;height:15px}
+.bx-btn.ghost{color:#f3d9a2;background:rgba(245,199,107,.08);box-shadow:inset 0 0 0 1px rgba(245,199,107,.35)}
+.bx-btn:hover{filter:brightness(1.08)}
+@media (max-width:1180px){.bxs .bx{flex-direction:row;align-items:center}}
+@media (max-width:420px){.bx{gap:10px;padding:12px}.bx-ic{width:40px;height:40px}.bx-v{font-size:22px}.bx-btn{padding:0 12px}}
+.bx .hbm-t{overflow:hidden}.bx-l{overflow:hidden;text-overflow:ellipsis}.bx-v{overflow:hidden;text-overflow:ellipsis}
+@media (max-width:1180px) and (min-width:761px){.bxs .bx{flex-direction:column;align-items:flex-start;gap:10px}.bx .hbm-t{width:100%}.bx .hbm-a{width:100%}.bx-btn{width:100%;justify-content:center}}
+@media (max-width:480px){.bx{gap:10px;padding:12px}.bx-ic{width:38px;height:38px;border-radius:11px}.bx-ic svg{width:19px;height:19px}.bx-ic b{font-size:19px}.bx-l{font-size:9.5px;letter-spacing:.03em}.bx-v{font-size:21px}.bx-v small{display:none}.bx-btn{height:34px;padding:0 11px;font-size:10.5px;gap:5px}.bx-btn svg{display:none}}
