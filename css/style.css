@@ -4397,10 +4397,11 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 .ax-bandbar{display:block;height:6px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;min-width:60px}.ax-bandbar i{display:block;height:100%;background:var(--gold)}
 /* админка: боковое меню вкладок по разделам */
 .ax-lay{display:grid;grid-template-columns:196px minmax(0,1fr);gap:22px;align-items:start}
-.ax-tabs.ax-side{position:sticky;top:84px;display:flex;flex-direction:column;gap:14px;margin:0;padding:12px 8px;border:1px solid var(--ax-line);border-radius:14px;background:var(--ax-card);overflow:visible;max-height:calc(100vh - 100px);overflow-y:auto}
-.ax-sg{display:flex;flex-direction:column;gap:1px}
-.ax-sg>span{padding:0 10px 4px;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ax-mut);opacity:.7}
-.ax-side button{display:flex;align-items:center;height:36px;padding:0 10px;border-radius:9px;text-align:left;font-size:13.5px}
+.ax-tabs.ax-side{position:sticky;top:84px;display:flex;flex-direction:column;gap:0;margin:0;padding:8px;border:1px solid var(--ax-line);border-radius:14px;background:#0b0c0f;box-shadow:0 12px 30px rgba(0,0,0,.35);overflow:visible;max-height:calc(100vh - 100px);overflow-y:auto}
+.ax-sg{display:flex;flex-direction:column;gap:2px;padding:12px 0 14px}
+.ax-sg+.ax-sg{border-top:1px solid rgba(255,255,255,.07)}
+.ax-sg>span{padding:0 10px 8px;font-size:13.5px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+.ax-side button{display:flex;align-items:center;height:36px;padding:0 10px 0 14px;border-radius:9px;text-align:left;font-size:13.5px}
 .ax-side button:hover{background:rgba(255,255,255,.04)}
 .ax-side button.on{background:rgba(255,255,255,.08);color:#fff}
 .ax-side button.on::after{left:0;right:auto;top:8px;bottom:8px;width:3px;height:auto;background:var(--gold)}
