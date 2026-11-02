@@ -6799,7 +6799,9 @@ function crRender() {
   const act = $('#crAct'); if (!act) return;
   const ph = crPhase(), me = crMe();
   // история взрывов — билетики
-  $('#crHist').innerHTML = cr.hist.map((h, i) => `<span class="cr-tk ${crCls(h.x)}" style="--rt:${[-2, 1.5, -1, 2, -1.5, 1, -2.5, 1.5, -1, 2][i % 10]}deg"><small>№${h.id}</small><b>${crTxt(h.x)}</b></span>`).join('') || '<span class="cr-h-empty">Раундов ещё не было</span>';
+  // перерисовываем только при новом раунде — иначе билетики «моргают» на каждом опросе
+  const hk = cr.hist.map(h => h.id + ':' + h.x).join(','), hb = $('#crHist');
+  if (hb.dataset.k !== hk) hb.dataset.k = hk, hb.innerHTML = cr.hist.map((h, i) => `<span class="cr-tk ${crCls(h.x)}" style="--rt:${[-2, 1.5, -1, 2, -1.5, 1, -2.5, 1.5, -1, 2][i % 10]}deg"><small>№${h.id}</small><b>${crTxt(h.x)}</b></span>`).join('') || '<span class="cr-h-empty">Раундов ещё не было</span>';
   // главная кнопка (вверху меню ставки, на уровне бомбы)
   const key = [cr.err, ph, !!st.user, me ? `${me.cash}|${me.stake}|${me.auto}` : '-'].join('/');
   if (act.dataset.k !== key) {
@@ -6818,7 +6820,8 @@ function crRender() {
   // игроки: ставка и итог
   const tot = cr.bets.reduce((a, b) => a + +b.stake, 0), wins = cr.bets.filter(b => b.cash).length;
   $('#crPl').innerHTML = cr.bets.length ? `${cr.bets.length} игр. · банк <b>${money(tot)}</b>${wins ? ` · забрали ${wins}` : ''}` : '';
-  $('#crList').innerHTML = cr.bets.length ? cr.bets.map(b => {
+  const lk = ph + '|' + JSON.stringify(cr.bets), lb = $('#crList'); if (lb.dataset.k === lk) return; lb.dataset.k = lk;
+  lb.innerHTML = cr.bets.length ? cr.bets.map(b => {
     const its = (b.items || []).map(n => SK[n]).filter(Boolean), pz = b.prize && SK[b.prize];
     const res = b.cash
       ? `<div class="cr-res win"><b>${crTxt(b.cash)}</b>${pz ? `<img class="r-${pz.r}" src="${imgUrl(pz, 'm')}" alt="" title="${esc(pz.name)}"><span>+${money(pz.p)}</span>` : ''}</div>`
