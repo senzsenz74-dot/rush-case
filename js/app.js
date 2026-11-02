@@ -7087,13 +7087,13 @@ async function crScene(gen) {
       const cvs = document.createElement('canvas'); cvs.width = CR_LW * CR_DOT; cvs.height = CR_LH * CR_DOT + 8;
       const tex = new T.CanvasTexture(cvs); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 4;
       g.lcdCv = cvs;
-      g.lcd = new T.Mesh(new T.PlaneGeometry(ps.x * 1.09, ps.z * 1.14), new T.MeshBasicMaterial({ map: tex, toneMapped: false }));
-      g.lcd.rotation.set(-Math.PI / 2, 0, Math.PI); g.lcd.position.set(pc.x - ps.x * .02, pb.max.y + .002, pc.z);
+      g.lcd = new T.Mesh(new T.PlaneGeometry(ps.x * 1.2, ps.z * 1.14), new T.MeshBasicMaterial({ map: tex, toneMapped: false }));
+      g.lcd.rotation.set(-Math.PI / 2, 0, Math.PI); g.lcd.position.set(pc.x + ps.x * .035, pb.max.y + .002, pc.z);
       rig.add(g.lcd); cr.lcdKey = '';
       // свет экрана на плату
       g.lcdGlow = crSprite(T, glow, 0xc8f04a); g.lcdGlow.scale.set(ps.x * 2.6, ps.x * 2.6, 1); g.lcdGlow.position.set(pc.x, pb.max.y + .01, pc.z); rig.add(g.lcdGlow);
-      // красная лампочка — на месте жёлтого светодиода платы (ниже экрана, левее конденсаторов)
-      const lx = pc.x + ps.x * .25, lz = pc.z - ps.z * 3.06, ly = surf(lx, lz);
+      // красная лампочка — в левом верхнем углу платы экрана (на месте крепёжного отверстия)
+      const lx = pc.x + ps.x * .735, lz = pc.z + ps.z * .63, ly = surf(lx, lz);
       const ledM = new T.MeshStandardMaterial({ color: 0x3a0606, emissive: 0xff1a0a, emissiveIntensity: 0, roughness: .25, metalness: 0 });
       g.led = new T.Mesh(new T.SphereGeometry(.024, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), ledM);
       g.led.position.set(lx, ly, lz); g.led.castShadow = true; rig.add(g.led);
