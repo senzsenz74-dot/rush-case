@@ -4182,7 +4182,8 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
 .cs-b-babushka .case-card .cc-price::before{left:9px}.cs-b-babushka .case-card .cc-price::after{right:9px}
 .cs-b-babushka .case-card:hover .cc-price{filter:brightness(1.12);transform:perspective(280px) rotateX(4deg) rotate(0deg) translateY(-1px)}
 @media (max-width:720px){.cs-b-babushka .case-card .cc-price{height:34px;padding:0 22px;font-size:15px}}
-/* разделы с фоном: тёмная подложка под названием и подписью, чтобы читались на картинке */
-.cs-has-bg .sh-tt{padding:6px 16px 7px;margin-left:-6px;border-radius:12px;background:rgba(8,6,4,.66);
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 6px 20px -8px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.05)}
-.cs-has-bg .sh-n{background-color:rgba(8,6,4,.66)}
+/* разделы с фоном: еле заметная тёмная подложка под значком, названием и подписью (правый край растворяется) */
+.cs-has-bg .sh-tt{position:relative}
+.cs-has-bg .sh-tt::before{content:"";position:absolute;z-index:-1;top:-8px;bottom:-8px;left:calc(-48px - 16px - 14px);right:-34px;border-radius:14px;pointer-events:none;
+  background:linear-gradient(90deg,rgba(8,6,4,.48) 0%,rgba(8,6,4,.4) 70%,rgba(8,6,4,0) 100%);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+@media (max-width:720px){.cs-has-bg .sh-tt::before{left:calc(-40px - 12px - 10px)}}
