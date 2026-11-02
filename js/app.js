@@ -2641,11 +2641,11 @@ const upg = { cat: 'all', mult: 0, sel: [], bal: 0, to: null, q: '', sort: 'asc'
 const ARC_R = 138;
 const upgItems = () => upg.sel.map(id => st.inv.find(x => x.id === id && x.st === 'own')).filter(Boolean);
 function upgValue() { return upgItems().reduce((a, x) => a + SK[x.n].p, 0) + upg.bal; }
-// шанс апгрейда: до x20 — честные 92% от отношения сумм; дальше резко падает (x50 ≈ 0,12%, x100 ≈ 0,007%, x500 ≈ 0,00001%) — x500/x1000 практически не выпадают
+// шанс апгрейда: возврат × (ставка / цель) — upgRtp ниже; дальше резко падает (x50 ≈ 0,12%, x100 ≈ 0,007%, x500 ≈ 0,00001%) — x500/x1000 практически не выпадают
 const UPG_SOFT = 20;
 const UPG_MAX = .75; // максимальный шанс апгрейда (как на сервере)
-// сколько апгрейд отдаёт в среднем на этом множителе: x1,5–5 — 80%, остальное — 92%, между ними плавно
-const upgRtp = x => x < 1.3 ? .92 : x < 1.5 ? .92 - (x - 1.3) / .2 * .12 : x <= 5 ? .8 : x < 6 ? .8 + (x - 5) * .12 : .92;
+// возврат апгрейда: 80% на ×1,05–×5 (льгота 92% на мелких множителях убрана 02.11 — ею «накатывали» баланс), дальше как было
+const upgRtp = x => x <= 5 ? .8 : x < 6 ? .8 + (x - 5) * .12 : .92;
 const upgChance = (v, t) => { if (!v || !t) return 0; const x = t.p / v; return Math.min(UPG_MAX, upgRtp(x) / x * (x > UPG_SOFT ? (UPG_SOFT / x) ** 3 : 1) * myLuck()); };
 /* процент шанса: мелкие значения — без округления в ноль (0,0000118%) */
 const pctTxt = ch => { const p = ch * 100; if (p < 1e-6) return '<0,000001%'; const d = p >= 10 ? 1 : p >= 1 ? 2 : Math.min(12, 1 - Math.floor(Math.log10(p))); return p.toFixed(d).replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1').replace('.', ',') + '%'; };
@@ -5246,7 +5246,7 @@ function axUpg(box, D) {
       ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Попыток', r => fmt(r.uN), num], ['Побед', r => fmt(r.uWins), num], ['Поставлено', r => money(r.uStake), num], ['Прибыль', r => sgn(r.upgP), tn('upgP')]], D.rows.filter(r => r.uN).reverse()))}
     </div>
     ${axCard('Игроки апгрейда — кто сколько поставил и выиграл', '<div id="axUpgPl"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div>')}
-    <p class="ax-foot">Удача игрока (меняется в «Игроки») умножает и шанс апгрейда. Шанс: x1,5–5 — в среднем отдаёт 80%, остальные множители — 92%, максимум 75%.</p>`;
+    <p class="ax-foot">Удача игрока (меняется в «Игроки») умножает и шанс апгрейда. Шанс: x1,05–5 — в среднем отдаёт 80%, выше x5 — до 92%, максимум 75%.</p>`;
 }
 /* кто играет в апгрейд: по сумме ставок, с удачей (её множитель действует и на шанс апгрейда) */
 async function axUpgPlayers(el, D) {
