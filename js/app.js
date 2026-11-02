@@ -6629,6 +6629,7 @@ async function admTourTeams(t, done) {
    Бомба неподвижна (чуть повёрнута), вид сверху; множитель — пиксельным шрифтом на её экранчике.
    Справа — меню ставки (скины из инвентаря суммируются), под бомбой — игроки раунда.
    Ушли со страницы — crStop(): стоп опроса, кадров, звуков, WebGL освобождается. */
+const CR_VOL = .4; // общая громкость звуков краша (просьба владельца: тише, в наушниках било по ушам)
 const CR_K = Math.log(100) / 40, CR_MIN = 50, CR_MAXN = 10, CR_HIST = 10;
 const crX = ms => Math.min(100, Math.floor(Math.exp(CR_K * Math.max(0, ms) / 1000) * 100) / 100);
 const crTxt = x => 'x' + (+x).toFixed(2);
@@ -6870,7 +6871,7 @@ function crWon(x, prize, auto) {
 /* ---------- звуки бомбы: свой выход — при уходе со страницы обрывается сразу ---------- */
 function crOut() {
   const a = Snd.a; if (!a) return null;
-  if (!cr.out) { cr.out = a.createGain(); cr.out.connect(a.destination); }
+  if (!cr.out) { cr.out = a.createGain(); cr.out.gain.value = CR_VOL; cr.out.connect(a.destination); }
   return cr.out;
 }
 async function crPlay(name, vol = 1, off = 0, dur = 0) {
