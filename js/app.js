@@ -5048,11 +5048,13 @@ async function mountAdmin() {
   // боковое меню: вкладки по разделам (всё влезает при любом числе вкладок)
   const btn = ([k, t]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${t}${k === 'support' ? '<i class="ax-badge" id="admSupBadge" hidden></i>' : ''}</button>`;
   const inG = new Set(ADM_GROUPS.flatMap(g => g[1]));
-  $('#admTabs').innerHTML = ADM_GROUPS.map(([g, ks]) => { const list = tabs.filter(([k]) => ks.includes(k)); return list.length ? `<div class="ax-sg"><span>${g}</span>${list.map(btn).join('')}</div>` : ''; }).join('')
-    + (tabs.some(([k]) => !inG.has(k)) ? `<div class="ax-sg"><span>Другое</span>${tabs.filter(([k]) => !inG.has(k)).map(btn).join('')}</div>` : '');
+  $('#admTabs').innerHTML = ADM_GROUPS.map(([g, ks]) => { const list = tabs.filter(([k]) => ks.includes(k)); return list.length ? `<div class="ax-sg"><button class="ax-sgh" type="button">${g}<i>›</i></button><div class="ax-fly"><b>${g}</b>${list.map(btn).join('')}</div></div>` : ''; }).join('')
+    + (tabs.some(([k]) => !inG.has(k)) ? `<div class="ax-sg"><button class="ax-sgh" type="button">Другое<i>›</i></button><div class="ax-fly"><b>Другое</b>${tabs.filter(([k]) => !inG.has(k)).map(btn).join('')}</div></div>` : '');
   if (!tabs.length) return ($('#admBody').innerHTML = `<div class="empty">${ic.shield}Владелец ещё не открыл вам разделы админки.</div>`);
   admPeriodBar();
-  $$('#admTabs [data-t]').forEach(b => b.onclick = () => { admTab = b.dataset.t; try { localStorage.setItem('rc.admTab', admTab); } catch (e) { /* */ } admDraw(); });
+  // разделы: наведение открывает список вкладок; нажатие — для телефона; после выбора вкладки список закрывается
+  $$('#admTabs .ax-sg').forEach(g => { $('.ax-sgh', g).onclick = () => { const o = !g.classList.contains('open'); $$('#admTabs .ax-sg').forEach(x => x.classList.remove('open', 'shut')); g.classList.toggle('open', o); }; g.onmouseleave = () => g.classList.remove('shut', 'open'); });
+  $$('#admTabs [data-t]').forEach(b => b.onclick = () => { const g = b.closest('.ax-sg'); if (g) { g.classList.remove('open'); g.classList.add('shut'); } admTab = b.dataset.t; try { localStorage.setItem('rc.admTab', admTab); } catch (e) { /* */ } admDraw(); });
   admDraw();
 }
 const admErr = e => `<div class="empty">${ic.shield}Ошибка: ${esc(e.message || String(e))}. Проверьте, что запущен supabase/admin.sql и ваш аккаунт — админ.</div>`;
@@ -6762,7 +6764,7 @@ async function crAdmSlider(box) {
       toast(`Режим краша: <b>${CR_MODES.find(x => x[0] === v)[1]}</b> — со следующего раунда`); draw(v);
     };
     $('#crModeIn', box).onchange = e => set(e.target.value);
-    $('[data-m]', box).forEach(b => b.onclick = () => set(b.dataset.m));
+    $$('[data-m]', box).forEach(b => b.onclick = () => set(b.dataset.m));
   };
   draw(+data.mode || 0);
 }
