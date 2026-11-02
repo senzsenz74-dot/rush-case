@@ -40,7 +40,7 @@
 - Кейсы из админки — таблица `custom_cases` (~4040); правки кейсов — `site_cfg` ('case:<id>')
 - Страницы (`function pageX` + `mountX`): Home ~1893, Cases ~2109, Top ~2257, Player `#/u/<id>` ~2208,
   Case ~2315 (`openCase` ~2441), Upgrade ~2684, Contracts ~3088, Bonus ~3471, Profile ~3591, Faq/Docs ~3806,
-  Auth ~3897, Deposit ~4125, Jackpot ~4492, Tournaments ~6253
+  Auth ~3897, Deposit ~4125, Jackpot ~4492, Tournaments ~6253, Crash `#/crash` ~6630 (pageCrash; сервер — supabase/crash.sql, модель assets/c4.glb, three.js через importmap)
 - Админка: `pageAdmin` ~4931, `ADM_TABS` ~5101, `admDraw`, `admCases` (витрина), `admBlocks`, `admBanners`, `admPlayers`,
   `admLuck`, `admGive`, `admPromo`, `admStaff`, `admSupport`, `admXls`, `admSync`
 - Роутер: `const ROUTES` + `route()` (~6550), адреса вида `#/case/<id>`, `#/admin`

@@ -62,6 +62,7 @@ const ic = {
   card: sv('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>'),
   globe: sv('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),
   coins: sv('<ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5v4.2c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V5.5"/><path d="M5 9.7v4.2c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V9.7"/><path d="M5 13.9v4.3c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-4.3"/>'),
+  bomb: sv('<rect x="3" y="8" width="18" height="11" rx="1.5"/><rect x="6" y="11" width="7" height="4" rx=".5"/><path d="M16 11.5h2M16 14.5h2M8 8V5.5a1.5 1.5 0 0 1 3 0V8"/>'),
   trend: sv('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
   users: sv('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/>'),
   chev: sv('<path d="M6 9l6 6 6-6"/>'),
@@ -1342,6 +1343,7 @@ Snd.preload('lock', 'assets/sounds/lock.wav');
 Snd.preload('tick', 'assets/sounds/tick.wav');
 [1, 2, 3].forEach(n => Snd.preload('safe' + n, 'assets/sounds/safe-tick-' + n + '.wav'));
 Snd.preload('upgWin', 'assets/sounds/upgrade-win.wav');
+Snd.preload('c4Beep', 'assets/sounds/c4-beep.mp3'); Snd.preload('c4Boom', 'assets/sounds/c4-boom.mp3');
 // звуки контрактов
 Snd.preload('conOpen', 'assets/sounds/con-open.mp3'); Snd.preload('conAdd', 'assets/sounds/con-add.mp3'); Snd.preload('conSign', 'assets/sounds/con-sign.mp3');
 Snd.preload('conStamp', 'assets/sounds/con-stamp.mp3'); Snd.preload('conHover', 'assets/sounds/con-hover.mp3'); Snd.preload('conPen', 'assets/sounds/con-pen-src.mp3');
@@ -1547,6 +1549,7 @@ const ava = (u, cls = '') => {
 const NAV = [
   { k: 'cases', h: '/', t: 'Кейсы', i: 'box' }, // отдельной главной нет — сайт открывается сразу на кейсах
   { k: 'upgrade', h: '/upgrade', t: 'Апгрейд', i: 'up' },
+  { k: 'crash', h: '/crash', t: 'Краш', i: 'bomb', nw: 1 },
   { k: 'contracts', h: '/contracts', t: 'Контракты', i: 'swap' },
   { k: 'jackpot', h: '/jackpot', t: 'Ставки', i: 'coins' },
   { k: 'bonus', h: '/bonus', t: 'Бонусы', i: 'gift' },
@@ -1558,7 +1561,7 @@ function renderHeader() {
   $('#header').innerHTML = `<div class="container hd">
     <button class="burger" id="burger" aria-label="Меню">${ic.menu}</button>
     <a href="#/" class="logo" aria-label="RUSH CASE — на главную">${WORDMARK}</a>
-    <nav class="nav" id="nav">${NAV.map(n => `<a href="#${n.h}" data-nav="${n.k}">${ic[n.i]}<span>${n.t}</span></a>`).join('')}</nav>
+    <nav class="nav" id="nav">${NAV.map(n => `<a href="#${n.h}" data-nav="${n.k}">${ic[n.i]}<span>${n.t}</span>${n.nw ? '<i class="nav-new">NEW</i>' : ''}</a>`).join('')}</nav>
     <div class="hd-right"><div class="user-area" id="userArea"></div></div></div>`;
   $('#burger').onclick = e => { e.stopPropagation(); $('#nav').classList.toggle('open'); };
   renderUser();
@@ -1682,9 +1685,9 @@ const LD_DOC = sv('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h
 // запись ленты: t — 'case' (по умолчанию), 'upg' — апгрейд, 'con' — контракт; x — во сколько раз дороже ставки
 const liveHtml = d => {
   const s = SK[d.n], c = d.t ? null : caseById(d.c);
-  const href = d.uid ? `#/u/${d.uid}` : d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
-  const src = d.t === 'upg' ? `Апгрейд ×${d.x.toFixed(d.x < 10 ? 1 : 0)}` : d.t === 'con' ? `Контракт ×${d.x.toFixed(1)}` : c ? 'Кейс «' + c.name + '»' : d.c;
-  const tag = d.t === 'upg' ? `<span class="ld-t upg">${ic.up}</span>` : d.t === 'con' ? `<span class="ld-t con">${LD_DOC}</span>` : '';
+  const href = d.uid ? `#/u/${d.uid}` : d.t === 'crash' ? '#/crash' : d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
+  const src = d.t === 'crash' ? `Краш x${(+d.x).toFixed(2)}` : d.t === 'upg' ? `Апгрейд ×${d.x.toFixed(d.x < 10 ? 1 : 0)}` : d.t === 'con' ? `Контракт ×${d.x.toFixed(1)}` : c ? 'Кейс «' + c.name + '»' : d.c;
+  const tag = d.t === 'crash' ? `<span class="ld-t crash">${ic.bomb}</span>` : d.t === 'upg' ? `<span class="ld-t upg">${ic.up}</span>` : d.t === 'con' ? `<span class="ld-t con">${LD_DOC}</span>` : '';
   return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${href}" title="${esc(s.name)}">${tag}<img src="${imgUrl(s, 'xs')}" alt="" loading="lazy" decoding="async"><span class="ld-f">${esc(s.f)}</span><span class="ld-w">${esc(s.w)}</span><span class="ld-u"><small>${esc(src)}</small>${esc(d.u)}</span></a>`;
 };
 const liveOk = d => liveFilter === 'all' || SK[d.n].p >= 1000;
@@ -2320,7 +2323,7 @@ async function mountPlayer(id) {
         ${best ? `<section class="pp-card"><h3>Лучший дроп</h3><div class="pp-best">${itemCard(best)}</div></section>` : ''}
         ${p.team ? `<section class="pp-card"><h3>Команда</h3><a class="pp-team" href="#/tournaments">${teamLogo(p.team)}<span><b>${esc(p.team.name)}</b><small>[${esc(p.team.tag)}]${p.team.captain ? ' · капитан' : ''}</small></span></a></section>` : ''}
         <section class="pp-card"><h3>Последние дропы</h3>${(p.drops || []).filter(d => SK[d.n]).length ? `<div class="pp-drops">${p.drops.filter(d => SK[d.n]).map(d => { const s = SK[d.n], c = d.t === 'case' ? caseById(d.c) : null;
-          return `<div class="pp-drop r-${s.r}"><img src="${imgUrl(s, 's')}" alt=""><span><b>${esc(s.name)}</b><small>${d.t === 'upg' ? `апгрейд ×${(+d.x).toFixed(1).replace('.', ',')}` : d.t === 'con' ? 'контракт' : c ? 'кейс «' + esc(c.name) + '»' : 'кейс'} · ${new Date(d.ts).toLocaleDateString('ru-RU')}</small></span><i>${money(s.p)}</i></div>`; }).join('')}</div>` : '<div class="empty">Пока нет дропов</div>'}</section>
+          return `<div class="pp-drop r-${s.r}"><img src="${imgUrl(s, 's')}" alt=""><span><b>${esc(s.name)}</b><small>${d.t === 'crash' ? `краш x${(+d.x).toFixed(2).replace('.', ',')}` : d.t === 'upg' ? `апгрейд ×${(+d.x).toFixed(1).replace('.', ',')}` : d.t === 'con' ? 'контракт' : c ? 'кейс «' + esc(c.name) + '»' : 'кейс'} · ${new Date(d.ts).toLocaleDateString('ru-RU')}</small></span><i>${money(s.p)}</i></div>`; }).join('')}</div>` : '<div class="empty">Пока нет дропов</div>'}</section>
       </div>
       <section class="pp-card pp-inv"><h3>Инвентарь <small>${fmt(inv.length)} предм. · ${money(invSum)}</small></h3>${inv.length ? `<div class="inv-grid pp-inv-grid">${inv.slice(0, 60).map(s => itemCard(s)).join('')}</div>${inv.length > 60 ? `<div class="pp-more">и ещё ${inv.length - 60}</div>` : ''}` : '<div class="empty">Инвентарь пуст</div>'}</section>
     </div>`;
@@ -6620,8 +6623,372 @@ async function admTourTeams(t, done) {
   $$('[data-kick]', m).forEach(b => b.onclick = async () => { if (!confirm('Снять команду с турнира?')) return; const { error: e } = await sb.rpc('admin_tour_kick', { p_tour: t.id, p_team: b.dataset.kick }); if (e) return toast('Ошибка: ' + e.message, 'err'); toast('Команда снята'); admTourTeams(t, done); done(); });
 }
 
+/* ---------- краш (supabase/crash.sql): общий раунд, 3D-бомба C4 ----------
+   Сервер ведёт раунды: 15 с приём ставок → x(t) = e^(k·t) до взрыва (не позже 40 с, x100) → 4 с итоги.
+   Точку взрыва браузер узнаёт только после «БУМ»; «Забрать» считает x по часам сервера.
+   Бомба неподвижна, вид сверху; множитель — пиксельным шрифтом на её экранчике. */
+const CR_K = Math.log(100) / 40, CR_MIN = 50, CR_MAXN = 10;
+const crX = ms => Math.min(100, Math.floor(Math.exp(CR_K * Math.max(0, ms) / 1000) * 100) / 100);
+const crTxt = x => 'x' + (+x).toFixed(2);
+const crCls = x => x >= 10 ? 'x4' : x >= 3 ? 'x3' : x >= 2 ? 'x2' : x >= 1.2 ? 'x1' : 'x0';
+let cr = { r: null, bets: [], hist: [], off: null, rtt: 1e9, busy: false, boomed: 0, poll: 0, raf: 0, g: null, lastBeep: 0, beepT: 0, err: 0, auto: '' };
+const crNow = () => Date.now() + (cr.off || 0);
+const crMe = () => st.user && cr.bets.find(b => b.me);
+function pageCrash() {
+  return `<section class="container crash" id="crash">
+    <div class="page-head top-head"><div><h1>Краш <em>C4</em></h1><p>Поставьте скины, пока идёт приём ставок. Бомба пикает — множитель растёт. Успели забрать до взрыва — получаете случайный скин дороже ставки во столько раз, на каком x остановились. Не успели — ставка сгорает.</p></div></div>
+    <div class="cr-hist" id="crHist"></div>
+    <div class="cr-main">
+      <div class="cr-left">
+        <div class="cr-stage" id="crStage">
+          <canvas id="crCanvas"></canvas>
+          <div class="cr-flash" id="crFlash"></div>
+          <div class="cr-boomtxt" id="crBoomT"></div>
+          <div class="cr-chip" id="crSt"><i></i><span>Подключение…</span></div>
+          <div class="cr-bar"><i id="crBar"></i></div>
+        </div>
+        <div class="cr-act" id="crAct"></div>
+      </div>
+      <div class="panel cr-players">
+        <div class="panel-h"><h3>Игроки раунда</h3><span class="cr-sum" id="crPl"></span></div>
+        <div class="cr-thead"><span>Игрок</span><span>Ставка</span><span>Итог</span></div>
+        <div id="crList"></div>
+      </div>
+    </div>
+    <div class="cr-rules"><b>Как это работает</b><span>x2 — примерно на 6-й секунде, x10 — на 20-й, x100 — на 40-й: бомба взрывается не позже.</span><span>Ставка — от ${CR_MIN} ₽, до ${CR_MAXN} скинов. Можно задать автовывод: сервер заберёт ставку сам на нужном x.</span><span>Около 10% раундов взрываются сразу на x1.00. Чем выше x, тем реже бомба до него доживает.</span></div>
+  </section>`;
+}
+function mountCrash() {
+  Snd.warm(['c4Beep', 'c4Boom']);
+  cr.busy = false; cr.boomed = 0; cr.lcdKey = '';
+  crRender();
+  crPoll();
+  crScene();
+  cancelAnimationFrame(cr.raf);
+  const loop = () => { if (!$('#crash')) { crStop(); return; } crFrame(); cr.raf = requestAnimationFrame(loop); };
+  cr.raf = requestAnimationFrame(loop);
+}
+function crStop() {
+  cancelAnimationFrame(cr.raf); clearTimeout(cr.poll);
+  if (cr.g) { try { cr.g.ro && cr.g.ro.disconnect(); cr.g.ren.dispose(); } catch (e) { /* */ } cr.g = null; }
+}
+/* опрос сервера: чаще, пока бомба тикает */
+async function crPoll() {
+  clearTimeout(cr.poll);
+  if (!$('#crash')) return;
+  if (!sb) { cr.err = 1; crRender(); return; }
+  const t0 = Date.now();
+  const { data, error } = await sb.rpc('crash_state');
+  const t1 = Date.now();
+  if (!$('#crash')) return;
+  if (error || !data) { cr.err = 1; crRender(); cr.poll = setTimeout(crPoll, 2500); return; }
+  cr.err = 0;
+  // часы сервера: доверяем замерам с быстрой связью
+  if (cr.off == null || t1 - t0 <= cr.rtt * 1.5) { const o = data.now - (t0 + t1) / 2; cr.off = cr.off == null || t1 - t0 < cr.rtt ? o : cr.off * .8 + o * .2; cr.rtt = Math.min(cr.rtt, t1 - t0); }
+  if (data.data) sbApply(data.data);
+  const prevId = cr.r && cr.r.id, prevPh = cr.r && cr.r.phase, me0 = crMe();
+  cr.r = data.round; cr.bets = data.bets || []; cr.hist = data.hist || [];
+  // автовывод сработал на сервере — поздравляем
+  const me = crMe();
+  if (me && me.cash && me.prize && (!me0 || !me0.cash) && prevId === cr.r.id) crWon(me.cash, me.prize, true);
+  if (prevId !== cr.r.id) { cr.boomed = 0; if (cr.g) cr.g.boomT = 0; }
+  if (cr.r.phase === 'crash' && prevPh && prevPh !== 'crash' && prevId === cr.r.id && cr.boomed !== cr.r.id) crBoom();
+  crRender();
+  const ph = crPhase();
+  cr.poll = setTimeout(crPoll, ph === 'fly' ? 350 : ph === 'bet' && cr.r.start - crNow() < 1500 ? 300 : 1000);
+}
+/* фаза с учётом часов: ставки закончились — бомба уже тикает, даже если сервер ещё не ответил */
+function crPhase() {
+  const r = cr.r; if (!r) return 'load';
+  if (r.phase === 'crash') return 'crash';
+  return crNow() >= r.start ? 'fly' : 'bet';
+}
+function crCurX() { const r = cr.r; return !r ? 1 : r.phase === 'crash' ? +r.crash_x : crX(crNow() - r.start); }
+/* каждый кадр: экранчик бомбы, полоска, пиканье */
+function crFrame() {
+  const ph = crPhase(), r = cr.r, chip = $('#crSt'), bar = $('#crBar');
+  if (!chip) return;
+  const now = crNow();
+  let k = 0, chipT = 'Подключение…', lcd;
+  if (ph === 'bet') {
+    const s = Math.max(0, Math.ceil((r.start - now) / 1000));
+    chipT = `Приём ставок · 0:${pad(s)}`;
+    lcd = { top: 'PLACE YOUR BETS', bot: `0:${pad(s)}`, lit: 1 };
+    bar.style.width = (Math.max(0, r.start - now) / 15000 * 100) + '%'; bar.className = 'bet';
+  } else if (ph === 'fly') {
+    const x = crX(now - r.start); k = Math.min(1, (now - r.start) / 40000);
+    chipT = 'Бомба заложена';
+    // пиканье C4: от раза в секунду до частой дроби к 40-й секунде
+    const gap = Math.max(85, 1000 * Math.pow(1 - k, 1.35));
+    if (now - cr.lastBeep >= gap) { cr.lastBeep = now; cr.beepT = performance.now(); crBeep(k); }
+    lcd = { big: crTxt(x), lit: 1, pulse: Math.max(0, 1 - (performance.now() - cr.beepT) / 140) };
+    bar.style.width = (k * 100) + '%'; bar.className = 'fly';
+    const me = crMe(), v = $('#crCashV');
+    if (v && me && !me.cash) v.textContent = money(me.stake * x);
+  } else if (ph === 'crash') {
+    chipT = `Взрыв на ${crTxt(r.crash_x)}`;
+    lcd = { big: crTxt(r.crash_x), lit: 0 };
+    bar.style.width = '100%'; bar.className = 'boom';
+  } else lcd = { top: 'RUSH CASE', bot: 'LOADING', lit: 0 };
+  chip.className = 'cr-chip ' + ph;
+  const bt = $('#crBoomT'), btT = ph === 'crash' ? crTxt(r.crash_x) : ''; if (bt.dataset.t !== btT) { bt.dataset.t = btT; bt.innerHTML = btT ? '<small>БУМ</small>' + btT : ''; }
+  const sp = chip.lastChild; if (sp.textContent !== chipT) sp.textContent = chipT;
+  crLcd(lcd);
+  crDraw3d(ph);
+}
+function crRender() {
+  const act = $('#crAct'); if (!act) return;
+  const ph = crPhase(), me = crMe();
+  // история взрывов
+  $('#crHist').innerHTML = cr.hist.map(h => `<span class="cr-h ${crCls(h.x)}" title="Раунд #${h.id}">${crTxt(h.x)}</span>`).join('') || '<span class="cr-h-empty">Раундов ещё не было</span>';
+  // кнопка
+  if (cr.err || !sb) act.innerHTML = `<div class="cc-note">Нет связи с сервером — пробуем переподключиться…</div>`;
+  else if (ph === 'load') act.innerHTML = `<div class="cc-note"><span class="spinner"></span></div>`;
+  else if (!st.user) act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и сделать ставку</button>`;
+  else if (me) {
+    if (me.cash) act.innerHTML = `<div class="cr-done win">Вы забрали на <b>${crTxt(me.cash)}</b>${me.prize && SK[me.prize] ? ` — <b>${esc(me.prize)}</b> · ${money(SK[me.prize].p)}` : ''}</div>`;
+    else if (ph === 'bet') act.innerHTML = `<div class="cr-done">Ставка <b>${money(me.stake)}</b> принята${me.auto ? ` · автовывод ${crTxt(me.auto)}` : ''}. Ждём старта…</div>`;
+    else if (ph === 'fly') { act.innerHTML = `<button class="btn btn-xl cr-cash" id="crCash">Забрать <b id="crCashV">${money(me.stake * crCurX())}</b></button>`; $('#crCash').onclick = crCashout; }
+    else act.innerHTML = `<div class="cr-done lose">Бомба взорвалась на <b>${crTxt(cr.r.crash_x)}</b> — ставка ${money(me.stake)} сгорела</div>`;
+  } else if (ph === 'bet') { act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" id="crBet">${ic.plus}Сделать ставку</button>`; $('#crBet').onclick = crOpenBet; }
+  else act.innerHTML = `<div class="cc-note">${ph === 'fly' ? 'Раунд идёт — ставки на следующий откроются после взрыва' : 'Новый раунд через несколько секунд'}</div>`;
+  // игроки: ставка и итог
+  const tot = cr.bets.reduce((a, b) => a + +b.stake, 0), wins = cr.bets.filter(b => b.cash).length;
+  $('#crPl').innerHTML = cr.bets.length ? `${cr.bets.length} игр. · банк <b>${money(tot)}</b>${wins ? ` · забрали ${wins}` : ''}` : '';
+  $('#crList').innerHTML = cr.bets.length ? cr.bets.map(b => {
+    const its = (b.items || []).map(n => SK[n]).filter(Boolean), pz = b.prize && SK[b.prize];
+    const res = b.cash
+      ? `<div class="cr-res win"><b>${crTxt(b.cash)}</b>${pz ? `<img class="r-${pz.r}" src="${imgUrl(pz, 'm')}" alt="" title="${esc(pz.name)}"><span>+${money(pz.p)}</span>` : ''}</div>`
+      : ph === 'crash' ? `<div class="cr-res lose"><b>Сгорело</b><span>−${money(b.stake)}</span></div>`
+      : `<div class="cr-res play"><b>в игре</b>${b.me && b.auto ? `<span>авто ${crTxt(b.auto)}</span>` : ''}</div>`;
+    return `<div class="cr-row${b.me ? ' me' : ''}${b.cash ? ' won' : ph === 'crash' ? ' lost' : ''}">
+      <div class="cr-who">${ava({ name: b.name, ava: b.ava }, 'xs')}<b>${plink(b.uid, esc(b.name || 'Игрок'))}${b.me ? ' <em>вы</em>' : ''}</b></div>
+      <div class="cr-stk"><div class="cr-its">${its.slice(0, 3).map(s => `<img class="r-${s.r}" src="${imgUrl(s, 'm')}" alt="" title="${esc(s.name)} — ${money(s.p)}">`).join('')}${its.length > 3 ? `<em>+${its.length - 3}</em>` : ''}</div><span>${money(b.stake)}</span></div>
+      ${res}</div>`;
+  }).join('') : `<div class="cr-empty">${ic.users}<span>${ph === 'bet' ? 'Пока никто не поставил — будьте первым' : 'В этом раунде ставок нет'}</span></div>`;
+}
+function crOpenBet() {
+  if (!st.user) return openAuth('login');
+  if (crPhase() !== 'bet') return toast('Ставки уже закрыты', 'err');
+  const list = own().slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
+  let sel = [];
+  const m = modal(`<div class="dep jp-pick cr-pick"><h2>Ставка в краш</h2>
+    <p class="dep-sub">Выберите до ${CR_MAXN} скинов из инвентаря, сумма — от ${CR_MIN} ₽.</p>
+    <div class="mini-grid" id="crInv">${list.length ? list.map(x => mcard(SK[x.n], `data-id="${x.id}"`)).join('') : `<div class="empty">${ic.box}Инвентарь пуст — откройте пару кейсов.<a class="btn btn-primary btn-sm" href="#/cases">К кейсам</a></div>`}</div>
+    <label class="cr-auto">Автовывод <span>x</span><input class="inp" id="crAutoIn" type="number" min="1.01" max="100" step="0.01" placeholder="не нужен" inputmode="decimal" value="${esc(cr.auto)}"></label>
+    <div class="dep-total"><div>Ваша ставка<b id="crSel">0 ₽</b><span id="crSelN"></span></div><button class="btn btn-primary btn-xl" id="crGo" disabled>Поставить</button></div></div>`, 'm-dep');
+  const sum = () => sel.reduce((a, id) => a + SK[st.inv.find(x => x.id === id).n].p, 0);
+  const upd = () => {
+    const s = sum();
+    $('#crSel', m).textContent = money(s);
+    $('#crSelN', m).textContent = sel.length ? `${sel.length} из ${CR_MAXN} предм.${s < CR_MIN ? ` · нужно от ${CR_MIN} ₽` : ''}` : '';
+    $('#crGo', m).disabled = !sel.length || s < CR_MIN;
+  };
+  $$('[data-id]', m).forEach(el => el.onclick = () => {
+    const id = el.dataset.id, on = !sel.includes(id);
+    if (on && sel.length >= CR_MAXN) return toast(`Не больше ${CR_MAXN} скинов`, 'err');
+    sel = on ? [...sel, id] : sel.filter(z => z !== id); el.classList.toggle('sel', on); Snd.safeSel(on); upd();
+  });
+  $('#crGo', m).onclick = async () => {
+    if (crPhase() !== 'bet') { closeModal(); return toast('Ставки уже закрыты', 'err'); }
+    const raw = String($('#crAutoIn', m).value || '').replace(',', '.').trim(), auto = raw ? Math.round(parseFloat(raw) * 100) / 100 : null;
+    if (raw && !(auto >= 1.01 && auto <= 100)) return toast('Автовывод — от x1.01 до x100', 'err');
+    cr.auto = raw;
+    const b = $('#crGo', m); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+    const r = await srv('crash_bet', { p_ids: sel, p_auto: auto });
+    closeModal();
+    if (!r) return;
+    Snd.coin(); toast(`Ставка ${money(r.stake)} принята`);
+    crPoll();
+  };
+  upd();
+}
+async function crCashout() {
+  if (cr.busy || !cr.r) return;
+  cr.busy = true;
+  const b = $('#crCash'); if (b) b.disabled = true;
+  const r = await srv('crash_cashout', { p_round: cr.r.id });
+  cr.busy = false;
+  if (!r) { if (b) b.disabled = false; return; }
+  const me = crMe();
+  if (r.win) { if (me) { me.cash = r.x; me.prize = r.prize; } crWon(r.x, r.prize); }
+  else { toast('Не успели — бомба взорвалась', 'err'); crPoll(); }
+  crRender();
+}
+function crWon(x, prize, auto) {
+  const s = SK[prize];
+  Snd.profit(); burst(80);
+  if (s) liveMine({ n: prize, t: 'crash', x: +x });
+  toast(`${auto ? 'Автовывод: ' : ''}забрали на <b>${crTxt(x)}</b>${s ? ` — <b>${esc(prize)}</b> (${money(s.p)})` : ''}`);
+}
+/* ---------- звуки бомбы ---------- */
+function crBeep(k) {
+  Snd.play('c4Beep', .7 + k * .3).then(ok => { if (!ok) crBeepSynth(k); });
+}
+function crBeepSynth(k) {
+  Snd.tone(2350 + k * 500, .075, 'square', .05 + k * .03);
+  Snd.tone(4700 + k * 1000, .05, 'sine', .02);
+}
+function crBoomSnd() {
+  Snd.tone(48, 1.6, 'sine', .7, 0, 25);
+  Snd.noise(1.8, .55, 0, 380, .6, 'lowpass');
+  Snd.noise(.5, .4, 0, 2400, .5, 'bandpass');
+  Snd.tone(90, .6, 'sawtooth', .18, 0, 30);
+  Snd.noise(1.2, .12, .15, 6000, .5, 'highpass');
+}
+function crBoom() {
+  cr.boomed = cr.r.id;
+  Snd.play('c4Boom', 1).then(ok => { if (!ok) crBoomSnd(); });
+  const f = $('#crFlash'), stg = $('#crStage');
+  if (f) { f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+  if (stg) { stg.classList.remove('shake'); void stg.offsetWidth; stg.classList.add('shake'); }
+  if (cr.g) cr.g.boomT = performance.now();
+  const me = crMe();
+  if (me && !me.cash) toast(`БУМ на ${crTxt(cr.r.crash_x)} — ставка сгорела`, 'err');
+}
+/* ---------- экранчик бомбы: точечный ЖК-дисплей 95×17 точек (как 16×2 символов) ---------- */
+const CR_FONT = (() => {
+  const g = {
+    0: '01110100011001110101110011000101110', 1: '00100011000010000100001000010001110', 2: '01110100010000100010001000100011111',
+    3: '11111000100010000010000011000101110', 4: '00010001100101010010111110001000010', 5: '11111100001111000001000011000101110',
+    6: '00110010001000011110100011000101110', 7: '11111000010001000100010000100001000', 8: '01110100011000101110100011000101110',
+    9: '01110100011000101111000010001001100', x: '00000000001000101010001000101010001', '.': '00000000000000000000000000110001100',
+    ':': '00000011000110000000011000110000000', ' ': '00000000000000000000000000000000000', '-': '00000000000000011111000000000000000',
+    '!': '00100001000010000100001000000000100', '*': '00000001001010101110101010010000000',
+    A: '01110100011000110001111111000110001', B: '11110100011000111110100011000111110', C: '01110100011000010000100001000101110',
+    D: '11100100101000110001100011001011100', E: '11111100001000011110100001000011111', G: '01110100011000010111100011000101111',
+    H: '10001100011000111111100011000110001', I: '01110001000010000100001000010001110', K: '10001100101010011000101001001010001',
+    L: '10000100001000010000100001000011111', M: '10001110111010110101100011000110001', N: '10001100011100110101100111000110001',
+    O: '01110100011000110001100011000101110', P: '11110100011000111110100001000010000', R: '11110100011000111110101001001010001',
+    S: '01111100001000001110000010000111110', T: '11111001000010000100001000010000100', U: '10001100011000110001100011000101110',
+    W: '10001100011000110101101011010101010', Y: '10001100011000101010001000010000100',
+  };
+  return g;
+})();
+const CR_LW = 95, CR_LH = 17, CR_DOT = 8;
+function crLcd(o) {
+  const g = cr.g; if (!g || !g.lcd) return;
+  const key = JSON.stringify(o); if (key === cr.lcdKey) return; cr.lcdKey = key;
+  const c = g.lcdCv, x2 = c.getContext('2d'), W = c.width, H = c.height;
+  // подсветка: жёлто-зелёная во время игры, тусклая оливковая без неё
+  const grd = x2.createLinearGradient(0, 0, 0, H);
+  if (o.lit) { const p = o.pulse || 0; grd.addColorStop(0, `rgb(${178 + p * 30},${196 + p * 25},${58 + p * 20})`); grd.addColorStop(1, `rgb(${150 + p * 30},${168 + p * 25},${40 + p * 20})`); }
+  else { grd.addColorStop(0, '#5f6122'); grd.addColorStop(1, '#4a4c18'); }
+  x2.fillStyle = grd; x2.fillRect(0, 0, W, H);
+  const on = new Uint8Array(CR_LW * CR_LH);
+  const put = (ch, cx, cy, s) => { const b = CR_FONT[ch] || CR_FONT[' ']; for (let i = 0; i < 35; i++) if (b[i] === '1') { const px = i % 5, py = (i / 5) | 0; for (let a = 0; a < s; a++) for (let d = 0; d < s; d++) { const X = cx + px * s + a, Y = cy + py * s + d; if (X >= 0 && X < CR_LW && Y >= 0 && Y < CR_LH) on[Y * CR_LW + X] = 1; } } };
+  if (o.big) { const t = o.big.slice(0, 8), w = t.length * 12 - 2; let cx = Math.round((CR_LW - w) / 2); for (const ch of t) { put(ch, cx, 2, 2); cx += 12; } }
+  else {
+    const line = (t, row) => { t = t.slice(0, 16); let cx = Math.round((16 - t.length) / 2) * 6; for (const ch of t) { put(ch, cx, row * 9 + 1, 1); cx += 6; } };
+    line(o.top || '', 0); line(o.bot || '', 1);
+  }
+  const d = CR_DOT, gap = 1.4;
+  for (let y = 0; y < CR_LH; y++) for (let x = 0; x < CR_LW; x++) {
+    const lit = on[y * CR_LW + x];
+    x2.fillStyle = lit ? (o.lit ? 'rgba(22,30,6,.92)' : 'rgba(20,22,6,.85)') : 'rgba(0,0,0,.07)';
+    x2.fillRect(x * d + gap / 2, y * d + gap / 2 + 4, d - gap, d - gap);
+  }
+  // блик стекла
+  const gl = x2.createLinearGradient(0, 0, 0, H); gl.addColorStop(0, 'rgba(255,255,255,.14)'); gl.addColorStop(.45, 'rgba(255,255,255,0)'); x2.fillStyle = gl; x2.fillRect(0, 0, W, H);
+  g.lcd.material.map.needsUpdate = true;
+}
+/* ---------- 3D: three.js с CDN (importmap в index.html), модель assets/c4.glb ---------- */
+let crLib = null;
+const crLoadLib = () => crLib || (crLib = Promise.all([
+  import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js'), import('three/addons/environments/RoomEnvironment.js'),
+]).catch(e => { crLib = null; throw e; }));
+async function crScene() {
+  const cv = $('#crCanvas'); if (!cv) return;
+  let T, GLTFLoader, MeshoptDecoder, RoomEnvironment;
+  try { const [a, b, c, d] = await crLoadLib(); T = a; GLTFLoader = b.GLTFLoader; MeshoptDecoder = c.MeshoptDecoder; RoomEnvironment = d.RoomEnvironment; } catch (e) { $('#crStage') && $('#crStage').classList.add('no3d'); return; }
+  if (cv !== $('#crCanvas')) return;
+  const ren = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+  ren.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  ren.outputColorSpace = T.SRGBColorSpace; ren.toneMapping = T.ACESFilmicToneMapping; ren.toneMappingExposure = 1.05;
+  ren.shadowMap.enabled = true; ren.shadowMap.type = T.PCFSoftShadowMap;
+  const scene = new T.Scene();
+  // отражения — мягкая «комната», свет — тёплый, как лампы на фоне
+  const pm = new T.PMREMGenerator(ren); scene.environment = pm.fromScene(new RoomEnvironment(), .04).texture; scene.environmentIntensity = .55;
+  const cam = new T.PerspectiveCamera(26, 1, .1, 50);
+  cam.position.set(0, 4.6, 0); cam.up.set(0, 0, 1); cam.lookAt(0, 0, 0); // экран бомбы — сверху, клавиатура — ниже, как на референсе
+  scene.add(new T.HemisphereLight(0xffe6c4, 0x2a1d12, .9));
+  const key = new T.DirectionalLight(0xffe2b8, 2.4); key.position.set(1.4, 4, 1.6); key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024); key.shadow.radius = 6; key.shadow.bias = -.0004;
+  Object.assign(key.shadow.camera, { left: -1.6, right: 1.6, top: 1.6, bottom: -1.6, near: .5, far: 10 });
+  scene.add(key);
+  const fill = new T.DirectionalLight(0xffb070, .7); fill.position.set(2, 2, 2); scene.add(fill);
+  const fire = new T.PointLight(0xffa040, 0, 14, 1.2); fire.position.set(0, .8, 0); scene.add(fire);
+  // невидимый пол — только мягкая тень бомбы на фоне
+  const floor = new T.Mesh(new T.PlaneGeometry(8, 8), new T.ShadowMaterial({ opacity: .55 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  const g = cr.g = { T, ren, scene, cam, fire, floor, bomb: null, lcd: null, boomT: 0 };
+  const fit = () => {
+    const w = cv.clientWidth || 1, h = cv.clientHeight || 1; ren.setSize(w, h, false); cam.aspect = w / h;
+    // бомба целиком в кадре: по высоте ~1.75, по ширине ~1.3 (с запасом)
+    const need = Math.max(1.95, 1.5 / cam.aspect); cam.position.y = need / 2 / Math.tan(T.MathUtils.degToRad(cam.fov / 2)) + .1;
+    cam.updateProjectionMatrix();
+  };
+  g.ro = new ResizeObserver(fit); g.ro.observe(cv); fit();
+  // искры и огненный шар взрыва
+  const N = 260, pos = new Float32Array(N * 3);
+  const pg = new T.BufferGeometry(); pg.setAttribute('position', new T.BufferAttribute(pos, 3));
+  g.parts = new T.Points(pg, new T.PointsMaterial({ color: 0xffb347, size: .06, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
+  g.parts.frustumCulled = false; g.pVel = new Float32Array(N * 3); scene.add(g.parts);
+  g.ball = new T.Mesh(new T.SphereGeometry(.5, 24, 16), new T.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
+  g.ball.position.y = .3; scene.add(g.ball);
+  const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
+  loader.load('assets/c4.glb?v=1', gl => {
+    if (cr.g !== g) return;
+    const m = gl.scene; let panel = null;
+    m.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; if (o.material && o.material.name === 'c4_panorama_control_panel') { panel = o; o.visible = false; } } });
+    // длинная сторона 1.6, по центру, лежит на «полу»
+    const box = new T.Box3().setFromObject(m), sz = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
+    const s = 1.6 / Math.max(sz.x, sz.y, sz.z);
+    m.scale.setScalar(s); m.position.set(-c.x * s, -box.min.y * s, -c.z * s);
+    scene.add(m); g.bomb = m; m.updateMatrixWorld(true);
+    // экранчик: своя плоскость поверх стекла ЖК, текстура рисуется кодом
+    if (panel) {
+      panel.visible = true; const pb = new T.Box3().setFromObject(panel, true); panel.visible = false;
+      const ps = pb.getSize(new T.Vector3()), pc = pb.getCenter(new T.Vector3());
+      const cvs = document.createElement('canvas'); cvs.width = CR_LW * CR_DOT; cvs.height = CR_LH * CR_DOT + 8;
+      const tex = new T.CanvasTexture(cvs); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 4;
+      g.lcdCv = cvs;
+      g.lcd = new T.Mesh(new T.PlaneGeometry(ps.x, ps.z), new T.MeshBasicMaterial({ map: tex, toneMapped: false }));
+      g.lcd.rotation.set(-Math.PI / 2, 0, Math.PI); g.lcd.position.set(pc.x, pb.max.y + .002, pc.z);
+      scene.add(g.lcd); cr.lcdKey = '';
+    }
+    $('#crStage') && $('#crStage').classList.add('ready');
+  }, undefined, () => { $('#crStage') && $('#crStage').classList.add('no3d'); });
+}
+function crDraw3d(ph) {
+  const g = cr.g; if (!g) return;
+  const t = performance.now(), pos = g.parts.geometry.attributes.position.array, pm = g.parts.material;
+  if (ph === 'crash' && g.boomT) {
+    const bt = (t - g.boomT) / 1000;
+    if (g.boomInit !== g.boomT) {
+      g.boomInit = g.boomT; g.lastBt = 0;
+      for (let i = 0; i < pos.length; i += 3) {
+        pos[i] = 0; pos[i + 1] = .2; pos[i + 2] = 0;
+        const a = Math.random() * Math.PI * 2, sp = 1.2 + Math.random() * 3.8;
+        g.pVel[i] = Math.cos(a) * sp; g.pVel[i + 1] = 1 + Math.random() * 3; g.pVel[i + 2] = Math.sin(a) * sp;
+      }
+    }
+    const dt = Math.min(.05, bt - g.lastBt); g.lastBt = bt;
+    for (let i = 0; i < pos.length; i += 3) { pos[i] += g.pVel[i] * dt; pos[i + 1] += g.pVel[i + 1] * dt; pos[i + 2] += g.pVel[i + 2] * dt; }
+    g.parts.geometry.attributes.position.needsUpdate = true;
+    pm.opacity = Math.max(0, 1 - bt / 1.4);
+    g.ball.material.opacity = Math.max(0, .95 - bt * 1.6); g.ball.scale.setScalar(.3 + Math.min(1, bt * 3) * 2.4);
+    g.fire.intensity = Math.max(0, 40 * (1 - bt / .9));
+    const vis = bt < .06; if (g.bomb) g.bomb.visible = vis; if (g.lcd) g.lcd.visible = vis; g.floor.visible = vis;
+  } else {
+    pm.opacity = 0; g.ball.material.opacity = 0; g.fire.intensity = 0;
+    // после взрыва бомбы нет до нового раунда (зашли на страницу во время итогов — тоже)
+    const vis = ph !== 'crash'; if (g.bomb) g.bomb.visible = vis; if (g.lcd) g.lcd.visible = vis; g.floor.visible = vis;
+  }
+  g.ren.render(g.scene, g.cam);
+}
 const ROUTES = {
-  '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], contracts: [pageContracts, mountContracts],
+  '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer],
 };
@@ -6644,7 +7011,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
