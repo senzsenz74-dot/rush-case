@@ -1965,7 +1965,7 @@ const secHead = (t, sub, icon, a, n) => `<div class="sh" style="--bc:${a}">
 </div>`;
 /* страница «Кейсы»: группы с тонким заголовком */
 // фон за разделом (по id раздела): картинка во всю ширину, края растушёваны
-const BLOCK_BG = { babushka: 'assets/bg-babushka.webp' };
+const BLOCK_BG = { babushka: 'assets/bg-babushka.webp', maps: 'assets/bg-maps.webp' };
 const caseBlock = (b, grp) => {
   const list = blockCases(b); if (!list.length) return '';
   return `<section class="cs-block cs-b-${b.id}${BLOCK_BG[b.id] ? ' cs-has-bg' : ''}" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>${BLOCK_BG[b.id] ? `<i class="cs-bg" style="background-image:url(${BLOCK_BG[b.id]})" aria-hidden="true"></i>` : ''}
