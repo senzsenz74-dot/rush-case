@@ -5048,8 +5048,8 @@ async function mountAdmin() {
   // боковое меню: вкладки по разделам (всё влезает при любом числе вкладок)
   const btn = ([k, t]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${t}${k === 'support' ? '<i class="ax-badge" id="admSupBadge" hidden></i>' : ''}</button>`;
   const inG = new Set(ADM_GROUPS.flatMap(g => g[1]));
-  $('#admTabs').innerHTML = ADM_GROUPS.map(([g, ks]) => { const list = tabs.filter(([k]) => ks.includes(k)); return list.length ? `<div class="ax-sg"><button class="ax-sgh" type="button">${g}<i>›</i></button><div class="ax-fly"><b>${g}</b>${list.map(btn).join('')}</div></div>` : ''; }).join('')
-    + (tabs.some(([k]) => !inG.has(k)) ? `<div class="ax-sg"><button class="ax-sgh" type="button">Другое<i>›</i></button><div class="ax-fly"><b>Другое</b>${tabs.filter(([k]) => !inG.has(k)).map(btn).join('')}</div></div>` : '');
+  $('#admTabs').innerHTML = ADM_GROUPS.map(([g, ks, icn]) => { const list = tabs.filter(([k]) => ks.includes(k)); return list.length ? `<div class="ax-sg"><button class="ax-sgh" type="button" title="${g}" aria-label="${g}">${ic[icn]}</button><div class="ax-fly"><b>${g}</b>${list.map(btn).join('')}</div></div>` : ''; }).join('')
+    + (tabs.some(([k]) => !inG.has(k)) ? `<div class="ax-sg"><button class="ax-sgh" type="button" title="Другое" aria-label="Другое">${ic.star}</button><div class="ax-fly"><b>Другое</b>${tabs.filter(([k]) => !inG.has(k)).map(btn).join('')}</div></div>` : '');
   if (!tabs.length) return ($('#admBody').innerHTML = `<div class="empty">${ic.shield}Владелец ещё не открыл вам разделы админки.</div>`);
   admPeriodBar();
   // разделы: наведение открывает список вкладок; нажатие — для телефона; после выбора вкладки список закрывается
@@ -5186,7 +5186,7 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
-const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books']], ['Игры', ['cases', 'bets', 'upg', 'crash']], ['Игроки', ['players', 'online', 'out', 'support']], ['Сайт', ['shop', 'promo', 'tours', 'staff']]];
+const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'promo', 'tours', 'staff'], 'globe']];
 const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
