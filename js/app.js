@@ -6449,7 +6449,12 @@ const ROUTES = {
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer],
 };
+// анимации за экраном — на паузу (покачивание кейсов, светлячки, искры баннера): браузеру меньше работы при прокрутке.
+// Наблюдатель сбрасывается при каждой смене страницы (route) и заново смотрит за новыми элементами
+var ioPause = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => e.target.classList.toggle('io-off', !e.isIntersecting)), { rootMargin: '200px 0px' }) : null;
+function ioScan() { if (ioPause) $$('.case-card, .hero3, .rl-stage').forEach(el => ioPause.observe(el)); }
 function route() {
+  if (ioPause) ioPause.disconnect();
   clearTimers(); spinning = false; spinId++;
   const parts = location.hash.replace(/^#\/?/, '').split('/');
   const key = parts[0] || '';
@@ -6458,6 +6463,7 @@ function route() {
   app.innerHTML = page(parts[1]);
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   if (mount) mount(parts[1]);
+  ioScan();
   const navKey = key === '' || key === 'case' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
