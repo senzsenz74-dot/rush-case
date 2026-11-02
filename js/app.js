@@ -6083,7 +6083,8 @@ function admCaseEditor(row, done, base) {
       </div>
     </div>
     <div class="ced-items">
-      <div class="ced-ih"><h3>Предметы</h3><div class="search"><input class="inp" id="cedQ" placeholder="Найти скин в каталоге: AK-47, Karambit, Азимов…" autocomplete="off">${ic.search}</div></div>
+      <div class="ced-ih"><h3>Предметы</h3><div class="search"><input class="inp" id="cedQ" placeholder="Найти скин в каталоге: AK-47, Karambit, Азимов…" autocomplete="off">${ic.search}</div>
+        <div class="ced-pr"><input class="inp" id="cedPmin" type="number" min="0" placeholder="от ₽"><span>—</span><input class="inp" id="cedPmax" type="number" min="0" placeholder="до ₽"></div></div>
       <div class="ced-found" id="cedFound"></div>
       <div class="ced-list" id="cedList"></div>
       <div class="ced-sum" id="cedSum"></div>
@@ -6092,11 +6093,12 @@ function admCaseEditor(row, done, base) {
   </div>`, 'm-ced');
   const v = id => $('#' + id, m);
   const price = () => +v('cedPrice').value || 0;
-  // поиск скинов по каталогу
-  v('cedQ').oninput = () => {
+  // поиск скинов по каталогу: по названию и/или цене «от — до»
+  v('cedQ').oninput = v('cedPmin').oninput = v('cedPmax').oninput = () => {
     const q = v('cedQ').value.trim().toLowerCase(), box = v('cedFound');
-    if (q.length < 2) return (box.innerHTML = '');
-    const res = UPG_CAT.filter(s => s.name.toLowerCase().includes(q) && !E.items.some(x => x.n === s.name)).slice(0, 24);
+    const lo = +v('cedPmin').value || 0, hi = +v('cedPmax').value || Infinity, byPrice = lo > 0 || hi < Infinity;
+    if (q.length < 2 && !byPrice) return (box.innerHTML = '');
+    const res = UPG_CAT.filter(s => s.p >= lo && s.p <= hi && (q.length < 2 || s.name.toLowerCase().includes(q)) && !E.items.some(x => x.n === s.name)).slice(0, byPrice ? 60 : 24);
     box.innerHTML = res.length ? res.map(s => `<button class="ced-fi r-${s.r}" data-n="${esc(s.name)}"><img src="${imgUrl(s, 's')}" alt=""><span>${esc(s.name)}</span><b>${money(s.p)}</b></button>`).join('') : '<div class="empty">Ничего не найдено</div>';
     $$('[data-n]', box).forEach(b => b.onclick = () => { E.items.push({ n: b.dataset.n, ch: 0 }); itemsDirty = true; b.remove(); draw(); });
   };

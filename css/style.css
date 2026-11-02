@@ -3126,9 +3126,11 @@ html{overflow-x:clip}
 .ced-color{padding:4px;height:46px}
 .ced-new{align-self:center}
 .ced-items{display:flex;flex-direction:column;gap:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,.07)}
-.ced-ih{display:flex;align-items:center;justify-content:space-between;gap:14px}.ced-ih h3{font:900 16px var(--ff-h);text-transform:uppercase}.ced-ih .search{flex:1;max-width:520px}
+.ced-ih{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.ced-ih h3{font:900 16px var(--ff-h);text-transform:uppercase}.ced-ih .search{flex:1;max-width:520px}
 .ced-found{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;max-height:190px;overflow:auto}
 .ced-found:empty{display:none}
+/* цена «от — до» в поиске скинов */
+.ced-pr{display:flex;align-items:center;gap:6px}.ced-pr .inp{width:96px}.ced-pr span{opacity:.5}
 .ced-fi{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);text-align:left;font-size:12px;font-weight:700;color:var(--txt);transition:.15s}
 .ced-fi:hover{border-color:var(--gold);background:rgba(245,199,107,.07)}
 .ced-fi img{width:42px;height:32px;object-fit:contain;flex:none}.ced-fi span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ced-fi b{flex:none;color:var(--gold)}
