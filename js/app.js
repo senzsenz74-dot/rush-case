@@ -1433,10 +1433,24 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
 const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
-const caseThumb = c => !c.img ? '' : c.custom || c.imgOv ? c.img : c.img.replace(/\.webp$/, '-s.webp');
+// картинки из админки (хранилище Supabase) весят 2–3 МБ: для уже загруженных — лёгкие копии в assets/cc (900 px и 440 px для витрины);
+// новые загрузки админка сама сжимает в *.opt.webp + *.opt-s.webp (admImgPack). Неизвестная картинка — как есть.
+const CC_OPT = new Set(['clutch-1793383997040', 'case-1793367155474', 'case-1793384010623', '322431-1793465662634', 'case-1793368296619', 'cobblestone-1793441886930',
+  'case-1793437918624', 'case-1793438309480', 'case-1793441580891', 'case-1793442021773', 'case-1793465154889', 'antient-1793465386966', 'case-1793465474646',
+  'case-1793465710936', 'case-1793442164188', 'case-1793465899545', 'case-1793466109676', 'deagle-1793365573101', 'mirage-1793441941403']);
+const ccBase = u => (/\/case-img\/([^/?]+)\.(?:png|webp|jpe?g)$/i.exec(u || '') || [])[1];
+const caseFull = c => { const b = ccBase(c.img); return b && CC_OPT.has(b) ? `assets/cc/${b}.webp` : c.img; };
+const caseThumb = c => {
+  if (!c.img) return '';
+  const b = ccBase(c.img);
+  if (b && CC_OPT.has(b)) return `assets/cc/${b}-s.webp`;
+  if (/\.opt\.webp$/.test(c.img)) return c.img.replace(/\.opt\.webp$/, '.opt-s.webp');
+  if (c.custom && /^assets\/case-[a-z0-9-]+\.webp$/.test(c.img) && !/-s\.webp$/.test(c.img)) return c.img.replace(/\.webp$/, '-s.webp'); // свои файлы на сайте — с лёгкой копией
+  return c.custom || c.imgOv ? c.img : c.img.replace(/\.webp$/, '-s.webp');
+};
 function caseArt(c, cls = '', badge = '') {
   // в витрине (без cls) — лёгкая копия картинки 440 px, на странице кейса — полная
-  const src = c.img && !cls ? caseThumb(c) : c.img;
+  const src = c.img && !cls ? caseThumb(c) : caseFull(c);
   if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${src}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay](c, src) : ''}</div></div>`;
   if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${src}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
   const [m, a, b] = c.show.map(n => SK[n]);
@@ -5814,6 +5828,24 @@ function admBlocks(done) {
   };
   draw();
 }
+/* картинка кейса для загрузки: обрезаем прозрачные края, делаем WebP 900 px (страница) и 440 px (витрина); null — если браузер не умеет WebP */
+async function admImgPack(file) {
+  const bmp = await createImageBitmap(file);
+  const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
+  const x = cv.getContext('2d'); x.drawImage(bmp, 0, 0);
+  const d = x.getImageData(0, 0, cv.width, cv.height).data;
+  let x0 = cv.width, y0 = cv.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < cv.height; y += 2) for (let i = 0; i < cv.width; i += 2) if (d[(y * cv.width + i) * 4 + 3] > 8) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < 0) { x0 = 0; y0 = 0; x1 = cv.width - 1; y1 = cv.height - 1; }
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  const out = async W => {
+    const k = Math.min(1, W / w), c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cv, x0, y0, w, h, 0, 0, c.width, c.height);
+    return new Promise(res => c.toBlob(b => res(b), 'image/webp', W > 500 ? .86 : .8));
+  };
+  const [full, thumb] = await Promise.all([out(900), out(440)]);
+  return full && thumb && full.type === 'image/webp' ? { full, thumb } : null;
+}
 /* ---------- редактор кейса: создание кейса в панели, правка кейса из панели (row) или кейса из кода (base) ---------- */
 function admCaseEditor(row, done, base) {
   const edit = !!(row || base), d = base && CASE_DEF[base.id];
@@ -5893,13 +5925,23 @@ function admCaseEditor(row, done, base) {
   };
   const bindFile = () => { v('cedFile').onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
-    if (file.size > 5e6) return toast('Картинка больше 5 МБ', 'err');
+    if (file.size > 12e6) return toast('Картинка больше 12 МБ', 'err');
     const box = v('cedImgBox'); box.classList.add('busy');
-    const path = `${(v('cedId').value || 'case').replace(/[^a-z0-9_-]/gi, '')}-${Date.now()}.${(file.name.split('.').pop() || 'png').toLowerCase()}`;
-    const { error } = await sb.storage.from('case-img').upload(path, file, { upsert: true, contentType: file.type });
+    const base = `${(v('cedId').value || 'case').replace(/[^a-z0-9_-]/gi, '')}-${Date.now()}`, st_ = sb.storage.from('case-img');
+    // сжимаем в браузере: без пустых краёв, 900 px для страницы кейса и 440 px для витрины (WebP) — вместо исходника на 2–3 МБ
+    const pack = await admImgPack(file).catch(() => null);
+    let path, error;
+    if (pack) {
+      path = `${base}.opt.webp`;
+      ({ error } = await st_.upload(path, pack.full, { upsert: true, contentType: 'image/webp' }));
+      if (!error) ({ error } = await st_.upload(`${base}.opt-s.webp`, pack.thumb, { upsert: true, contentType: 'image/webp' }));
+    } else { // браузер не умеет WebP — как раньше, исходник
+      path = `${base}.${(file.name.split('.').pop() || 'png').toLowerCase()}`;
+      ({ error } = await st_.upload(path, file, { upsert: true, contentType: file.type }));
+    }
     box.classList.remove('busy');
     if (error) return toast('Не загружено: ' + error.message, 'err');
-    setImg(sb.storage.from('case-img').getPublicUrl(path).data.publicUrl);
+    setImg(st_.getPublicUrl(path).data.publicUrl);
   }; };
   bindFile();
   v('cedImg').onchange = () => { const u = v('cedImg').value.trim(); if (u) setImg(u); };
