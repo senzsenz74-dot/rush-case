@@ -1343,7 +1343,7 @@ Snd.preload('lock', 'assets/sounds/lock.wav');
 Snd.preload('tick', 'assets/sounds/tick.wav');
 [1, 2, 3].forEach(n => Snd.preload('safe' + n, 'assets/sounds/safe-tick-' + n + '.wav'));
 Snd.preload('upgWin', 'assets/sounds/upgrade-win.wav');
-Snd.preload('c4Tick', 'assets/sounds/c4-tick.mp3'); Snd.preload('c4Beep', 'assets/sounds/c4-beep.mp3');
+Snd.preload('c4Tick', 'assets/sounds/c4-tick.mp3'); Snd.preload('c4Beep', 'assets/sounds/c4-beep.mp3'); Snd.preload('c4Plant', 'assets/sounds/c4-plant.mp3');
 // звуки контрактов
 Snd.preload('conOpen', 'assets/sounds/con-open.mp3'); Snd.preload('conAdd', 'assets/sounds/con-add.mp3'); Snd.preload('conSign', 'assets/sounds/con-sign.mp3');
 Snd.preload('conStamp', 'assets/sounds/con-stamp.mp3'); Snd.preload('conHover', 'assets/sounds/con-hover.mp3'); Snd.preload('conPen', 'assets/sounds/con-pen-src.mp3');
@@ -6626,47 +6626,70 @@ async function admTourTeams(t, done) {
 /* ---------- краш (supabase/crash.sql): общий раунд, 3D-бомба C4 ----------
    Сервер ведёт раунды: 15 с приём ставок → x(t) = e^(k·t) до взрыва (не позже 40 с, x100) → 4 с итоги.
    Точку взрыва браузер узнаёт только после «БУМ»; «Забрать» считает x по часам сервера.
-   Бомба неподвижна, вид сверху; множитель — пиксельным шрифтом на её экранчике.
+   Бомба неподвижна (чуть повёрнута), вид сверху; множитель — пиксельным шрифтом на её экранчике.
+   Справа — меню ставки (скины из инвентаря суммируются), под бомбой — игроки раунда.
    Ушли со страницы — crStop(): стоп опроса, кадров, звуков, WebGL освобождается. */
 const CR_K = Math.log(100) / 40, CR_MIN = 50, CR_MAXN = 10, CR_HIST = 10;
 const crX = ms => Math.min(100, Math.floor(Math.exp(CR_K * Math.max(0, ms) / 1000) * 100) / 100);
 const crTxt = x => 'x' + (+x).toFixed(2);
 const crCls = x => x >= 10 ? 'x4' : x >= 3 ? 'x3' : x >= 2 ? 'x2' : x >= 1.2 ? 'x1' : 'x0';
-let cr = { r: null, bets: [], hist: [], off: null, rtt: 1e9, busy: false, boomed: 0, poll: 0, raf: 0, g: null, lastBeep: 0, beepT: 0, err: 0, auto: '', gen: 0, out: null };
+let cr = { r: null, bets: [], hist: [], off: null, rtt: 1e9, busy: false, boomed: 0, poll: 0, raf: 0, g: null, lastBeep: 0, beepT: 0, err: 0, auto: '', gen: 0, out: null, sel: [], plantId: 0 };
 const crNow = () => Date.now() + (cr.off || 0);
 const crMe = () => st.user && cr.bets.find(b => b.me);
 const crLive = gen => gen === cr.gen && !!$('#crash');
+const CR_RULES = [
+  'Ставки принимаются 15 секунд перед раундом: выберите скины справа (до ' + CR_MAXN + ' шт., сумма от ' + CR_MIN + ' ₽) и нажмите «Сделать ставку».',
+  'Раунд начался — бомба пикает, множитель растёт: x2 примерно на 6-й секунде, x10 — на 20-й, x100 — на 40-й. Бомба взрывается не позже 40-й секунды.',
+  'Нажали «Забрать» до взрыва — получаете случайный скин ценой примерно ставка × x. Не успели — ставка сгорает.',
+  'Автовывод: укажите x заранее — сервер заберёт ставку сам, даже если вы закрыли страницу.',
+  'Около 10% раундов взрываются сразу на x1.00. Чем выше x, тем реже бомба до него доживает. Момент взрыва знает только сервер.',
+];
 function pageCrash() {
   return `<section class="container crash" id="crash">
-    <div class="page-head top-head"><div><h1>Краш <em>C4</em></h1><p>Поставьте скины, пока идёт приём ставок. Бомба пикает — множитель растёт. Успели забрать до взрыва — получаете случайный скин дороже ставки во столько раз, на каком x остановились. Не успели — ставка сгорает.</p></div></div>
-    <div class="cr-hist" id="crHist"></div>
+    <div class="cr-glass cr-top">
+      <div class="page-head top-head"><div><h1>Краш <em>C4</em></h1><p>Поставьте скины, пока идёт приём ставок. Бомба пикает — множитель растёт. Успели забрать до взрыва — получаете случайный скин дороже ставки во столько раз, на каком x остановились. Не успели — ставка сгорает.</p></div></div>
+      </div>
+    <div class="cr-glass cr-histbox"><div class="cr-histh"><b>Результаты прошлых раундов</b><span>последние  · на каком x взорвалась бомба</span></div><div class="cr-hist" id="crHist"></div></div>
     <div class="cr-main">
-      <div class="cr-left">
         <div class="cr-stage" id="crStage">
           <canvas id="crCanvas"></canvas>
-          <div class="cr-flash" id="crFlash"></div>
           <div class="cr-wait" id="crWait"><span>Приём ставок</span><b id="crWaitT">0:15</b><i><em id="crWaitBar"></em></i></div>
           <div class="cr-boomtxt" id="crBoomT"></div>
         </div>
-        <div class="cr-act" id="crAct"></div>
-      </div>
-      <div class="panel cr-players">
-        <div class="panel-h"><h3>Игроки раунда</h3><span class="cr-sum" id="crPl"></span></div>
-        <div class="cr-thead"><span>Игрок</span><span>Ставка</span><span>Итог</span></div>
-        <div id="crList"></div>
-      </div>
+        <div class="cr-glass cr-players">
+          <div class="panel-h"><h3>Игроки раунда</h3><span class="cr-sum" id="crPl"></span></div>
+          <div class="cr-thead"><span>Игрок</span><span>Ставка</span><span>Итог</span></div>
+          <div id="crList"></div>
+        </div>
+      <aside class="cr-glass cr-betp">
+        <div class="cr-btns"><div class="cr-act" id="crAct"></div><button class="btn btn-dark cr-rules-btn" id="crRules">${ic.doc || ''}Правила</button></div>
+        <div class="cr-bsum">
+          <div class="cr-bsum-v"><span>Ваша ставка</span><b id="crSel">0 ₽</b><small id="crSelN"></small></div>
+          <label class="cr-auto" title="Сервер заберёт ставку сам на этом x">Автовывод<span>x</span><input class="inp" id="crAutoIn" type="number" min="1.01" max="100" step="0.01" placeholder="—" inputmode="decimal"></label>
+        </div>
+        <div class="cr-invh"><b>Ваши скины</b><button class="cr-clr" id="crClr">Очистить</button></div>
+        <div class="mini-grid cr-inv" id="crInv"></div>
+      </aside>
     </div>
-    <div class="cr-rules"><b>Как это работает</b><span>x2 — примерно на 6-й секунде, x10 — на 20-й, x100 — на 40-й: бомба взрывается не позже.</span><span>Ставка — от ${CR_MIN} ₽, до ${CR_MAXN} скинов. Можно задать автовывод: сервер заберёт ставку сам на нужном x.</span><span>Около 10% раундов взрываются сразу на x1.00. Чем выше x, тем реже бомба до него доживает.</span></div>
   </section>`;
 }
 function mountCrash() {
   crStop();
   const gen = ++cr.gen;
-  Snd.warm(['c4Beep', 'c4Tick']);
-  cr.busy = false; cr.boomed = 0; cr.lcdKey = '';
-  crRender();
+  Snd.warm(['c4Beep', 'c4Tick', 'c4Plant']);
+  cr.busy = false; cr.boomed = 0; cr.lcdKey = ''; cr.sel = [];
+  const ai = $('#crAutoIn'); ai.value = cr.auto; ai.oninput = () => { cr.auto = ai.value; };
+  $('#crRules').onclick = crRulesModal;
+  $('#crClr').onclick = () => { cr.sel = []; crDrawInv(); };
+  crRender(); crDrawInv();
   crPoll(gen);
   crScene(gen);
+  // бомбу можно чуть наклонять мышкой (на телефоне — пальцем); отпустили — выравнивается
+  const stg = $('#crStage'); cr.tilt = { x: 0, y: 0 };
+  const tilt = e => { const r = stg.getBoundingClientRect(); cr.tilt.x = clamp((e.clientX - r.left) / r.width * 2 - 1, -1, 1); cr.tilt.y = clamp(1 - (e.clientY - r.top) / r.height * 2, -1, 1); };
+  stg.onpointermove = e => { if (e.pointerType === 'mouse' || e.buttons) tilt(e); };
+  stg.onpointerdown = tilt;
+  stg.onpointerleave = stg.onpointerup = stg.onpointercancel = () => { cr.tilt.x = cr.tilt.y = 0; };
   const loop = () => { if (!crLive(gen)) return crStop(); crFrame(); cr.raf = requestAnimationFrame(loop); };
   cr.raf = requestAnimationFrame(loop);
 }
@@ -6676,6 +6699,10 @@ function crStop() {
   cancelAnimationFrame(cr.raf); clearTimeout(cr.poll);
   if (cr.out) { try { cr.out.disconnect(); } catch (e) { /* */ } cr.out = null; }
   if (cr.g) { const g = cr.g; cr.g = null; try { g.ro && g.ro.disconnect(); g.ren.dispose(); g.ren.forceContextLoss(); } catch (e) { /* */ } }
+  const fx = document.getElementById('crBoomFx'); if (fx) fx.remove();
+}
+function crRulesModal() {
+  modal(`<div class="dep cr-rules-m"><h2>Правила «Краша»</h2><ol>${CR_RULES.map(t => `<li>${t}</li>`).join('')}</ol><p class="dep-sub">Окупаемость режима — 90%: в среднем игрокам возвращается 90% ставок.</p></div>`, 'm-dep');
 }
 /* опрос сервера: чаще, пока бомба тикает; во вкладке в фоне — редко */
 async function crPoll(gen) {
@@ -6690,6 +6717,7 @@ async function crPoll(gen) {
   cr.err = 0;
   // часы сервера: доверяем замерам с быстрой связью
   if (cr.off == null || t1 - t0 <= cr.rtt * 1.5) { const o = data.now - (t0 + t1) / 2; cr.off = cr.off == null || t1 - t0 < cr.rtt ? o : cr.off * .8 + o * .2; cr.rtt = Math.min(cr.rtt, t1 - t0); }
+  const invBefore = st.inv.length;
   if (data.data) sbApply(data.data);
   const prevId = cr.r && cr.r.id, prevPh = cr.r && cr.r.phase, me0 = crMe();
   cr.r = data.round; cr.bets = data.bets || []; cr.hist = (data.hist || []).slice(0, CR_HIST);
@@ -6699,8 +6727,9 @@ async function crPoll(gen) {
   if (prevId !== cr.r.id) { cr.boomed = 0; if (cr.g) cr.g.boomT = 0; }
   if (cr.r.phase === 'crash' && prevPh && prevPh !== 'crash' && prevId === cr.r.id && cr.boomed !== cr.r.id) crBoom();
   crRender();
+  if (data.data && st.inv.length !== invBefore) crDrawInv();
   const ph = crPhase();
-  cr.poll = setTimeout(() => crPoll(gen), document.hidden ? 3000 : ph === 'fly' ? 350 : ph === 'bet' && cr.r.start - crNow() < 1500 ? 300 : 1000);
+  cr.poll = setTimeout(() => crPoll(gen), document.hidden ? 3000 : ph === 'fly' ? 350 : ph === 'bet' && cr.r.start - crNow() < 2500 ? 300 : 1000);
 }
 /* фаза с учётом часов: ставки закончились — бомба уже тикает, даже если сервер ещё не ответил */
 function crPhase() {
@@ -6720,41 +6749,72 @@ function crFrame() {
     const t = `0:${pad(s)}`, w = $('#crWaitT'); if (w.textContent !== t) w.textContent = t;
     $('#crWaitBar').style.transform = `scaleX(${left / 15000})`;
     lcd = { top: 'PLACE YOUR BETS', bot: t, lit: 1 };
-    // тиканье таймера раз в секунду до старта
-    if (cr.tickS !== s) { if (cr.tickS != null && s > 0) crPlay('c4Tick', .8); cr.tickS = s; }
+    // тиканье таймера раз в секунду; за 2 с до старта — звук закладки бомбы
+    if (cr.tickS !== s) { if (cr.tickS != null && s > 2) crPlay('c4Tick', .16); cr.tickS = s; }
+    if (left <= 2000 && left > 1000 && cr.plantId !== r.id) { cr.plantId = r.id; crPlay('c4Plant', .55, 0, 2.5); }
   } else if (ph === 'fly') {
     const x = crX(now - r.start); k = Math.min(1, (now - r.start) / 40000);
     // пиканье C4: от раза в секунду до частой дроби к 40-й секунде
     const gap = Math.max(85, 1000 * Math.pow(1 - k, 1.35));
-    if (now - cr.lastBeep >= gap) { if (!cr.lastBeep && now - r.start < 1500) crPlay('c4Start', .9); cr.lastBeep = now; cr.beepT = performance.now(); crBeep(k); }
+    if (now - cr.lastBeep >= gap) { cr.lastBeep = now; cr.beepT = performance.now(); crBeep(k); }
     lcd = { big: crTxt(x), lit: 1 };
     const me = crMe(), v = $('#crCashV');
     if (v && me && !me.cash) v.textContent = money(me.stake * x);
   } else if (ph === 'crash') lcd = { big: crTxt(r.crash_x), lit: 0 };
   else lcd = { top: 'RUSH CASE', bot: 'LOADING', lit: 0 };
   if (ph !== 'fly') cr.lastBeep = 0;
-  if (stg.dataset.ph !== ph) { stg.dataset.ph = ph; stg.className = 'cr-stage ph-' + ph + (cr.g && cr.g.ready ? ' ready' : ''); }
+  if (stg.dataset.ph !== ph) { stg.dataset.ph = ph; stg.className = 'cr-stage ph-' + ph + (cr.g && cr.g.ready ? ' ready' : ''); crRender(); }
   const bt = $('#crBoomT'), btT = ph === 'crash' ? crTxt(r.crash_x) : '';
   if (bt.dataset.t !== btT) { bt.dataset.t = btT; bt.innerHTML = btT ? '<small>БУМ</small>' + btT : ''; }
   crLcd(lcd);
   crDraw3d(ph, k);
+}
+/* меню ставки: скины игрока, выбранные суммируются */
+const crSelItems = () => cr.sel.map(id => st.inv.find(x => x.id === id && x.st === 'own' && SK[x.n])).filter(Boolean);
+function crDrawInv() {
+  const box = $('#crInv'); if (!box) return;
+  cr.sel = crSelItems().map(x => x.id);
+  if (!st.user) box.innerHTML = `<div class="empty">${ic.login}Войдите, чтобы ставить скины<button class="btn btn-primary btn-sm" data-act="login">Войти</button></div>`;
+  else {
+    const list = own().slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
+    box.innerHTML = list.length ? list.map(x => mcard(SK[x.n], `data-id="${x.id}"`)).join('') : `<div class="empty">${ic.box}Инвентарь пуст — откройте пару кейсов.<a class="btn btn-primary btn-sm" href="#/cases">К кейсам</a></div>`;
+    $$('[data-id]', box).forEach(el => {
+      el.classList.toggle('sel', cr.sel.includes(el.dataset.id));
+      el.onclick = () => {
+        const id = el.dataset.id, on = !cr.sel.includes(id);
+        if (on && cr.sel.length >= CR_MAXN) return toast(`Не больше ${CR_MAXN} скинов`, 'err');
+        cr.sel = on ? [...cr.sel, id] : cr.sel.filter(z => z !== id); el.classList.toggle('sel', on); Snd.safeSel(on); crSum();
+      };
+    });
+  }
+  crSum();
+}
+function crSum() {
+  const its = crSelItems(), s = its.reduce((a, x) => a + SK[x.n].p, 0), e = $('#crSel'); if (!e) return;
+  e.textContent = money(s);
+  $('#crSelN').textContent = its.length ? `${its.length} из ${CR_MAXN} предм.${s < CR_MIN ? ` · нужно от ${CR_MIN} ₽` : ''}` : 'выберите скины ниже';
+  const b = $('#crBet'); if (b) b.disabled = !its.length || s < CR_MIN;
 }
 function crRender() {
   const act = $('#crAct'); if (!act) return;
   const ph = crPhase(), me = crMe();
   // история взрывов — билетики
   $('#crHist').innerHTML = cr.hist.map((h, i) => `<span class="cr-tk ${crCls(h.x)}" style="--rt:${[-2, 1.5, -1, 2, -1.5, 1, -2.5, 1.5, -1, 2][i % 10]}deg"><small>№${h.id}</small><b>${crTxt(h.x)}</b></span>`).join('') || '<span class="cr-h-empty">Раундов ещё не было</span>';
-  // кнопка
-  if (cr.err || !sb) act.innerHTML = `<div class="cc-note">Нет связи с сервером — пробуем переподключиться…</div>`;
-  else if (ph === 'load') act.innerHTML = `<div class="cc-note"><span class="spinner"></span></div>`;
-  else if (!st.user) act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и сделать ставку</button>`;
-  else if (me) {
-    if (me.cash) act.innerHTML = `<div class="cr-done win">Вы забрали на <b>${crTxt(me.cash)}</b>${me.prize && SK[me.prize] ? ` — <b>${esc(me.prize)}</b> · ${money(SK[me.prize].p)}` : ''}</div>`;
-    else if (ph === 'bet') act.innerHTML = `<div class="cr-done">Ставка <b>${money(me.stake)}</b> принята${me.auto ? ` · автовывод ${crTxt(me.auto)}` : ''}. Ждём старта…</div>`;
-    else if (ph === 'fly') { act.innerHTML = `<button class="btn btn-xl cr-cash" id="crCash">Забрать <b id="crCashV">${money(me.stake * crCurX())}</b></button>`; $('#crCash').onclick = crCashout; }
-    else act.innerHTML = `<div class="cr-done lose">Бомба взорвалась на <b>${crTxt(cr.r.crash_x)}</b> — ставка ${money(me.stake)} сгорела</div>`;
-  } else if (ph === 'bet') { act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" id="crBet">${ic.plus}Сделать ставку</button>`; $('#crBet').onclick = crOpenBet; }
-  else act.innerHTML = `<div class="cc-note">${ph === 'fly' ? 'Раунд идёт — ставки на следующий откроются после взрыва' : 'Новый раунд через несколько секунд'}</div>`;
+  // главная кнопка (вверху меню ставки, на уровне бомбы)
+  const key = [cr.err, ph, !!st.user, me ? `${me.cash}|${me.stake}|${me.auto}` : '-'].join('/');
+  if (act.dataset.k !== key) {
+    act.dataset.k = key;
+    if (cr.err || !sb) act.innerHTML = `<div class="cr-note">Нет связи с сервером — переподключаемся…</div>`;
+    else if (ph === 'load') act.innerHTML = `<div class="cr-note"><span class="spinner"></span></div>`;
+    else if (!st.user) act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и сделать ставку</button>`;
+    else if (me) {
+      if (me.cash) act.innerHTML = `<div class="cr-done win">Забрали на <b>${crTxt(me.cash)}</b>${me.prize && SK[me.prize] ? `<small>${esc(me.prize)} · ${money(SK[me.prize].p)}</small>` : ''}</div>`;
+      else if (ph === 'bet') act.innerHTML = `<div class="cr-done">Ставка <b>${money(me.stake)}</b> принята${me.auto ? `<small>автовывод ${crTxt(me.auto)}</small>` : '<small>ждём старта</small>'}</div>`;
+      else if (ph === 'fly') { act.innerHTML = `<button class="btn btn-xl cr-cash" id="crCash">Забрать <b id="crCashV">${money(me.stake * crCurX())}</b></button>`; $('#crCash').onclick = crCashout; }
+      else act.innerHTML = `<div class="cr-done lose">Взрыв на <b>${crTxt(cr.r.crash_x)}</b><small>ставка ${money(me.stake)} сгорела</small></div>`;
+    } else if (ph === 'bet') { act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" id="crBet">${ic.plus}Сделать ставку</button>`; $('#crBet').onclick = crPlaceBet; crSum(); }
+    else act.innerHTML = `<div class="cr-note">${ph === 'fly' ? 'Раунд идёт — ставки откроются после взрыва' : 'Новый раунд через несколько секунд'}</div>`;
+  }
   // игроки: ставка и итог
   const tot = cr.bets.reduce((a, b) => a + +b.stake, 0), wins = cr.bets.filter(b => b.cash).length;
   $('#crPl').innerHTML = cr.bets.length ? `${cr.bets.length} игр. · банк <b>${money(tot)}</b>${wins ? ` · забрали ${wins}` : ''}` : '';
@@ -6770,41 +6830,21 @@ function crRender() {
       ${res}</div>`;
   }).join('') : `<div class="cr-empty">${ic.users}<span>${ph === 'bet' ? 'Пока никто не поставил — будьте первым' : 'В этом раунде ставок нет'}</span></div>`;
 }
-function crOpenBet() {
+async function crPlaceBet() {
   if (!st.user) return openAuth('login');
   if (crPhase() !== 'bet') return toast('Ставки уже закрыты', 'err');
-  const list = own().slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
-  let sel = [];
-  const m = modal(`<div class="dep jp-pick cr-pick"><h2>Ставка в краш</h2>
-    <p class="dep-sub">Выберите до ${CR_MAXN} скинов из инвентаря, сумма — от ${CR_MIN} ₽.</p>
-    <div class="mini-grid" id="crInv">${list.length ? list.map(x => mcard(SK[x.n], `data-id="${x.id}"`)).join('') : `<div class="empty">${ic.box}Инвентарь пуст — откройте пару кейсов.<a class="btn btn-primary btn-sm" href="#/cases">К кейсам</a></div>`}</div>
-    <label class="cr-auto">Автовывод <span>x</span><input class="inp" id="crAutoIn" type="number" min="1.01" max="100" step="0.01" placeholder="не нужен" inputmode="decimal" value="${esc(cr.auto)}"></label>
-    <div class="dep-total"><div>Ваша ставка<b id="crSel">0 ₽</b><span id="crSelN"></span></div><button class="btn btn-primary btn-xl" id="crGo" disabled>Поставить</button></div></div>`, 'm-dep');
-  const sum = () => sel.reduce((a, id) => a + SK[st.inv.find(x => x.id === id).n].p, 0);
-  const upd = () => {
-    const s = sum();
-    $('#crSel', m).textContent = money(s);
-    $('#crSelN', m).textContent = sel.length ? `${sel.length} из ${CR_MAXN} предм.${s < CR_MIN ? ` · нужно от ${CR_MIN} ₽` : ''}` : '';
-    $('#crGo', m).disabled = !sel.length || s < CR_MIN;
-  };
-  $$('[data-id]', m).forEach(el => el.onclick = () => {
-    const id = el.dataset.id, on = !sel.includes(id);
-    if (on && sel.length >= CR_MAXN) return toast(`Не больше ${CR_MAXN} скинов`, 'err');
-    sel = on ? [...sel, id] : sel.filter(z => z !== id); el.classList.toggle('sel', on); Snd.safeSel(on); upd();
-  });
-  $('#crGo', m).onclick = async () => {
-    if (crPhase() !== 'bet') { closeModal(); return toast('Ставки уже закрыты', 'err'); }
-    const raw = String($('#crAutoIn', m).value || '').replace(',', '.').trim(), auto = raw ? Math.round(parseFloat(raw) * 100) / 100 : null;
-    if (raw && !(auto >= 1.01 && auto <= 100)) return toast('Автовывод — от x1.01 до x100', 'err');
-    cr.auto = raw;
-    const b = $('#crGo', m); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
-    const r = await srv('crash_bet', { p_ids: sel, p_auto: auto });
-    closeModal();
-    if (!r) return;
-    Snd.coin(); toast(`Ставка ${money(r.stake)} принята`);
-    crPoll();
-  };
-  upd();
+  const its = crSelItems(), s = its.reduce((a, x) => a + SK[x.n].p, 0);
+  if (!its.length) return toast('Выберите скины справа', 'err');
+  if (s < CR_MIN) return toast(`Ставка — от ${CR_MIN} ₽`, 'err');
+  const raw = String(cr.auto || '').replace(',', '.').trim(), auto = raw ? Math.round(parseFloat(raw) * 100) / 100 : null;
+  if (raw && !(auto >= 1.01 && auto <= 100)) return toast('Автовывод — от x1.01 до x100', 'err');
+  const b = $('#crBet'); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+  const r = await srv('crash_bet', { p_ids: its.map(x => x.id), p_auto: auto });
+  if (!$('#crash')) return;
+  if (!r) { $('#crAct').dataset.k = ''; crRender(); return; }
+  cr.sel = []; crDrawInv();
+  Snd.coin(); toast(`Ставка ${money(r.stake)} принята`);
+  crPoll(cr.gen);
 }
 async function crCashout() {
   if (cr.busy || !cr.r) return;
@@ -6839,7 +6879,7 @@ async function crPlay(name, vol = 1, off = 0, dur = 0) {
   const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; g.gain.value = vol; s.connect(g); g.connect(out); dur ? s.start(0, off, dur) : s.start(0, off); return true;
 }
 // писк C4: один писк из записи владельца (c4-beep.mp3, 0,165–0,325 с; запись тихая — усиливаем)
-function crBeep(k) { crPlay('c4Beep', 14 + k * 6, .165, .16).then(ok => { if (!ok) crBeepSynth(k); }); }
+function crBeep(k) { crPlay('c4Beep', 3.2 + k * 2.2, .165, .16).then(ok => { if (!ok) crBeepSynth(k); }); }
 function crBeepSynth(k) {
   Snd.tone(2350 + k * 500, .075, 'square', .05 + k * .03);
   Snd.tone(4700 + k * 1000, .05, 'sine', .02);
@@ -6854,12 +6894,62 @@ function crBoomSnd() {
 function crBoom() {
   cr.boomed = cr.r.id;
   crBoomSnd();
-  const f = $('#crFlash'), stg = $('#crStage');
-  if (f) { f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+  crBoomFx();
+  const stg = $('#crStage');
   if (stg) { stg.classList.remove('shake'); void stg.offsetWidth; stg.classList.add('shake'); }
   if (cr.g) cr.g.boomT = performance.now();
   const me = crMe();
   if (me && !me.cash) toast(`БУМ на ${crTxt(cr.r.crash_x)} — ставка сгорела`, 'err');
+}
+/* взрыв поверх всей страницы (за рамки сцены): вспышка, огненные клубы, ударная волна, искры, дым; ~3 с, потом холст удаляется */
+function crBoomFx() {
+  const stg = $('#crStage'); if (!stg) return;
+  const old = document.getElementById('crBoomFx'); if (old) old.remove();
+  const rc = stg.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cv = document.createElement('canvas'); cv.id = 'crBoomFx'; cv.className = 'cr-boomfx';
+  const W = innerWidth, H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; document.body.appendChild(cv);
+  const x = cv.getContext('2d'); x.scale(dpr, dpr);
+  const cx = rc.left + rc.width / 2, cy = rc.top + rc.height * .48, R = Math.max(W, H), gen = cr.gen;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const fire = Array.from({ length: 34 }, () => { const a = rnd(0, Math.PI * 2), sp = rnd(120, 780); return { a, sp, x: cx, y: cy, r: rnd(30, 70), gr: rnd(140, 340), dl: rnd(0, .12), life: rnd(.8, 1.5) }; });
+  const smoke = Array.from({ length: 22 }, () => { const a = rnd(0, Math.PI * 2), sp = rnd(40, 260); return { a, sp, r: rnd(60, 120), gr: rnd(80, 200), dl: rnd(.15, .45), life: rnd(2, 3.2) }; });
+  const sparks = Array.from({ length: 160 }, () => { const a = rnd(0, Math.PI * 2), sp = rnd(300, 1500); return { x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rnd(0, 300), life: rnd(.6, 1.6), w: rnd(1.2, 3) }; });
+  const t0 = performance.now(); let last = t0;
+  const step = now => {
+    if (gen !== cr.gen || !cv.isConnected) { cv.remove(); return; }
+    const t = (now - t0) / 1000, dt = Math.min(.05, (now - last) / 1000); last = now;
+    x.clearRect(0, 0, W, H);
+    // дым (обычное смешивание, под огнём)
+    x.globalCompositeOperation = 'source-over';
+    smoke.forEach(s => {
+      const lt = t - s.dl; if (lt <= 0 || lt > s.life) return;
+      const e = 1 - Math.exp(-lt * 1.4), r = s.r + s.gr * e, px = cx + Math.cos(s.a) * s.sp * e, py = cy + Math.sin(s.a) * s.sp * e - lt * 30;
+      const al = Math.min(1, lt * 2.5) * (1 - lt / s.life) * .55, g = x.createRadialGradient(px, py, 0, px, py, r);
+      g.addColorStop(0, `rgba(38,30,24,${al})`); g.addColorStop(.6, `rgba(28,22,18,${al * .6})`); g.addColorStop(1, 'rgba(20,16,12,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, Math.PI * 2); x.fill();
+    });
+    x.globalCompositeOperation = 'lighter';
+    // вспышка на весь экран
+    if (t < .7) { const al = (1 - t / .7) ** 2, r = R * (.3 + t * 1.6), g = x.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, `rgba(255,248,220,${al})`); g.addColorStop(.25, `rgba(255,190,90,${al * .8})`); g.addColorStop(.6, `rgba(255,90,30,${al * .3})`); g.addColorStop(1, 'rgba(255,60,20,0)'); x.fillStyle = g; x.fillRect(0, 0, W, H); }
+    // ударная волна
+    if (t < .9) { const e = t / .9; x.strokeStyle = `rgba(255,214,160,${(1 - e) * .7})`; x.lineWidth = 2 + (1 - e) * 22; x.beginPath(); x.arc(cx, cy, 40 + e * R * .75, 0, Math.PI * 2); x.stroke(); }
+    // огненные клубы
+    fire.forEach(f => {
+      const lt = t - f.dl; if (lt <= 0 || lt > f.life) return;
+      const e = 1 - Math.exp(-lt * 3.2), px = cx + Math.cos(f.a) * f.sp * e * .7, py = cy + Math.sin(f.a) * f.sp * e * .7 - lt * 40, r = f.r + f.gr * e;
+      const al = (1 - lt / f.life) ** 1.4, g = x.createRadialGradient(px, py, 0, px, py, r);
+      g.addColorStop(0, `rgba(255,240,200,${al})`); g.addColorStop(.3, `rgba(255,160,60,${al * .75})`); g.addColorStop(.7, `rgba(220,60,10,${al * .3})`); g.addColorStop(1, 'rgba(120,20,0,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, Math.PI * 2); x.fill();
+    });
+    // искры
+    sparks.forEach(p => {
+      if (t > p.life) return;
+      p.vy += 900 * dt; p.vx *= .985; const ox = p.x, oy = p.y; p.x += p.vx * dt; p.y += p.vy * dt;
+      x.strokeStyle = `rgba(255,${180 + Math.random() * 60 | 0},90,${1 - t / p.life})`; x.lineWidth = p.w; x.beginPath(); x.moveTo(ox, oy); x.lineTo(p.x, p.y); x.stroke();
+    });
+    if (t < 3.4) requestAnimationFrame(step); else cv.remove();
+  };
+  requestAnimationFrame(step);
 }
 const CR_FONT = (() => {
   const g = {
@@ -6907,7 +6997,6 @@ function crLcd(o) {
   g.lcd.material.map.needsUpdate = true;
 }
 /* ---------- 3D: three.js с CDN (importmap в index.html), модель assets/c4.glb ---------- */
-/* ---------- 3D: three.js с CDN (importmap в index.html), модель assets/c4.glb ---------- */
 let crLib = null;
 const crLoadLib = () => crLib || (crLib = Promise.all([
   import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js'), import('three/addons/environments/RoomEnvironment.js'),
@@ -6938,15 +7027,15 @@ async function crScene(gen) {
   cam.position.set(0, 5, 0); cam.up.set(0, 0, 1); cam.lookAt(0, 0, 0);
   scene.add(new T.HemisphereLight(0xffe9cc, 0x24160c, .55));
   // закатное солнце слева сверху — длинные мягкие тени проводов на брикетах и бомбы на «полу»
-  const key = new T.DirectionalLight(0xffd29a, 3.4); key.position.set(1.9, 3.2, 1.5); key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 4; key.shadow.bias = -.0002; key.shadow.normalBias = .012;
+  const key = new T.DirectionalLight(0xffd29a, 3.4); key.position.set(.75, 4.2, .6); key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 9; key.shadow.bias = -.0002; key.shadow.normalBias = .012;
   Object.assign(key.shadow.camera, { left: -1.4, right: 1.4, top: 1.4, bottom: -1.4, near: .5, far: 9 });
   scene.add(key);
   const fill = new T.DirectionalLight(0x9db7ff, .35); fill.position.set(-2, 2.2, -2); scene.add(fill);
   const red = new T.PointLight(0xff2a14, 0, 1.6, 1.5); scene.add(red);          // лампочка подсвечивает бомбу
   const fire = new T.PointLight(0xffa040, 0, 14, 1.2); fire.position.set(0, .9, 0); scene.add(fire);
   // невидимый пол — только тень бомбы на фоне страницы
-  const floor = new T.Mesh(new T.PlaneGeometry(9, 9), new T.ShadowMaterial({ opacity: .62 }));
+  const floor = new T.Mesh(new T.PlaneGeometry(9, 9), new T.ShadowMaterial({ opacity: .4 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
   const glow = crGlowTex(T);
   // ореол под бомбой: тёплый, к концу раунда краснеет
@@ -6975,18 +7064,20 @@ async function crScene(gen) {
   loader.load('assets/c4.glb?v=1', gl => {
     if (cr.g !== g) return;
     const m = gl.scene; let panel = null; const meshes = [];
+    const rig = new T.Group(); scene.add(rig); g.rig = rig; // бомба со всем, что на ней, — поворачивается целиком
     m.traverse(o => {
       if (!o.isMesh) return;
       o.frustumCulled = false;
       if (o.material && o.material.name === 'c4_panorama_control_panel') { panel = o; o.visible = false; return; }
       o.castShadow = o.receiveShadow = true; meshes.push(o);
-      if (o.material) { o.material.envMapIntensity = .8; if (o.material.aoMap) o.material.aoMapIntensity = 1.2; }
+      // «старая» бомба: темнее, теплее, глуше
+      if (o.material) { o.material.envMapIntensity = .55; o.material.color.multiply(new T.Color(.74, .68, .58)); if (o.material.aoMap) o.material.aoMapIntensity = 1.5; }
     });
     // длинная сторона 1.6, по центру, лежит на «полу»
     const box = new T.Box3().setFromObject(m), sz = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
     const s = 1.6 / Math.max(sz.x, sz.y, sz.z);
     m.scale.setScalar(s); m.position.set(-c.x * s, -box.min.y * s, -c.z * s);
-    scene.add(m); g.bomb = m; m.updateMatrixWorld(true);
+    rig.add(m); g.bomb = m; m.updateMatrixWorld(true);
     const ray = new T.Raycaster(), down = new T.Vector3(0, -1, 0);
     const surf = (x, z) => { ray.set(new T.Vector3(x, 5, z), down); const h = ray.intersectObjects(meshes, false)[0]; return h ? h.point.y : .3; };
     // экранчик: своя плоскость поверх стекла ЖК (чуть шире — закрывает пятно у края), текстура рисуется кодом
@@ -6998,17 +7089,18 @@ async function crScene(gen) {
       g.lcdCv = cvs;
       g.lcd = new T.Mesh(new T.PlaneGeometry(ps.x * 1.09, ps.z * 1.14), new T.MeshBasicMaterial({ map: tex, toneMapped: false }));
       g.lcd.rotation.set(-Math.PI / 2, 0, Math.PI); g.lcd.position.set(pc.x - ps.x * .02, pb.max.y + .002, pc.z);
-      scene.add(g.lcd); cr.lcdKey = '';
+      rig.add(g.lcd); cr.lcdKey = '';
       // свет экрана на плату
-      g.lcdGlow = crSprite(T, glow, 0xc8f04a); g.lcdGlow.scale.set(ps.x * 2.6, ps.x * 2.6, 1); g.lcdGlow.position.set(pc.x, pb.max.y + .01, pc.z); scene.add(g.lcdGlow);
+      g.lcdGlow = crSprite(T, glow, 0xc8f04a); g.lcdGlow.scale.set(ps.x * 2.6, ps.x * 2.6, 1); g.lcdGlow.position.set(pc.x, pb.max.y + .01, pc.z); rig.add(g.lcdGlow);
       // красная лампочка — на месте жёлтого светодиода платы (ниже экрана, левее конденсаторов)
       const lx = pc.x + ps.x * .25, lz = pc.z - ps.z * 3.06, ly = surf(lx, lz);
       const ledM = new T.MeshStandardMaterial({ color: 0x3a0606, emissive: 0xff1a0a, emissiveIntensity: 0, roughness: .25, metalness: 0 });
       g.led = new T.Mesh(new T.SphereGeometry(.024, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), ledM);
-      g.led.position.set(lx, ly, lz); g.led.castShadow = true; scene.add(g.led);
-      g.ledGlow = crSprite(T, glow, 0xff2a10); g.ledGlow.scale.set(.42, .42, 1); g.ledGlow.position.set(lx, ly + .03, lz); scene.add(g.ledGlow);
-      red.position.set(lx, ly + .12, lz);
+      g.led.position.set(lx, ly, lz); g.led.castShadow = true; rig.add(g.led);
+      g.ledGlow = crSprite(T, glow, 0xff2a10); g.ledGlow.scale.set(.42, .42, 1); g.ledGlow.position.set(lx, ly + .03, lz); rig.add(g.ledGlow);
+      red.position.set(lx, ly + .12, lz); rig.add(red);
     }
+
     g.ready = true;
     $('#crStage') && $('#crStage').classList.add('ready');
   }, undefined, () => { $('#crStage') && $('#crStage').classList.add('no3d'); });
@@ -7058,6 +7150,8 @@ function crDraw3d(ph, k) {
     const re = Math.min(1, bt / .55); g.ring.scale.setScalar(.2 + re * 2.6); g.ring.material.opacity = Math.max(0, .8 * (1 - re));
     g.fire.intensity = Math.max(0, 45 * (1 - bt / .9));
     g.halo.material.color.setRGB(1, .45, .15); g.halo.material.opacity = Math.max(0, .9 * (1 - bt / 1.2));
+    // огонь, волну и дым рисует crBoomFx поверх всей страницы — в сцене гасим, иначе виден край холста
+    pm.opacity = 0; g.ring.material.opacity = 0; g.halo.material.opacity = 0; g.fx.forEach(s => { s.material.opacity = 0; });
     const vis = bt < .06; [g.bomb, g.lcd, g.led, g.ledGlow, g.lcdGlow].forEach(o => o && (o.visible = vis)); g.floor.visible = vis;
   } else {
     pm.opacity = 0; g.ring.material.opacity = 0; g.fire.intensity = 0; g.fx.forEach(s => { s.material.opacity = 0; });
@@ -7065,6 +7159,8 @@ function crDraw3d(ph, k) {
     const vis = ph !== 'crash'; [g.bomb, g.lcd, g.led, g.ledGlow, g.lcdGlow].forEach(o => o && (o.visible = vis)); g.floor.visible = vis;
     if (!vis) g.halo.material.opacity = 0;
   }
+  // наклон за мышкой, плавно
+  if (g.rig && cr.tilt) { const k2 = .08; g.rig.rotation.x += (cr.tilt.y * .2 - g.rig.rotation.x) * k2; g.rig.rotation.z += (cr.tilt.x * .2 - g.rig.rotation.z) * k2; }
   g.ren.render(g.scene, g.cam);
 }
 const ROUTES = {
