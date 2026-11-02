@@ -1343,7 +1343,7 @@ Snd.preload('lock', 'assets/sounds/lock.wav');
 Snd.preload('tick', 'assets/sounds/tick.wav');
 [1, 2, 3].forEach(n => Snd.preload('safe' + n, 'assets/sounds/safe-tick-' + n + '.wav'));
 Snd.preload('upgWin', 'assets/sounds/upgrade-win.wav');
-Snd.preload('c4Beep', 'assets/sounds/c4-beep.mp3'); Snd.preload('c4Boom', 'assets/sounds/c4-boom.mp3');
+Snd.preload('c4Tick', 'assets/sounds/c4-tick.mp3'); Snd.preload('c4Beep', 'assets/sounds/c4-beep.mp3');
 // звуки контрактов
 Snd.preload('conOpen', 'assets/sounds/con-open.mp3'); Snd.preload('conAdd', 'assets/sounds/con-add.mp3'); Snd.preload('conSign', 'assets/sounds/con-sign.mp3');
 Snd.preload('conStamp', 'assets/sounds/con-stamp.mp3'); Snd.preload('conHover', 'assets/sounds/con-hover.mp3'); Snd.preload('conPen', 'assets/sounds/con-pen-src.mp3');
@@ -6626,14 +6626,16 @@ async function admTourTeams(t, done) {
 /* ---------- краш (supabase/crash.sql): общий раунд, 3D-бомба C4 ----------
    Сервер ведёт раунды: 15 с приём ставок → x(t) = e^(k·t) до взрыва (не позже 40 с, x100) → 4 с итоги.
    Точку взрыва браузер узнаёт только после «БУМ»; «Забрать» считает x по часам сервера.
-   Бомба неподвижна, вид сверху; множитель — пиксельным шрифтом на её экранчике. */
-const CR_K = Math.log(100) / 40, CR_MIN = 50, CR_MAXN = 10;
+   Бомба неподвижна, вид сверху; множитель — пиксельным шрифтом на её экранчике.
+   Ушли со страницы — crStop(): стоп опроса, кадров, звуков, WebGL освобождается. */
+const CR_K = Math.log(100) / 40, CR_MIN = 50, CR_MAXN = 10, CR_HIST = 10;
 const crX = ms => Math.min(100, Math.floor(Math.exp(CR_K * Math.max(0, ms) / 1000) * 100) / 100);
 const crTxt = x => 'x' + (+x).toFixed(2);
 const crCls = x => x >= 10 ? 'x4' : x >= 3 ? 'x3' : x >= 2 ? 'x2' : x >= 1.2 ? 'x1' : 'x0';
-let cr = { r: null, bets: [], hist: [], off: null, rtt: 1e9, busy: false, boomed: 0, poll: 0, raf: 0, g: null, lastBeep: 0, beepT: 0, err: 0, auto: '' };
+let cr = { r: null, bets: [], hist: [], off: null, rtt: 1e9, busy: false, boomed: 0, poll: 0, raf: 0, g: null, lastBeep: 0, beepT: 0, err: 0, auto: '', gen: 0, out: null };
 const crNow = () => Date.now() + (cr.off || 0);
 const crMe = () => st.user && cr.bets.find(b => b.me);
+const crLive = gen => gen === cr.gen && !!$('#crash');
 function pageCrash() {
   return `<section class="container crash" id="crash">
     <div class="page-head top-head"><div><h1>Краш <em>C4</em></h1><p>Поставьте скины, пока идёт приём ставок. Бомба пикает — множитель растёт. Успели забрать до взрыва — получаете случайный скин дороже ставки во столько раз, на каком x остановились. Не успели — ставка сгорает.</p></div></div>
@@ -6643,9 +6645,8 @@ function pageCrash() {
         <div class="cr-stage" id="crStage">
           <canvas id="crCanvas"></canvas>
           <div class="cr-flash" id="crFlash"></div>
+          <div class="cr-wait" id="crWait"><span>Приём ставок</span><b id="crWaitT">0:15</b><i><em id="crWaitBar"></em></i></div>
           <div class="cr-boomtxt" id="crBoomT"></div>
-          <div class="cr-chip" id="crSt"><i></i><span>Подключение…</span></div>
-          <div class="cr-bar"><i id="crBar"></i></div>
         </div>
         <div class="cr-act" id="crAct"></div>
       </div>
@@ -6659,35 +6660,39 @@ function pageCrash() {
   </section>`;
 }
 function mountCrash() {
-  Snd.warm(['c4Beep', 'c4Boom']);
+  crStop();
+  const gen = ++cr.gen;
+  Snd.warm(['c4Beep', 'c4Tick']);
   cr.busy = false; cr.boomed = 0; cr.lcdKey = '';
   crRender();
-  crPoll();
-  crScene();
-  cancelAnimationFrame(cr.raf);
-  const loop = () => { if (!$('#crash')) { crStop(); return; } crFrame(); cr.raf = requestAnimationFrame(loop); };
+  crPoll(gen);
+  crScene(gen);
+  const loop = () => { if (!crLive(gen)) return crStop(); crFrame(); cr.raf = requestAnimationFrame(loop); };
   cr.raf = requestAnimationFrame(loop);
 }
+/* ушли со страницы: ни звука, ни кадров, ни запросов */
 function crStop() {
+  cr.gen++;
   cancelAnimationFrame(cr.raf); clearTimeout(cr.poll);
-  if (cr.g) { try { cr.g.ro && cr.g.ro.disconnect(); cr.g.ren.dispose(); } catch (e) { /* */ } cr.g = null; }
+  if (cr.out) { try { cr.out.disconnect(); } catch (e) { /* */ } cr.out = null; }
+  if (cr.g) { const g = cr.g; cr.g = null; try { g.ro && g.ro.disconnect(); g.ren.dispose(); g.ren.forceContextLoss(); } catch (e) { /* */ } }
 }
-/* опрос сервера: чаще, пока бомба тикает */
-async function crPoll() {
+/* опрос сервера: чаще, пока бомба тикает; во вкладке в фоне — редко */
+async function crPoll(gen) {
   clearTimeout(cr.poll);
-  if (!$('#crash')) return;
+  if (!crLive(gen)) return;
   if (!sb) { cr.err = 1; crRender(); return; }
   const t0 = Date.now();
   const { data, error } = await sb.rpc('crash_state');
   const t1 = Date.now();
-  if (!$('#crash')) return;
-  if (error || !data) { cr.err = 1; crRender(); cr.poll = setTimeout(crPoll, 2500); return; }
+  if (!crLive(gen)) return;
+  if (error || !data) { cr.err = 1; crRender(); cr.poll = setTimeout(() => crPoll(gen), 2500); return; }
   cr.err = 0;
   // часы сервера: доверяем замерам с быстрой связью
   if (cr.off == null || t1 - t0 <= cr.rtt * 1.5) { const o = data.now - (t0 + t1) / 2; cr.off = cr.off == null || t1 - t0 < cr.rtt ? o : cr.off * .8 + o * .2; cr.rtt = Math.min(cr.rtt, t1 - t0); }
   if (data.data) sbApply(data.data);
   const prevId = cr.r && cr.r.id, prevPh = cr.r && cr.r.phase, me0 = crMe();
-  cr.r = data.round; cr.bets = data.bets || []; cr.hist = data.hist || [];
+  cr.r = data.round; cr.bets = data.bets || []; cr.hist = (data.hist || []).slice(0, CR_HIST);
   // автовывод сработал на сервере — поздравляем
   const me = crMe();
   if (me && me.cash && me.prize && (!me0 || !me0.cash) && prevId === cr.r.id) crWon(me.cash, me.prize, true);
@@ -6695,7 +6700,7 @@ async function crPoll() {
   if (cr.r.phase === 'crash' && prevPh && prevPh !== 'crash' && prevId === cr.r.id && cr.boomed !== cr.r.id) crBoom();
   crRender();
   const ph = crPhase();
-  cr.poll = setTimeout(crPoll, ph === 'fly' ? 350 : ph === 'bet' && cr.r.start - crNow() < 1500 ? 300 : 1000);
+  cr.poll = setTimeout(() => crPoll(gen), document.hidden ? 3000 : ph === 'fly' ? 350 : ph === 'bet' && cr.r.start - crNow() < 1500 ? 300 : 1000);
 }
 /* фаза с учётом часов: ставки закончились — бомба уже тикает, даже если сервер ещё не ответил */
 function crPhase() {
@@ -6704,43 +6709,41 @@ function crPhase() {
   return crNow() >= r.start ? 'fly' : 'bet';
 }
 function crCurX() { const r = cr.r; return !r ? 1 : r.phase === 'crash' ? +r.crash_x : crX(crNow() - r.start); }
-/* каждый кадр: экранчик бомбы, полоска, пиканье */
+/* каждый кадр: экранчик бомбы, пиканье, лампочка, размытие до старта */
 function crFrame() {
-  const ph = crPhase(), r = cr.r, chip = $('#crSt'), bar = $('#crBar');
-  if (!chip) return;
+  const ph = crPhase(), r = cr.r, stg = $('#crStage');
+  if (!stg) return;
   const now = crNow();
-  let k = 0, chipT = 'Подключение…', lcd;
+  let k = 0, lcd;
   if (ph === 'bet') {
-    const s = Math.max(0, Math.ceil((r.start - now) / 1000));
-    chipT = `Приём ставок · 0:${pad(s)}`;
-    lcd = { top: 'PLACE YOUR BETS', bot: `0:${pad(s)}`, lit: 1 };
-    bar.style.width = (Math.max(0, r.start - now) / 15000 * 100) + '%'; bar.className = 'bet';
+    const left = Math.max(0, r.start - now), s = Math.ceil(left / 1000);
+    const t = `0:${pad(s)}`, w = $('#crWaitT'); if (w.textContent !== t) w.textContent = t;
+    $('#crWaitBar').style.transform = `scaleX(${left / 15000})`;
+    lcd = { top: 'PLACE YOUR BETS', bot: t, lit: 1 };
+    // тиканье таймера раз в секунду до старта
+    if (cr.tickS !== s) { if (cr.tickS != null && s > 0) crPlay('c4Tick', .8); cr.tickS = s; }
   } else if (ph === 'fly') {
     const x = crX(now - r.start); k = Math.min(1, (now - r.start) / 40000);
-    chipT = 'Бомба заложена';
     // пиканье C4: от раза в секунду до частой дроби к 40-й секунде
     const gap = Math.max(85, 1000 * Math.pow(1 - k, 1.35));
-    if (now - cr.lastBeep >= gap) { cr.lastBeep = now; cr.beepT = performance.now(); crBeep(k); }
-    lcd = { big: crTxt(x), lit: 1, pulse: Math.max(0, 1 - (performance.now() - cr.beepT) / 140) };
-    bar.style.width = (k * 100) + '%'; bar.className = 'fly';
+    if (now - cr.lastBeep >= gap) { if (!cr.lastBeep && now - r.start < 1500) crPlay('c4Start', .9); cr.lastBeep = now; cr.beepT = performance.now(); crBeep(k); }
+    lcd = { big: crTxt(x), lit: 1 };
     const me = crMe(), v = $('#crCashV');
     if (v && me && !me.cash) v.textContent = money(me.stake * x);
-  } else if (ph === 'crash') {
-    chipT = `Взрыв на ${crTxt(r.crash_x)}`;
-    lcd = { big: crTxt(r.crash_x), lit: 0 };
-    bar.style.width = '100%'; bar.className = 'boom';
-  } else lcd = { top: 'RUSH CASE', bot: 'LOADING', lit: 0 };
-  chip.className = 'cr-chip ' + ph;
-  const bt = $('#crBoomT'), btT = ph === 'crash' ? crTxt(r.crash_x) : ''; if (bt.dataset.t !== btT) { bt.dataset.t = btT; bt.innerHTML = btT ? '<small>БУМ</small>' + btT : ''; }
-  const sp = chip.lastChild; if (sp.textContent !== chipT) sp.textContent = chipT;
+  } else if (ph === 'crash') lcd = { big: crTxt(r.crash_x), lit: 0 };
+  else lcd = { top: 'RUSH CASE', bot: 'LOADING', lit: 0 };
+  if (ph !== 'fly') cr.lastBeep = 0;
+  if (stg.dataset.ph !== ph) { stg.dataset.ph = ph; stg.className = 'cr-stage ph-' + ph + (cr.g && cr.g.ready ? ' ready' : ''); }
+  const bt = $('#crBoomT'), btT = ph === 'crash' ? crTxt(r.crash_x) : '';
+  if (bt.dataset.t !== btT) { bt.dataset.t = btT; bt.innerHTML = btT ? '<small>БУМ</small>' + btT : ''; }
   crLcd(lcd);
-  crDraw3d(ph);
+  crDraw3d(ph, k);
 }
 function crRender() {
   const act = $('#crAct'); if (!act) return;
   const ph = crPhase(), me = crMe();
-  // история взрывов
-  $('#crHist').innerHTML = cr.hist.map(h => `<span class="cr-h ${crCls(h.x)}" title="Раунд #${h.id}">${crTxt(h.x)}</span>`).join('') || '<span class="cr-h-empty">Раундов ещё не было</span>';
+  // история взрывов — билетики
+  $('#crHist').innerHTML = cr.hist.map((h, i) => `<span class="cr-tk ${crCls(h.x)}" style="--rt:${[-2, 1.5, -1, 2, -1.5, 1, -2.5, 1.5, -1, 2][i % 10]}deg"><small>№${h.id}</small><b>${crTxt(h.x)}</b></span>`).join('') || '<span class="cr-h-empty">Раундов ещё не было</span>';
   // кнопка
   if (cr.err || !sb) act.innerHTML = `<div class="cc-note">Нет связи с сервером — пробуем переподключиться…</div>`;
   else if (ph === 'load') act.innerHTML = `<div class="cc-note"><span class="spinner"></span></div>`;
@@ -6821,24 +6824,36 @@ function crWon(x, prize, auto) {
   if (s) liveMine({ n: prize, t: 'crash', x: +x });
   toast(`${auto ? 'Автовывод: ' : ''}забрали на <b>${crTxt(x)}</b>${s ? ` — <b>${esc(prize)}</b> (${money(s.p)})` : ''}`);
 }
-/* ---------- звуки бомбы ---------- */
-function crBeep(k) {
-  Snd.play('c4Beep', .7 + k * .3).then(ok => { if (!ok) crBeepSynth(k); });
+/* ---------- звуки бомбы: свой выход — при уходе со страницы обрывается сразу ---------- */
+function crOut() {
+  const a = Snd.a; if (!a) return null;
+  if (!cr.out) { cr.out = a.createGain(); cr.out.connect(a.destination); }
+  return cr.out;
 }
+async function crPlay(name, vol = 1, off = 0, dur = 0) {
+  if (!st.sound) return true;
+  const a = Snd.a, gen = cr.gen; if (!a) return false;
+  let b = Snd.bufs[name]; if (!b) { Snd.warm([name]); return false; }
+  if (b instanceof ArrayBuffer) { try { b = Snd.bufs[name] = await a.decodeAudioData(b); } catch (e) { return false; } }
+  const out = gen === cr.gen && crOut(); if (!out) return true;
+  const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; g.gain.value = vol; s.connect(g); g.connect(out); dur ? s.start(0, off, dur) : s.start(0, off); return true;
+}
+// писк C4: один писк из записи владельца (c4-beep.mp3, 0,165–0,325 с; запись тихая — усиливаем)
+function crBeep(k) { crPlay('c4Beep', 14 + k * 6, .165, .16).then(ok => { if (!ok) crBeepSynth(k); }); }
 function crBeepSynth(k) {
   Snd.tone(2350 + k * 500, .075, 'square', .05 + k * .03);
   Snd.tone(4700 + k * 1000, .05, 'sine', .02);
 }
+// взрыв — синтез, потише (просьба владельца)
 function crBoomSnd() {
-  Snd.tone(48, 1.6, 'sine', .7, 0, 25);
-  Snd.noise(1.8, .55, 0, 380, .6, 'lowpass');
-  Snd.noise(.5, .4, 0, 2400, .5, 'bandpass');
-  Snd.tone(90, .6, 'sawtooth', .18, 0, 30);
-  Snd.noise(1.2, .12, .15, 6000, .5, 'highpass');
+  Snd.tone(48, 1.4, 'sine', .32, 0, 25);
+  Snd.noise(1.5, .24, 0, 380, .6, 'lowpass');
+  Snd.noise(.4, .14, 0, 2400, .5, 'bandpass');
+  Snd.tone(90, .5, 'sawtooth', .07, 0, 30);
 }
 function crBoom() {
   cr.boomed = cr.r.id;
-  Snd.play('c4Boom', 1).then(ok => { if (!ok) crBoomSnd(); });
+  crBoomSnd();
   const f = $('#crFlash'), stg = $('#crStage');
   if (f) { f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
   if (stg) { stg.classList.remove('shake'); void stg.offsetWidth; stg.classList.add('shake'); }
@@ -6846,7 +6861,6 @@ function crBoom() {
   const me = crMe();
   if (me && !me.cash) toast(`БУМ на ${crTxt(cr.r.crash_x)} — ставка сгорела`, 'err');
 }
-/* ---------- экранчик бомбы: точечный ЖК-дисплей 95×17 точек (как 16×2 символов) ---------- */
 const CR_FONT = (() => {
   const g = {
     0: '01110100011001110101110011000101110', 1: '00100011000010000100001000010001110', 2: '01110100010000100010001000100011111',
@@ -6893,97 +6907,163 @@ function crLcd(o) {
   g.lcd.material.map.needsUpdate = true;
 }
 /* ---------- 3D: three.js с CDN (importmap в index.html), модель assets/c4.glb ---------- */
+/* ---------- 3D: three.js с CDN (importmap в index.html), модель assets/c4.glb ---------- */
 let crLib = null;
 const crLoadLib = () => crLib || (crLib = Promise.all([
   import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js'), import('three/addons/environments/RoomEnvironment.js'),
 ]).catch(e => { crLib = null; throw e; }));
-async function crScene() {
+// мягкое круглое свечение (для лампочки, экрана, огня); на прозрачном холсте складывается со страницей
+function crGlowTex(T, stops) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  (stops || [[0, 'rgba(255,255,255,1)'], [.25, 'rgba(255,255,255,.55)'], [.6, 'rgba(255,255,255,.12)'], [1, 'rgba(255,255,255,0)']]).forEach(([o, c2]) => gr.addColorStop(o, c2));
+  x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+  const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t;
+}
+const crSprite = (T, tex, color, add = true) => new T.Sprite(new T.SpriteMaterial({ map: tex, color, transparent: true, depthWrite: false, blending: add ? T.AdditiveBlending : T.NormalBlending, opacity: 0 }));
+async function crScene(gen) {
   const cv = $('#crCanvas'); if (!cv) return;
   let T, GLTFLoader, MeshoptDecoder, RoomEnvironment;
   try { const [a, b, c, d] = await crLoadLib(); T = a; GLTFLoader = b.GLTFLoader; MeshoptDecoder = c.MeshoptDecoder; RoomEnvironment = d.RoomEnvironment; } catch (e) { $('#crStage') && $('#crStage').classList.add('no3d'); return; }
-  if (cv !== $('#crCanvas')) return;
-  const ren = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+  if (!crLive(gen) || cv !== $('#crCanvas')) return;
+  const ren = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, powerPreference: 'high-performance' });
   ren.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  ren.outputColorSpace = T.SRGBColorSpace; ren.toneMapping = T.ACESFilmicToneMapping; ren.toneMappingExposure = 1.05;
+  ren.outputColorSpace = T.SRGBColorSpace; ren.toneMapping = T.ACESFilmicToneMapping; ren.toneMappingExposure = 1.08;
   ren.shadowMap.enabled = true; ren.shadowMap.type = T.PCFSoftShadowMap;
   const scene = new T.Scene();
-  // отражения — мягкая «комната», свет — тёплый, как лампы на фоне
-  const pm = new T.PMREMGenerator(ren); scene.environment = pm.fromScene(new RoomEnvironment(), .04).texture; scene.environmentIntensity = .55;
-  const cam = new T.PerspectiveCamera(26, 1, .1, 50);
-  cam.position.set(0, 4.6, 0); cam.up.set(0, 0, 1); cam.lookAt(0, 0, 0); // экран бомбы — сверху, клавиатура — ниже, как на референсе
-  scene.add(new T.HemisphereLight(0xffe6c4, 0x2a1d12, .9));
-  const key = new T.DirectionalLight(0xffe2b8, 2.4); key.position.set(1.4, 4, 1.6); key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024); key.shadow.radius = 6; key.shadow.bias = -.0004;
-  Object.assign(key.shadow.camera, { left: -1.6, right: 1.6, top: 1.6, bottom: -1.6, near: .5, far: 10 });
+  // отражения на скотче и пластике — мягкая «комната»
+  const pm = new T.PMREMGenerator(ren); scene.environment = pm.fromScene(new RoomEnvironment(), .04).texture; scene.environmentIntensity = .4; pm.dispose();
+  // камера строго сверху: экран бомбы вверху кадра, клавиатура ниже (экран: вправо = −x, вверх = +z)
+  const cam = new T.PerspectiveCamera(24, 1, .1, 50);
+  cam.position.set(0, 5, 0); cam.up.set(0, 0, 1); cam.lookAt(0, 0, 0);
+  scene.add(new T.HemisphereLight(0xffe9cc, 0x24160c, .55));
+  // закатное солнце слева сверху — длинные мягкие тени проводов на брикетах и бомбы на «полу»
+  const key = new T.DirectionalLight(0xffd29a, 3.4); key.position.set(1.9, 3.2, 1.5); key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 4; key.shadow.bias = -.0002; key.shadow.normalBias = .012;
+  Object.assign(key.shadow.camera, { left: -1.4, right: 1.4, top: 1.4, bottom: -1.4, near: .5, far: 9 });
   scene.add(key);
-  const fill = new T.DirectionalLight(0xffb070, .7); fill.position.set(2, 2, 2); scene.add(fill);
-  const fire = new T.PointLight(0xffa040, 0, 14, 1.2); fire.position.set(0, .8, 0); scene.add(fire);
-  // невидимый пол — только мягкая тень бомбы на фоне
-  const floor = new T.Mesh(new T.PlaneGeometry(8, 8), new T.ShadowMaterial({ opacity: .55 }));
+  const fill = new T.DirectionalLight(0x9db7ff, .35); fill.position.set(-2, 2.2, -2); scene.add(fill);
+  const red = new T.PointLight(0xff2a14, 0, 1.6, 1.5); scene.add(red);          // лампочка подсвечивает бомбу
+  const fire = new T.PointLight(0xffa040, 0, 14, 1.2); fire.position.set(0, .9, 0); scene.add(fire);
+  // невидимый пол — только тень бомбы на фоне страницы
+  const floor = new T.Mesh(new T.PlaneGeometry(9, 9), new T.ShadowMaterial({ opacity: .62 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-  const g = cr.g = { T, ren, scene, cam, fire, floor, bomb: null, lcd: null, boomT: 0 };
+  const glow = crGlowTex(T);
+  // ореол под бомбой: тёплый, к концу раунда краснеет
+  const halo = crSprite(T, glow, 0xff8a3a); halo.scale.set(3.4, 3.4, 1); halo.position.y = -.05; scene.add(halo);
+  const g = cr.g = { T, ren, scene, cam, fire, red, floor, halo, glow, bomb: null, lcd: null, boomT: 0, shake: 0 };
   const fit = () => {
     const w = cv.clientWidth || 1, h = cv.clientHeight || 1; ren.setSize(w, h, false); cam.aspect = w / h;
-    // бомба целиком в кадре: по высоте ~1.75, по ширине ~1.3 (с запасом)
-    const need = Math.max(1.95, 1.5 / cam.aspect); cam.position.y = need / 2 / Math.tan(T.MathUtils.degToRad(cam.fov / 2)) + .1;
+    // бомба почти во весь кадр: по высоте ~1.85, по ширине ~1.45
+    const need = Math.max(1.86, 1.45 / cam.aspect); cam.position.y = need / 2 / Math.tan(T.MathUtils.degToRad(cam.fov / 2)) + .12;
     cam.updateProjectionMatrix();
   };
   g.ro = new ResizeObserver(fit); g.ro.observe(cv); fit();
-  // искры и огненный шар взрыва
-  const N = 260, pos = new Float32Array(N * 3);
+  // взрыв: огненные клубы, ударная волна, искры, дым
+  g.fx = [];
+  const fireTex = crGlowTex(T, [[0, 'rgba(255,250,220,1)'], [.2, 'rgba(255,190,90,.9)'], [.5, 'rgba(255,90,20,.45)'], [1, 'rgba(120,20,0,0)']]);
+  const smokeTex = crGlowTex(T, [[0, 'rgba(40,34,30,.85)'], [.5, 'rgba(30,26,24,.45)'], [1, 'rgba(20,18,16,0)']]);
+  for (let i = 0; i < 14; i++) { const s = crSprite(T, fireTex, 0xffffff); s.userData = { kind: 'fire', a: Math.random() * Math.PI * 2, d: Math.random() * .7, sz: .6 + Math.random() * 1.1, dl: Math.random() * .12 }; scene.add(s); g.fx.push(s); }
+  for (let i = 0; i < 12; i++) { const s = crSprite(T, smokeTex, 0xffffff, false); s.userData = { kind: 'smoke', a: Math.random() * Math.PI * 2, d: .2 + Math.random() * .9, sz: 1 + Math.random() * 1.4, dl: .15 + Math.random() * .3 }; scene.add(s); g.fx.push(s); }
+  g.ring = new T.Mesh(new T.RingGeometry(.9, 1, 64), new T.MeshBasicMaterial({ color: 0xffd09a, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide }));
+  g.ring.rotation.x = -Math.PI / 2; g.ring.position.y = .05; scene.add(g.ring);
+  const N = 320, pos = new Float32Array(N * 3);
   const pg = new T.BufferGeometry(); pg.setAttribute('position', new T.BufferAttribute(pos, 3));
-  g.parts = new T.Points(pg, new T.PointsMaterial({ color: 0xffb347, size: .06, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
+  g.parts = new T.Points(pg, new T.PointsMaterial({ map: glow, color: 0xffc070, size: .07, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
   g.parts.frustumCulled = false; g.pVel = new Float32Array(N * 3); scene.add(g.parts);
-  g.ball = new T.Mesh(new T.SphereGeometry(.5, 24, 16), new T.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
-  g.ball.position.y = .3; scene.add(g.ball);
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
   loader.load('assets/c4.glb?v=1', gl => {
     if (cr.g !== g) return;
-    const m = gl.scene; let panel = null;
-    m.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; if (o.material && o.material.name === 'c4_panorama_control_panel') { panel = o; o.visible = false; } } });
+    const m = gl.scene; let panel = null; const meshes = [];
+    m.traverse(o => {
+      if (!o.isMesh) return;
+      o.frustumCulled = false;
+      if (o.material && o.material.name === 'c4_panorama_control_panel') { panel = o; o.visible = false; return; }
+      o.castShadow = o.receiveShadow = true; meshes.push(o);
+      if (o.material) { o.material.envMapIntensity = .8; if (o.material.aoMap) o.material.aoMapIntensity = 1.2; }
+    });
     // длинная сторона 1.6, по центру, лежит на «полу»
     const box = new T.Box3().setFromObject(m), sz = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
     const s = 1.6 / Math.max(sz.x, sz.y, sz.z);
     m.scale.setScalar(s); m.position.set(-c.x * s, -box.min.y * s, -c.z * s);
     scene.add(m); g.bomb = m; m.updateMatrixWorld(true);
-    // экранчик: своя плоскость поверх стекла ЖК, текстура рисуется кодом
+    const ray = new T.Raycaster(), down = new T.Vector3(0, -1, 0);
+    const surf = (x, z) => { ray.set(new T.Vector3(x, 5, z), down); const h = ray.intersectObjects(meshes, false)[0]; return h ? h.point.y : .3; };
+    // экранчик: своя плоскость поверх стекла ЖК (чуть шире — закрывает пятно у края), текстура рисуется кодом
     if (panel) {
       panel.visible = true; const pb = new T.Box3().setFromObject(panel, true); panel.visible = false;
       const ps = pb.getSize(new T.Vector3()), pc = pb.getCenter(new T.Vector3());
       const cvs = document.createElement('canvas'); cvs.width = CR_LW * CR_DOT; cvs.height = CR_LH * CR_DOT + 8;
       const tex = new T.CanvasTexture(cvs); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 4;
       g.lcdCv = cvs;
-      g.lcd = new T.Mesh(new T.PlaneGeometry(ps.x, ps.z), new T.MeshBasicMaterial({ map: tex, toneMapped: false }));
-      g.lcd.rotation.set(-Math.PI / 2, 0, Math.PI); g.lcd.position.set(pc.x, pb.max.y + .002, pc.z);
+      g.lcd = new T.Mesh(new T.PlaneGeometry(ps.x * 1.09, ps.z * 1.14), new T.MeshBasicMaterial({ map: tex, toneMapped: false }));
+      g.lcd.rotation.set(-Math.PI / 2, 0, Math.PI); g.lcd.position.set(pc.x - ps.x * .02, pb.max.y + .002, pc.z);
       scene.add(g.lcd); cr.lcdKey = '';
+      // свет экрана на плату
+      g.lcdGlow = crSprite(T, glow, 0xc8f04a); g.lcdGlow.scale.set(ps.x * 2.6, ps.x * 2.6, 1); g.lcdGlow.position.set(pc.x, pb.max.y + .01, pc.z); scene.add(g.lcdGlow);
+      // красная лампочка — на месте жёлтого светодиода платы (ниже экрана, левее конденсаторов)
+      const lx = pc.x + ps.x * .25, lz = pc.z - ps.z * 3.06, ly = surf(lx, lz);
+      const ledM = new T.MeshStandardMaterial({ color: 0x3a0606, emissive: 0xff1a0a, emissiveIntensity: 0, roughness: .25, metalness: 0 });
+      g.led = new T.Mesh(new T.SphereGeometry(.024, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), ledM);
+      g.led.position.set(lx, ly, lz); g.led.castShadow = true; scene.add(g.led);
+      g.ledGlow = crSprite(T, glow, 0xff2a10); g.ledGlow.scale.set(.42, .42, 1); g.ledGlow.position.set(lx, ly + .03, lz); scene.add(g.ledGlow);
+      red.position.set(lx, ly + .12, lz);
     }
+    g.ready = true;
     $('#crStage') && $('#crStage').classList.add('ready');
   }, undefined, () => { $('#crStage') && $('#crStage').classList.add('no3d'); });
 }
-function crDraw3d(ph) {
+function crDraw3d(ph, k) {
   const g = cr.g; if (!g) return;
   const t = performance.now(), pos = g.parts.geometry.attributes.position.array, pm = g.parts.material;
+  // лампочка: вспышка на каждый писк, к концу — почти не гаснет
+  const bl = ph === 'fly' ? Math.max(0, 1 - (t - cr.beepT) / (160 + k * 260)) : 0, on = ph === 'fly' ? Math.max(bl, k * k * .5) : 0;
+  if (g.led) { g.led.material.emissiveIntensity = on * 6; g.ledGlow.material.opacity = on * .95; g.lcdGlow.material.opacity = ph === 'bet' || ph === 'fly' ? .16 + bl * .1 : 0; }
+  g.red.intensity = on * 2.2;
+  // ореол: тёплый в паузе, к взрыву — тревожно-красный и пульсирует
+  if (ph !== 'crash') {
+    const p = ph === 'fly' ? k : 0;
+    g.halo.material.color.setRGB(1, .55 - p * .4, .25 - p * .2);
+    g.halo.material.opacity = .22 + p * .25 + bl * .08 * (1 + p);
+  }
+  // тряска камеры только при взрыве
+  const sh = g.boomT ? Math.max(0, 1 - (t - g.boomT) / 700) : 0;
+  g.cam.position.x = (Math.random() - .5) * sh * .12; g.cam.position.z = (Math.random() - .5) * sh * .12;
   if (ph === 'crash' && g.boomT) {
     const bt = (t - g.boomT) / 1000;
     if (g.boomInit !== g.boomT) {
       g.boomInit = g.boomT; g.lastBt = 0;
       for (let i = 0; i < pos.length; i += 3) {
-        pos[i] = 0; pos[i + 1] = .2; pos[i + 2] = 0;
-        const a = Math.random() * Math.PI * 2, sp = 1.2 + Math.random() * 3.8;
-        g.pVel[i] = Math.cos(a) * sp; g.pVel[i + 1] = 1 + Math.random() * 3; g.pVel[i + 2] = Math.sin(a) * sp;
+        pos[i] = (Math.random() - .5) * .3; pos[i + 1] = .25; pos[i + 2] = (Math.random() - .5) * .4;
+        const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 4.5;
+        g.pVel[i] = Math.cos(a) * sp; g.pVel[i + 1] = .5 + Math.random() * 3; g.pVel[i + 2] = Math.sin(a) * sp;
       }
     }
     const dt = Math.min(.05, bt - g.lastBt); g.lastBt = bt;
-    for (let i = 0; i < pos.length; i += 3) { pos[i] += g.pVel[i] * dt; pos[i + 1] += g.pVel[i + 1] * dt; pos[i + 2] += g.pVel[i + 2] * dt; }
+    for (let i = 0; i < pos.length; i += 3) { pos[i] += g.pVel[i] * dt; pos[i + 1] += g.pVel[i + 1] * dt; pos[i + 2] += g.pVel[i + 2] * dt; g.pVel[i] *= .985; g.pVel[i + 2] *= .985; }
     g.parts.geometry.attributes.position.needsUpdate = true;
-    pm.opacity = Math.max(0, 1 - bt / 1.4);
-    g.ball.material.opacity = Math.max(0, .95 - bt * 1.6); g.ball.scale.setScalar(.3 + Math.min(1, bt * 3) * 2.4);
-    g.fire.intensity = Math.max(0, 40 * (1 - bt / .9));
-    const vis = bt < .06; if (g.bomb) g.bomb.visible = vis; if (g.lcd) g.lcd.visible = vis; g.floor.visible = vis;
+    pm.opacity = Math.max(0, 1 - bt / 1.5);
+    g.fx.forEach(s => {
+      const u = s.userData, lt = Math.max(0, bt - u.dl);
+      if (u.kind === 'fire') {
+        const e = Math.min(1, lt * 4);
+        s.position.set(Math.cos(u.a) * u.d * e, .3 + lt * .4, Math.sin(u.a) * u.d * e);
+        s.scale.setScalar(u.sz * (.3 + e * 1.2)); s.material.opacity = lt > 0 ? Math.max(0, 1 - lt / .9) : 0;
+      } else {
+        const e = 1 - Math.exp(-lt * 1.6);
+        s.position.set(Math.cos(u.a) * u.d * (.4 + e), .2 + lt * .15, Math.sin(u.a) * u.d * (.4 + e));
+        s.scale.setScalar(u.sz * (.5 + e * 1.3)); s.material.opacity = lt > 0 ? Math.min(.75, lt * 3) * Math.max(0, 1 - lt / 3.6) : 0;
+      }
+    });
+    const re = Math.min(1, bt / .55); g.ring.scale.setScalar(.2 + re * 2.6); g.ring.material.opacity = Math.max(0, .8 * (1 - re));
+    g.fire.intensity = Math.max(0, 45 * (1 - bt / .9));
+    g.halo.material.color.setRGB(1, .45, .15); g.halo.material.opacity = Math.max(0, .9 * (1 - bt / 1.2));
+    const vis = bt < .06; [g.bomb, g.lcd, g.led, g.ledGlow, g.lcdGlow].forEach(o => o && (o.visible = vis)); g.floor.visible = vis;
   } else {
-    pm.opacity = 0; g.ball.material.opacity = 0; g.fire.intensity = 0;
+    pm.opacity = 0; g.ring.material.opacity = 0; g.fire.intensity = 0; g.fx.forEach(s => { s.material.opacity = 0; });
     // после взрыва бомбы нет до нового раунда (зашли на страницу во время итогов — тоже)
-    const vis = ph !== 'crash'; if (g.bomb) g.bomb.visible = vis; if (g.lcd) g.lcd.visible = vis; g.floor.visible = vis;
+    const vis = ph !== 'crash'; [g.bomb, g.lcd, g.led, g.ledGlow, g.lcdGlow].forEach(o => o && (o.visible = vis)); g.floor.visible = vis;
+    if (!vis) g.halo.material.opacity = 0;
   }
   g.ren.render(g.scene, g.cam);
 }
@@ -6998,7 +7078,7 @@ var ioPause = 'IntersectionObserver' in window ? new IntersectionObserver(es => 
 function ioScan() { if (ioPause) $$('.case-card, .hero3, .rl-stage').forEach(el => ioPause.observe(el)); }
 function route() {
   if (ioPause) ioPause.disconnect();
-  clearTimers(); spinning = false; spinId++;
+  clearTimers(); spinning = false; spinId++; crStop(); // краш: при уходе — тишина и без нагрузки
   const parts = location.hash.replace(/^#\/?/, '').split('/');
   const key = parts[0] || '';
   const [page, mount] = Object.prototype.hasOwnProperty.call(ROUTES, key) ? ROUTES[key] : [page404, null];
@@ -7007,6 +7087,7 @@ function route() {
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   if (mount) mount(parts[1]);
   ioScan();
+  document.body.classList.toggle('pg-crash', key === 'crash');
   const navKey = key === '' || key === 'case' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
