@@ -2910,18 +2910,22 @@ function drawBalPop() {
 }
 function drawTargets() {
   const v = upgValue(), box = $('#upgTargets'); if (!box) return;
-  let list = UPG_CAT.filter(s => s.p > v * 1.05 && (upg.cat === 'all' || s.c === upg.cat) && (!upg.q || s.name.toLowerCase().includes(upg.q)));
+  // ставки ещё нет (и не ищут) — витрина: ножи, перчатки и дорогие AWP / AK / M4 / Deagle, от самых дорогих; во вкладке — самое дорогое в ней
+  const show = !v && !upg.q;
+  let list = show
+    ? UPG_CAT.filter(s => upg.cat === 'all' ? s.c === 'knife' || s.c === 'gloves' || (s.c === 'skin' && s.p >= 15000 && /^(StatTrak™ )?(AWP|AK-47|M4A4|M4A1-S|Desert Eagle) \|/.test(s.name)) : s.c === upg.cat).reverse()
+    : UPG_CAT.filter(s => s.p > v * 1.05 && (upg.cat === 'all' || s.c === upg.cat) && (!upg.q || s.name.toLowerCase().includes(upg.q)));
   // фильтр по множителю: только предметы около v × m (±12%); если таких мало — ближайшие по цене
   if (upg.mult && v) {
     const want = v * upg.mult, near = list.filter(s => s.p >= want * .88 && s.p <= want * 1.12);
     list = near.length >= 3 ? near : list.slice().sort((a, z) => Math.abs(Math.log(a.p / want)) - Math.abs(Math.log(z.p / want))).slice(0, 12).sort((a, z) => a.p - z.p);
   }
   $$('#upgMults [data-m]').forEach(x => x.classList.toggle('on', +x.dataset.m === upg.mult));
-  $$('#upgSort button').forEach(b => b.classList.toggle('on', b.dataset.s === upg.sort));
-  if (upg.sort === 'desc') list = list.slice().reverse();
+  $$('#upgSort button').forEach(b => b.classList.toggle('on', show ? b.dataset.s === 'desc' : b.dataset.s === upg.sort));
+  if (!show && upg.sort === 'desc') list = list.slice().reverse();
   const total = list.length, LIMIT = 240;
   if (total > LIMIT) { const k = upg.to ? list.findIndex(s => s.name === upg.to) : -1; const st0 = k >= LIMIT ? Math.max(0, k - Math.floor(LIMIT / 2)) : 0; list = list.slice(st0, st0 + LIMIT); }
-  $('#upgCnt') && ($('#upgCnt').textContent = total > LIMIT ? `показано ${LIMIT} из ${fmt(total)} — уточните поиск` : `${fmt(total)} предм.`);
+  $('#upgCnt') && ($('#upgCnt').textContent = show ? 'Самый дорогой дроп · добавьте скин или баланс — подберём цели и шансы' : total > LIMIT ? `показано ${LIMIT} из ${fmt(total)} — уточните поиск` : `${fmt(total)} предм.`);
   box.innerHTML = list.length ? list.map(s => mcard(s, `data-t="${esc(s.name)}"`, v ? `<span class="mc-x">${pctTxt(upgChance(v, s))}</span>` : '')).join('') : `<div class="empty">${ic.search}Ничего не найдено</div>`;
   $$('[data-t]', box).forEach(el => { if (el.dataset.t === upg.to) el.classList.add('sel'); el.onclick = () => { if (upg.busy) return; upg.to = el.dataset.t; const x = SK[upg.to].p / (v || 1); if (upg.mult && Math.abs(Math.log(x / upg.mult)) > Math.log(1.15)) upg.mult = 0; Snd.safeSel(true); drawUpg(); }; });
   // после выбора множителем — прокручиваем список к выбранному предмету
