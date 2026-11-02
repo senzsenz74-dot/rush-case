@@ -5006,8 +5006,8 @@ function pageAdmin() {
   if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
   return `<section class="container cases-wide ax" id="adm">
     <header class="ax-top"><div class="ax-ttl"><span>Админ-панель</span><h1>RUSH CASE</h1></div><div class="ax-period" id="axPeriod"></div></header>
-    <nav class="ax-tabs" id="admTabs"></nav>
-    <div id="admBody"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div>
+    <div class="ax-lay"><nav class="ax-tabs ax-side" id="admTabs"></nav>
+    <div id="admBody"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div></div>
   </section>`;
 }
 /* роль в админке: владелец — всё; сотрудник — только вкладки, отмеченные владельцем (права проверяет и сервер, supabase/roles.sql) */
@@ -5045,7 +5045,11 @@ async function mountAdmin() {
   const tabs = admTabs();
   if (sb && admOwner()) admSync();
   if (!tabs.some(([k]) => k === admTab)) admTab = tabs.length ? tabs[0][0] : '';
-  $('#admTabs').innerHTML = tabs.map(([k, t]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${t}${k === 'support' ? '<i class="ax-badge" id="admSupBadge" hidden></i>' : ''}</button>`).join('');
+  // боковое меню: вкладки по разделам (всё влезает при любом числе вкладок)
+  const btn = ([k, t]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${t}${k === 'support' ? '<i class="ax-badge" id="admSupBadge" hidden></i>' : ''}</button>`;
+  const inG = new Set(ADM_GROUPS.flatMap(g => g[1]));
+  $('#admTabs').innerHTML = ADM_GROUPS.map(([g, ks]) => { const list = tabs.filter(([k]) => ks.includes(k)); return list.length ? `<div class="ax-sg"><span>${g}</span>${list.map(btn).join('')}</div>` : ''; }).join('')
+    + (tabs.some(([k]) => !inG.has(k)) ? `<div class="ax-sg"><span>Другое</span>${tabs.filter(([k]) => !inG.has(k)).map(btn).join('')}</div>` : '');
   if (!tabs.length) return ($('#admBody').innerHTML = `<div class="empty">${ic.shield}Владелец ещё не открыл вам разделы админки.</div>`);
   admPeriodBar();
   $$('#admTabs [data-t]').forEach(b => b.onclick = () => { admTab = b.dataset.t; try { localStorage.setItem('rc.admTab', admTab); } catch (e) { /* */ } admDraw(); });
@@ -5180,6 +5184,7 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
+const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books']], ['Игры', ['cases', 'bets', 'upg', 'crash']], ['Игроки', ['players', 'online', 'out', 'support']], ['Сайт', ['shop', 'promo', 'tours', 'staff']]];
 const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;

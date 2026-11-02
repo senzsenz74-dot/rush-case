@@ -4395,3 +4395,16 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 .cr-adm-l button{background:none;border:0;padding:2px 0;font-size:10.5px;font-weight:700;color:var(--txt3);cursor:pointer;text-align:center}
 .cr-adm-l button.on{color:#fff}.cr-adm small{font-size:11.5px;color:var(--txt3);line-height:1.4}
 .ax-bandbar{display:block;height:6px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;min-width:60px}.ax-bandbar i{display:block;height:100%;background:var(--gold)}
+/* админка: боковое меню вкладок по разделам */
+.ax-lay{display:grid;grid-template-columns:196px minmax(0,1fr);gap:22px;align-items:start}
+.ax-tabs.ax-side{position:sticky;top:84px;display:flex;flex-direction:column;gap:14px;margin:0;padding:12px 8px;border:1px solid var(--ax-line);border-radius:14px;background:var(--ax-card);overflow:visible;max-height:calc(100vh - 100px);overflow-y:auto}
+.ax-sg{display:flex;flex-direction:column;gap:1px}
+.ax-sg>span{padding:0 10px 4px;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ax-mut);opacity:.7}
+.ax-side button{display:flex;align-items:center;height:36px;padding:0 10px;border-radius:9px;text-align:left;font-size:13.5px}
+.ax-side button:hover{background:rgba(255,255,255,.04)}
+.ax-side button.on{background:rgba(255,255,255,.08);color:#fff}
+.ax-side button.on::after{left:0;right:auto;top:8px;bottom:8px;width:3px;height:auto;background:var(--gold)}
+.ax-side button .ax-badge{margin-left:auto}
+@media (max-width:900px){.ax-lay{grid-template-columns:1fr;gap:12px}
+  .ax-tabs.ax-side{position:static;flex-direction:row;gap:10px;overflow-x:auto;max-height:none;padding:8px}
+  .ax-sg{flex-direction:row;align-items:center}.ax-sg>span{padding:0 6px 0 4px;white-space:nowrap}.ax-side button{white-space:nowrap}}
