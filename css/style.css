@@ -4152,10 +4152,10 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
 @media (prefers-reduced-motion:reduce){.bg-hl,.bg-hlc{animation:none}}
 /* раздел с фоном (BLOCK_BG): картинка за разделом, края растушёваны в фон сайта */
 .cs-block.cs-has-bg{position:relative;isolation:isolate;padding:22px 22px 30px;margin-left:-22px;margin-right:-22px}
-.cs-has-bg>.cs-bg{position:absolute;z-index:-1;top:-24px;bottom:-140px;left:50%;width:calc(100vw - var(--lw, 0px) + 24px);transform:translateX(-50%);background-size:cover;background-position:center 35%;pointer-events:none; /* во всю ширину сайта (без колонки LIVE) и ниже раздела; кейсы не сдвигаются */
+.cs-has-bg>.cs-bg{position:absolute;z-index:-1;top:-24px;bottom:-30px;left:50%;width:calc(100vw - var(--lw, 0px) + 24px);transform:translateX(-50%);background-size:cover;background-position:center 35%;pointer-events:none; /* во всю ширину сайта (без колонки LIVE) и ниже раздела; кейсы не сдвигаются */
   
-  -webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 10%,#000 76%,transparent 100%),linear-gradient(90deg,transparent 0%,#000 3%,#000 97%,transparent 100%);
-  -webkit-mask-composite:source-in;mask-image:linear-gradient(180deg,transparent 0%,#000 10%,#000 76%,transparent 100%),linear-gradient(90deg,transparent 0%,#000 3%,#000 97%,transparent 100%);mask-composite:intersect}
+  -webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 10%,#000 70%,transparent 100%),linear-gradient(90deg,transparent 0%,#000 3%,#000 97%,transparent 100%);
+  -webkit-mask-composite:source-in;mask-image:linear-gradient(180deg,transparent 0%,#000 10%,#000 70%,transparent 100%),linear-gradient(90deg,transparent 0%,#000 3%,#000 97%,transparent 100%);mask-composite:intersect}
 .cs-has-bg>.cs-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,4,3,.88) 0%,rgba(5,4,3,.62) 12%,rgba(5,4,3,.2) 24%,transparent 34%),radial-gradient(70% 80% at 50% 60%,rgba(0,0,0,.3),transparent 75%)}
 @media (max-width:720px){.cs-block.cs-has-bg{padding:16px 12px 22px;margin-left:-12px;margin-right:-12px}}
 /* «В гостях у бабушки»: ценник — старая выцветшая доска: волокна и трещины (SVG-шум), сколы по краям, грязь по углам,
