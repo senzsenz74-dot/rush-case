@@ -4385,3 +4385,12 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 .cr-shock{animation:crShock .9s cubic-bezier(.2,.7,.3,1) var(--sd,0ms) both}
 @keyframes crShock{0%{transform:none}12%{transform:translate(var(--sx),var(--sy)) rotate(var(--sr))}32%{transform:translate(calc(var(--sx) * -.45),calc(var(--sy) * -.45)) rotate(calc(var(--sr) * -.5))}52%{transform:translate(calc(var(--sx) * .2),calc(var(--sy) * .2))}72%{transform:translate(calc(var(--sx) * -.08),calc(var(--sy) * -.08))}100%{transform:none}}
 @media (prefers-reduced-motion:reduce){.cr-shock{animation:none}}
+/* ползунок режима краша (только владелец) */
+.cr-adm{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;border:1px dashed rgba(255,214,150,.3);background:rgba(0,0,0,.25)}
+.cr-adm-h{display:flex;align-items:baseline;justify-content:space-between}.cr-adm-h b{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.cr-adm-h span{font-size:11px;color:var(--txt3)}
+.cr-adm input[type=range]{width:100%;accent-color:var(--gold);cursor:pointer}
+.cr-m0 input[type=range]{accent-color:#ef4444}.cr-m1 input[type=range]{accent-color:#f97316}.cr-m3 input[type=range]{accent-color:#4ade80}.cr-m4 input[type=range]{accent-color:#22c55e}
+.cr-adm-l{display:grid;grid-template-columns:repeat(5,1fr);gap:2px}
+.cr-adm-l button{background:none;border:0;padding:2px 0;font-size:10.5px;font-weight:700;color:var(--txt3);cursor:pointer;text-align:center}
+.cr-adm-l button.on{color:#fff}.cr-adm small{font-size:11.5px;color:var(--txt3);line-height:1.4}
+.ax-bandbar{display:block;height:6px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;min-width:60px}.ax-bandbar i{display:block;height:100%;background:var(--gold)}

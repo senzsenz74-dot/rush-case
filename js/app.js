@@ -5088,19 +5088,22 @@ function admFetch(force) {
     sb.rpc('admin_period', { ...args, p_bucket: bucket }), sb.rpc('admin_upg', { ...args, p_bucket: bucket }), sb.rpc('admin_bets', { ...args, p_bucket: bucket }),
     sb.rpc('admin_cases_period', args), sb.rpc('admin_stats'), sb.from('profiles').select('id, pid, name, data, created_at, is_admin, steamid'),
     sb.from('withdrawals').select('id, uid, n, price, paid, status, created_at').order('id', { ascending: false }).limit(10000),
-    sb.from('fin_ops').select('*').order('op_date', { ascending: false }).order('id', { ascending: false }).limit(5000)
-  ]).then(([per, upg, bets, cp, snap, prof, wd, fo]) => {
+    sb.from('fin_ops').select('*').order('op_date', { ascending: false }).order('id', { ascending: false }).limit(5000),
+    sb.rpc('admin_crash', { ...args, p_bucket: bucket })
+  ]).then(([per, upg, bets, cp, snap, prof, wd, fo, crs]) => {
     if (per.error) throw per.error;
     const by = (arr) => Object.fromEntries((arr || []).map(r => [String(r.t), r]));
-    const U = by(upg.data && upg.data.series), B = by(bets.data && bets.data.series);
+    const U = by(upg.data && upg.data.series), B = by(bets.data && bets.data.series), CS = by(crs.data && crs.data.series);
     const lbl = t_ => admLbl(t_, hours), full = t_ => admFull(t_, hours);
     const rows = (per.data.series || []).map(r => {
-      const u = U[String(r.t)] || {}, b = B[String(r.t)] || {};
-      const cases = +r.spent - +r.won, upgP = (+u.stake || 0) - (+u.won || 0), betsP = +b.profit || 0;
+      const u = U[String(r.t)] || {}, b = B[String(r.t)] || {}, c = CS[String(r.t)] || {};
+      const cases = +r.spent - +r.won, upgP = (+u.stake || 0) - (+u.won || 0), betsP = +b.profit || 0, crashP = +c.profit || 0;
       return { t: r.t, lbl: lbl(r.t), full: full(r.t), peak: +r.peak, avg: +r.avg, visitors: +r.visitors, players: +r.players, reg: +r.reg,
         dep: +r.dep, out: +r.out, flow: +r.dep - +r.out, spent: +r.spent, won: +r.won, cases,
         uN: +u.n || 0, uWins: +u.wins || 0, uStake: +u.stake || 0, uWon: +u.won || 0, upgP,
-        bRounds: +b.rounds || 0, bLive: +b.live || 0, bBets: +b.bets || 0, bPlayers: +b.players || 0, bWins: +b.pwins || 0, betsP, game: cases + upgP + betsP };
+        bRounds: +b.rounds || 0, bLive: +b.live || 0, bBets: +b.bets || 0, bPlayers: +b.players || 0, bWins: +b.pwins || 0, betsP,
+        cRounds: +c.rounds || 0, cLive: +c.live || 0, cBets: +c.bets || 0, cPlayers: +c.players || 0, cWins: +c.wins || 0, cStake: +c.stake || 0, cWon: +c.won || 0, crashP,
+        game: cases + upgP + betsP + crashP };
     });
     // игроки и деньги «сейчас» — по профилям (цены скинов из каталога)
     const P = it => (SK[it.n] && SK[it.n].p) || 0;
@@ -5114,8 +5117,8 @@ function admFetch(force) {
       if (s.cs && !p.is_admin) for (const [id, v] of Object.entries(s.cs)) { const k = csAll[id] = csAll[id] || { n: 0, spent: 0, won: 0 }; k.n += +v.n || 0; k.spent += +v.spent || 0; k.won += +v.won || 0; }
       players.push({ id: p.id, pid: p.pid, name: p.name, admin: p.is_admin, reg: p.created_at, dep: +s.dep || 0, spent: +s.spent || 0, opened: +s.opened || 0, out: pOut, bal: +d.balance || 0, hold: pHold, profit: (+s.dep || 0) - pOut - (+d.balance || 0) - pHold });
     }
-    const T = per.data.total, UT = (upg.data && upg.data.total) || {}, BT = (bets.data && bets.data.total) || {};
-    const cases = +T.spent - +T.won, upgP = (+UT.stake || 0) - (+UT.won || 0), betsP = +BT.profit || 0;
+    const T = per.data.total, UT = (upg.data && upg.data.total) || {}, BT = (bets.data && bets.data.total) || {}, CT = (crs.data && crs.data.total) || {};
+    const cases = +T.spent - +T.won, upgP = (+UT.stake || 0) - (+UT.won || 0), betsP = +BT.profit || 0, crashP = +CT.profit || 0;
     // бухгалтерия: выводы — сколько заплатили маркету (отправленные вручную — по цене сайта), в процессе — долг игроку по цене сайта,
     // выводы до маркета — по ценам каталога; ручные расходы — fin_ops (до запуска finance.sql — пусто). Админские аккаунты не считаем.
     const adm = new Set(players.filter(p => p.admin).map(p => p.id)), W = (wd.data || []).filter(w => !adm.has(w.uid)), ops = fo.error ? [] : fo.data || [];
@@ -5124,9 +5127,14 @@ function admFetch(force) {
     const outOld = outs.filter(o => !adm.has(o.uid) && !W.some(w => w.uid === o.uid && w.n === o.n)).reduce((a, o) => a + o.p, 0);
     const expAll = ops.filter(o => o.kind === 'expense').reduce((a, o) => a + +o.amount, 0);
     const fin = { W, ops, opsErr: fo.error, outPaid, outPend, outOld, expAll };
-    return { hours, f, t, rows, T, UT, UX: (upg.data && upg.data.byX) || [], BT, cp: cp.data || [], cpErr: cp.error, betsErr: bets.error, snap: snap.data || {},
-      now: { bal, hold, holdN, depAll, outAll, net: depAll - expAll - outPaid - outPend - outOld - bal - hold, netPl: depAll - outAll - bal - hold }, fin, players, csAll, outs,
-      sum: { cases, upgP, betsP, game: cases + upgP + betsP } };
+    // чистая прибыль за период: пополнения − расходы (ручные) − выводы (оплачено маркету), всё по датам периода; балансы и скины игроков не вычитаем
+    const fromD = admIso(f), toD = admIso(t);
+    const expP = ops.filter(o => o.kind === 'expense' && o.op_date >= fromD && o.op_date < toD).reduce((s2, o) => s2 + +o.amount, 0);
+    const outP = W.filter(w => (w.status === 'done' || w.status === 'prot') && +new Date(w.created_at) >= +f && +new Date(w.created_at) < +t).reduce((s2, w) => s2 + (w.paid ? wdPaid(w) : +w.price), 0);
+    return { hours, f, t, rows, T, UT, UX: (upg.data && upg.data.byX) || [], BT, CT, CX: crs.data || {}, crashErr: crs.error, cp: cp.data || [], cpErr: cp.error, betsErr: bets.error, snap: snap.data || {},
+      now: { bal, hold, holdN, depAll, outAll, net: depAll - expAll - outPaid - outPend - outOld, netPl: depAll - outAll - bal - hold }, fin, players, csAll, outs,
+      netP: +T.dep - expP - outP, expP, outP,
+      sum: { cases, upgP, betsP, crashP, game: cases + upgP + betsP + crashP } };
   });
   admData = { key, at: Date.now(), p }; p.catch(() => { admData = null; });
   return p;
@@ -5172,7 +5180,7 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -5204,18 +5212,18 @@ function axDash(box, D) {
   if (lossDays) hot.push(`Убыточных ${D.hours ? 'часов' : 'дней'} за период: <b class="neg">${lossDays}</b>`);
   box.innerHTML = `
     <div class="ax-kpis">
-      ${axKpi('Чистая прибыль', sgn(D.now.net), 'за всё время: пополнения − расходы − выводы − балансы − скины игроков', tone(D.now.net))}
-      ${axKpi('Игровая прибыль', sgn(s.game), 'за период: кейсы + апгрейд + ставки', tone(s.game))}
+      ${axKpi('Чистая прибыль', sgn(D.netP), `за период: пополнения − расходы − выводы · за всё время <b class="${tone(D.now.net)}">${sgn(D.now.net)}</b>`, tone(D.netP))}
+      ${axKpi('Игровая прибыль', sgn(s.game), 'за период: кейсы + апгрейд + ставки + краш', tone(s.game))}
       ${axKpi('Пополнения', money(+T.dep), `${fmt(T.depN)} платежей за период`)}
       ${axKpi('Выведено в Steam', money(+T.out), `${fmt(T.outN)} предм. за период`)}
       ${axKpi('Онлайн сейчас', fmt(+D.snap.online || 0), `пик за период ${fmt(T.peak)}`)}
       ${axKpi('Новые игроки', fmt(+T.reg), `всего ${fmt(+D.snap.users || 0)}`)}
     </div>
     ${axCaseDuo(D)}
-    ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { day: !D.hours, name: 'Прибыль', tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }),
+    ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { day: !D.hours, name: 'Прибыль', tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Краш', sgn(r.crashP)], ['Итого', sgn(r.game)]] }),
       `<div class="ax-note">${best ? `лучший <b class="pos">${best.full} ${sgn(best.game)}</b>` : ''}${worst && worst.game < 0 ? ` · худший <b class="neg">${worst.full} ${sgn(worst.game)}</b>` : ''}</div>`)}
     <div class="ax-g2">
-      ${axCard('Из чего прибыль', `<div class="ax-split">${[['Кейсы', s.cases, +T.spent, +T.won, `${fmt(T.opens)} откр.`], ['Апгрейд', s.upgP, +D.UT.stake || 0, +D.UT.won || 0, `${fmt(D.UT.n || 0)} попыток`], ['Ставки', s.betsP, +D.BT.bets || 0, 0, `${fmt(D.BT.live || 0)} раундов с игроками`]]
+      ${axCard('Из чего прибыль', `<div class="ax-split">${[['Кейсы', s.cases, +T.spent, +T.won, `${fmt(T.opens)} откр.`], ['Апгрейд', s.upgP, +D.UT.stake || 0, +D.UT.won || 0, `${fmt(D.UT.n || 0)} попыток`], ['Ставки', s.betsP, +D.BT.bets || 0, 0, `${fmt(D.BT.live || 0)} раундов с игроками`], ['Краш', s.crashP, +D.CT.stake || 0, +D.CT.won || 0, `${fmt(D.CT.live || 0)} раундов с игроками`]]
         .map(([n, v, a, b, sub]) => `<div class="ax-sr"><span>${n}<small>${sub}</small></span><span class="num">${n === 'Ставки' ? (a ? 'ставки ' + money(a) : '—') : a ? 'отдаёт ' + pctS(b / a) : '—'}</span><b class="num ${tone(v)}">${sgn(v)}</b></div>`).join('')}
         <div class="ax-sr ax-sr-t"><span>Итого</span><span></span><b class="num ${tone(s.game)}">${sgn(s.game)}</b></div></div>`)}
       ${axCard('Требует внимания', hot.length ? `<ul class="ax-warn">${hot.slice(0, 8).map(h => `<li>${h}</li>`).join('')}</ul>` : '<div class="ax-empty ok">Всё в порядке</div>')}
@@ -5257,19 +5265,19 @@ function axMoney(box, D) {
       ${axKpi('Пополнения', money(+T.dep), `${fmt(T.depN)} платежей · средний чек ${T.depN ? money(+T.dep / T.depN) : '—'}`)}
       ${axKpi('Выведено в Steam', money(+T.out), `${fmt(T.outN)} предм.`)}
       ${axKpi('Пополнения − выводы', sgn(+T.dep - +T.out), 'поток денег за период', tone(+T.dep - +T.out))}
-      ${axKpi('Игровая прибыль', sgn(D.sum.game), 'кейсы + апгрейд + ставки', tone(D.sum.game))}
+      ${axKpi('Игровая прибыль', sgn(D.sum.game), 'кейсы + апгрейд + ставки + краш', tone(D.sum.game))}
       ${axKpi('Начислено админом', sgn(+T.grants), 'начисления минус списания за период')}
-      ${axKpi('Чистая прибыль', sgn(N.net), 'за всё время: пополнения − расходы − выводы − балансы − скины игроков · подробно в «Бухгалтерии»', tone(N.net))}
+      ${axKpi('Чистая прибыль', sgn(D.netP), `за период · за всё время ${sgn(N.net)} · пополнения − расходы − выводы, подробно в «Бухгалтерии»`, tone(D.netP))}
     </div>
     ${axCard(`Пополнения − выводы по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.flow, { day: !D.hours, tip: r => [['Пополнения', money(r.dep)], ['Выведено', money(r.out)], ['Разница', sgn(r.flow)]] }))}
-    ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { day: !D.hours, tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }))}
+    ${axCard(`Игровая прибыль по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.game, { day: !D.hours, tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Краш', sgn(r.crashP)], ['Итого', sgn(r.game)]] }))}
     ${axCard('Обязательства перед игроками — сейчас', `<div class="ax-split">
       <div class="ax-sr"><span>На балансах игроков<small>рубли, которые игроки могут потратить</small></span><span></span><b class="num">${money(N.bal)}</b></div>
       <div class="ax-sr"><span>Скины в инвентарях<small>${fmt(N.holdN)} предм. по ценам каталога</small></span><span></span><b class="num">${money(N.hold)}</b></div>
       <div class="ax-sr"><span>R-COIN у игроков</span><span></span><b class="num">${rc(+D.snap.rcoin || 0)}</b></div></div>`)}
     ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Пополнения', r => money(r.dep), num], ['Выведено', r => money(r.out), num], ['Поток', r => sgn(r.flow), tn('flow')],
-      ['Кейсы', r => sgn(r.cases), tn('cases')], ['Апгрейд', r => sgn(r.upgP), tn('upgP')], ['Ставки', r => sgn(r.betsP), tn('betsP')], ['Игровая прибыль', r => sgn(r.game), tn('game')]],
-      D.rows.slice().reverse(), { full: 'Итого', dep: +T.dep, out: +T.out, flow: +T.dep - +T.out, cases: D.sum.cases, upgP: D.sum.upgP, betsP: D.sum.betsP, game: D.sum.game }))}`;
+      ['Кейсы', r => sgn(r.cases), tn('cases')], ['Апгрейд', r => sgn(r.upgP), tn('upgP')], ['Ставки', r => sgn(r.betsP), tn('betsP')], ['Краш', r => sgn(r.crashP), tn('crashP')], ['Игровая прибыль', r => sgn(r.game), tn('game')]],
+      D.rows.slice().reverse(), { full: 'Итого', dep: +T.dep, out: +T.out, flow: +T.dep - +T.out, cases: D.sum.cases, upgP: D.sum.upgP, betsP: D.sum.betsP, crashP: D.sum.crashP, game: D.sum.game }))}`;
 }
 function axOnline(box, D) {
   const T = D.T;
@@ -5345,6 +5353,33 @@ function axUpg(box, D) {
     ${axCard('Игроки апгрейда — кто сколько поставил и выиграл', '<div id="axUpgPl"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div>')}
     <p class="ax-foot">Удача игрока (меняется в «Игроки») умножает и шанс апгрейда. Шанс: x1,05–5 — в среднем отдаёт 80%, выше x5 — до 92%, максимум 75%.</p>`;
 }
+/* ---------- краш (supabase/crash_admin.sql): только реальные игроки — без ботов и админов, только завершённые раунды ---------- */
+const CR_MODES = [[-2, 'Агрессивный', 'почти всегда взрыв сразу'], [-1, 'Жёсткий', 'чаще рано, отдаёт ~65%'], [0, 'Баланс', 'отдаёт 90%, случайно'], [1, 'Щедрый', 'без мгновенных взрывов, отдаёт >100%'], [2, 'Дающий', 'чаще всего держит до 40-й секунды']];
+const crModeName = m => (CR_MODES.find(x => x[0] === +m) || CR_MODES[2])[1];
+function axCrash(box, D) {
+  if (D.crashErr) return (box.innerHTML = admErr(D.crashErr) + '<div class="ax-empty">Нужен supabase/crash_admin.sql.</div>');
+  const C = D.CT, X = D.CX, pr = D.sum.crashP;
+  const band = lo => ({ 1: 'x1.00 (сразу)', 1.01: 'x1.01–1.5', 1.5: 'x1.5–2', 2: 'x2–3', 3: 'x3–5', 5: 'x5–10', 10: 'x10–20', 20: 'x20–100', 100: 'x100 (40 с)' }[lo] || lo);
+  const bands = (X.bands || []), bMax = Math.max(1, ...bands.map(b => +b.n));
+  box.innerHTML = `
+    <div class="ax-kpis">
+      ${axKpi('Прибыль с краша', sgn(pr), +C.stake ? `отдаёт ${pctS(+C.won / +C.stake)}` : '', tone(pr))}
+      ${axKpi('Раундов', fmt(+C.rounds || 0), `${fmt(+C.live || 0)} с игроками · мгновенных ${pctOr(+C.instant || 0, +C.rounds || 0)}`)}
+      ${axKpi('Ставок', fmt(+C.bets || 0), `${fmt(+C.players || 0)} игроков · забрали ${pctOr(+C.wins || 0, +C.bets || 0)}`)}
+      ${axKpi('Поставлено', money(+C.stake || 0), `выдано ${money(+C.won || 0)}`)}
+      ${axKpi('Средний взрыв', 'x' + (+C.avgX || 0).toFixed(2), +C.maxX ? `лучший вывод x${(+C.maxX).toFixed(2)} · ${money(+C.maxWin || 0)}` : '')}
+      ${axKpi('Режим сейчас', crModeName(X.mode), '<a href="#/crash">меняется ползунком на странице краша</a>')}
+    </div>
+    ${axCard(`Прибыль с краша по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.crashP, { day: !D.hours, tip: r => [['Раундов', fmt(r.cRounds)], ['С игроками', fmt(r.cLive)], ['Ставок', fmt(r.cBets)], ['Поставлено', money(r.cStake)], ['Выдано', money(r.cWon)], ['Прибыль', sgn(r.crashP)]] }))}
+    <div class="ax-g2">
+      ${axCard('На каком x взрывалась бомба', `<div class="ax-split">${bands.map(b => `<div class="ax-sr"><span>${band(+b.lo)}</span><span class="ax-bandbar"><i style="width:${(+b.n / bMax * 100).toFixed(1)}%"></i></span><b class="num">${fmt(+b.n)} · ${pctOr(+b.n, +C.rounds || 0)}</b></div>`).join('')}</div>
+        ${Object.keys(X.modes || {}).length ? `<p class="ax-foot">Раунды по режимам: ${Object.entries(X.modes).sort((a, b) => a[0] - b[0]).map(([m, n]) => `${crModeName(m)} — ${fmt(n)}`).join(' · ')}</p>` : ''}`)}
+      ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Раундов', r => fmt(r.cRounds), num], ['Ставок', r => fmt(r.cBets), num], ['Игроков', r => fmt(r.cPlayers), num], ['Поставлено', r => money(r.cStake), num], ['Выдано', r => money(r.cWon), num], ['Прибыль', r => sgn(r.crashP), tn('crashP')]],
+        D.rows.filter(r => r.cRounds).slice().reverse(), { full: 'Итого', cRounds: +C.rounds || 0, cBets: +C.bets || 0, cPlayers: +C.players || 0, cStake: +C.stake || 0, cWon: +C.won || 0, crashP: pr }))}
+    </div>
+    ${axCard('Игроки краша — кто сколько поставил и выиграл', (X.players || []).length ? axTable([['Игрок', r => plink(r.pid, esc(r.name || '—'))], ['Ставок', r => fmt(+r.n), num], ['Забрали', r => pctOr(+r.wins, +r.n), num], ['Поставил', r => money(+r.stake), num], ['Получил', r => money(+r.won), num], ['Лучший x', r => r.max_x ? 'x' + (+r.max_x).toFixed(2) : '—', num], ['Для сайта', r => sgn(+r.stake - +r.won), r => 'num ' + tone(+r.stake - +r.won)]], X.players) : '<div class="ax-empty">За период никто не играл</div>')}
+    <p class="ax-foot">Боты и админские аккаунты не считаются. Прибыль = поставлено − стоимость выданных скинов. Режим действует со следующего раунда.</p>`;
+}
 /* кто играет в апгрейд: по сумме ставок, с удачей (её множитель действует и на шанс апгрейда) */
 async function axUpgPlayers(el, D) {
   if (!el) return;
@@ -5407,7 +5442,7 @@ async function admDayView(t0) {
     </div>
     <div class="ax-kpis ax-kpis-s">${axKpi('Пик онлайна', fmt(T.peak))}${axKpi('Посетители', fmt(T.visitors))}${axKpi('Игроки', fmt(T.players))}${axKpi('Регистрации', fmt(T.reg))}${axKpi('Ставки игроков', money(+B.bets || 0))}${axKpi('Начислено админом', sgn(+T.grants))}</div>
     ${why}
-    ${axCard('Игровая прибыль по часам', axBars(rows, r => r.game, { marks: 2, tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Итого', sgn(r.game)]] }))}
+    ${axCard('Игровая прибыль по часам', axBars(rows, r => r.game, { marks: 2, tip: r => [['Кейсы', sgn(r.cases)], ['Апгрейд', sgn(r.upgP)], ['Ставки', sgn(r.betsP)], ['Краш', sgn(r.crashP)], ['Итого', sgn(r.game)]] }))}
     ${axCard('Кейсы за день — сколько отдал и сколько забрал', axTable([['Кейс', r => r.c ? `<span class="ax-cs"><img src="${caseThumb(r.c)}" alt="">${esc(r.c.name)}</span>` : esc(r.id)], ['Открытий', r => fmt(r.n), num], ['Игроков', r => fmt(r.players), num], ['Забрал у игроков', r => money(r.spent), num], ['Отдал игрокам', r => money(r.won), num], ['Отдаёт', r => pctS(r.won / (r.spent || 1)), r => 'num ' + (r.won > r.spent ? 'neg' : '')], ['Итог для сайта', r => sgn(r.profit), tn('profit')]], cl.slice().sort((a, b) => b.spent - a.spent)))}
     ${(top.data || []).length ? axCard('Крупнейшие выигрыши игроков', axTable([['Время', r => new Date(r.ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })], ['Игрок', r => plink(r.pid, esc(r.name || '—'))], ['Где', r => r.kind === 'upg' ? `апгрейд ×${(+r.x).toFixed(1).replace('.', ',')}` : `кейс «${esc((caseById(r.c) || {}).name || r.c || '')}»${+r.x > 1 ? ' ×' + r.x : ''}`], ['Поставил', r => money(+r.amount), num], ['Получил', r => money(+r.won), num], ['Для сайта', r => sgn(-r.net), 'num neg']], top.data)) : ''}`;
 }
@@ -5514,7 +5549,7 @@ async function axBooks(box, D) {
       ${axKpi('Расходы', money(sum(expP) + outP), `выводы ${money(outP)} · прочее ${money(sum(expP))}`)}
       ${axKpi('Обналичено', money(cashP), `за период · всего ${money(cashAll)}`)}
       ${axKpi('Остаток в кассе', money(kassa), 'пополнения − комиссия кассы − обналичено, за всё время', kassa < 0 ? 'neg' : '')}
-      ${axKpi('Чистая прибыль', sgn(N.net), 'за всё время, расчёт ниже', tone(N.net))}
+      ${axKpi('Чистая прибыль', sgn(D.netP), `за период · за всё время ${sgn(N.net)} (расчёт ниже)`, tone(D.netP))}
     </div>
     ${axCard('Чистая прибыль — за всё время', `<div class="ax-split">
       <div class="ax-sr"><span>Пополнения игроков</span><span></span><b class="num pos">+${money(N.depAll)}</b></div>
@@ -5522,10 +5557,8 @@ async function axBooks(box, D) {
       <div class="ax-sr"><span>Выводы скинов<small>сколько заплачено маркету; отправленные вручную — по цене сайта</small></span><span></span><b class="num neg">−${money(F.outPaid)}</b></div>
       ${F.outPend ? `<div class="ax-sr"><span>Выводы в процессе<small>ещё не куплены — по цене сайта</small></span><span></span><b class="num neg">−${money(F.outPend)}</b></div>` : ''}
       ${F.outOld ? `<div class="ax-sr"><span>Выводы до подключения маркета<small>по ценам каталога</small></span><span></span><b class="num neg">−${money(F.outOld)}</b></div>` : ''}
-      <div class="ax-sr"><span>Балансы игроков<small>рубли; бонусы R-COIN не считаются</small></span><span></span><b class="num neg">−${money(N.bal)}</b></div>
-      <div class="ax-sr"><span>Скины в инвентарях<small>${fmt(N.holdN)} предм. по ценам каталога</small></span><span></span><b class="num neg">−${money(N.hold)}</b></div>
       <div class="ax-sr ax-sr-t"><span>Чистая прибыль</span><span></span><b class="num ${tone(N.net)}">${sgn(N.net)}</b></div></div>
-      <p class="ax-foot">Пополнения маркета и обналичивание — перемещение денег, на прибыль не влияют. Админские аккаунты не считаются.</p>`)}
+      <p class="ax-foot">Балансы игроков и скины в их инвентарях не вычитаются (по решению владельца) — они видны во вкладке «Касса». Пополнения маркета и обналичивание — перемещение денег, на прибыль не влияют. Админские аккаунты не считаются.</p>`)}
     ${axCard('Расходы за период', `${form('expense', true)}
       ${axTable([['Дата', r => dd(r.d)], ['Статья', r => r.what], ['Что', r => esc(r.note)], ['Сумма', r => money(r.v), num], ['', del]], rows)}`)}
     ${axCard('Обналичивание — деньги пришли на карту', `<div class="ax-kpis">
@@ -5670,7 +5703,7 @@ function admDraw() {
   supAdmBadge(); // счётчик новых обращений на вкладке «Поддержка»
   $$('#admTabs [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === admTab));
   if (!sb) return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
-  const R = { dash: axDash, money: axMoney, books: axBooks, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, out: axOut, players: axPlayers };
+  const R = { dash: axDash, money: axMoney, books: axBooks, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, crash: axCrash, out: axOut, players: axPlayers };
   if (!admTabs().some(([k]) => k === admTab)) return;
   if (!admOwner()) return admTab === 'online' ? admStaffOnline(box) : admTab === 'out' ? axOut(box, null) : admTab === 'players' ? admPlayers(box) : admTab === 'shop' ? admCases(box) : admSupport(box);
   if (admTab === 'staff') return admStaff(box);
@@ -6670,6 +6703,7 @@ function pageCrash() {
         </div>
         <div class="cr-invh"><b>Ваши скины</b><button class="cr-clr" id="crClr">Очистить</button></div>
         <div class="mini-grid cr-inv" id="crInv"></div>
+        <div id="crAdm"></div>
       </aside>
     </div>
   </section>`;
@@ -6682,7 +6716,7 @@ function mountCrash() {
   const ai = $('#crAutoIn'); ai.value = cr.auto; ai.oninput = () => { cr.auto = ai.value; };
   $('#crRules').onclick = crRulesModal;
   $('#crClr').onclick = () => { cr.sel = []; crDrawInv(); };
-  crRender(); crDrawInv();
+  crRender(); crDrawInv(); crAdmSlider(gen);
   crPoll(gen);
   crScene(gen);
   // бомбу можно чуть наклонять мышкой (на телефоне — пальцем); отпустили — выравнивается
@@ -6701,6 +6735,29 @@ function crStop() {
   if (cr.out) { try { cr.out.disconnect(); } catch (e) { /* */ } cr.out = null; }
   if (cr.g) { const g = cr.g; cr.g = null; try { g.ro && g.ro.disconnect(); g.ren.dispose(); g.ren.forceContextLoss(); } catch (e) { /* */ } }
   const fx = document.getElementById('crBoomFx'); if (fx) fx.remove();
+}
+/* ползунок режима — только владелец (сервер проверяет is_admin()); действует со следующего раунда */
+async function crAdmSlider(gen) {
+  const box = $('#crAdm'); if (!box || !sb || !st.user || !st.user.admin) return;
+  const { data, error } = await sb.rpc('crash_mode');
+  if (error || !data || !crLive(gen)) return;
+  const draw = m => {
+    const cur = CR_MODES.find(x => x[0] === m) || CR_MODES[2];
+    box.innerHTML = `<div class="cr-adm cr-m${m + 2}"><div class="cr-adm-h"><b>Режим краша</b><span>видите только вы</span></div>
+      <input type="range" min="-2" max="2" step="1" value="${m}" id="crModeIn" aria-label="Режим краша">
+      <div class="cr-adm-l">${CR_MODES.map(([k, n]) => `<button data-m="${k}" class="${k === m ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <small>${cur[1]}: ${cur[2]}. Действует со следующего раунда.</small></div>`;
+    const set = async v => {
+      v = +v; if (v === m) return;
+      if (v === 2 && !confirm('«Дающий» режим: бомба почти всегда держится до 40-й секунды — игроки, кто дождётся, получат x100. Сайт может сильно уйти в минус. Включить?')) return draw(m);
+      const r = await srv('crash_set_mode', { p_mode: v });
+      if (!r) return draw(m);
+      toast(`Режим краша: <b>${CR_MODES.find(x => x[0] === v)[1]}</b> — со следующего раунда`); draw(v);
+    };
+    $('#crModeIn', box).onchange = e => set(e.target.value);
+    $('[data-m]', box).forEach(b => b.onclick = () => set(b.dataset.m));
+  };
+  draw(+data.mode || 0);
 }
 function crRulesModal() {
   modal(`<div class="dep cr-rules-m"><h2>Правила «Краша»</h2><ol>${CR_RULES.map(t => `<li>${t}</li>`).join('')}</ol><p class="dep-sub">Окупаемость режима — 90%: в среднем игрокам возвращается 90% ставок.</p></div>`, 'm-dep');
