@@ -1833,46 +1833,60 @@ const HERO_SKIN = 'AK-47 | Золотая арабеска';
 let statOpened = 1284590;
 /* баннер-слайдер (верх страницы кейсов) */
 const HELLO_END = Date.parse('2026-11-04T00:00:00+03:00'); // промокод HELLO25 и его баннер — до конца 3 ноября
+/* баннеры на главной: порядок, скрытые, «до даты» и свои баннеры — в site_cfg 'banners' (правит «Управление витриной»);
+   нет настройки — стандартный набор. Стандартные слайды — со своей разметкой (зоны клика, кнопки, искры) */
+const BANNER_DEF = [
+  { id: 'hello25', b: 1, title: 'Промокод HELLO25', img: 'assets/hero-hello25.webp' },
+  { id: 'open', b: 1, title: 'Мы открылись! Розыгрыш', img: 'assets/hero-open.webp' },
+  { id: 'banner', b: 1, title: 'Открывай. Собирай. Побеждай', img: 'assets/hero-banner-25.webp' },
+  { id: 'bonus', b: 1, title: 'Бонус за участие (соцсети)', img: 'assets/hero-bonus-25.webp' },
+  { id: 'agents', b: 1, title: 'Кейс с агентами', img: 'assets/hero-agents.webp' },
+];
+let BANNERS = (() => { try { const v = JSON.parse(localStorage.getItem('rc.banners')); return Array.isArray(v) ? v : null; } catch (e) { return null; } })();
+const bannerLink = l => /^(#\/[\w\-/]*|https:\/\/[^\s"'<>]+)$/.test(l || '') ? l : '';
+const bannerUntil = d => d ? Date.parse(d + 'T23:59:59+03:00') : Infinity; // «до даты» — включительно, по Москве
+function bannerList() {
+  const now = Date.now();
+  const list = (BANNERS || BANNER_DEF).filter(x => !x.off && now <= bannerUntil(x.until) && (x.b ? BANNER_DEF.some(d => d.id === x.id) && (x.id !== 'hello25' || now < HELLO_END) : x.img));
+  return list.length ? list : [BANNER_DEF[2]];
+}
+const BANNER_HTML = {
+  hello25: () => `<img class="h3-img hs-cover" src="assets/hero-hello25.webp" alt="Промокод HELLO25 даёт тебе 25% на пополнение" data-nw="1983" data-nh="793">
+    <button class="hs-hot hs-all" data-act="promo-dep" data-code="HELLO25" aria-label="Скопировать промокод HELLO25 и пополнить баланс"></button>`,
+  // кнопка «Участвуй в розыгрыше» нарисована на картинке: зона клика — в пикселях картинки (data-box), пересчитывается под обрезку cover
+  open: () => `<img class="h3-img hs-cover" src="assets/hero-open.webp" alt="Мы открылись! Участвуй в розыгрыше — итоги 20.11" data-nw="1983" data-nh="793">
+    <a class="hs-hot hs-tg" href="https://t.me/rushcasse" target="_blank" rel="noopener" data-box="212,376,918,188" aria-label="Участвуй в розыгрыше — Telegram-канал RUSH CASE"></a>`,
+  banner: () => {
+    const embers = Array.from({ length: 22 }, () => `<i style="left:${rand(2, 98)}%;--d:${rand(4, 9)}s;--dl:${rand(0, 8)}s;--x:${rand(-40, 40)}px;--s:${rand(.6, 1.4)}"></i>`).join('');
+    const dust = Array.from({ length: 34 }, () => `<i style="left:${rand(0, 100)}%;top:${rand(0, 100)}%;--d:${rand(9, 18)}s;--dl:${rand(-18, 0)}s;--x:${rand(-60, 60)}px;--y:${rand(-50, 50)}px;--s:${rand(.4, 1.2)}"></i>`).join('');
+    return `<img class="h3-img" src="assets/hero-banner-25.webp" alt="Открывай. Собирай. Побеждай. Твои следующие легендарные скины уже внутри">
+      <div class="h3-fx" aria-hidden="true"><div class="h2-embers">${embers}</div><div class="h3-dust">${dust}</div></div>
+      <div class="h3-btns"><a class="btn btn-primary btn-lg" href="#/cases">${ic.box}Открыть кейсы${ic.right}</a><a class="btn btn-outline btn-lg" href="#/upgrade">${ic.trend}Смотреть апгрейды</a></div>`;
+  },
+  // кликабельные зоны поверх нарисованных значков и шагов (координаты — % от слайда)
+  bonus: () => `<img class="h3-img hs-cover" src="assets/hero-bonus-25.webp" alt="Получи бонус за участие: подпишись на наши соцсети" loading="lazy">
+    ${[['Telegram', 22.11], ['ВКонтакте', 28.4], ['YouTube', 35.01], ['TikTok', 41.63]].map(([t, x]) => `<a class="hs-hot hs-soc" href="#/bonus" title="${t} — бонус за подписку" aria-label="${t}" style="left:${x}%;top:61.63%"></a>`).join('')}
+    <a class="hs-hot hs-step" href="#/profile" title="Открыть профиль" style="left:7.97%;top:68%;width:12.59%;height:12.13%"></a>
+    <a class="hs-hot hs-step" href="#/bonus" title="Бонусы" style="left:24.24%;top:68%;width:14.56%;height:12.13%"></a>
+    <a class="hs-hot hs-step" href="#/bonus" title="Выполнить условия" style="left:42.48%;top:68%;width:12.91%;height:12.13%"></a>`,
+  agents: () => `<img class="h3-img hs-cover hs-agents" src="assets/hero-agents.webp" alt="Твой сквад. Твой дроп. Кейс с агентами — открой кейс и забери своего легендарного агента" loading="lazy">
+    <a class="hs-hot hs-all" href="#/cases" aria-label="Смотреть кейсы"></a>`,
+};
+const bannerSlide = x => {
+  if (x.b) return BANNER_HTML[x.id]();
+  const l = bannerLink(x.link);
+  return `<img class="h3-img hs-cover" src="${esc(x.img)}" alt="${esc(x.title || 'Баннер')}" loading="lazy">${l ? `<a class="hs-hot hs-all" href="${esc(l)}"${l.startsWith('https:') ? ' target="_blank" rel="noopener"' : ''} aria-label="${esc(x.title || 'Открыть')}"></a>` : ''}`;
+};
 function heroHtml() {
-  const hello = Date.now() < HELLO_END;
-  const embers = Array.from({ length: 22 }, () => `<i style="left:${rand(2, 98)}%;--d:${rand(4, 9)}s;--dl:${rand(0, 8)}s;--x:${rand(-40, 40)}px;--s:${rand(.6, 1.4)}"></i>`).join('');
-  const dust = Array.from({ length: 34 }, () => `<i style="left:${rand(0, 100)}%;top:${rand(0, 100)}%;--d:${rand(9, 18)}s;--dl:${rand(-18, 0)}s;--x:${rand(-60, 60)}px;--y:${rand(-50, 50)}px;--s:${rand(.4, 1.2)}"></i>`).join('');
+  const list = bannerList();
   return `<section class="hero3">
     <div class="h3-frame hs" id="heroSlider">
       <div class="hs-track">
-        ${hello ? `<div class="hs-slide on">
-          <img class="h3-img hs-cover" src="assets/hero-hello25.webp" alt="Промокод HELLO25 даёт тебе 25% на пополнение" data-nw="1983" data-nh="793">
-          <button class="hs-hot hs-all" data-act="promo-dep" data-code="HELLO25" aria-label="Скопировать промокод HELLO25 и пополнить баланс"></button>
-        </div>` : ''}
-        <div class="hs-slide${hello ? '' : ' on'}" data-i="0">
-          <img class="h3-img hs-cover" src="assets/hero-open.webp" alt="Мы открылись! Участвуй в розыгрыше — итоги 20.11" data-nw="1983" data-nh="793">
-          <!-- кнопка «Участвуй в розыгрыше» нарисована на картинке: зона клика — в пикселях картинки (data-box), пересчитывается под обрезку cover -->
-          <a class="hs-hot hs-tg" href="https://t.me/rushcasse" target="_blank" rel="noopener" data-box="212,376,918,188" aria-label="Участвуй в розыгрыше — Telegram-канал RUSH CASE"></a>
-        </div>
-        <div class="hs-slide" data-i="1">
-          <img class="h3-img" src="assets/hero-banner-25.webp" alt="Открывай. Собирай. Побеждай. Твои следующие легендарные скины уже внутри">
-          <div class="h3-fx" aria-hidden="true"><div class="h2-embers">${embers}</div><div class="h3-dust">${dust}</div></div>
-          <div class="h3-btns">
-            <a class="btn btn-primary btn-lg" href="#/cases">${ic.box}Открыть кейсы${ic.right}</a>
-            <a class="btn btn-outline btn-lg" href="#/upgrade">${ic.trend}Смотреть апгрейды</a>
-          </div>
-        </div>
-        <div class="hs-slide" data-i="2">
-          <img class="h3-img hs-cover" src="assets/hero-bonus-25.webp" alt="Получи бонус за участие: подпишись на наши соцсети" loading="lazy">
-          <!-- кликабельные зоны поверх нарисованных значков и шагов (координаты — % от слайда) -->
-          ${[['Telegram', 22.11], ['ВКонтакте', 28.4], ['YouTube', 35.01], ['TikTok', 41.63]].map(([t, x]) => `<a class="hs-hot hs-soc" href="#/bonus" title="${t} — бонус за подписку" aria-label="${t}" style="left:${x}%;top:61.63%"></a>`).join('')}
-          <a class="hs-hot hs-step" href="#/profile" title="Открыть профиль" style="left:7.97%;top:68%;width:12.59%;height:12.13%"></a>
-          <a class="hs-hot hs-step" href="#/bonus" title="Бонусы" style="left:24.24%;top:68%;width:14.56%;height:12.13%"></a>
-          <a class="hs-hot hs-step" href="#/bonus" title="Выполнить условия" style="left:42.48%;top:68%;width:12.91%;height:12.13%"></a>
-        </div>
-        <div class="hs-slide" data-i="3">
-          <img class="h3-img hs-cover hs-agents" src="assets/hero-agents.webp" alt="Твой сквад. Твой дроп. Кейс с агентами — открой кейс и забери своего легендарного агента" loading="lazy">
-          <a class="hs-hot hs-all" href="#/cases" aria-label="Смотреть кейсы"></a>
-        </div>
+        ${list.map((x, k) => `<div class="hs-slide${k ? '' : ' on'}">${bannerSlide(x)}</div>`).join('')}
       </div>
-      <button class="hs-arr hs-prev" aria-label="Предыдущий баннер">${ic.left}</button>
+      ${list.length > 1 ? `<button class="hs-arr hs-prev" aria-label="Предыдущий баннер">${ic.left}</button>
       <button class="hs-arr hs-next" aria-label="Следующий баннер">${ic.right}</button>
-      <div class="hs-dots">${Array.from({ length: hello ? 5 : 4 }, (_, k) => `<button class="${k ? '' : 'on'}" data-go="${k}" aria-label="Баннер ${k + 1}"></button>`).join('')}</div>
+      <div class="hs-dots">${list.map((_, k) => `<button class="${k ? '' : 'on'}" data-go="${k}" aria-label="Баннер ${k + 1}"></button>`).join('')}</div>` : ''}
     </div>
   </section>`;
 }
@@ -1966,6 +1980,9 @@ async function loadCaseCfg() {
   if (error || !data) return;
   caseCfg = {};
   data.forEach(r => { if (r.k.startsWith('case:')) caseCfg[r.k.slice(5)] = r.v || {}; });
+  const bn = data.find(r => r.k === 'banners'); // баннеры главной (нет — стандартный набор); копия в браузере — без мелькания при загрузке
+  BANNERS = bn && Array.isArray(bn.v) ? bn.v : null;
+  try { if (BANNERS) localStorage.setItem('rc.banners', JSON.stringify(BANNERS)); else localStorage.removeItem('rc.banners'); } catch (e) { /* */ }
   const bl = data.find(r => r.k === 'blocks');
   if (bl && Array.isArray(bl.v) && bl.v.length) CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...bl.v.map(b => ({ ...b, ids: [] })));
   CASES.forEach(applyCaseCfg); CASES.sort((a, b) => a.price - b.price);
@@ -2007,6 +2024,7 @@ function heroSlider() {
   const go = n => { i = (n + slides.length) % slides.length; slides.forEach((x, k) => x.classList.toggle('on', k === i)); dots.forEach((x, k) => x.classList.toggle('on', k === i)); place(); };
   new ResizeObserver(place).observe(root); place();
   const auto = () => { clearInterval(t); t = setInterval(() => { if (!document.body.contains(root)) return clearInterval(t); go(i + 1); }, 7000); };
+  if (slides.length < 2) return; // один баннер — без листания
   $('.hs-prev', root).onclick = () => { go(i - 1); auto(); }; $('.hs-next', root).onclick = () => { go(i + 1); auto(); };
   dots.forEach(d => d.onclick = () => { go(+d.dataset.go); auto(); });
   root.addEventListener('mouseenter', () => clearInterval(t)); root.addEventListener('mouseleave', auto);
@@ -5757,10 +5775,10 @@ function admCases(box) {
     </div>`;
   };
   const groups = CASE_BLOCKS.map(b => ({ b, list: blockCases(b) }));
-  box.innerHTML = `<div id="shopReq"></div>${admOwner() ? "" : `<p class="ax-foot sr-note">Вы — сотрудник: любые правки витрины уходят владельцу на подтверждение (Telegram и админка) и появятся на сайте после одобрения. Удачу кейсов меняет только владелец.</p>`}<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="btn btn-ghost btn-sm" id="acBlocks">${ic.menu || ''}Разделы</button><button class="btn btn-ghost btn-sm" id="acCloseAll">Закрыть все</button><button class="btn btn-ghost btn-sm" id="acOpenAll">Открыть все</button><button class="btn btn-primary btn-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Изменить» — название, цена, картинка, раздел и наполнение любого кейса. Стрелки — порядок внутри раздела. «Новое» и «Хит» — метки на карточке (хиты показываются в популярных на главной). «Удача» умножает шанс всех предметов дороже кейса. Изменения у игроков — после обновления страницы.</p></div>
+  box.innerHTML = `<div id="shopReq"></div><div id="bnAdm"></div>${admOwner() ? "" : `<p class="ax-foot sr-note">Вы — сотрудник: любые правки витрины уходят владельцу на подтверждение (Telegram и админка) и появятся на сайте после одобрения. Удачу кейсов меняет только владелец.</p>`}<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="btn btn-ghost btn-sm" id="acBlocks">${ic.menu || ''}Разделы</button><button class="btn btn-ghost btn-sm" id="acCloseAll">Закрыть все</button><button class="btn btn-ghost btn-sm" id="acOpenAll">Открыть все</button><button class="btn btn-primary btn-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Изменить» — название, цена, картинка, раздел и наполнение любого кейса. Стрелки — порядок внутри раздела. «Новое» и «Хит» — метки на карточке (хиты показываются в популярных на главной). «Удача» умножает шанс всех предметов дороже кейса. Изменения у игроков — после обновления страницы.</p></div>
     ${groups.map(({ b, list }) => `<div class="ac-grp" style="--bc:${b.a}"><div class="ac-gh"><b>${esc(b.t)}</b><span>${list.length} ${plural(list.length, 'кейс', 'кейса', 'кейсов')}</span></div>
       <div class="adm-cases">${list.length ? list.map((c, i) => row(c, i, list.length)).join('') : '<div class="empty">Пусто — перенесите сюда кейс через «Изменить»</div>'}</div></div>`).join('')}</div>`;
-  shopReqs($('#shopReq', box));
+  shopReqs($('#shopReq', box)); admBanners($('#bnAdm', box));
   $('#acNew', box).onclick = () => admCaseEditor(null, () => admCases(box));
   $('#acBlocks', box).onclick = () => admBlocks(() => admCases(box));
   // все кейсы разом: удача у каждого остаётся своя
@@ -5865,6 +5883,86 @@ function admBlocks(done) {
     if (e) { btn.disabled = false; btn.textContent = 'Сохранить'; return cfgErr(e); }
     CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...v.map(b => ({ ...b, ids: [] })));
     closeModal(); toast('Разделы сохранены'); done && done();
+  };
+  draw();
+}
+/* ---------- баннеры главной (в «Управлении витриной»): свои и стандартные — добавить, удалить, скрыть, порядок, ссылка, «до даты».
+   Сохраняются в site_cfg 'banners'; у сотрудника — заявкой владельцу (shopAsk) ---------- */
+// картинка баннера: обрезка по центру до 2,5 : 1, WebP 2000 × 800
+async function bannerPack(file) {
+  const bmp = await createImageBitmap(file), R = 2.5;
+  let sw = bmp.width, sh = bmp.height, sx = 0, sy = 0;
+  if (sw / sh > R) { sw = Math.round(sh * R); sx = Math.round((bmp.width - sw) / 2); } else { sh = Math.round(sw / R); sy = Math.round((bmp.height - sh) / 2); }
+  const c = document.createElement('canvas'); c.width = 2000; c.height = 800;
+  const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(bmp, sx, sy, sw, sh, 0, 0, 2000, 800);
+  const blob = await new Promise(res => c.toBlob(res, 'image/webp', .86));
+  return { blob: blob && blob.type === 'image/webp' ? blob : await new Promise(res => c.toBlob(res, 'image/jpeg', .9)), cut: Math.abs(bmp.width / bmp.height - R) > .08 };
+}
+function admBanners(el) {
+  if (!el) return;
+  const was = BANNERS || BANNER_DEF;
+  let L = was.map(x => ({ ...x })), changed = false;
+  const draw = () => {
+    const now = Date.now();
+    el.innerHTML = `<div class="adm-panel bn"><div class="adm-ph"><h3>Баннеры на главной</h3><span class="adm-ph-acts">
+        <label class="btn btn-primary btn-sm bn-up">${ic.plus}Добавить баннер<input type="file" id="bnFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+        <button class="btn btn-ghost btn-sm" id="bnReset">Вернуть стандартные</button>
+        <button class="btn btn-primary btn-sm" id="bnSave"${changed ? '' : ' disabled'}>${admOwner() ? 'Сохранить' : 'Отправить на подтверждение'}</button></span></div>
+      <p class="bn-req"><b>Размер баннера: 2000 × 800 px</b> (пропорции 2,5 : 1) · PNG, JPG или WebP до 12 МБ.
+        Важное — текст и кнопки — держите ближе к центру: на телефоне края чуть подрезаются. Картинку других пропорций сайт обрежет по центру до 2,5 : 1.</p>
+      <div class="bn-list">${L.length ? L.map((x, i) => { const exp = now > bannerUntil(x.until), stt = x.off ? 'скрыт' : exp ? 'срок вышел' : 'на главной'; return `<div class="bn-row${x.off || exp ? ' off' : ''}" data-i="${i}">
+        <span class="ac-ord"><button data-mv="-1"${i ? '' : ' disabled'}>▲</button><button data-mv="1"${i < L.length - 1 ? '' : ' disabled'}>▼</button></span>
+        <img class="bn-img" src="${esc(x.img)}" alt="">
+        <div class="bn-f"><input class="inp" data-f="title" value="${esc(x.title || '')}" placeholder="Название (для себя)" maxlength="60">
+          ${x.b ? '<small class="ax-mute">Стандартный — кнопки и ссылки уже есть на баннере</small>' : `<input class="inp" data-f="link" value="${esc(x.link || '')}" placeholder="Куда ведёт нажатие: #/upgrade, #/case/medkit или https://t.me/…">`}</div>
+        <label class="bn-d">Показывать до<input class="inp" type="date" data-f="until" value="${esc(x.until || '')}"></label>
+        <b class="bn-st ${x.off || exp ? 'neg' : 'pos'}">${stt}</b>
+        <span class="bn-acts"><button class="btn btn-ghost btn-sm" data-off>${x.off ? 'Показать' : 'Скрыть'}</button><button class="btn btn-ghost btn-sm bn-del" data-del>Удалить</button></span></div>`; }).join('')
+      : '<p class="ax-mute">Баннеров нет — на главной будет стандартный «Открывай. Собирай. Побеждай».</p>'}</div></div>`;
+    const set = () => { changed = true; draw(); };
+    $$('.bn-row', el).forEach(r => {
+      const i = +r.dataset.i, x = L[i];
+      $$('[data-f]', r).forEach(inp => inp.onchange = () => {
+        const f = inp.dataset.f, v = inp.value.trim();
+        if (f === 'link' && v && !bannerLink(v)) { toast('Ссылка: раздел сайта (#/upgrade, #/case/…) или https://…', 'err'); inp.value = x.link || ''; return; }
+        x[f] = v; changed = true; $('#bnSave', el).disabled = false;
+      });
+      $$('[data-mv]', r).forEach(b => b.onclick = () => { const j = i + +b.dataset.mv; [L[i], L[j]] = [L[j], L[i]]; set(); });
+      $('[data-off]', r).onclick = () => { x.off = !x.off; set(); };
+      $('[data-del]', r).onclick = () => { if (!confirm(`Удалить баннер «${x.title || 'без названия'}»?${x.b ? ' Вернуть его можно кнопкой «Вернуть стандартные».' : ''}`)) return; L.splice(i, 1); set(); };
+    });
+    $('#bnReset', el).onclick = () => {
+      if (!confirm('Вернуть стандартные баннеры? Свои баннеры останутся, удалённые стандартные вернутся в конец списка.')) return;
+      BANNER_DEF.forEach(d => { if (!L.some(x => x.id === d.id)) L.push({ ...d }); }); set();
+    };
+    $('#bnFile', el).onchange = async e => {
+      const file = e.target.files[0]; if (!file) return;
+      if (file.size > 12e6) return toast('Картинка больше 12 МБ', 'err');
+      const lab = $('.bn-up', el); lab.classList.add('busy');
+      const p = await bannerPack(file).catch(() => null);
+      if (!p || !p.blob) { lab.classList.remove('busy'); return toast('Не удалось прочитать картинку', 'err'); }
+      const path = `banner-${Date.now()}.${p.blob.type === 'image/webp' ? 'webp' : 'jpg'}`, stg = sb.storage.from('case-img');
+      const { error } = await stg.upload(path, p.blob, { upsert: true, contentType: p.blob.type });
+      lab.classList.remove('busy');
+      if (error) return toast('Не загружено: ' + error.message, 'err');
+      L.unshift({ id: 'u' + Date.now().toString(36), img: stg.getPublicUrl(path).data.publicUrl, title: file.name.replace(/\.[^.]+$/, '').slice(0, 60), link: '', until: '' });
+      if (p.cut) toast('Картинка не 2,5 : 1 — обрезана по центру до 2000 × 800', 'info');
+      set();
+    };
+    $('#bnSave', el).onclick = async () => {
+      const v = L.map(x => { const o = { id: x.id, img: x.img, title: x.title || '' }; if (x.b) o.b = 1; else o.link = bannerLink(x.link); if (x.until) o.until = x.until; if (x.off) o.off = true; return o; });
+      if (!admOwner()) {
+        const del = was.filter(w => !v.some(x => x.id === w.id)).map(w => w.title), add = v.filter(x => !was.some(w => w.id === x.id)).map(x => x.title);
+        const lines = [`Баннеры главной: ${v.filter(x => !x.off).map(x => x.title || 'без названия').join(' → ') || 'нет'}`];
+        if (add.length) lines.push('Добавлены: ' + add.join(', ')); if (del.length) lines.push('Удалены: ' + del.join(', '));
+        if (v.some(x => x.off)) lines.push('Скрыты: ' + v.filter(x => x.off).map(x => x.title).join(', '));
+        if (await shopAsk(lines, [{ t: 'cfg', k: 'banners', v }])) { changed = false; draw(); }
+        return;
+      }
+      const e = await cfgSave([{ k: 'banners', v }]); if (e) return cfgErr(e);
+      BANNERS = v; try { localStorage.setItem('rc.banners', JSON.stringify(v)); } catch (er) { /* */ }
+      changed = false; draw(); toast('Баннеры сохранены — на главной после обновления страницы');
+    };
   };
   draw();
 }
