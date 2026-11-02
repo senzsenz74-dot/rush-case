@@ -4381,3 +4381,7 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
   .cr-tk{min-width:64px;padding:5px 10px 6px}.cr-tk b{font-size:13px}
   .cr-thead,.cr-row{grid-template-columns:minmax(0,1fr) auto 92px;gap:8px}.cr-its{display:none}.cr-row{padding:8px 10px}.cr-res.win img{display:none}}
 @media (prefers-reduced-motion:reduce){.cr-tk,.cr-cash,.cr-boomtxt{animation:none}}
+/* взрывная волна: элементы толкает от бомбы (--sx/--sy), с задержкой по расстоянию (--sd), затухающая пружина */
+.cr-shock{animation:crShock .9s cubic-bezier(.2,.7,.3,1) var(--sd,0ms) both}
+@keyframes crShock{0%{transform:none}12%{transform:translate(var(--sx),var(--sy)) rotate(var(--sr))}32%{transform:translate(calc(var(--sx) * -.45),calc(var(--sy) * -.45)) rotate(calc(var(--sr) * -.5))}52%{transform:translate(calc(var(--sx) * .2),calc(var(--sy) * .2))}72%{transform:translate(calc(var(--sx) * -.08),calc(var(--sy) * -.08))}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){.cr-shock{animation:none}}

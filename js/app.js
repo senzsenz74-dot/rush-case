@@ -1343,7 +1343,7 @@ Snd.preload('lock', 'assets/sounds/lock.wav');
 Snd.preload('tick', 'assets/sounds/tick.wav');
 [1, 2, 3].forEach(n => Snd.preload('safe' + n, 'assets/sounds/safe-tick-' + n + '.wav'));
 Snd.preload('upgWin', 'assets/sounds/upgrade-win.wav');
-Snd.preload('c4Tick', 'assets/sounds/c4-tick.mp3'); Snd.preload('c4Beep', 'assets/sounds/c4-beep.mp3'); Snd.preload('c4Plant', 'assets/sounds/c4-plant.mp3');
+Snd.preload('c4Tick', 'assets/sounds/c4-tick.mp3'); Snd.preload('c4Beep', 'assets/sounds/c4-beep.mp3'); Snd.preload('c4Plant', 'assets/sounds/c4-plant.mp3'); Snd.preload('c4Boom', 'assets/sounds/c4-boom.mp3');
 // звуки контрактов
 Snd.preload('conOpen', 'assets/sounds/con-open.mp3'); Snd.preload('conAdd', 'assets/sounds/con-add.mp3'); Snd.preload('conSign', 'assets/sounds/con-sign.mp3');
 Snd.preload('conStamp', 'assets/sounds/con-stamp.mp3'); Snd.preload('conHover', 'assets/sounds/con-hover.mp3'); Snd.preload('conPen', 'assets/sounds/con-pen-src.mp3');
@@ -6676,7 +6676,7 @@ function pageCrash() {
 function mountCrash() {
   crStop();
   const gen = ++cr.gen;
-  Snd.warm(['c4Beep', 'c4Tick', 'c4Plant']);
+  Snd.warm(['c4Beep', 'c4Tick', 'c4Plant', 'c4Boom']);
   cr.busy = false; cr.boomed = 0; cr.lcdKey = ''; cr.sel = [];
   const ai = $('#crAutoIn'); ai.value = cr.auto; ai.oninput = () => { cr.auto = ai.value; };
   $('#crRules').onclick = crRulesModal;
@@ -6725,8 +6725,8 @@ async function crPoll(gen) {
   const me = crMe();
   if (me && me.cash && me.prize && (!me0 || !me0.cash) && prevId === cr.r.id) crWon(me.cash, me.prize, true);
   if (prevId !== cr.r.id) { cr.boomed = 0; if (cr.g) cr.g.boomT = 0; }
-  if (cr.r.phase === 'crash' && prevPh && prevPh !== 'crash' && prevId === cr.r.id && cr.boomed !== cr.r.id) crBoom();
-  crRender();
+  // эффекты не должны останавливать опрос: ошибка в них — только в консоль
+  try { if (cr.r.phase === 'crash' && prevPh && prevPh !== 'crash' && prevId === cr.r.id && cr.boomed !== cr.r.id) crBoom(); crRender(); } catch (e) { console.error(e); }
   if (data.data && st.inv.length !== invBefore) crDrawInv();
   const ph = crPhase();
   cr.poll = setTimeout(() => crPoll(gen), document.hidden ? 3000 : ph === 'fly' ? 350 : ph === 'bet' && cr.r.start - crNow() < 2500 ? 300 : 1000);
@@ -6893,13 +6893,26 @@ function crBoomSnd() {
 }
 function crBoom() {
   cr.boomed = cr.r.id;
-  crBoomSnd();
-  crBoomFx();
+  crPlay('c4Boom', .3).then(ok => { if (!ok) crBoomSnd(); }); // запись владельца; громкая — приглушаем до уровня прежнего синтеза
+  crBoomFx(); crShock();
   const stg = $('#crStage');
   if (stg) { stg.classList.remove('shake'); void stg.offsetWidth; stg.classList.add('shake'); }
   if (cr.g) cr.g.boomT = performance.now();
   const me = crMe();
   if (me && !me.cash) toast(`БУМ на ${crTxt(cr.r.crash_x)} — ставка сгорела`, 'err');
+}
+/* взрывная волна: рамки и шапка отлетают от бомбы и пружинят обратно; дальние — позже и слабее */
+function crShock() {
+  const stg = $('#crStage'); if (!stg) return;
+  const s = stg.getBoundingClientRect(), cx = s.left + s.width / 2, cy = s.top + s.height * .48;
+  $$('.cr-top, .cr-histbox, .cr-betp, .cr-players, #header .hd').forEach(el => {
+    const r = el.getBoundingClientRect(); if (!r.width) return;
+    const ex = clamp(cx, r.left, r.right), ey = clamp(cy, r.top, r.bottom), vx = ex - cx, vy = ey - cy, d = Math.hypot(vx, vy) || 1;
+    const m = clamp(16 - d / 70, 4, 16);
+    el.style.setProperty('--sx', (vx / d * m).toFixed(1) + 'px'); el.style.setProperty('--sy', (vy / d * m).toFixed(1) + 'px');
+    el.style.setProperty('--sr', ((vx > 0 ? 1 : -1) * m * .05).toFixed(2) + 'deg'); el.style.setProperty('--sd', Math.round(d / 2.2) + 'ms');
+    el.classList.remove('cr-shock'); void el.offsetWidth; el.classList.add('cr-shock');
+  });
 }
 /* взрыв поверх всей страницы (за рамки сцены): вспышка, огненные клубы, ударная волна, искры, дым; ~3 с, потом холст удаляется */
 function crBoomFx() {
