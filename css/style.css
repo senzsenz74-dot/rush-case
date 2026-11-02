@@ -4187,3 +4187,12 @@ button.hs-hot{background:none;border:0;padding:0;cursor:pointer;font:inherit;col
 .cs-has-bg .sh-tt::before{content:"";position:absolute;z-index:-1;top:-8px;bottom:-8px;left:calc(-48px - 16px - 14px);right:-34px;border-radius:14px;pointer-events:none;
   background:linear-gradient(90deg,rgba(8,6,4,.48) 0%,rgba(8,6,4,.4) 70%,rgba(8,6,4,0) 100%);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
 @media (max-width:720px){.cs-has-bg .sh-tt::before{left:calc(-40px - 12px - 10px)}}
+/* «Кейсы карт»: кейсы отделяются от похожего фона — фон размыт и притемнён (глубина резкости), за каждым кейсом тёплый
+   «софит», под ним тень на земле, по силуэту тонкий светлый контур */
+.cs-b-maps>.cs-bg{filter:blur(3px) brightness(.6) saturate(1.08)}
+.cs-b-maps .case-card .case-art::before{content:"";position:absolute;z-index:-1;left:8%;right:8%;top:4%;bottom:6%;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(255,200,130,.30),rgba(255,150,70,.13) 55%,transparent 100%);filter:blur(4px)}
+.cs-b-maps .case-card .case-art::after{content:"";position:absolute;z-index:-1;left:14%;right:14%;bottom:-2%;height:14%;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(0,0,0,.75),rgba(0,0,0,.35) 60%,transparent 100%)}
+.cs-b-maps .case-card:not(.cc-closed) .ca-img{filter:drop-shadow(0 0 1px rgba(255,226,180,.55)) drop-shadow(0 0 10px rgba(255,170,80,.18)) drop-shadow(0 14px 16px rgba(0,0,0,.7))}
+.cs-b-maps .case-card.cc-closed .case-art::before{opacity:.35}
