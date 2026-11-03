@@ -7307,8 +7307,12 @@ function tutOpen(key) {
     <div class="tut-finger">${TUT_FINGER}<b></b></div>
     <div class="tut-card">
       <div class="tut-arrow"></div>
-      <div class="tut-top"><span class="tut-tag">Обучение · ${T.name}</span><span class="tut-num"></span></div>
-      <div class="tut-body"><h3></h3><p></p></div>
+      <div class="tut-fx"><i class="tut-sweep"></i>${'<s></s>'.repeat(6)}</div>
+      <div class="tut-top">
+        <div class="tut-med"><svg viewBox="0 0 48 48"><defs><linearGradient id="tutRg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff1c4"/><stop offset=".5" stop-color="#f3c14f"/><stop offset="1" stop-color="#c7851a"/></linearGradient></defs><circle class="tut-mbg" cx="24" cy="24" r="20"/><circle class="tut-mpr" cx="24" cy="24" r="20"/></svg><b class="tut-n"></b></div>
+        <div class="tut-hd"><span class="tut-tag">Обучение · ${T.name}</span><h3></h3></div>
+      </div>
+      <div class="tut-body"><p></p></div>
       <div class="tut-dots">${T.steps.map(() => '<i></i>').join('')}</div>
       <div class="tut-btns">
         <button class="tut-skip" type="button"><span class="tut-skip-f"></span><em>Зажмите, чтобы пропустить</em></button>
@@ -7357,9 +7361,11 @@ function tutGo(i) {
   tut.el = el;
   const card = $('.tut-card', o);
   card.classList.remove('sw', 'swb'); void card.offsetWidth; card.classList.add(dir > 0 ? 'sw' : 'swb');
-  $('.tut-num', o).innerHTML = `<b>${i + 1}</b> / ${T.steps.length}`;
-  $('.tut-body h3', o).textContent = s.t;
-  $('.tut-body p', o).textContent = s.d;
+  $('.tut-n', o).innerHTML = `${i + 1}<small>из ${T.steps.length}</small>`;
+  $('.tut-mpr', o).style.strokeDashoffset = (125.66 * (1 - (i + 1) / T.steps.length)).toFixed(2);
+  $('.tut-hd h3', o).textContent = s.t;
+  // текст проявляется по словам
+  $('.tut-body p', o).innerHTML = s.d.split(' ').map((w, k) => `<span style="--d:${120 + k * 30}ms">${esc(w)}</span>`).join(' ');
   $$('.tut-dots i', o).forEach((d, k) => { d.className = k < i ? 'was' : k === i ? 'on' : ''; });
   $('.tut-back', o).style.visibility = i ? '' : 'hidden';
   $('.tut-next', o).textContent = i === T.steps.length - 1 ? 'Понял ✓' : 'Далее →';
