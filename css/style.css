@@ -4532,18 +4532,12 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 }
 @media (prefers-reduced-motion:reduce){.tut-hole::before,.tut-hole i::after,.tut-finger svg,.tut-finger b,.tut-finger i,.tut-lit{animation:none!important}}
 
-/* ===== кейс «Ножевое ранение» (OVERLAYS.knife): блики на клинках, взмахи-разрезы, искры ===== */
+/* ===== кейс «Ножевое ранение» (OVERLAYS.knife): блики на клинках, искры ===== */
 .kn-glint{position:absolute;z-index:5;width:9%;aspect-ratio:1;transform:translate(-50%,-50%) scale(0);pointer-events:none;mix-blend-mode:screen;
   background:radial-gradient(circle,#fff 0 7%,rgba(255,240,210,.7) 12%,transparent 32%),linear-gradient(0deg,transparent 47%,rgba(255,255,255,.95) 50%,transparent 53%),linear-gradient(90deg,transparent 47%,rgba(255,255,255,.95) 50%,transparent 53%);
   -webkit-mask:radial-gradient(circle,#000 25%,transparent 70%);mask:radial-gradient(circle,#000 25%,transparent 70%);animation:knGlint 4.4s ease-in-out var(--dl) infinite}
 @keyframes knGlint{0%,78%,100%{transform:translate(-50%,-50%) scale(0) rotate(0)}86%{transform:translate(-50%,-50%) scale(1) rotate(45deg)}93%{transform:translate(-50%,-50%) scale(.2) rotate(90deg)}}
-.kn-slash{position:absolute;z-index:6;left:-6%;width:112%;height:0;transform:rotate(var(--r));pointer-events:none}
-.kn-slash i{position:absolute;left:0;right:0;top:-2px;height:4px;border-radius:50%;transform-origin:left center;transform:scaleX(0);opacity:0;
-  background:linear-gradient(90deg,transparent,rgba(255,80,96,.6) 15%,#fff 45%,#ffd1d6 60%,#ff3b4f 80%,transparent);box-shadow:0 0 10px 2px rgba(255,59,79,.75),0 0 26px 6px rgba(255,59,79,.35);animation:knSlash 5.2s cubic-bezier(.7,0,.2,1) var(--dl) infinite}
-.kn-slash::after{content:"";position:absolute;left:30%;width:40%;top:-30px;height:60px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,70,90,.55),transparent);opacity:0;animation:knFlash 5.2s ease-out var(--dl) infinite}
-@keyframes knSlash{0%{transform:scaleX(0);opacity:1}5%{transform:scaleX(1);opacity:1}9%{transform:scaleX(1) scaleY(.6);opacity:.9}22%,100%{transform:scaleX(1) scaleY(.2);opacity:0}}
-@keyframes knFlash{0%,3%{opacity:0}6%{opacity:1}24%,100%{opacity:0}}
 .kn-ember{position:absolute;z-index:5;width:3px;height:3px;border-radius:50%;background:#ffcf7a;box-shadow:0 0 6px 2px rgba(255,90,60,.7);opacity:0;pointer-events:none;animation:knEmber var(--d) linear var(--dl) infinite}
 @keyframes knEmber{0%{transform:translate(0,0);opacity:0}15%{opacity:1}100%{transform:translate(var(--x),-60px);opacity:0}}
 .case-card .kn-ember{width:2px;height:2px}
-@media (prefers-reduced-motion:reduce){.kn-glint,.kn-slash i,.kn-slash::after,.kn-ember{animation:none;opacity:0}}
+@media (prefers-reduced-motion:reduce){.kn-glint,.kn-ember{animation:none;opacity:0}}

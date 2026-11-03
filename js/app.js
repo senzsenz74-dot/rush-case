@@ -1396,9 +1396,8 @@ const OVERLAYS = {
   // «Баба Боря»: лампа то разгорается, то притухает (огонь — 17,8% / 23,5% картинки 900×855), вокруг летают светлячки
   babka: () => `<i class="bb-lamp" style="left:17.8%;top:23.5%" aria-hidden="true"></i><i class="bb-lamp bb-core" style="left:17.8%;top:23.5%" aria-hidden="true"></i>${Array.from({ length: 14 }, () => `<i class="bb-fly" aria-hidden="true" style="left:${rand(4, 96).toFixed(1)}%;top:${rand(6, 92).toFixed(1)}%;--d:${rand(6, 11).toFixed(1)}s;--dl:-${rand(0, 10).toFixed(1)}s;--x1:${rand(-40, 40).toFixed(0)}px;--y1:${rand(-30, 30).toFixed(0)}px;--x2:${rand(-50, 50).toFixed(0)}px;--y2:${rand(-40, 20).toFixed(0)}px;--x3:${rand(-30, 30).toFixed(0)}px;--y3:${rand(-50, 10).toFixed(0)}px"></i>`).join('')}`,
   // «БАБА ЧАЙ»: цепь с замком (видео, чёрный фон убирается режимом «экран»), фары машины, дым из ствола AWP
-  // «Ножевое ранение» (1254×1254): блики на кончиках клинков, взмахи лезвия крест-накрест (разрез с красным свечением и искрами), блеск стали по кейсу, искры над ножами
+  // «Ножевое ранение» (1254×1254): блики на кончиках клинков, блеск стали по кейсу, искры над ножами
   knife: (c, src) => `${[[10.5, 22], [25, 18.5], [47, 55], [72.5, 23.5], [81, 25.5], [92.5, 29]].map(([x, y], i) => `<i class="kn-glint" aria-hidden="true" style="left:${x}%;top:${y}%;--dl:${(i * .73).toFixed(2)}s"></i>`).join('')}
-    <span class="kn-slash" aria-hidden="true" style="--r:-28deg;top:30%;--dl:0s"><i></i></span><span class="kn-slash" aria-hidden="true" style="--r:24deg;top:52%;--dl:.32s"><i></i></span>
     ${Array.from({ length: 10 }, () => `<i class="kn-ember" aria-hidden="true" style="left:${rand(12, 90).toFixed(1)}%;top:${rand(22, 52).toFixed(1)}%;--d:${rand(2.4, 4.2).toFixed(2)}s;--dl:-${rand(0, 4).toFixed(2)}s;--x:${rand(-26, 26).toFixed(0)}px"></i>`).join('')}${OVERLAYS.shine(c, src)}`,
   // блики, пробегающие по форме кейса
   shine: (c, src = c.img) => `<span class="ca-shine" aria-hidden="true" style="-webkit-mask-image:url(${src});mask-image:url(${src})"></span>`,
