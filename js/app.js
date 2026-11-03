@@ -6983,6 +6983,9 @@ function crShock() {
     el.style.setProperty('--sx', (vx / d * m).toFixed(1) + 'px'); el.style.setProperty('--sy', (vy / d * m).toFixed(1) + 'px');
     el.style.setProperty('--sr', ((vx > 0 ? 1 : -1) * m * .05).toFixed(2) + 'deg'); el.style.setProperty('--sd', Math.round(d / 2.2) + 'ms');
     el.classList.remove('cr-shock'); void el.offsetWidth; el.classList.add('cr-shock');
+    // после тряски класс снимаем: иначе шапка остаётся «сдвинутой» и меню на телефоне сжимается в одну строку
+    const off = e => { if (e.target === el) { el.classList.remove('cr-shock'); el.removeEventListener('animationend', off); } };
+    el.addEventListener('animationend', off);
   });
 }
 /* взрыв поверх всей страницы (за рамки сцены): вспышка, огненные клубы, ударная волна, искры, дым; ~3 с, потом холст удаляется */
@@ -7440,6 +7443,7 @@ function ioScan() { if (ioPause) $$('.case-card, .hero3, .rl-stage').forEach(el 
 function route() {
   if (ioPause) ioPause.disconnect();
   clearTimers(); spinning = false; spinId++; crStop(); // краш: при уходе — тишина и без нагрузки
+  $$('.cr-shock').forEach(x => x.classList.remove('cr-shock')); // тряска от взрыва не должна оставаться на шапке
   const parts = location.hash.replace(/^#\/?/, '').split('/');
   const key = parts[0] || '';
   const [page, mount] = Object.prototype.hasOwnProperty.call(ROUTES, key) ? ROUTES[key] : [page404, null];
