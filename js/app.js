@@ -1038,7 +1038,7 @@ CASES.forEach(c => {
   c.show = c.items.slice(0, 3).map(s => s.name);
 });
 CASES.sort((a, b) => a.price - b.price);
-const caseById = id => CASES.find(c => c.id === id) || (id === 'build' ? buildCase() : undefined);
+const caseById = id => CASES.find(c => c.id === id) || (id === 'build' ? buildCase() : /^b-/.test(id || '') ? bcCase(id.slice(2)) || undefined : undefined);
 
 /* ---------- ranks ---------- */
 const RANKS = [
@@ -1063,7 +1063,7 @@ function rankIcon(r, i) {
 
 /* ---------- state ---------- */
 const KEY = 'rushcase.v1';
-const freshProfile = () => ({ balance: 0, rcoin: 0, rlog: [], inv: [], stats: { opened: 0, spent: 0, upg: 0, upgWin: 0, con: 0, best: null, dep: 0 }, daily: 0, promos: [], depBonus: 0, socials: [], trade: '' });
+const freshProfile = () => ({ balance: 0, rcoin: 0, rlog: [], inv: [], bc: [], stats: { opened: 0, spent: 0, upg: 0, upgWin: 0, con: 0, best: null, dep: 0 }, daily: 0, promos: [], depBonus: 0, socials: [], trade: '' });
 const DEF = () => ({ user: null, ...freshProfile(), sound: true, fast: false, upgFast: false, accounts: {} });
 let st;
 try {
@@ -1074,7 +1074,7 @@ try {
 /* ---------- база Supabase: аккаунты, профиль, общие ставки ---------- */
 const SB_URL = 'https://gkeexoyrxnsarosymdyp.supabase.co', SB_KEY = 'sb_publishable_oczOEZFsdpzmwq8FB4Of_Q_A_JSZ3zt'; // публичный ключ — ему место в коде
 const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
-const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade', 'umults'];
+const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'bc', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade', 'umults'];
 let sbSaveT = 0;
 // профиль пишется в базу с задержкой (пачкой), локально — сразу
 async function sbPush() {
@@ -1098,7 +1098,7 @@ function sbApply(d) {
   setBalance(bal);
   const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin || 0);
 }
-const SRV_ERR = { 'amount mismatch': 'Сумма оплаты не совпала — напишите в поддержку', 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'bad build': 'В кейсе должно быть от 3 до 20 скинов', 'build price changed': 'Цены обновились — проверьте цену кейса и откройте ещё раз', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
+const SRV_ERR = { 'bad name': 'Название — от 2 до 24 символов', 'build price changed': 'Цены скинов обновились — обновите страницу', 'too many cases': 'В инвентаре уже 50 неоткрытых кейсов — откройте их', 'case not found': 'Этот кейс уже открыт', 'bad build': 'В кейсе должно быть от 4 до 20 скинов', 'amount mismatch': 'Сумма оплаты не совпала — напишите в поддержку', 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'bad build': 'В кейсе должно быть от 3 до 20 скинов', 'build price changed': 'Цены обновились — проверьте цену кейса и откройте ещё раз', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
   'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку', 'withdraw limit': 'Лимит выводов на сегодня исчерпан — попробуйте завтра',
   'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка',
   'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
@@ -1301,6 +1301,30 @@ const Snd = {
   /* ===== апгрейд: «Сейф» ===== */
   // выбор предмета: on — защёлкнуть, off — отпустить (ниже)
   safeSel(on = true) { this.noise(.035, .35, 0, on ? 3000 : 1800, 1.6); this.tone(on ? 330 : 220, .07, 'triangle', .12, 0, on ? 250 : 160); },
+  /* ===== «Собери сам»: тихие звуки ===== */
+  // шум со скользящим фильтром — «шорох» карты, порыв ветра
+  sweep(f1, f2, dur, vol = .1, when = 0, q = 1.2) {
+    if (!st.sound) return; const a = this.a; if (!a) return;
+    const t = a.currentTime + when, src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    src.buffer = this.nbuf; f.type = 'bandpass'; f.Q.value = q; f.frequency.setValueAtTime(f1, t); f.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + dur * .3); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(this.out); src.start(t, Math.random() * .5); src.stop(t + dur + .05);
+  },
+  // карта ложится в веер / уходит из него
+  bdDeal(on = true) {
+    if (on) { this.sweep(1600, 4200, .11, .07); this.tone(560, .07, 'triangle', .03, .04, 700); }
+    else { this.sweep(3600, 1200, .12, .05); this.tone(420, .07, 'triangle', .022, .02, 300); }
+  },
+  // наведение на карту — едва слышный щелчок
+  bdHover() { this.noise(.02, .05, 0, 4800, 2.4); this.tone(1500, .035, 'sine', .01); },
+  // покупка — мягкий аккорд и вдох
+  bdBuy() { this.tone(660, .16, 'triangle', .035); this.tone(990, .22, 'triangle', .03, .07); this.tone(1320, .38, 'sine', .025, .14); this.sweep(500, 2400, .5, .06, .04); },
+  // карты вырываются из кейса
+  bdBurst(n = 6) { this.tone(140, .22, 'sine', .07, 0, 70); this.sweep(400, 3000, .35, .09); for (let i = 0; i < Math.min(n, 8); i++) this.sweep(2200, 5200, .07, .03, .03 + i * .035, 2); },
+  // порыв ветра — карты полетели в профиль
+  bdWind() { this.sweep(300, 1800, .9, .07, 0, .8); this.sweep(900, 3200, .7, .04, .25, 1.5); },
+  // карта долетела до аватарки — тихий звон, с каждой картой чуть выше
+  bdArrive(i = 0) { const f = 1050 * Math.pow(1.06, i); this.tone(f, .16, 'sine', .022); this.tone(f * 1.5, .22, 'sine', .012, .025); },
   // щелчок шкалы при смене шанса: выше шанс — выше звук
   safeDial(ch) { const f = 900 + ch * 1400; this.noise(.02, .25, 0, f * 2.2, 2.5); this.tone(f, .03, 'square', .025, 0, f * .7); },
   // старт: рука берёт рычаг, тяжёлый «клац» и раскрутка механизма
@@ -2392,12 +2416,13 @@ const STRIP_LEN = 78, WIN_AT = 70;
 const itemCard = (s, extra = '') => `<div class="icard r-${s.r}">${extra}<img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="ic-w">${esc(s.w)}</div><div class="ic-f">${esc(s.f)}</div><div class="ic-p">${money(s.p)}</div></div>`;
 const rcard = (s, win) => `<div class="rcard r-${s.r}${win ? ' is-win' : ''}"><img src="${imgUrl(s, 'm')}" alt="" draggable="false"><div class="rc-w">${esc(s.w)}</div><div class="rc-f">${esc(s.f)}</div></div>`;
 function pageCase(id) {
-  if (id === 'build' && buildCalc(buildSel()).items.length < BUILD.min) { setTimeout(() => { location.hash = '#/build'; }); return ''; }
+  if (id === 'build') { setTimeout(() => { location.hash = '#/build'; }); return ''; }
+  if (/^b-/.test(id || '') && !caseById(id)) { setTimeout(() => { location.hash = st.user ? '#/profile' : '#/build'; }); return ''; }
   const c = caseById(id); if (!c) return page404();
   const ghost = Array.from({ length: 12 }, () => { const s = roll(c.items, 'fw'); return `<div class="gcard r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><div class="gc-w">${esc(s.w)}</div><div class="gc-f">${esc(s.f)}</div></div>`; }).join('');
   const embers = Array.from({ length: 44 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 7)}s;--x:${rand(-60, 60)}px;--s:${rand(.5, 1.3)}"></i>`).join('');
   return `<section class="container case-page" style="--ca:${c.th.a}">
-    <div class="cp-head"><a href="${c.build ? '#/build' : '#/cases'}" class="back">${ic.left}${c.build ? 'Изменить набор' : 'Все кейсы'}</a>
+    <div class="cp-head"><a href="${c.build ? '#/build' : '#/cases'}" class="back">${ic.left}${c.build ? 'Собрать новый' : 'Все кейсы'}</a>
       <div class="cp-title"><i class="cp-line l"></i><h1>${c.name}</h1><i class="cp-line r"></i></div>
       <i></i></div>
     <div class="rl-framed ${c.frame ? c.frame.cls : ''}"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
@@ -2492,6 +2517,7 @@ function ccIdle(c) {
   const counts = c.farm ? FARM_N.filter(n => n <= cap) : Array.from({ length: maxN }, (_, i) => i + 1);
   if (c.farm) { if (!counts.includes(caseN)) caseN = counts[0]; }
   else if (caseN > maxN || !counts.includes(caseN)) caseN = counts.filter(n => n <= Math.min(caseN, maxN)).pop() || 1;
+  if (c.bcid) return bcIdle(c);
   const cost = c.price * caseN;
   let main;
   if (c.disabled) main = `<button class="btn btn-primary btn-xl btn-cham" disabled>${ic.lock || ic.shield}Кейс временно закрыт</button>`;
@@ -2508,6 +2534,23 @@ function ccIdle(c) {
   $('#fastChk').onchange = e => { st.fast = e.target.checked; save(); };
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
   const db = $('#demoBtn'); if (db) db.onclick = () => openCase(c, true);
+}
+/* купленный кейс «Собери сам» (#/case/b-<id>): уже оплачен — только «Открыть»; после открытия — купить такой же */
+function bcIdle(c) {
+  const cc = $('#cc'); if (!cc) return;
+  caseN = 1;
+  const have = myBc().some(x => x.id === c.bcid);
+  const now = buildCalc(c.items.map(s => s.name));
+  cc.innerHTML = have
+    ? `<div class="cc-btns"><button class="btn btn-primary btn-xl btn-cham" id="openBtn">${ic.box}Открыть кейс</button><button class="btn btn-xl btn-cham btn-gline" id="demoBtn">${ic.eye}Демо</button></div>
+      <label class="switch"><input type="checkbox" id="fastChk"${st.fast ? ' checked' : ''}><i></i>Быстрое открытие</label>
+      <div class="cc-note">Кейс уже оплачен (${money(c.price)}) и лежит в вашем инвентаре.</div>`
+    : `<div class="cc-btns"><button class="btn btn-primary btn-xl btn-cham" id="bcAgain"${BUILD.off ? ' disabled' : ''}>${ic.coins}Купить такой же за ${money(now.price)}</button><a class="btn btn-xl btn-cham btn-gline" href="#/build">Собрать новый</a></div>
+      <div class="cc-note">Этот кейс уже открыт.</div>`;
+  const fc = $('#fastChk'); if (fc) fc.onchange = e => { st.fast = e.target.checked; save(); };
+  const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
+  const db = $('#demoBtn'); if (db) db.onclick = () => openCase(c, true);
+  const ba = $('#bcAgain'); if (ba) ba.onclick = async () => { ba.disabled = true; const id = await buildBuy(c.items.map(s => s.name), c.bname || 'Собери сам'); ba.disabled = false; if (id) location.hash = '#/case/b-' + id; };
 }
 /* демо: всегда предмет минимум вдвое дороже кейса (чаще 2–5×, дороже — реже); на настоящие открытия не влияет */
 function rollDemo(c) {
@@ -2532,7 +2575,7 @@ async function openCase(c, demo) {
   else {
     // выпадение решает сервер: он же списывает деньги, выдаёт предметы, R-COIN и статистику
     spinning = true;
-    const r = c.build ? await srv('build_case', { p_items: c.items.map(s => s.name), p_n: n, p_price: c.price }) : await srv('open_case', { p_case: c.id, p_n: n });
+    const r = c.bcid ? await srv('build_open', { p_id: c.bcid }) : await srv('open_case', { p_case: c.id, p_n: n });
     spinning = false;
     if (!r) return;
     wins = r.drops.map(d => SK[d.n]).filter(Boolean);
@@ -2707,15 +2750,15 @@ function ccDone(c, wins, given, demo) {
   const back = () => { resetRoulette(); ccIdle(c); };
   if (demo) {
     cc.innerHTML = `<div class="cc-note">Это было <b>демо-открытие</b> — предмет не сохранён.</div>
-      <div class="cc-btns">${st.user ? `<button class="btn btn-primary btn-xl btn-cham" id="realBtn">Открыть за ${casePrice(c, c.price * caseN)}</button>` : `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`}<button class="btn btn-xl btn-cham btn-gline" id="againBtn">Ещё демо</button></div>`;
-    const rb = $('#realBtn'); if (rb) rb.onclick = () => openCase(c, false);
+      <div class="cc-btns">${st.user ? `<button class="btn btn-primary btn-xl btn-cham" id="realBtn">${c.bcid ? (myBc().some(x => x.id === c.bcid) ? 'Открыть кейс' : 'Купить такой же') : 'Открыть за ' + casePrice(c, c.price * caseN)}</button>` : `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`}<button class="btn btn-xl btn-cham btn-gline" id="againBtn">Ещё демо</button></div>`;
+    const rb = $('#realBtn'); if (rb) rb.onclick = () => c.bcid && !myBc().some(x => x.id === c.bcid) ? (resetRoulette(), ccIdle(c)) : openCase(c, false);
   } else {
     const live = () => given.filter(g => g.st === 'own');
     const sum = () => live().reduce((a, g) => a + SK[g.n].p, 0);
     const draw = () => {
       const left = live().length;
       cc.innerHTML = `<div class="cc-btns">
-          <button class="btn btn-primary btn-xl btn-cham" id="againBtn">${ic.box}Открыть ещё</button>
+          <button class="btn btn-primary btn-xl btn-cham" id="againBtn">${ic.box}${c.bcid ? 'Ещё такой кейс' : 'Открыть ещё'}</button>
           ${left ? `<button class="btn btn-xl btn-cham btn-upg" id="toUpg"><span class="tu-sh"></span>${ic.up}<span class="tu-t">В апгрейд<small>шанс умножить дроп до x10</small></span></button>` : ''}
           ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="sellAll">${ic.coin}Продать${wins.length > 1 ? ' всё' : ''} за ${money(sum())}</button>` : ''}
         </div>
@@ -3751,11 +3794,12 @@ function drawPf() {
         <div class="inp-row"><input class="inp" id="tradeInp" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade)}"><button class="btn btn-accent" id="tradeSave">Сохранить</button></div>
       </div>
       <div id="wdNote"></div>
-      <div class="items-grid inv-grid" id="invGrid">${sorted.map(x => {
+      <div class="items-grid inv-grid" id="invGrid">${myBc().map(b => `<div class="icard inv-card inv-bc"><img src="assets/case-build-s.webp" alt=""><div class="ic-w">${(b.items || []).length} ${plural((b.items || []).length, 'скин', 'скина', 'скинов')}</div><div class="ic-f">${esc(b.name || 'Собери сам')}</div><div class="ic-p">${money(+b.price)}</div>
+          <div class="inv-acts"><a class="btn btn-primary" href="#/case/b-${b.id}">${ic.box}Открыть</a></div></div>`).join('')}${sorted.map(x => {
         const s = SK[x.n];
         return `<div class="icard inv-card r-${s.r}"><span class="ic-st">${fromName(x.from)}</span><img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="ic-w">${esc(s.w)}</div><div class="ic-f">${esc(s.f)}</div><div class="ic-p">${money(s.p)}</div>
           <div class="inv-acts"><button class="btn btn-accent" data-sell="${x.id}">Продать</button><button class="btn btn-dark" data-wd="${x.id}" title="Вывести в Steam">${ic.send}</button></div></div>`;
-      }).join('')}</div>${list.length ? '' : '<p class="inv-hint">Инвентарь пуст — выпавшие предметы займут эти места. <a href="#/cases">Открыть кейс</a></p>'}`;
+      }).join('')}</div>${list.length || myBc().length ? '' : '<p class="inv-hint">Инвентарь пуст — выпавшие предметы займут эти места. <a href="#/cases">Открыть кейс</a></p>'}`;
     invFill(); drawWd();
     $('#tradeSave').onclick = () => {
       const v = $('#tradeInp').value.trim();
@@ -6641,11 +6685,11 @@ const CR_RULES = [
   'Около 10% раундов взрываются сразу на x1.00. Чем выше x, тем реже бомба до него доживает. Момент взрыва знает только сервер.',
 ];
 /* =========================================================
-   СОБЕРИ САМ (#/build): игрок выбирает 3–20 скинов, шансы и цену считает сайт.
+   СОБЕРИ САМ (#/build): игрок выбирает 4–20 скинов, покупает кейс (он ложится в инвентарь, data.bc), открывает позже, шансы и цену считает сайт.
    Формула — как на сервере (supabase/build_case.sql, build_calc): вес ~ 1/цена, шанс не меньше 0,01%,
    цена = матожидание / окупаемость (site_cfg 'build', по умолчанию 80%), не меньше 10 ₽. Открытие — #/case/build
    ========================================================= */
-const BUILD = { rtp: .8, off: false, min: 3, max: 20, floor: .0001, minPrice: 10 };
+const BUILD = { rtp: .8, off: false, min: 4, max: 20, floor: .0001, minPrice: 10 };
 const BUILD_IMG = 'assets/case-build.webp';
 const bd = { cat: 'all', q: '', sort: 'desc' };
 const r2 = v => Math.round(v * 100) / 100;
@@ -6680,31 +6724,24 @@ const buildCard = () => `<a class="case-card cc-build" href="#/build" style="--c
   <div class="cc-body"><div class="cc-name">Собери сам</div><div class="cc-foot"><span class="cc-price cc-price-gold">от ${money(BUILD.minPrice)}</span></div></div>
 </a>`;
 function pageBuild() {
-  const sparks = Array.from({ length: 18 }, () => `<i style="left:${rand(6, 94)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 6)}s;--x:${rand(-40, 40)}px"></i>`).join('');
   return `<section class="container bd">
-    <div class="page-head"><h1>Собери <em>сам</em></h1><p>Выберите от ${BUILD.min} до ${BUILD.max} скинов — сайт сам посчитает шансы и цену кейса. Дешёвые выпадают чаще, дорогие — реже.</p></div>
+    <div class="page-head"><h1>Собери <em>сам</em></h1><p>Выберите от ${BUILD.min} до ${BUILD.max} скинов — сайт посчитает шансы и цену. Купленный кейс лежит в инвентаре, откройте его когда захотите.</p></div>
     <div class="bd-main">
       <div class="bd-left">
-        <div class="bd-stage" id="bdStage">
-          <i class="bd-rays"></i><i class="bd-halo"></i><div class="bd-sparks">${sparks}</div>
-          <div class="bd-orbit" id="bdOrbit"></div>
-          <div class="bd-tilt" id="bdTilt"><img class="bd-case" src="${BUILD_IMG}" alt="Кейс «Собери сам»" draggable="false"><i class="bd-shine"></i></div>
-          <i class="bd-floor"></i>
-          <span class="bd-cnt" id="bdCnt"></span>
+        <div class="bd-stage" id="bdStage"><img class="bd-case" src="${BUILD_IMG}" alt="Кейс «Собери сам»" draggable="false"><i class="bd-floor"></i>
+          <div class="bd-cta"><div class="bd-peek" id="bdPeek"></div><div id="bdSum"></div></div>
         </div>
-        <div class="bd-sum" id="bdSum"></div>
-        <div class="panel bd-setp">
-          <div class="panel-h"><h3>Ваш кейс</h3><span class="upg-sum" id="bdSetN"></span><button class="btn btn-ghost btn-sm" id="bdClr">Очистить</button></div>
-          <div class="bd-set" id="bdSet"></div>
-        </div>
+        <div class="bd-own" id="bdOwn"></div>
       </div>
       <div class="panel bd-cat">
-        <div class="panel-h"><h3>Все скины</h3><input class="inp" id="bdQ" placeholder="Поиск" autocomplete="off"><div class="seg" id="bdSort"><button data-s="asc">₽ ↑</button><button data-s="desc">₽ ↓</button></div></div>
-        <div class="chips upg-cats" id="bdCats">${UPG_TABS.map(([k, t]) => `<button class="chip" data-cat="${k}">${t}</button>`).join('')}</div>
+        <div class="bd-cat-h"><input class="inp" id="bdQ" placeholder="Поиск скина" autocomplete="off"><div class="seg" id="bdSort"><button data-s="asc">₽ ↑</button><button data-s="desc">₽ ↓</button></div></div>
+        <div class="chips bd-cats" id="bdCats">${UPG_TABS.map(([k, t]) => `<button class="chip" data-cat="${k}">${t}</button>`).join('')}</div>
         <div class="upg-cnt" id="bdCntL"></div>
         <div class="mini-grid bd-grid" id="bdGrid"></div>
       </div>
     </div>
+    <div class="bd-set-h">${secTitle('Ваш кейс')}<button class="btn btn-ghost btn-sm" id="bdClr">${ic.close}Очистить</button></div>
+    <div class="items-grid bd-set" id="bdSet"></div>
   </section>`;
 }
 function mountBuild() {
@@ -6713,54 +6750,180 @@ function mountBuild() {
   $$('#bdSort button').forEach(b => b.onclick = () => { bd.sort = b.dataset.s; drawBuildCat(); });
   $$('#bdCats [data-cat]').forEach(b => b.onclick = () => { bd.cat = b.dataset.cat; drawBuildCat(); });
   $('#bdClr').onclick = () => { buildSave([]); drawBuild(); };
-  // наклон кейса за мышкой / пальцем (как бомба в краше)
-  const stg = $('#bdStage'), tl = $('#bdTilt');
-  const tilt = e => { const r = stg.getBoundingClientRect(); const x = clamp((e.clientX - r.left) / r.width * 2 - 1, -1, 1), y = clamp((e.clientY - r.top) / r.height * 2 - 1, -1, 1); tl.style.setProperty('--rx', (-y * 14).toFixed(2) + 'deg'); tl.style.setProperty('--ry', (x * 18).toFixed(2) + 'deg'); tl.style.setProperty('--gx', (50 + x * 40).toFixed(1) + '%'); };
-  stg.onpointermove = tilt; stg.onpointerdown = tilt;
-  stg.onpointerleave = stg.onpointercancel = () => { tl.style.setProperty('--rx', '0deg'); tl.style.setProperty('--ry', '0deg'); };
+  // каталог не прилипает: стоит на своём месте в странице, по высоте — в экран
+  const fit = () => { const c = $('.bd-cat'); if (!c) return removeEventListener('resize', fit);
+    if (innerWidth <= 900) { c.style.height = ''; return; }
+    const t = Math.round(c.getBoundingClientRect().top + scrollY); c.style.height = Math.max(440, innerHeight - t - 16) + 'px'; };
+  fit(); addEventListener('resize', fit);
+  // колесо над каталогом листает только каталог — страница не едет, даже в начале/конце списка
+  $('#bdGrid').addEventListener('wheel', e => {
+    const g = e.currentTarget;
+    if ((e.deltaY > 0 && g.scrollTop + g.clientHeight >= g.scrollHeight - 1) || (e.deltaY < 0 && g.scrollTop <= 0)) e.preventDefault();
+  }, { passive: false });
   drawBuild();
 }
-function buildToggle(name, el) {
+function buildToggle(name) {
   let a = buildSel();
   if (a.includes(name)) a = a.filter(n => n !== name);
   else {
     if (a.length >= BUILD.max) return toast(`В кейсе максимум ${BUILD.max} скинов`, 'err');
     a.push(name);
-    const img = el && $('img', el);
-    if (img) buildFly(img);
   }
-  buildSave(a); Snd.safeSel(a.includes(name)); drawBuild();
+  buildSave(a); Snd.bdDeal(a.includes(name)); drawBuild();
 }
-/* картинка скина улетает в кейс */
-function buildFly(img) {
-  const to = $('#bdTilt'); if (!to || !img.animate) return;
-  const a = img.getBoundingClientRect(), b = to.getBoundingClientRect();
-  const f = img.cloneNode(); f.className = 'bd-fly';
-  Object.assign(f.style, { left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px' });
-  document.body.appendChild(f);
-  const dx = b.left + b.width / 2 - a.left - a.width / 2, dy = b.top + b.height * .45 - a.top - a.height / 2;
-  f.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${dx * .55}px,${dy * .55 - 60}px) scale(1.15) rotate(-8deg)`, opacity: 1, offset: .55 }, { transform: `translate(${dx}px,${dy}px) scale(.25) rotate(10deg)`, opacity: 0 }], { duration: 620, easing: 'cubic-bezier(.4,.1,.3,1)' }).onfinish = () => {
-    f.remove(); const s = $('#bdStage'); if (s) { s.classList.remove('hit'); void s.offsetWidth; s.classList.add('hit'); }
+/* за кнопкой «Купить» выглядывают последние 6 добавленных скинов (веером); новые выезжают снизу, убранные уезжают вниз */
+const PEEK_N = 6;
+function drawPeek(sel) {
+  const box = $('#bdPeek'); if (!box) return;
+  const last = sel.slice(-PEEK_N), k = last.length;
+  $$('.bd-pk', box).forEach(el => { if (!last.includes(el.dataset.n) && !el.classList.contains('out')) { el.classList.add('out'); setTimeout(() => el.remove(), 320); } });
+  last.forEach((n, i) => {
+    const sk = SK[n]; if (!sk) return;
+    let el = $$('.bd-pk', box).find(x => x.dataset.n === n && !x.classList.contains('out'));
+    if (!el) {
+      el = document.createElement('div'); el.className = `bd-pk r-${sk.r} new`; el.dataset.n = n;
+      el.innerHTML = `<div class="pk-c"><img src="${imgUrl(sk, 'm')}" alt="" draggable="false"><b>${money(sk.p)}</b></div>`; el.title = sk.name;
+      el.onmouseenter = () => Snd.bdHover();
+      box.appendChild(el); setTimeout(() => el.classList.remove('new'), 700);
+    }
+    const o = i - (k - 1) / 2; // −1.5 … 1.5
+    el.style.setProperty('--o', o);  el.style.setProperty('--ao', Math.abs(o)); el.style.zIndex = i + 1; // как в колоде: следующая карта ложится поверх
+  });
+}
+/* купленные, ещё не открытые кейсы (data.bc на сервере) */
+const myBc = () => (st.user && Array.isArray(st.bc) ? st.bc : []);
+function bcCase(id) {
+  const b = myBc().find(x => x.id === id); if (!b) return null;
+  const items = (b.items || []).map(x => SK[x.n] && { ...SK[x.n], p: +x.p, ch: +x.ch }).filter(Boolean);
+  if (!items.length) return null;
+  const fs = items.reduce((a, s) => a + Math.sqrt(s.ch), 0);
+  items.forEach(s => { s.fw = Math.sqrt(s.ch) / fs; });
+  return { id: 'b-' + b.id, bcid: b.id, name: b.name || 'Собери сам', bname: b.name || '', price: +b.price, img: BUILD_IMG, th: { a: '#f3c14f' }, build: true, sub: '', items,
+    show: items.slice(0, 3).map(s => s.name), rareChance: items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0) };
+}
+/* покупка кейса с набором names и названием; вернёт id купленного кейса или null */
+const bcName = v => String(v || '').replace(/[<>\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
+function buildCheck(names) {
+  if (BUILD.off) return toast('Режим временно закрыт', 'err'), null;
+  if (!st.user) return openAuth('login'), null;
+  const r0 = buildCalc(names);
+  if (r0.items.length < BUILD.min) return toast(`Нужно минимум ${BUILD.min} скина`, 'err'), null;
+  if (st.balance < r0.price) return openDeposit(r0.price - st.balance), null;
+  return r0;
+}
+async function buildBuy(names, name) {
+  const r0 = buildCheck(names); if (!r0) return null;
+  const r = await srv('build_buy', { p_items: r0.items.map(s => s.name), p_price: r0.price, p_name: bcName(name) });
+  if (!r) return null;
+  Snd.bdBuy();
+  return r.id;
+}
+/* «Купить» → окно: игрок придумывает название → покупка → карточки улетают к аватарке */
+function buildNameAsk(names) {
+  const r0 = buildCheck(names); if (!r0) return;
+  const m = modal(`<div class="wd confirm bd-name">
+    <img class="bd-ok-img" src="${BUILD_IMG}" alt="">
+    <h2>Назовите свой кейс</h2>
+    <p>${r0.items.length} ${plural(r0.items.length, 'скин', 'скина', 'скинов')} · ${money(r0.price)}. Название будет видно в инвентаре и на странице открытия.</p>
+    <div class="bd-name-f"><input class="inp" id="bnInp" maxlength="24" placeholder="Например: Ночной охотник" autocomplete="off"><span id="bnCnt">0/24</span></div>
+    <div class="cc-btns"><button class="btn btn-dark btn-lg" id="bnNo">Отмена</button><button class="btn btn-primary btn-lg" id="bnYes" disabled>${ic.coins}Купить за ${money(r0.price)}</button></div>
+  </div>`, 'm-wd');
+  const inp = $('#bnInp', m), yes = $('#bnYes', m);
+  const upd = () => { const v = bcName(inp.value); $('#bnCnt', m).textContent = inp.value.length + '/24'; yes.disabled = v.length < 2; };
+  inp.oninput = upd; setTimeout(() => inp.focus(), 60);
+  inp.onkeydown = e => { if (e.key === 'Enter' && !yes.disabled) yes.click(); };
+  $('#bnNo', m).onclick = closeModal;
+  yes.onclick = async () => {
+    const name = bcName(inp.value); if (name.length < 2) return;
+    yes.disabled = true; yes.innerHTML = '<span class="spinner"></span>Покупаем…';
+    const id = await buildBuy(names, name);
+    if (!id) { yes.disabled = false; yes.innerHTML = `${ic.coins}Купить за ${money(r0.price)}`; return; }
+    closeModal();
+    buildFlyAway(r0.items, () => {
+      toast(`Кейс «${esc(name)}» в инвентаре — <a href="#/case/b-${id}">открыть</a>`);
+      drawBuild();
+    });
   };
+}
+/* после покупки: карточки вырываются из кейса и зависают веером, страница «закрывается» и открывается главная,
+   затем подсвеченные карточки ветром летят в профиль (аватарка в шапке) */
+function buildFlyAway(items, done) {
+  const from = $('.bd-case');
+  const goHome = () => { if (location.hash !== '#/' && location.hash !== '') location.hash = '#/'; };
+  if (!from || !document.body.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { goHome(); return done && done(); }
+  const a = from.getBoundingClientRect();
+  const sx = a.left + a.width / 2, sy = a.top + a.height * .42;
+  const list = items.slice(0, 12), n = list.length, W = clamp(Math.min(innerWidth, 900) * .085, 58, 92), H = W * 1.36;
+  const st_ = $('#bdStage'); if (st_) { st_.classList.remove('burst'); void st_.offsetWidth; st_.classList.add('burst'); }
+  setTimeout(() => Snd.bdBurst(list.length), 120);
+  // 1) выброс: веером над кейсом, как карты в руке
+  const cx0 = clamp(sx, W * 3, innerWidth - W * 3), cy0 = clamp(sy - H * .9, H, innerHeight - H * 1.5);
+  const cards = list.map((sk, i) => {
+    const c = document.createElement('div');
+    c.className = `bd-flyc r-${sk.r}`; c.style.width = W + 'px'; c.style.height = H + 'px';
+    c.innerHTML = `<img src="${imgUrl(sk, 'm')}" alt="">`;
+    document.body.appendChild(c);
+    const o = n > 1 ? i / (n - 1) - .5 : 0, rot = o * Math.min(70, n * 9), R = H * 2.1;
+    const px = cx0 + Math.sin(rot * Math.PI / 180) * R, py = cy0 + R - Math.cos(rot * Math.PI / 180) * R;
+    c.animate([
+      { transform: `translate(${sx - W / 2}px,${sy - H / 2}px) scale(.25) rotate(0deg)`, opacity: 0 },
+      { transform: `translate(${px - W / 2}px,${py - H / 2}px) scale(1) rotate(${rot}deg)`, opacity: 1 },
+    ], { duration: 560, delay: i * 35, easing: 'cubic-bezier(.2,.9,.3,1.25)', fill: 'forwards' });
+    return { c, px, py, rot };
+  });
+  // 2) страница закрывается → главная
+  const app = $('#app');
+  setTimeout(() => app && app.classList.add('bd-leave'), 380);
+  setTimeout(() => {
+    goHome(); scrollTo(0, 0);
+    setTimeout(() => {
+      if (app) { app.classList.remove('bd-leave'); app.classList.add('bd-enter'); setTimeout(() => app.classList.remove('bd-enter'), 600); }
+      fly();
+    }, 140);
+  }, 820);
+  // 3) полёт в профиль: дуга с порывами ветра, карточки светятся
+  function fly() {
+    const to = $('#ubtn') || $('.header .btn-primary');
+    const b = to ? to.getBoundingClientRect() : { left: innerWidth - 60, top: 12, width: 40, height: 40 };
+    const ex = b.left + b.width / 2, ey = b.top + b.height / 2;
+    let left = cards.length, got = 0;
+    Snd.bdWind();
+    cards.forEach(({ c, px, py, rot }, i) => {
+      c.classList.add('glow');
+      const kx = (px + ex) / 2 + rand(-180, 90), ky = Math.min(py, ey) - rand(30, 140);
+      const amp = rand(16, 36), ph = rand(0, Math.PI * 2), spin = rand(-420, 420), N = 18, kf = [];
+      for (let k = 0; k <= N; k++) {
+        const t = k / N, u = 1 - t;
+        let x = u * u * px + 2 * u * t * kx + t * t * ex, y = u * u * py + 2 * u * t * ky + t * t * ey;
+        const w = Math.sin(t * Math.PI * 2.6 + ph) * amp * Math.sin(t * Math.PI); // порывы ветра: в начале и у цели тише
+        x += w; y += w * .4;
+        kf.push({ transform: `translate(${x - W / 2}px,${y - H / 2}px) scale(${(1 - t * .82).toFixed(3)}) rotate(${(rot + spin * t).toFixed(1)}deg)`, opacity: t > .92 ? (1 - t) * 12 : 1 });
+      }
+      c.getAnimations().forEach(x => x.cancel());
+      const an = c.animate(kf, { duration: rand(1150, 1500), delay: i * 85, easing: 'cubic-bezier(.5,0,.35,1)', fill: 'both' });
+      an.onfinish = () => {
+        c.remove();
+        if (to) { to.classList.remove('bd-got'); void to.offsetWidth; to.classList.add('bd-got'); }
+        Snd.bdArrive(got++);
+        if (--left === 0) { setTimeout(() => to && to.classList.remove('bd-got'), 500); done && done(); }
+      };
+    });
+  }
 }
 function drawBuild() {
   if (!$('#bdSet')) return;
   const sel = buildSel(), r = buildCalc(sel), n = r.items.length, ok = n >= BUILD.min;
-  // вокруг кейса — до 8 выбранных скинов (самые дорогие)
-  $('#bdOrbit').innerHTML = r.items.slice(0, 8).map((s, i, A) => `<img class="r-${s.r}" src="${imgUrl(s, 'm')}" alt="" style="--a:${(i / A.length * 360 - 90).toFixed(1)}deg;--dl:${(-i * .7).toFixed(1)}s">`).join('');
-  $('#bdCnt').innerHTML = `<b>${n}</b>/${BUILD.max}`;
-  $('#bdCnt').classList.toggle('ok', ok);
-  const jp = r.items[0];
-  $('#bdSum').innerHTML = `<div class="bd-kpi bd-price"><span>Цена кейса</span><b>${ok ? money(r.price) : '—'}</b></div>
-    <div class="bd-kpi"><span>Шанс джекпота</span><b>${ok ? pctTxt(jp.ch) : '—'}</b>${jp ? `<small>${esc(jp.w)} | ${esc(jp.f)} · ${money(jp.p)}</small>` : ''}</div>
-    <div class="bd-btns">${BUILD.off ? `<button class="btn btn-primary btn-xl btn-cham" disabled>Режим временно закрыт</button>`
-      : ok ? `<a class="btn btn-primary btn-xl btn-cham bd-go" href="#/case/build">${ic.box}Открыть за ${money(r.price)}</a>`
-      : `<button class="btn btn-primary btn-xl btn-cham" disabled>Добавьте ещё ${BUILD.min - n} ${plural(BUILD.min - n, 'скин', 'скина', 'скинов')}</button>`}</div>`;
-  $('#bdSetN').innerHTML = n ? `${n} ${plural(n, 'скин', 'скина', 'скинов')}` : '';
-  $('#bdSet').innerHTML = n ? r.items.map((s, i) => `<div class="bd-it r-${s.r}${i === 0 && ok ? ' jp' : ''}" data-rm="${esc(s.name)}" title="Убрать">
-      <img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="bd-in"><div class="mc-w">${esc(s.w)}</div><div class="mc-f">${esc(s.f)}</div><div class="bd-p">${money(s.p)}</div></div>
-      <div class="bd-ch">${ok ? pctTxt(s.ch) : ''}<i style="width:${ok ? Math.max(2, s.ch * 100).toFixed(1) : 0}%"></i></div><button class="bd-x" aria-label="Убрать">${ic.close}</button></div>`).join('')
-    : `<div class="empty">${ic.plus}Нажимайте на скины в каталоге — они попадут в кейс</div>`;
+  $('#bdSum').innerHTML = BUILD.off ? `<button class="btn btn-xl btn-cham bd-buy bd-wait" disabled>Режим временно закрыт</button>`
+    : ok ? `<button class="btn btn-primary btn-xl btn-cham bd-buy bd-go" id="bdBuy">${ic.coins}Купить за ${money(r.price)}</button>`
+    : `<button class="btn btn-xl btn-cham bd-buy bd-wait" disabled>${n ? `Добавьте ещё ${BUILD.min - n} ${plural(BUILD.min - n, 'скин', 'скина', 'скинов')}` : `Выберите от ${BUILD.min} скинов`}</button>`;
+  drawPeek(sel);
+  const bb = $('#bdBuy');
+  if (bb) bb.onclick = () => buildNameAsk(sel);
+  const own_ = myBc();
+  $('#bdOwn').innerHTML = own_.length ? `<a href="#/profile">${ic.box}У вас ${own_.length} ${plural(own_.length, 'неоткрытый кейс', 'неоткрытых кейса', 'неоткрытых кейсов')} — в инвентаре</a>` : '';
+  $('#bdClr').style.visibility = n ? '' : 'hidden';
+  $('#bdSet').innerHTML = n ? r.items.map((s, i) => itemCard(s, `<span class="bd-ch">${ok ? pctTxt(s.ch) : ''}</span>${i === 0 && ok ? '<span class="bd-jp" title="Джекпот"></span>' : ''}<button class="bd-x" data-rm="${esc(s.name)}" aria-label="Убрать" title="Убрать">${ic.close}</button>`)).join('')
+    : `<div class="empty bd-empty">${ic.plus}Нажимайте на скины в каталоге — они появятся здесь</div>`;
   $$('[data-rm]', $('#bdSet')).forEach(el => el.onclick = () => buildToggle(el.dataset.rm));
   drawBuildCat();
 }
@@ -6775,7 +6938,7 @@ function drawBuildCat() {
   list = list.slice(0, LIMIT);
   $('#bdCntL').textContent = total > LIMIT ? `показано ${LIMIT} из ${fmt(total)} — уточните поиск` : `${fmt(total)} предм.`;
   box.innerHTML = list.length ? list.map(s => mcard(s, `data-b="${esc(s.name)}"`)).join('') : `<div class="empty">${ic.search}Ничего не найдено</div>`;
-  $$('[data-b]', box).forEach(el => { if (sel.includes(el.dataset.b)) el.classList.add('sel'); el.onclick = () => buildToggle(el.dataset.b, el); });
+  $$('[data-b]', box).forEach(el => { if (sel.includes(el.dataset.b)) el.classList.add('sel'); el.onclick = () => buildToggle(el.dataset.b); });
 }
 /* админка: окупаемость и закрытие режима (site_cfg 'build') */
 function admBuild(box) {
@@ -7562,6 +7725,7 @@ function route() {
   ioScan();
   tutAuto(key); // обучение новичков (кнопка «?» и первый заход)
   document.body.classList.toggle('pg-crash', key === 'crash');
+  document.body.classList.toggle('pg-build', key === 'build'); // «Собери сам» — свой фон (assets/bg-build.webp)
   const navKey = key === '' || key === 'case' || key === 'build' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
