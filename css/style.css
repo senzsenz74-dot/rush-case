@@ -4674,6 +4674,13 @@ body.pg-build::after{content:"";display:block;position:fixed;inset:0;z-index:-1;
 .bd-cat-h{display:flex;gap:8px;margin-bottom:8px}
 .bd-cat-h .inp{flex:1;min-width:0;height:36px}
 .bd-cat-h .seg button{height:36px;padding:0 10px;font-size:12px}
+.bd-price-f{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.bd-price-f span{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--txt3);white-space:nowrap;margin-right:2px}
+.bd-price-f .inp{flex:none;width:92px;height:30px;padding:0 10px;text-align:center;font-size:13px;font-weight:700;-moz-appearance:textfield}
+.bd-price-f .inp::-webkit-outer-spin-button,.bd-price-f .inp::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.bd-price-f i{font-style:normal;color:var(--txt3)}
+.bd-pf-x{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--txt3);background:rgba(255,255,255,.04)}
+.bd-pf-x svg{width:12px;height:12px}.bd-pf-x:hover{color:#fff;background:rgba(239,68,68,.5)}
 .bd-cats{gap:4px;margin-bottom:6px}
 .bd-cats .chip{height:28px;padding:0 10px;border-radius:8px;font-size:11.5px}
 .bd-grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px;overscroll-behavior:contain;flex:1;min-height:0;max-height:none}

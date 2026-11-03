@@ -6691,7 +6691,7 @@ const CR_RULES = [
    ========================================================= */
 const BUILD = { rtp: .8, off: false, min: 4, max: 20, floor: .0001, minPrice: 10 };
 const BUILD_IMG = 'assets/case-build.webp';
-const bd = { cat: 'all', q: '', sort: 'desc' };
+const bd = { cat: 'all', q: '', sort: 'desc', from: 0, to: 0 }; // from/to — фильтр цены, 0 = без границы
 const r2 = v => Math.round(v * 100) / 100;
 const buildOk = s => s && s.c !== 'cash' && s.p > 0;
 function buildSel() {
@@ -6735,6 +6735,7 @@ function pageBuild() {
       </div>
       <div class="panel bd-cat">
         <div class="bd-cat-h"><input class="inp" id="bdQ" placeholder="Поиск скина" autocomplete="off"><div class="seg" id="bdSort"><button data-s="asc">₽ ↑</button><button data-s="desc">₽ ↓</button></div></div>
+        <div class="bd-price-f"><span>Цена, ₽</span><input class="inp" id="bdFrom" type="number" min="0" step="1" inputmode="numeric" placeholder="от"><i>—</i><input class="inp" id="bdTo" type="number" min="0" step="1" inputmode="numeric" placeholder="до"><button class="bd-pf-x" id="bdPfX" aria-label="Сбросить цену" title="Сбросить цену">${ic.close}</button></div>
         <div class="chips bd-cats" id="bdCats">${UPG_TABS.map(([k, t]) => `<button class="chip" data-cat="${k}">${t}</button>`).join('')}</div>
         <div class="upg-cnt" id="bdCntL"></div>
         <div class="mini-grid bd-grid" id="bdGrid"></div>
@@ -6747,6 +6748,11 @@ function pageBuild() {
 function mountBuild() {
   $('#bdQ').value = bd.q;
   $('#bdQ').oninput = e => { bd.q = e.target.value.trim().toLowerCase(); drawBuildCat(); };
+  // фильтр цены: от / до (пусто — без границы)
+  const pf = () => { bd.from = Math.max(0, +$('#bdFrom').value || 0); bd.to = Math.max(0, +$('#bdTo').value || 0); drawBuildCat(); };
+  $('#bdFrom').value = bd.from || ''; $('#bdTo').value = bd.to || '';
+  $('#bdFrom').oninput = pf; $('#bdTo').oninput = pf;
+  $('#bdPfX').onclick = () => { $('#bdFrom').value = ''; $('#bdTo').value = ''; pf(); };
   $$('#bdSort button').forEach(b => b.onclick = () => { bd.sort = b.dataset.s; drawBuildCat(); });
   $$('#bdCats [data-cat]').forEach(b => b.onclick = () => { bd.cat = b.dataset.cat; drawBuildCat(); });
   $('#bdClr').onclick = () => { buildSave([]); drawBuild(); };
@@ -6932,7 +6938,8 @@ function drawBuildCat() {
   const sel = buildSel();
   $$('#bdSort button').forEach(b => b.classList.toggle('on', b.dataset.s === bd.sort));
   $$('#bdCats [data-cat]').forEach(b => b.classList.toggle('on', b.dataset.cat === bd.cat));
-  let list = UPG_CAT.filter(s => buildOk(s) && (bd.cat === 'all' || s.c === bd.cat) && (!bd.q || s.name.toLowerCase().includes(bd.q)));
+  let list = UPG_CAT.filter(s => buildOk(s) && (bd.cat === 'all' || s.c === bd.cat) && (!bd.q || s.name.toLowerCase().includes(bd.q)) && (!bd.from || s.p >= bd.from) && (!bd.to || s.p <= bd.to));
+  const px = $('#bdPfX'); if (px) px.style.visibility = bd.from || bd.to ? '' : 'hidden';
   if (bd.sort === 'desc') list = list.slice().reverse();
   const total = list.length, LIMIT = 240;
   list = list.slice(0, LIMIT);
