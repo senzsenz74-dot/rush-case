@@ -4243,7 +4243,7 @@ const PAY_TABS = [{ k: 'cards', t: 'Карты', i: 'card', m: ['sbp', 'card', '
   { k: 'crypto', t: 'Крипта', i: 'coin', m: ['crypto'] }, { k: 'skins', t: 'Скины', i: 'knife', m: ['skins'] }, { k: 'other', t: 'Другое', i: 'gem', m: ['mobile'] }];
 async function openDeposit(need = 0, promo = null) {
   if (!st.user) return openAuth('login');
-  let amount = Math.max(100, Math.ceil((need || 500) / 50) * 50), tab = 'cards', method = 'sbp', code = promo, refPct = 0;
+  let amount = 0, tab = 'cards', method = 'sbp', code = promo, refPct = 0;
   let S = { live: false, methods: PAY_METHODS.map(x => x.k) };
   const bonusPct = () => Math.max(st.depBonus || 0, refPct);
   const m = modal(`<div class="dpn">
@@ -4254,7 +4254,7 @@ async function openDeposit(need = 0, promo = null) {
       <div class="dpn-methods" id="dpnM"></div>
       <div class="dpn-form">
         <label class="dpn-l" for="depAmt">Сумма:<small>Мин. 100 ₽</small></label>
-        <div class="dpn-in"><input class="inp" id="depAmt" type="number" min="100" step="50" value="${amount}" inputmode="numeric"><span>₽</span></div>
+        <div class="dpn-in"><input class="inp" id="depAmt" type="number" min="100" step="50" placeholder="${need ? fmt(Math.max(100, Math.ceil(need / 50) * 50)) : 'Введите сумму'}" inputmode="numeric"><span>₽</span></div>
         <div class="dpn-chips">${[500, 1000, 2500, 5000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
         <label class="dpn-l" for="depPromo">Промокод:<small>если есть</small></label>
         <div class="dpn-in"><input class="inp" id="depPromo" value="${esc(promo || '')}" placeholder="Например, RUSH35" autocomplete="off" spellcheck="false" maxlength="24"><span>%</span></div>
@@ -4287,11 +4287,12 @@ async function openDeposit(need = 0, promo = null) {
     $('#depTotal', m).textContent = ok ? money(Math.round(amount * (1 + b / 100))) : '—';
     $('#depBon', m).textContent = ok && b ? `бонус +${b}%` : 'на баланс';
     $('#depRc', m).textContent = ok ? rc(Math.floor(amount * DEP_RC)) : '—';
-    const gb = $('.dpn-get', m); gb.classList.remove('bump'); void gb.offsetWidth; gb.classList.add('bump');
+    // «Вы получите» — только когда введена сумма
+    const gb = $('.dpn-get', m), was = gb.classList.contains('show'); gb.classList.toggle('show', ok); if (ok && was) { gb.classList.remove('bump'); void gb.offsetWidth; gb.classList.add('bump'); }
     const g = $('#depGo', m); g.innerHTML = `${ic.wallet}Пополнить${ok ? ' ' + money(amount) : ''}`; g.disabled = !ok;
     const h = $('#depHint', m);
-    h.innerHTML = note || (!ok ? 'Сумма — от 100 до 1 000 000 ₽' : code ? `Промокод <b>${esc(code)}</b> проверим при оплате` : refPct && refPct >= (st.depBonus || 0) ? `+${refPct}% к первому пополнению — вас пригласил друг` : '');
-    h.classList.toggle('err', !ok);
+    h.innerHTML = note || (!ok ? (amount ? 'Сумма — от 100 до 1 000 000 ₽' : '') : code ? `Промокод <b>${esc(code)}</b> проверим при оплате` : refPct && refPct >= (st.depBonus || 0) ? `+${refPct}% к первому пополнению — вас пригласил друг` : '');
+    h.classList.toggle('err', !ok && amount > 0);
   };
   $$('.dpn-rail [data-tab]', m).forEach(e => e.onclick = () => { tab = e.dataset.tab; drawMethods(); draw(); });
   $$('.dpn-chips button', m).forEach(e => e.onclick = () => { amount = +e.dataset.a; $('#depAmt', m).value = amount; draw(); });

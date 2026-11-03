@@ -4593,7 +4593,9 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 @keyframes dpnShine{0%,50%{left:-60%}100%{left:140%}}
 .dpn-m.soon{opacity:.62}.dpn-m.soon.on{opacity:1}
 .dpn-m.soon em{color:var(--gold);text-transform:uppercase}
-.dpn-get{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;margin-top:16px;padding:12px 16px;border-radius:14px;background:linear-gradient(90deg,rgba(243,193,79,.1),rgba(255,153,51,.04));border:1px solid rgba(243,193,79,.22)}
+/* «Вы получите» спрятано, пока сумма не введена; появляется плавно */
+.dpn-get{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;max-height:0;margin-top:0;padding:0 16px;overflow:hidden;opacity:0;transform:translateY(-6px);border-radius:14px;background:linear-gradient(90deg,rgba(243,193,79,.1),rgba(255,153,51,.04));border:0 solid rgba(243,193,79,.22);transition:max-height .45s cubic-bezier(.2,.8,.2,1),opacity .35s,transform .45s cubic-bezier(.2,.8,.2,1),margin .45s,padding .45s}
+.dpn-get.show{max-height:160px;margin-top:16px;padding:12px 16px;opacity:1;transform:none;border-width:1px}
 .dpn-get-l{font-size:11px;font-weight:800;color:var(--txt2);text-transform:uppercase;letter-spacing:.12em;margin-right:auto}
 .dpn-get-v{display:flex;align-items:baseline;gap:7px;white-space:nowrap}
 .dpn-get-v b{font:800 20px/1 var(--ff-h);background:var(--g-gold-txt);-webkit-background-clip:text;background-clip:text;color:transparent}
