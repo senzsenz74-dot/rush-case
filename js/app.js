@@ -7272,7 +7272,7 @@ const TUT = {
     { sel: ['.cr-histbox'], t: 'История', d: 'Здесь видно, на каком x взрывалась бомба в прошлых раундах.' },
   ] },
 };
-const TUT_FINGER = `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12.5 15.5V5.2a2.2 2.2 0 0 1 4.4 0v8.3l.6-.1V11a2.1 2.1 0 0 1 4.2 0v3l.5-.1v-1.6a2.1 2.1 0 0 1 4.2 0v7.2c0 5.4-3.9 9.5-9 9.5h-1.7c-2.6 0-4.7-1.1-6.3-3.2l-4.6-6.2a2.2 2.2 0 0 1 3.4-2.8l2.5 2.6Z"/></svg>`;
+const TUT_FINGER = `<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tutCg" x1="0" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="#fff6d8"/><stop offset=".5" stop-color="#f6c650"/><stop offset="1" stop-color="#c7851a"/></linearGradient></defs><path d="M3 2.2V19.6l4.4-4.1 2.9 6.2 2.9-1.3-2.8-6.1h6Z" fill="url(#tutCg)" stroke="#1a1204" stroke-width="1.3" stroke-linejoin="round"/><path d="M4.5 5.6v9.2" stroke="rgba(255,255,255,.75)" stroke-width=".9" stroke-linecap="round"/></svg><i></i>`;
 let tut = null;
 const tutDoneSet = () => { let a = []; try { a = JSON.parse(localStorage.getItem('rc.tut') || '[]'); } catch (e) { /* */ } return new Set(a.concat((st.user && st.user.tut) || [])); };
 function tutMark(key) {

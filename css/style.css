@@ -4469,14 +4469,16 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 .tut-skip.shake{animation:tutNudge .35s}
 .tut-finger{position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;opacity:0;transition:opacity .3s,transform .7s cubic-bezier(.5,0,.2,1)}
 .tut-finger.show{opacity:1}
-.tut-finger svg{position:absolute;left:-21px;top:-4px;width:46px;height:46px;fill:#fff8e6;stroke:#b37419;stroke-width:1.3;filter:drop-shadow(0 6px 10px rgba(0,0,0,.7)) drop-shadow(0 0 8px rgba(243,193,79,.5))}
-.tut-finger b{position:absolute;left:-22px;top:-22px;width:44px;height:44px;border-radius:50%;border:2px solid var(--gold);opacity:0}
-.tut-finger.tap svg{animation:tutTap 1.5s ease-in-out infinite}
-.tut-finger.tap b{animation:tutRip 1.5s ease-out infinite}
-.tut-finger.spin svg{animation:tutSpin 2.6s ease-in-out infinite}
-@keyframes tutTap{0%,100%{transform:translate(8px,14px) scale(1)}40%{transform:translate(0,0) scale(1)}50%{transform:translate(0,0) scale(.86)}62%{transform:translate(2px,4px) scale(1)}}
-@keyframes tutRip{0%,45%{opacity:0;transform:scale(.3)}52%{opacity:1;transform:scale(.5)}100%{opacity:0;transform:scale(1.7)}}
-@keyframes tutSpin{0%{transform:rotate(0) translate(var(--orb,46px)) rotate(0)}100%{transform:rotate(360deg) translate(var(--orb,46px)) rotate(-360deg)}}
+.tut-finger svg{position:absolute;left:-3px;top:-2px;width:24px;height:24px;overflow:visible;z-index:1;transform-origin:3px 2px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.75)) drop-shadow(0 0 6px rgba(243,193,79,.45))}
+.tut-finger b,.tut-finger i{position:absolute;left:-13px;top:-13px;width:26px;height:26px;border-radius:50%;opacity:0;pointer-events:none}
+.tut-finger b{border:1.5px solid var(--gold-hi);box-shadow:0 0 10px rgba(243,193,79,.6),inset 0 0 8px rgba(243,193,79,.35)}
+.tut-finger i{background:radial-gradient(circle,rgba(255,233,171,.85),rgba(243,193,79,.25) 45%,transparent 70%)}
+.tut-finger.tap svg{animation:tutTap 1.6s cubic-bezier(.45,0,.25,1) infinite}
+.tut-finger.tap b{animation:tutRip 1.6s ease-out infinite}
+.tut-finger.tap i{animation:tutDot 1.6s ease-out infinite}
+@keyframes tutTap{0%{transform:translate(14px,16px)}38%{transform:translate(0,0) scale(1)}46%{transform:translate(0,0) scale(.82)}56%{transform:translate(0,0) scale(1)}78%,100%{transform:translate(14px,16px)}}
+@keyframes tutRip{0%,44%{opacity:0;transform:scale(.25)}48%{opacity:1;transform:scale(.4)}90%,100%{opacity:0;transform:scale(1.9)}}
+@keyframes tutDot{0%,43%{opacity:0;transform:scale(.3)}48%{opacity:1;transform:scale(.7)}70%,100%{opacity:0;transform:scale(1.2)}}
 .tut-lit{animation:tutLit 1.5s ease-in-out infinite}
 @keyframes tutLit{0%,45%{box-shadow:none}55%{box-shadow:0 0 0 2px var(--gold),0 0 26px rgba(243,193,79,.6)}100%{box-shadow:0 0 0 2px rgba(243,193,79,0)}}
 @media (max-width:700px){
@@ -4484,6 +4486,5 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
   .tut-card{padding:14px 14px 12px;border-radius:18px}
   .tut-body h3{font-size:16px}.tut-body p{font-size:13.5px}
   .tut-skip{max-width:120px;font-size:11px}
-  .tut-finger svg{width:40px;height:40px;left:-18px}
 }
-@media (prefers-reduced-motion:reduce){.tut-hole::before,.tut-hole i::after,.tut-finger svg,.tut-finger b,.tut-lit{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.tut-hole::before,.tut-hole i::after,.tut-finger svg,.tut-finger b,.tut-finger i,.tut-lit{animation:none!important}}
