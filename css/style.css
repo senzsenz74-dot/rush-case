@@ -4541,3 +4541,16 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 @keyframes knEmber{0%{transform:translate(0,0);opacity:0}15%{opacity:1}100%{transform:translate(var(--x),-60px);opacity:0}}
 .case-card .kn-ember{width:2px;height:2px}
 @media (prefers-reduced-motion:reduce){.kn-glint,.kn-ember{animation:none;opacity:0}}
+
+/* ===== пополнение: «Будет начислено» + «Вы получите» R-COIN ===== */
+.dpl-get{margin:14px 0;padding:12px 14px;border-radius:14px;background:linear-gradient(160deg,rgba(243,193,79,.1),rgba(243,193,79,.03));border:1px solid rgba(243,193,79,.22)}
+.dpl-get .dpl-total{margin:0}
+.dpl-get b{white-space:nowrap}
+.dpl-rc{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.1)}
+.dpl-rc span{font-size:12px;font-weight:800;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em}
+.dpl-rc b{display:flex;align-items:center;gap:6px;font:800 20px var(--ff-h);color:#ffb648}
+.dpl-rc b .rc-ic{width:24px;height:24px}
+.dpl-rc b i{font-style:normal;font-size:15px;color:var(--txt2)}
+.dpl-rc b small{font:700 10px var(--ff);color:var(--txt3);letter-spacing:.06em;align-self:flex-end;margin-bottom:3px}
+.dpl-get.bump b{animation:dplBump .35s ease-out}
+@keyframes dplBump{40%{transform:scale(1.07)}}

@@ -1610,6 +1610,7 @@ function renderUser() {
 }
 let balAnim;
 /* ---------- R-COIN: бонусы за открытия, 1 R = 1 ₽ (тратятся в бонусных кейсах) ---------- */
+const DEP_RC = .05; // R-COIN за пополнение — 5% от суммы оплаты (сервер: supabase/dep_rcoin.sql)
 const RCOIN_RATE = c => c.id === 'sifon' ? .005 : .02; // 2% от цены кейса, у «Сифона» (окупаемость 96%) — 0,5%
 const rc = v => money(v).replace(' ₽', '');
 function addRcoin(v, note) {
@@ -3806,7 +3807,7 @@ function drawPf() {
   } else if (pfTab === 'rc') {
     body.innerHTML = `<div class="pf-rc" id="rcoins">
       <div class="rc-head"><img class="rc-ic big" src="assets/rcoin.webp" alt="" aria-hidden="true"><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах</small></div></div>
-      <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый. А ещё <em>0,5% от пополнения</em> и <em>0,5% от ставки</em> при проигрыше в апгрейде.</p>
+      <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый. А ещё <em>5% от пополнения</em> и <em>0,5% от ставки</em> при проигрыше в апгрейде.</p>
         <div class="rc-ex">${CASES.filter(c => !c.rc).sort((a, b) => a.price - b.price).map(c => `<span>${esc(c.name)} <i>+${rc(Math.round(c.price * RCOIN_RATE(c) * 100 + 1e-6) / 100)}</i></span>`).join('')}</div></div>
       <div class="rc-log"><b>История</b>${(st.rlog || []).length ? (st.rlog || []).slice(0, 30).map(x => `<div><span>${esc(x.note)}</span><small>${dstr(x.ts)}</small><i class="${x.v < 0 ? 'neg' : ''}">${x.v < 0 ? '−' + rc(-x.v) : '+' + rc(x.v)}</i></div>`).join('') : '<p class="muted">Откройте кейс — здесь появятся начисления.</p>'}</div>
     </div>`;
@@ -4272,7 +4273,10 @@ async function openDeposit(need = 0, promo = null) {
         <div class="dpl-row"><span>Способ</span><b id="dplMet">не выбран</b></div>
         <div class="dpl-row"><span>Сумма</span><b id="dplAmt"></b></div>
         <div class="dpl-row" id="dplBonusRow"><span>Бонус</span><b class="pos" id="dplBonus"></b></div>
-        <div class="dpl-total"><span>К зачислению</span><b id="depTotal"></b></div>
+        <div class="dpl-get">
+          <div class="dpl-total"><span>Будет начислено</span><b id="depTotal"></b></div>
+          <div class="dpl-rc"><span>Вы получите</span><b id="depRc"></b></div>
+        </div>
         <button class="btn btn-primary btn-xl btn-block" id="depGo"></button>
         <p class="dpx-hint" id="depHint"></p>
         <ul class="dpl-trust"><li>${ic.shield}Оплата на защищённой странице платёжного сервиса</li><li>${ic.bolt}Баланс зачисляется автоматически</li><li>${ic.check}Без скрытых комиссий сайта</li></ul>
@@ -4290,6 +4294,8 @@ async function openDeposit(need = 0, promo = null) {
     $('#dplBonusRow', m).style.display = b ? '' : 'none';
     $('#dplBonus', m).textContent = b ? `+${b}% · ${money(Math.round(amount * b / 100))}` : '';
     $('#depTotal', m).textContent = ok ? money(Math.round(amount * (1 + b / 100))) : '—';
+    $('#depRc', m).innerHTML = ok ? `${RC_IMG}<i>×</i>${rc(Math.floor(amount * DEP_RC))}<small>R-COIN</small>` : '—';
+    const gb = $('.dpl-get', m); gb.classList.remove('bump'); void gb.offsetWidth; gb.classList.add('bump');
     const g = $('#depGo', m); g.innerHTML = `${ic.wallet}Оплатить ${ok ? money(amount) : ''}`; g.disabled = !ok;
     const h = $('#depHint', m); h.textContent = !ok ? 'Сумма — от 100 до 1 000 000 ₽' : code ? `Промокод ${code} проверим при оплате` : refPct && refPct >= (st.depBonus || 0) ? `+${refPct}% к первому пополнению — вас пригласил друг` : ''; h.classList.toggle('err', !ok);
   };

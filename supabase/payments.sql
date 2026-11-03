@@ -53,7 +53,7 @@ begin
   total := round(pay.amount * (1 + bonus / 100), 2);
   d := public._bal(jsonb_set(d, '{depBonus}', '0'), total);
   d := jsonb_set(d, '{stats}', coalesce(d->'stats', '{}') || jsonb_build_object('dep', coalesce((d->'stats'->>'dep')::numeric, 0) + pay.amount));
-  d := public._rc(d, pay.amount * 0.005, 'Пополнение');
+  d := public._rc(d, pay.amount * 0.05, 'Пополнение');
   update public.profiles set data = d, updated_at = now() where id = pay.uid;
   perform public._ref_reward(pay.uid, pay.amount);  -- 5% пригласившему (если срок не вышел)
   update public.payments set status = 'paid', ext_id = coalesce(p_ext, ext_id), credited = total, raw = p_raw, paid_at = now() where id = p_id;
