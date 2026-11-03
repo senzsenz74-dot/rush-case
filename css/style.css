@@ -4546,7 +4546,7 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 .modal.m-dpn{width:min(900px,100%);padding:0;overflow:hidden auto;background:linear-gradient(160deg,#17140f,#0b0a08 60%);border:1px solid rgba(243,193,79,.18)}
 .dpn{display:grid;grid-template-columns:128px minmax(0,1fr);min-height:440px}
 .dpn-rail{display:flex;flex-direction:column;background:rgba(0,0,0,.38);border-right:1px solid rgba(255,255,255,.06)}
-.dpn-rail button{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px 8px 18px;border:0;border-bottom:1px solid rgba(255,255,255,.06);background:none;color:var(--txt3);font:800 12px/1 var(--ff);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:color .2s,background .2s}
+.dpn-rail button{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 8px 15px;border:0;border-bottom:1px solid rgba(255,255,255,.06);background:none;color:var(--txt3);font:800 12px/1 var(--ff);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:color .2s,background .2s}
 .dpn-rail button svg{width:30px;height:30px;transition:transform .25s,color .2s}
 .dpn-rail button:hover{color:var(--txt);background:rgba(255,255,255,.025)}
 .dpn-rail button:hover svg{transform:scale(1.08)}
@@ -4587,16 +4587,17 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 .dpn-chips button{height:50px;padding:0 4px;border-radius:12px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.03);color:var(--txt2);font:700 12.5px var(--ff);white-space:nowrap;cursor:pointer;transition:all .2s}
 .dpn-chips button:hover{color:#fff;border-color:rgba(243,193,79,.4)}
 .dpn-chips button.on{color:var(--ink);background:var(--g-gold);border-color:transparent}
-.dpn-go{height:50px;width:100%;justify-content:center;font-size:14px}
+.dpn-go{position:relative;overflow:hidden;height:50px;width:100%;justify-content:center;font-size:14px}
+.dpn-go::after{content:"";position:absolute;top:-10%;bottom:-10%;left:-60%;width:38%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.65),transparent);transform:skewX(-20deg);animation:dpnShine 2.6s ease-in-out infinite;pointer-events:none}
+.dpn-go:disabled::after{display:none}
+@keyframes dpnShine{0%,50%{left:-60%}100%{left:140%}}
+.dpn-m.soon{opacity:.62}.dpn-m.soon.on{opacity:1}
+.dpn-m.soon em{color:var(--gold);text-transform:uppercase}
 .dpn-get{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;margin-top:16px;padding:12px 16px;border-radius:14px;background:linear-gradient(90deg,rgba(243,193,79,.1),rgba(255,153,51,.04));border:1px solid rgba(243,193,79,.22)}
 .dpn-get-l{font-size:11px;font-weight:800;color:var(--txt2);text-transform:uppercase;letter-spacing:.12em;margin-right:auto}
-.dpn-get-v{display:flex;align-items:center;gap:8px;white-space:nowrap}
-.dpn-gi{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--g-gold);color:var(--ink)}
-.dpn-gi svg{width:15px;height:15px}
+.dpn-get-v{display:flex;align-items:baseline;gap:7px;white-space:nowrap}
 .dpn-get-v b{font:800 20px/1 var(--ff-h);background:var(--g-gold-txt);-webkit-background-clip:text;background-clip:text;color:transparent}
 .dpn-get-v em{font-style:normal;font-size:11px;font-weight:700;color:var(--txt3)}
-.dpn-coin img{width:28px;height:28px;filter:drop-shadow(0 2px 6px rgba(255,153,51,.5))}
-.dpn-coin b{background:none;color:#ffb35c}
 .dpn-plus{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.14);color:var(--txt2);font:800 13px/1 var(--ff);font-style:normal}
 .dpn-get.bump .dpn-get-v b{animation:dplBump .35s ease-out}
 @keyframes dplBump{40%{transform:translateY(-2px)}}
@@ -4606,9 +4607,10 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 .dpn-foot a{color:var(--gold);cursor:pointer}
 @media (max-width:720px){
   .dpn{grid-template-columns:1fr;min-height:0}
-  .dpn-rail{flex-direction:row;border-right:0;border-bottom:1px solid rgba(255,255,255,.06);padding-right:56px}
-  .dpn-rail button{flex:1;flex-direction:row;justify-content:center;gap:8px;padding:16px 8px;border-bottom:0}
-  .dpn-rail button svg{width:22px;height:22px}
+  .dpn-rail{flex-direction:row;overflow-x:auto;scrollbar-width:none;border-right:0;border-bottom:1px solid rgba(255,255,255,.06);margin-right:50px}
+  .dpn-rail::-webkit-scrollbar{display:none}
+  .dpn-rail button{flex:1 1 0;min-width:0;gap:5px;padding:12px 0 11px;border-bottom:0;font-size:9.5px;letter-spacing:0}
+  .dpn-rail button svg{width:20px;height:20px}
   .dpn-rail button.on::before{left:0;right:0;top:auto;bottom:0;width:auto;height:3px}
   .dpn-bal{display:none}
   .dpn-body{padding:18px 16px 16px}
