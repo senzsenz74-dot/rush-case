@@ -4071,10 +4071,11 @@ async function sbLoadProfile(session) {
   st.stats = Object.assign(freshProfile().stats, st.stats || {});
   st.inv.forEach(x => { x.n = fixName(x.n); });
   st.user = { id: session.user.id, rid: session.user.id.slice(0, 8), name: p.name, email: session.user.email, ava: p.ava || null, reg: Date.parse(p.created_at), via: p.steamid ? 'steam' : 'email', steamid: p.steamid || null, key: 'sb', sb: true, admin: !!p.is_admin, pid: p.pid || null, luck: +p.luck || 1 };
+  st.user.tut = p.tut || []; // пройденные обучения (supabase/tutorial.sql)
   if (p.is_admin) try { localStorage.setItem('rc.adm', '1'); } catch (e) { /* */ }
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
   renderUser(); route();
-  jpClaim(false); jpResolveMine(); claimGrants(); refClaim(); supInit(); supAdmInit();
+  tutSync(); jpClaim(false); jpResolveMine(); claimGrants(); refClaim(); supInit(); supAdmInit();
   return true;
 }
 // начисления от администратора: забираем при входе, раз в 30 с и при возврате на вкладку
@@ -7246,6 +7247,181 @@ function crDraw3d(ph, k) {
   if (g.rig && cr.tilt) { const k2 = .08; g.rig.rotation.x += (cr.tilt.y * .2 - g.rig.rotation.x) * k2; g.rig.rotation.z += (cr.tilt.x * .2 - g.rig.rotation.z) * k2; }
   g.ren.render(g.scene, g.cam);
 }
+/* ---------- обучение новичков: затемнение, «прожектор» на нужном элементе, подсказка, анимированный палец ----------
+   Показывается один раз на режим (пройдено — в браузере rc.tut и на сервере profiles.tut, supabase/tutorial.sql).
+   Кнопка «?» у заголовка режима запускает заново. Ничего не нажимает и не списывает — только показывает. */
+const TUT = {
+  upgrade: { name: 'Апгрейд', head: '.upg .page-head h1', steps: [
+    { sel: ['#upgSrc .mcard', '#upgSrc', '.upg-lists .panel'], t: 'Шаг 1 · Ставка', d: 'Нажмите на свой скин — он уйдёт в ставку. Можно выбрать несколько скинов или добавить рубли с баланса.', tap: 1 },
+    { sel: ['#upgTargets .mcard', '#upgTargets', '.upg-lists .panel:last-child'], t: 'Шаг 2 · Цель', d: 'Выберите скин, который хотите получить. Он должен быть дороже ставки — чем дороже, тем меньше шанс.', tap: 1 },
+    { sel: ['#upgMults'], t: 'Или множитель', d: 'Не хотите искать скин? Нажмите x2, x5, x10 — сайт сам подберёт цель дороже ставки во столько раз.', tap: 1 },
+    { sel: ['#wheel'], t: 'Шаг 3 · Шанс', d: 'Цветная дуга на колесе — ваш шанс. Стрелка остановится в цветной зоне — скин ваш, мимо — ставка сгорает.', spin: 1 },
+    { sel: ['#upgBtn'], t: 'Шаг 4 · Апгрейд', d: 'Жмите «Апгрейд» и смотрите, где остановится стрелка. Удачи!', tap: 1 },
+  ] },
+  contracts: { name: 'Контракты', head: '.dos-title', steps: [
+    { sel: ['#dosInv .dcard', '#dosInv'], t: 'Шаг 1 · Улики', d: 'Нажимайте на свои скины в архиве — они ложатся в дело. Нужно от 3 до 10 предметов.', tap: 1 },
+    { sel: ['.dos-slots', '.dos-thread'], t: 'Дело', d: 'Здесь видно, что уже в деле, и общая сумма контракта. Кнопка «Автоподбор» соберёт дело сама.' },
+    { sel: ['#dosToSign', '.dos-next'], t: 'Шаг 2 · Соглашение', d: 'Набрали 3+ предмета — передайте дело на подпись, впишите ник и распишитесь пальцем или мышкой.', tap: 1 },
+    { sel: ['#dosTabs [data-step="3"]', '#dosTabs'], t: 'Шаг 3 · Выдача', d: 'Комиссия выдаст один случайный скин: от 25% до 400% суммы контракта. Его можно забрать, продать или отправить в апгрейд.' },
+  ] },
+  crash: { name: 'Краш C4', head: '.crash .page-head h1', steps: [
+    { sel: ['#crInv .mcard', '#crInv', '.cr-betp'], t: 'Шаг 1 · Ставка', d: 'Пока идёт приём ставок, выберите скины — их сумма станет вашей ставкой.', tap: 1 },
+    { sel: ['.cr-auto', '.cr-bsum'], t: 'Автовывод', d: 'Можно указать x, на котором сервер заберёт ставку сам, — если не успеваете нажать.' },
+    { sel: ['#crAct', '.cr-btns'], t: 'Шаг 2 · Поставить', d: 'Нажмите кнопку ставки. Когда раунд начнётся, здесь появится кнопка «Забрать».', tap: 1 },
+    { sel: ['#crStage'], t: 'Шаг 3 · Бомба', d: 'Бомба пикает — множитель растёт. Заберите до взрыва и получите скин дороже ставки во столько раз. Не успели — ставка сгорает.', spin: 1 },
+    { sel: ['.cr-histbox'], t: 'История', d: 'Здесь видно, на каком x взрывалась бомба в прошлых раундах.' },
+  ] },
+};
+const TUT_FINGER = `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12.5 15.5V5.2a2.2 2.2 0 0 1 4.4 0v8.3l.6-.1V11a2.1 2.1 0 0 1 4.2 0v3l.5-.1v-1.6a2.1 2.1 0 0 1 4.2 0v7.2c0 5.4-3.9 9.5-9 9.5h-1.7c-2.6 0-4.7-1.1-6.3-3.2l-4.6-6.2a2.2 2.2 0 0 1 3.4-2.8l2.5 2.6Z"/></svg>`;
+let tut = null;
+const tutDoneSet = () => { let a = []; try { a = JSON.parse(localStorage.getItem('rc.tut') || '[]'); } catch (e) { /* */ } return new Set(a.concat((st.user && st.user.tut) || [])); };
+function tutMark(key) {
+  const s = tutDoneSet(); s.add(key);
+  try { localStorage.setItem('rc.tut', JSON.stringify([...s])); } catch (e) { /* приватный режим */ }
+  if (sb && st.user && st.user.sb) { (st.user.tut = st.user.tut || []).includes(key) || st.user.tut.push(key); sb.rpc('tut_done', { p_key: key }).then(() => {}, () => {}); }
+}
+// после входа: что пройдено в этом браузере, но не на сервере — дописываем на сервер
+function tutSync() {
+  if (!sb || !st.user || !st.user.sb) return;
+  let a = []; try { a = JSON.parse(localStorage.getItem('rc.tut') || '[]'); } catch (e) { /* */ }
+  a.filter(k => TUT[k] && !(st.user.tut || []).includes(k)).forEach(tutMark);
+}
+// вызывается из route(): кнопка «?» у заголовка + автозапуск при первом заходе
+function tutAuto(key) {
+  if (tut && (tut.key !== key || tutDoneSet().has(key))) tutClose(false);
+  const T = TUT[key]; if (!T) return;
+  const h = $(T.head);
+  if (h && !$('.tut-q', h)) h.insertAdjacentHTML('beforeend', `<button class="tut-q" data-act="tut" data-tut="${key}" title="Как играть" aria-label="Обучение: как играть">?</button>`);
+  if (tut || tutDoneSet().has(key)) return;
+  const hash = location.hash;
+  setTimeout(() => { if (location.hash === hash && !tut && !tutDoneSet().has(key) && !$('#modal-root .modal-ov')) tutOpen(key); }, 1100);
+}
+function tutVis(el) { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 4 && r.height > 4 && getComputedStyle(el).visibility !== 'hidden'; }
+function tutTarget(s) { for (const q of s.sel) { const el = [...document.querySelectorAll(q)].find(tutVis); if (el) return el; } return null; }
+function tutOpen(key) {
+  const T = TUT[key]; if (!T) return;
+  if (tut) tutClose(false);
+  const o = document.createElement('div');
+  o.className = 'tut'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-label', 'Обучение: ' + T.name);
+  o.innerHTML = `<div class="tut-hole"><i></i></div>
+    <div class="tut-finger">${TUT_FINGER}<b></b></div>
+    <div class="tut-card">
+      <div class="tut-arrow"></div>
+      <div class="tut-top"><span class="tut-tag">Обучение · ${T.name}</span><span class="tut-num"></span></div>
+      <div class="tut-body"><h3></h3><p></p></div>
+      <div class="tut-dots">${T.steps.map(() => '<i></i>').join('')}</div>
+      <div class="tut-btns">
+        <button class="tut-skip" type="button"><span class="tut-skip-f"></span><em>Зажмите, чтобы пропустить</em></button>
+        <button class="btn btn-dark btn-sm tut-back" type="button">Назад</button>
+        <button class="btn btn-primary btn-sm tut-next" type="button"></button>
+      </div>
+    </div>`;
+  document.body.appendChild(o);
+  tut = { key, T, o, i: -1, el: null, raf: 0 };
+  requestAnimationFrame(() => o.classList.add('on'));
+  $('.tut-next', o).onclick = () => tutGo(tut.i + 1);
+  $('.tut-back', o).onclick = () => tutGo(tut.i - 1);
+  o.addEventListener('click', e => { if (e.target === o || e.target.closest('.tut-hole')) { const c = $('.tut-card', o); c.classList.remove('nudge'); void c.offsetWidth; c.classList.add('nudge'); } });
+  // «Пропустить» — только удержанием 1,2 с, чтобы не закрыть случайно
+  const sk = $('.tut-skip', o); let t0 = 0, hr = 0;
+  const fill = p => { sk.style.setProperty('--p', p); };
+  const stop = () => { cancelAnimationFrame(hr); t0 = 0; sk.classList.remove('hold'); fill(0); };
+  const tick = () => { const p = Math.min(1, (performance.now() - t0) / 1200); fill(p); if (p >= 1) { stop(); tutClose(true); } else hr = requestAnimationFrame(tick); };
+  sk.addEventListener('pointerdown', e => { e.preventDefault(); try { sk.setPointerCapture(e.pointerId); } catch (e2) { /* */ } t0 = performance.now(); sk.classList.add('hold'); hr = requestAnimationFrame(tick); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => sk.addEventListener(ev, () => { if (t0) stop(); }));
+  sk.addEventListener('click', () => { if (!sk.classList.contains('hold')) { sk.classList.remove('shake'); void sk.offsetWidth; sk.classList.add('shake'); } });
+  tut.onKey = e => { if (!tut) return; if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); tutGo(tut.i + 1); } else if (e.key === 'ArrowLeft') tutGo(tut.i - 1); };
+  tut.onMove = () => { if (tut && !tut.raf) tut.raf = requestAnimationFrame(() => { if (tut) { tut.raf = 0; tutPlace(false); } }); };
+  addEventListener('keydown', tut.onKey); addEventListener('resize', tut.onMove); addEventListener('scroll', tut.onMove, { passive: true });
+  tutGo(0);
+}
+function tutClose(done) {
+  if (!tut) return;
+  const { o, key } = tut;
+  removeEventListener('keydown', tut.onKey); removeEventListener('resize', tut.onMove); removeEventListener('scroll', tut.onMove);
+  clearTimeout(tut.ft); $$('.tut-lit').forEach(x => x.classList.remove('tut-lit'));
+  tut = null;
+  if (done) tutMark(key);
+  o.classList.remove('on'); o.classList.add('off');
+  setTimeout(() => o.remove(), 420);
+}
+function tutGo(i) {
+  if (!tut) return;
+  const { T, o } = tut;
+  if (i < 0) return;
+  if (i >= T.steps.length) { tutClose(true); toast('Обучение пройдено — вернуть его можно кнопкой «?» у заголовка'); return; }
+  const s = T.steps[i], dir = i >= tut.i ? 1 : -1;
+  tut.i = i;
+  const el = tutTarget(s);
+  $$('.tut-lit').forEach(x => x.classList.remove('tut-lit'));
+  tut.el = el;
+  const card = $('.tut-card', o);
+  card.classList.remove('sw', 'swb'); void card.offsetWidth; card.classList.add(dir > 0 ? 'sw' : 'swb');
+  $('.tut-num', o).innerHTML = `<b>${i + 1}</b> / ${T.steps.length}`;
+  $('.tut-body h3', o).textContent = s.t;
+  $('.tut-body p', o).textContent = s.d;
+  $$('.tut-dots i', o).forEach((d, k) => { d.className = k < i ? 'was' : k === i ? 'on' : ''; });
+  $('.tut-back', o).style.visibility = i ? '' : 'hidden';
+  $('.tut-next', o).textContent = i === T.steps.length - 1 ? 'Понял ✓' : 'Далее →';
+  o.classList.toggle('tut-noel', !el);
+  if (el) {
+    // прокрутка с учётом липкой шапки (лента LIVE + меню): элемент — в середину видимой части
+    const r = el.getBoundingClientRect(), hb = $('#header'), top = hb ? Math.max(0, hb.getBoundingClientRect().bottom) : 0, vh = innerHeight - top;
+    // если прошлая плавная прокрутка ещё идёт — считаем от места, куда она едет
+    const base = tut.sy != null ? tut.sy : scrollY, rt = r.top + scrollY - base;
+    if (rt < top + 10 || rt + r.height > innerHeight - 30) {
+      tut.sy = Math.max(0, base + rt - top - Math.max(16, (vh - r.height) / 2));
+      scrollTo({ top: tut.sy, behavior: 'smooth' }); clearTimeout(tut.st); tut.st = setTimeout(() => { if (tut) tut.sy = null; }, 900);
+    }
+  }
+  tutPlace(true);
+  // палец: подлетает к элементу и «нажимает» / кружит над колесом
+  const f = $('.tut-finger', o);
+  clearTimeout(tut.ft);
+  f.classList.remove('tap', 'spin');
+  f.classList.toggle('show', !!(el && (s.tap || s.spin)));
+  if (el && (s.tap || s.spin)) tut.ft = setTimeout(() => { if (!tut || tut.el !== el) return; f.classList.add(s.spin ? 'spin' : 'tap'); if (s.tap) el.classList.add('tut-lit'); }, 750);
+}
+function tutPlace(anim) {
+  if (!tut) return;
+  const { o, el } = tut;
+  const hole = $('.tut-hole', o), card = $('.tut-card', o), f = $('.tut-finger', o), ar = $('.tut-arrow', o);
+  const W = innerWidth, H = innerHeight, mob = W < 700, pad = 10;
+  o.classList.toggle('tut-anim', !!anim);
+  if (!el || !el.isConnected) { hole.style.cssText = `left:${W / 2}px;top:${H / 2}px;width:0;height:0`; card.style.cssText = ''; card.classList.add('mid'); ar.style.display = 'none'; return; }
+  const r = el.getBoundingClientRect();
+  const hb = $('#header'), tb = hb ? Math.max(0, hb.getBoundingClientRect().bottom) : 0;
+  const x = Math.max(6, r.left - pad), y = Math.max(tb + 6, r.top - pad);
+  const w = Math.min(W - 6, r.right + pad) - x, h = Math.min(H - 6, r.bottom + pad) - y;
+  const rad = Math.min(22, parseFloat(getComputedStyle(el).borderTopLeftRadius) + pad || 16);
+  hole.style.cssText = `left:${x}px;top:${y}px;width:${Math.max(0, w)}px;height:${Math.max(0, h)}px;border-radius:${rad}px`;
+  // палец — в центр видимой части элемента (на телефоне чуть ниже, чтобы не закрывать)
+  const spin = tut.T.steps[tut.i] && tut.T.steps[tut.i].spin;
+  const fx = x + w / 2, fy = y + (spin ? h / 2 : Math.min(h / 2, 70));
+  f.style.transform = `translate(${fx}px,${fy}px)`; f.style.setProperty('--orb', Math.round(Math.min(w, h) * .3) + 'px');
+  card.classList.remove('mid');
+  const cw = Math.min(mob ? W - 24 : 380, W - 24), ch = card.offsetHeight || 220;
+  let cx, cy, side;
+  if (mob) {
+    // телефон — карточка снизу или сверху экрана, там, где меньше мешает
+    cx = 12; side = (y + h / 2) > H / 2 ? 'top' : 'bot';
+    cy = side === 'top' ? Math.max(12, Math.min(y - ch - 16, 12 + 60)) : Math.max(y + h + 16, H - ch - 14);
+    if (side === 'top' && y - ch - 16 < 12) cy = 12;
+    if (side === 'bot') cy = Math.min(cy, H - ch - 12);
+  } else if (y + h + ch + 26 < H) { side = 'bot'; cy = y + h + 18; cx = x + w / 2 - cw / 2; }
+  else if (y - ch - 26 > 0) { side = 'top'; cy = y - ch - 18; cx = x + w / 2 - cw / 2; }
+  else if (x + w + cw + 30 < W) { side = 'right'; cx = x + w + 18; cy = y + h / 2 - ch / 2; }
+  else if (x - cw - 30 > 0) { side = 'left'; cx = x - cw - 18; cy = y + h / 2 - ch / 2; }
+  else { side = 'in'; cx = W / 2 - cw / 2; cy = H - ch - 16; }
+  cx = Math.max(12, Math.min(W - cw - 12, cx)); cy = Math.max(12, Math.min(H - ch - 12, cy));
+  card.style.cssText = `width:${cw}px;left:${cx}px;top:${cy}px`;
+  // стрелка — от карточки к элементу (если карточка рядом с ним)
+  const near = side === 'bot' ? cy - (y + h) < 60 && cy > y + h - 4 : side === 'top' ? y - (cy + ch) < 60 && cy + ch < y + 4 : side === 'left' || side === 'right';
+  ar.style.display = near ? '' : 'none';
+  ar.className = 'tut-arrow ' + side;
+  if (side === 'top' || side === 'bot') ar.style.left = Math.max(22, Math.min(cw - 22, fx - cx)) + 'px', ar.style.top = '';
+  else ar.style.top = Math.max(22, Math.min(ch - 22, y + h / 2 - cy)) + 'px', ar.style.left = '';
+}
 const ROUTES = {
   '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
@@ -7266,6 +7442,7 @@ function route() {
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   if (mount) mount(parts[1]);
   ioScan();
+  tutAuto(key); // обучение новичков (кнопка «?» и первый заход)
   document.body.classList.toggle('pg-crash', key === 'crash');
   const navKey = key === '' || key === 'case' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
@@ -7283,6 +7460,7 @@ document.addEventListener('click', e => {
   else if (act === 'support') supOpen();
   else if (act === 'admsup') { admTab = 'support'; try { localStorage.setItem('rc.admTab', 'support'); } catch (e2) { /* */ } if ($('#admBody')) admDraw(); }
   else if (act === 'register') openAuth('reg');
+  else if (act === 'tut') tutOpen(a.dataset.tut);
   else if (act === 'deposit') openDeposit(+a.dataset.need || 0);
   else if (act === 'logout') logout();
   else if (act === 'copy') copyText(a.dataset.copy);
