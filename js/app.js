@@ -1038,7 +1038,7 @@ CASES.forEach(c => {
   c.show = c.items.slice(0, 3).map(s => s.name);
 });
 CASES.sort((a, b) => a.price - b.price);
-const caseById = id => CASES.find(c => c.id === id);
+const caseById = id => CASES.find(c => c.id === id) || (id === 'build' ? buildCase() : undefined);
 
 /* ---------- ranks ---------- */
 const RANKS = [
@@ -1098,7 +1098,7 @@ function sbApply(d) {
   setBalance(bal);
   const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin || 0);
 }
-const SRV_ERR = { 'amount mismatch': 'Сумма оплаты не совпала — напишите в поддержку', 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
+const SRV_ERR = { 'amount mismatch': 'Сумма оплаты не совпала — напишите в поддержку', 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'bad build': 'В кейсе должно быть от 3 до 20 скинов', 'build price changed': 'Цены обновились — проверьте цену кейса и откройте ещё раз', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
   'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку', 'withdraw limit': 'Лимит выводов на сегодня исчерпан — попробуйте завтра',
   'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка',
   'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
@@ -1507,7 +1507,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155};
+const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
 // картинки из админки (хранилище Supabase) весят 2–3 МБ: для уже загруженных — лёгкие копии в assets/cc (900 px и 440 px для витрины);
 // новые загрузки админка сама сжимает в *.opt.webp + *.opt-s.webp (admImgPack). Неизвестная картинка — как есть.
@@ -2061,6 +2061,7 @@ async function loadCaseCfg() {
   const bn = data.find(r => r.k === 'banners'); // баннеры главной (нет — стандартный набор); копия в браузере — без мелькания при загрузке
   BANNERS = bn && Array.isArray(bn.v) ? bn.v : null;
   try { if (BANNERS) localStorage.setItem('rc.banners', JSON.stringify(BANNERS)); else localStorage.removeItem('rc.banners'); } catch (e) { /* */ }
+  const bc = data.find(r => r.k === 'build'); if (bc && bc.v) { if (+bc.v.rtp >= .3 && +bc.v.rtp <= .98) BUILD.rtp = +bc.v.rtp; BUILD.off = !!bc.v.off; if ($('#bdSet')) drawBuild(); }
   const bl = data.find(r => r.k === 'blocks');
   if (bl && Array.isArray(bl.v) && bl.v.length) CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...bl.v.map(b => ({ ...b, ids: [] })));
   CASES.forEach(applyCaseCfg); CASES.sort((a, b) => a.price - b.price);
@@ -2079,7 +2080,7 @@ const caseBlock = (b, grp) => {
   const list = blockCases(b); if (!list.length) return '';
   return `<section class="cs-block cs-b-${b.id}${BLOCK_BG[b.id] ? ' cs-has-bg' : ''}" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>${BLOCK_BG[b.id] ? `<i class="cs-bg" style="background-image:url(${BLOCK_BG[b.id]})" aria-hidden="true"></i>` : ''}
     ${secHead(b.t, b.sub, b.rc ? RC_IMG : ic[b.ic], b.a, list.length)}
-    <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${list.map(caseCard).join('')}</div>
+    <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${b === CASE_BLOCKS.find(x => blockCases(x).length) ? buildCard() : ''}${list.map(caseCard).join('')}</div>
   </section>`;
 };
 const caseCard = c => `<a class="case-card${c.disabled ? ' cc-closed' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
@@ -2391,11 +2392,12 @@ const STRIP_LEN = 78, WIN_AT = 70;
 const itemCard = (s, extra = '') => `<div class="icard r-${s.r}">${extra}<img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="ic-w">${esc(s.w)}</div><div class="ic-f">${esc(s.f)}</div><div class="ic-p">${money(s.p)}</div></div>`;
 const rcard = (s, win) => `<div class="rcard r-${s.r}${win ? ' is-win' : ''}"><img src="${imgUrl(s, 'm')}" alt="" draggable="false"><div class="rc-w">${esc(s.w)}</div><div class="rc-f">${esc(s.f)}</div></div>`;
 function pageCase(id) {
+  if (id === 'build' && buildCalc(buildSel()).items.length < BUILD.min) { setTimeout(() => { location.hash = '#/build'; }); return ''; }
   const c = caseById(id); if (!c) return page404();
   const ghost = Array.from({ length: 12 }, () => { const s = roll(c.items, 'fw'); return `<div class="gcard r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><div class="gc-w">${esc(s.w)}</div><div class="gc-f">${esc(s.f)}</div></div>`; }).join('');
   const embers = Array.from({ length: 44 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 7)}s;--x:${rand(-60, 60)}px;--s:${rand(.5, 1.3)}"></i>`).join('');
   return `<section class="container case-page" style="--ca:${c.th.a}">
-    <div class="cp-head"><a href="#/cases" class="back">${ic.left}Все кейсы</a>
+    <div class="cp-head"><a href="${c.build ? '#/build' : '#/cases'}" class="back">${ic.left}${c.build ? 'Изменить набор' : 'Все кейсы'}</a>
       <div class="cp-title"><i class="cp-line l"></i><h1>${c.name}</h1><i class="cp-line r"></i></div>
       <i></i></div>
     <div class="rl-framed ${c.frame ? c.frame.cls : ''}"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
@@ -2530,7 +2532,7 @@ async function openCase(c, demo) {
   else {
     // выпадение решает сервер: он же списывает деньги, выдаёт предметы, R-COIN и статистику
     spinning = true;
-    const r = await srv('open_case', { p_case: c.id, p_n: n });
+    const r = c.build ? await srv('build_case', { p_items: c.items.map(s => s.name), p_n: n, p_price: c.price }) : await srv('open_case', { p_case: c.id, p_n: n });
     spinning = false;
     if (!r) return;
     wins = r.drops.map(d => SK[d.n]).filter(Boolean);
@@ -5136,8 +5138,8 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
-const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'promo', 'tours', 'staff'], 'globe']];
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
+const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash', 'build'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'promo', 'tours', 'staff'], 'globe']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -5670,6 +5672,7 @@ function admDraw() {
   if (admTab === 'shop') return admCases(box);
   if (admTab === 'support') return admSupport(box);
   if (admTab === 'promo') return admPromo(box);
+  if (admTab === 'build') return admBuild(box);
   admTabData(box, R[admTab] || axDash);
 }
 /* ---------- выгрузка статистики в Excel (.xlsx, библиотека SheetJS грузится по кнопке) ---------- */
@@ -6637,6 +6640,162 @@ const CR_RULES = [
   'Автовывод: укажите x заранее — сервер заберёт ставку сам, даже если вы закрыли страницу.',
   'Около 10% раундов взрываются сразу на x1.00. Чем выше x, тем реже бомба до него доживает. Момент взрыва знает только сервер.',
 ];
+/* =========================================================
+   СОБЕРИ САМ (#/build): игрок выбирает 3–20 скинов, шансы и цену считает сайт.
+   Формула — как на сервере (supabase/build_case.sql, build_calc): вес ~ 1/цена, шанс не меньше 0,01%,
+   цена = матожидание / окупаемость (site_cfg 'build', по умолчанию 80%), не меньше 10 ₽. Открытие — #/case/build
+   ========================================================= */
+const BUILD = { rtp: .8, off: false, min: 3, max: 20, floor: .0001, minPrice: 10 };
+const BUILD_IMG = 'assets/case-build.webp';
+const bd = { cat: 'all', q: '', sort: 'desc' };
+const r2 = v => Math.round(v * 100) / 100;
+const buildOk = s => s && s.c !== 'cash' && s.p > 0;
+function buildSel() {
+  let a = []; try { a = JSON.parse(localStorage.getItem('rc.build') || '[]'); } catch (e) { /* */ }
+  return Array.isArray(a) ? [...new Set(a)].filter(n => buildOk(SK[n])).slice(0, BUILD.max) : [];
+}
+const buildSave = a => { try { localStorage.setItem('rc.build', JSON.stringify(a)); } catch (e) { /* */ } };
+function buildCalc(names) {
+  const its = names.map(n => SK[n]).filter(buildOk).map(s => ({ ...s, p: r2(s.p) })).sort((a, b) => b.p - a.p || (a.name < b.name ? -1 : 1));
+  const n = its.length, fx = its.map(() => false), ch = its.map(() => 0);
+  if (!n) return { items: [], price: 0, ev: 0 };
+  for (let more = true; more;) {
+    let sw = 0, fm = 0; its.forEach((s, i) => { if (fx[i]) fm += BUILD.floor; else sw += 1 / s.p; });
+    more = false;
+    its.forEach((s, i) => { if (fx[i]) ch[i] = BUILD.floor; else { ch[i] = (1 - fm) * (1 / s.p) / sw; if (ch[i] < BUILD.floor) { fx[i] = true; more = true; } } });
+  }
+  const ev = its.reduce((a, s, i) => a + ch[i] * s.p, 0), price = Math.max(BUILD.minPrice, r2(ev / BUILD.rtp));
+  const fwRaw = ch.map(Math.sqrt), fs = fwRaw.reduce((a, b) => a + b, 0);
+  return { items: its.map((s, i) => ({ ...s, ch: ch[i], fw: fwRaw[i] / fs })), price, ev };
+}
+/* «кейс» для страницы открытия (#/case/build) — из текущего набора */
+function buildCase() {
+  const r = buildCalc(buildSel());
+  return { id: 'build', name: 'Собери сам', price: r.price, img: BUILD_IMG, th: { a: '#f3c14f' }, build: true, sub: '', items: r.items, disabled: BUILD.off,
+    show: r.items.slice(0, 3).map(s => s.name), rareChance: r.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0) };
+}
+/* плитка в витрине */
+const buildCard = () => `<a class="case-card cc-build" href="#/build" style="--ca:#f3c14f" data-price="${BUILD.minPrice}" data-q="собери сам свой кейс конструктор build">
+  <div class="cc-art"><div class="case-art has-img" style="--ca:#f3c14f"><i class="ca-glow"></i><img class="ca-img" src="assets/case-build-s.webp" alt="Кейс «Собери сам»" decoding="async" draggable="false"><span class="cc-new">Новый режим</span></div></div>
+  <div class="cc-body"><div class="cc-name">Собери сам</div><div class="cc-foot"><span class="cc-price cc-price-gold">от ${money(BUILD.minPrice)}</span></div></div>
+</a>`;
+function pageBuild() {
+  const sparks = Array.from({ length: 18 }, () => `<i style="left:${rand(6, 94)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 6)}s;--x:${rand(-40, 40)}px"></i>`).join('');
+  return `<section class="container bd">
+    <div class="page-head"><h1>Собери <em>сам</em></h1><p>Выберите от ${BUILD.min} до ${BUILD.max} скинов — сайт сам посчитает шансы и цену кейса. Дешёвые выпадают чаще, дорогие — реже.</p></div>
+    <div class="bd-main">
+      <div class="bd-left">
+        <div class="bd-stage" id="bdStage">
+          <i class="bd-rays"></i><i class="bd-halo"></i><div class="bd-sparks">${sparks}</div>
+          <div class="bd-orbit" id="bdOrbit"></div>
+          <div class="bd-tilt" id="bdTilt"><img class="bd-case" src="${BUILD_IMG}" alt="Кейс «Собери сам»" draggable="false"><i class="bd-shine"></i></div>
+          <i class="bd-floor"></i>
+          <span class="bd-cnt" id="bdCnt"></span>
+        </div>
+        <div class="bd-sum" id="bdSum"></div>
+        <div class="panel bd-setp">
+          <div class="panel-h"><h3>Ваш кейс</h3><span class="upg-sum" id="bdSetN"></span><button class="btn btn-ghost btn-sm" id="bdClr">Очистить</button></div>
+          <div class="bd-set" id="bdSet"></div>
+        </div>
+      </div>
+      <div class="panel bd-cat">
+        <div class="panel-h"><h3>Все скины</h3><input class="inp" id="bdQ" placeholder="Поиск" autocomplete="off"><div class="seg" id="bdSort"><button data-s="asc">₽ ↑</button><button data-s="desc">₽ ↓</button></div></div>
+        <div class="chips upg-cats" id="bdCats">${UPG_TABS.map(([k, t]) => `<button class="chip" data-cat="${k}">${t}</button>`).join('')}</div>
+        <div class="upg-cnt" id="bdCntL"></div>
+        <div class="mini-grid bd-grid" id="bdGrid"></div>
+      </div>
+    </div>
+  </section>`;
+}
+function mountBuild() {
+  $('#bdQ').value = bd.q;
+  $('#bdQ').oninput = e => { bd.q = e.target.value.trim().toLowerCase(); drawBuildCat(); };
+  $$('#bdSort button').forEach(b => b.onclick = () => { bd.sort = b.dataset.s; drawBuildCat(); });
+  $$('#bdCats [data-cat]').forEach(b => b.onclick = () => { bd.cat = b.dataset.cat; drawBuildCat(); });
+  $('#bdClr').onclick = () => { buildSave([]); drawBuild(); };
+  // наклон кейса за мышкой / пальцем (как бомба в краше)
+  const stg = $('#bdStage'), tl = $('#bdTilt');
+  const tilt = e => { const r = stg.getBoundingClientRect(); const x = clamp((e.clientX - r.left) / r.width * 2 - 1, -1, 1), y = clamp((e.clientY - r.top) / r.height * 2 - 1, -1, 1); tl.style.setProperty('--rx', (-y * 14).toFixed(2) + 'deg'); tl.style.setProperty('--ry', (x * 18).toFixed(2) + 'deg'); tl.style.setProperty('--gx', (50 + x * 40).toFixed(1) + '%'); };
+  stg.onpointermove = tilt; stg.onpointerdown = tilt;
+  stg.onpointerleave = stg.onpointercancel = () => { tl.style.setProperty('--rx', '0deg'); tl.style.setProperty('--ry', '0deg'); };
+  drawBuild();
+}
+function buildToggle(name, el) {
+  let a = buildSel();
+  if (a.includes(name)) a = a.filter(n => n !== name);
+  else {
+    if (a.length >= BUILD.max) return toast(`В кейсе максимум ${BUILD.max} скинов`, 'err');
+    a.push(name);
+    const img = el && $('img', el);
+    if (img) buildFly(img);
+  }
+  buildSave(a); Snd.safeSel(a.includes(name)); drawBuild();
+}
+/* картинка скина улетает в кейс */
+function buildFly(img) {
+  const to = $('#bdTilt'); if (!to || !img.animate) return;
+  const a = img.getBoundingClientRect(), b = to.getBoundingClientRect();
+  const f = img.cloneNode(); f.className = 'bd-fly';
+  Object.assign(f.style, { left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px' });
+  document.body.appendChild(f);
+  const dx = b.left + b.width / 2 - a.left - a.width / 2, dy = b.top + b.height * .45 - a.top - a.height / 2;
+  f.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${dx * .55}px,${dy * .55 - 60}px) scale(1.15) rotate(-8deg)`, opacity: 1, offset: .55 }, { transform: `translate(${dx}px,${dy}px) scale(.25) rotate(10deg)`, opacity: 0 }], { duration: 620, easing: 'cubic-bezier(.4,.1,.3,1)' }).onfinish = () => {
+    f.remove(); const s = $('#bdStage'); if (s) { s.classList.remove('hit'); void s.offsetWidth; s.classList.add('hit'); }
+  };
+}
+function drawBuild() {
+  if (!$('#bdSet')) return;
+  const sel = buildSel(), r = buildCalc(sel), n = r.items.length, ok = n >= BUILD.min;
+  // вокруг кейса — до 8 выбранных скинов (самые дорогие)
+  $('#bdOrbit').innerHTML = r.items.slice(0, 8).map((s, i, A) => `<img class="r-${s.r}" src="${imgUrl(s, 'm')}" alt="" style="--a:${(i / A.length * 360 - 90).toFixed(1)}deg;--dl:${(-i * .7).toFixed(1)}s">`).join('');
+  $('#bdCnt').innerHTML = `<b>${n}</b>/${BUILD.max}`;
+  $('#bdCnt').classList.toggle('ok', ok);
+  const jp = r.items[0];
+  $('#bdSum').innerHTML = `<div class="bd-kpi bd-price"><span>Цена кейса</span><b>${ok ? money(r.price) : '—'}</b></div>
+    <div class="bd-kpi"><span>Шанс джекпота</span><b>${ok ? pctTxt(jp.ch) : '—'}</b>${jp ? `<small>${esc(jp.w)} | ${esc(jp.f)} · ${money(jp.p)}</small>` : ''}</div>
+    <div class="bd-btns">${BUILD.off ? `<button class="btn btn-primary btn-xl btn-cham" disabled>Режим временно закрыт</button>`
+      : ok ? `<a class="btn btn-primary btn-xl btn-cham bd-go" href="#/case/build">${ic.box}Открыть за ${money(r.price)}</a>`
+      : `<button class="btn btn-primary btn-xl btn-cham" disabled>Добавьте ещё ${BUILD.min - n} ${plural(BUILD.min - n, 'скин', 'скина', 'скинов')}</button>`}</div>`;
+  $('#bdSetN').innerHTML = n ? `${n} ${plural(n, 'скин', 'скина', 'скинов')}` : '';
+  $('#bdSet').innerHTML = n ? r.items.map((s, i) => `<div class="bd-it r-${s.r}${i === 0 && ok ? ' jp' : ''}" data-rm="${esc(s.name)}" title="Убрать">
+      <img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="bd-in"><div class="mc-w">${esc(s.w)}</div><div class="mc-f">${esc(s.f)}</div><div class="bd-p">${money(s.p)}</div></div>
+      <div class="bd-ch">${ok ? pctTxt(s.ch) : ''}<i style="width:${ok ? Math.max(2, s.ch * 100).toFixed(1) : 0}%"></i></div><button class="bd-x" aria-label="Убрать">${ic.close}</button></div>`).join('')
+    : `<div class="empty">${ic.plus}Нажимайте на скины в каталоге — они попадут в кейс</div>`;
+  $$('[data-rm]', $('#bdSet')).forEach(el => el.onclick = () => buildToggle(el.dataset.rm));
+  drawBuildCat();
+}
+function drawBuildCat() {
+  const box = $('#bdGrid'); if (!box) return;
+  const sel = buildSel();
+  $$('#bdSort button').forEach(b => b.classList.toggle('on', b.dataset.s === bd.sort));
+  $$('#bdCats [data-cat]').forEach(b => b.classList.toggle('on', b.dataset.cat === bd.cat));
+  let list = UPG_CAT.filter(s => buildOk(s) && (bd.cat === 'all' || s.c === bd.cat) && (!bd.q || s.name.toLowerCase().includes(bd.q)));
+  if (bd.sort === 'desc') list = list.slice().reverse();
+  const total = list.length, LIMIT = 240;
+  list = list.slice(0, LIMIT);
+  $('#bdCntL').textContent = total > LIMIT ? `показано ${LIMIT} из ${fmt(total)} — уточните поиск` : `${fmt(total)} предм.`;
+  box.innerHTML = list.length ? list.map(s => mcard(s, `data-b="${esc(s.name)}"`)).join('') : `<div class="empty">${ic.search}Ничего не найдено</div>`;
+  $$('[data-b]', box).forEach(el => { if (sel.includes(el.dataset.b)) el.classList.add('sel'); el.onclick = () => buildToggle(el.dataset.b, el); });
+}
+/* админка: окупаемость и закрытие режима (site_cfg 'build') */
+function admBuild(box) {
+  box.innerHTML = axCard('Собери сам — настройки', `<div class="ax-bd">
+    <label class="ax-bd-f">Окупаемость, %<input class="inp" id="abRtp" type="number" min="30" max="98" step="1" value="${Math.round(BUILD.rtp * 100)}" inputmode="numeric"></label>
+    <label class="switch"><input type="checkbox" id="abOff"${BUILD.off ? ' checked' : ''}><i></i>Режим закрыт</label>
+    <button class="btn btn-primary btn-sm" id="abSave">${ic.check}Сохранить</button></div>
+    <p class="ax-foot">Окупаемость — сколько в среднем возвращается игроку от цены кейса (80% = сайт оставляет себе 20%). Цена кейса = средняя стоимость дропа / окупаемость. Шансы: вес скина ~ 1/цена, каждый не меньше 0,01%. Статистика открытий — во вкладке «Кейсы» (кейс «Собери сам»).</p>`);
+  $('#abSave').onclick = async () => {
+    const v = Math.round(+$('#abRtp').value);
+    if (!(v >= 30 && v <= 98)) return toast('Окупаемость — от 30 до 98%', 'err');
+    const b = $('#abSave'); b.disabled = true;
+    const val = { rtp: v / 100, off: $('#abOff').checked };
+    const { error } = await sb.from('site_cfg').upsert({ k: 'build', v: val, updated_at: new Date().toISOString() });
+    b.disabled = false;
+    if (error) return cfgErr(error);
+    BUILD.rtp = val.rtp; BUILD.off = val.off; toast('Сохранено: окупаемость ' + v + '%' + (val.off ? ', режим закрыт' : ''));
+  };
+}
+
 function pageCrash() {
   return `<section class="container crash" id="crash">
     <div class="cr-glass cr-top">
@@ -7381,7 +7540,7 @@ function tutPlace(anim) {
   else ar.style.top = Math.max(22, Math.min(ch - 22, y + h / 2 - cy)) + 'px', ar.style.left = '';
 }
 const ROUTES = {
-  '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
+  '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer],
 };
@@ -7403,11 +7562,11 @@ function route() {
   ioScan();
   tutAuto(key); // обучение новичков (кнопка «?» и первый заход)
   document.body.classList.toggle('pg-crash', key === 'crash');
-  const navKey = key === '' || key === 'case' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
+  const navKey = key === '' || key === 'case' || key === 'build' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
