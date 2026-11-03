@@ -4204,11 +4204,9 @@ function openNewPass() {
 /* =========================================================
    DEPOSIT
    ========================================================= */
-/* пополнение через поддержку — запасной путь, пока касса не подключена (и после — для тех, кому так удобнее) */
-const SUPPORT = { mail: LEGAL.mail, tg: '' }; // tg — ник поддержки в Telegram без @ (появится кнопка)
 /* онлайн-оплата через кассу: функция payment (supabase/functions/payment) создаёт счёт и ссылку, касса уведомляет сервер,
    баланс зачисляет сервер. Включается сама: функция отвечает на ?action=status, есть ли касса (секрет PAY_PROVIDER) и какие способы (PAY_METHODS).
-   Пока кассы нет — окно то же, но выбор способа или «Оплатить» показывают «способ скоро» с подпиской на Telegram и пополнение через поддержку */
+   Пока кассы нет — окно то же, но «Пополнить» показывает в окне «способ скоро» со ссылкой на Telegram. */
 const PAY_METHODS = [
   { k: 'sbp', t: 'СБП', s: 'По QR или в приложении банка', i: 'bolt', tag: 'Быстро' },
   { k: 'card', t: 'Карта РФ', s: 'МИР, Visa, Mastercard', i: 'card' },
@@ -4234,143 +4232,78 @@ async function payStart(amount, method, promo, btn) {
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.url) throw new Error(j.error || 'ошибка');
     location.href = j.url;
-  } catch (e) { btn.disabled = false; btn.innerHTML = html; toast('Оплата сейчас недоступна — попробуйте позже или пополните через поддержку', 'err'); }
+  } catch (e) { btn.disabled = false; btn.innerHTML = html; toast('Оплата сейчас недоступна — попробуйте позже', 'err'); }
 }
-// способ ещё не подключён: сообщение с подпиской на новости и запасным путём — через поддержку
-function paySoon(x, amount) {
-  const m = modal(`<div class="dps">
-    <span class="dps-ic">${ic[x ? x.i : 'wallet']}</span>
-    <h2>${x ? esc(x.t) : 'Онлайн-оплата'} — совсем скоро</h2>
-    <p>Мы уже внедряем этот способ оплаты. Чтобы быть в курсе новостей и узнать о запуске первым — подпишитесь на наш Telegram.</p>
-    <a class="btn btn-primary btn-lg btn-block" href="${TG_NEWS}" target="_blank" rel="noopener">${ic.tg}Подписаться в Telegram</a>
-    <button class="btn btn-dark btn-lg btn-block" id="dpsSup">${ic.send}Пополнить через поддержку</button>
-    <small>Через поддержку баланс зачисляет администратор — обычно за несколько минут.</small>
-  </div>`, 'm-dps');
-  $('#dpsSup', m).onclick = () => { closeModal(); openDepositSupport(amount); };
-}
+/* окно пополнения — поверх текущей страницы: слева вкладки (Карты / Крипта), справа способы оплаты, сумма, промокод и итог «Вы получите» */
+const PAY_TABS = [{ k: 'cards', t: 'Карты', i: 'card', m: ['sbp', 'card', 'intl'] }, { k: 'crypto', t: 'Крипта', i: 'coin', m: ['crypto'] }];
 async function openDeposit(need = 0, promo = null) {
   if (!st.user) return openAuth('login');
-  let amount = Math.max(100, Math.ceil((need || 500) / 50) * 50), method = null, code = promo, refPct = 0;
+  let amount = Math.max(100, Math.ceil((need || 500) / 50) * 50), tab = 'cards', method = 'sbp', code = promo, refPct = 0;
+  let S = { live: false, methods: PAY_METHODS.map(x => x.k) };
   const bonusPct = () => Math.max(st.depBonus || 0, refPct);
-  const m = modal(`<div class="dpx dpl">
-    <div class="dpx-head">
-      <span class="dpx-ico">${ic.wallet}</span>
-      <div><h2>Пополнение баланса</h2><p>${need ? `Для открытия не хватает <b>${money(need)}</b>` : 'Выберите способ оплаты и сумму'}</p></div>
-      <div class="dpx-bal"><small>На балансе</small><b>${money(st.balance)}</b></div>
+  const m = modal(`<div class="dpn">
+    <nav class="dpn-rail">${PAY_TABS.map(t => `<button data-tab="${t.k}">${ic[t.i]}<span>${t.t}</span></button>`).join('')}
+      <div class="dpn-bal"><small>На балансе</small><b>${money(st.balance)}</b></div></nav>
+    <div class="dpn-body">
+      <div class="dpn-head"><h2>Выберите способ оплаты</h2>${need ? `<span class="dpn-need">Для открытия не хватает <b>${money(need)}</b></span>` : ''}</div>
+      <div class="dpn-methods" id="dpnM"></div>
+      <div class="dpn-form">
+        <label class="dpn-l" for="depAmt">Сумма:<small>Мин. 100 ₽</small></label>
+        <div class="dpn-in"><input class="inp" id="depAmt" type="number" min="100" step="50" value="${amount}" inputmode="numeric"><span>₽</span></div>
+        <div class="dpn-chips">${[500, 1000, 2500, 5000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
+        <label class="dpn-l" for="depPromo">Промокод:<small>если есть</small></label>
+        <div class="dpn-in"><input class="inp" id="depPromo" value="${esc(promo || '')}" placeholder="Например, RUSH35" autocomplete="off" spellcheck="false" maxlength="24"><span>%</span></div>
+        <button class="btn btn-primary dpn-go" id="depGo"></button>
+      </div>
+      <div class="dpn-get">
+        <span class="dpn-get-l">Вы получите</span>
+        <div class="dpn-get-v"><span class="dpn-gi">${ic.wallet}</span><b id="depTotal"></b><em id="depBon"></em></div>
+        <i class="dpn-plus" aria-hidden="true">+</i>
+        <div class="dpn-get-v dpn-coin" title="R-COIN — ${Math.round(DEP_RC * 100)}% от суммы оплаты, 1 R-COIN = 1 ₽ в бонусных кейсах"><img src="assets/rcoin.webp" alt=""><b id="depRc"></b><em>R-COIN</em></div>
+      </div>
+      <p class="dpn-hint" id="depHint"></p>
+      <p class="dpn-foot">Если после оплаты прошло более 30 минут, а баланс не пополнился — напишите нам в <a data-act="support" id="dpnSup">поддержку</a>.</p>
     </div>
-    <div class="dpl-grid">
-      <section class="dpx-card">
-        <div class="dpx-step"><i>1</i>Способ оплаты</div>
-        <div class="dpl-methods" id="dplM"><div class="dpx-hint"><span class="spinner"></span></div></div>
-        <div class="dpx-step"><i>2</i>Сумма пополнения</div>
-        <div class="dep-amt"><input class="inp" id="depAmt" type="number" min="100" step="50" value="${amount}" inputmode="numeric"><span>₽</span></div>
-        <div class="amounts">${[300, 500, 1000, 2500, 5000, 10000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
-        <div class="dpx-step"><i>3</i>Промокод <span class="dpl-opt">если есть</span></div>
-        <div class="inp-row"><input class="inp" id="depPromo" value="${esc(promo || '')}" placeholder="Например, RUSH35" autocomplete="off" spellcheck="false" maxlength="24"><button class="btn btn-dark" id="depPromoBtn">Применить</button></div>
-      </section>
-      <aside class="dpl-sum">
-        <div class="dpx-step">Итого</div>
-        <div class="dpl-row"><span>Способ</span><b id="dplMet">не выбран</b></div>
-        <div class="dpl-row"><span>Сумма</span><b id="dplAmt"></b></div>
-        <div class="dpl-row" id="dplBonusRow"><span>Бонус</span><b class="pos" id="dplBonus"></b></div>
-        <div class="dpl-get">
-          <div class="dpl-total"><span>Будет начислено</span><b id="depTotal"></b></div>
-          <div class="dpl-rc"><span>Вы получите</span><b id="depRc"></b></div>
-        </div>
-        <button class="btn btn-primary btn-xl btn-block" id="depGo"></button>
-        <p class="dpx-hint" id="depHint"></p>
-        <ul class="dpl-trust"><li>${ic.shield}Оплата на защищённой странице платёжного сервиса</li><li>${ic.bolt}Баланс зачисляется автоматически</li><li>${ic.check}Без скрытых комиссий сайта</li></ul>
-        <p class="dpl-legal">Нажимая «Оплатить», вы принимаете <a href="#/payment">правила оплаты и возврата</a>.</p>
-      </aside>
-    </div>
-    <button class="dpl-alt" id="dplSup">Удобнее через поддержку? <b>Пополнить через поддержку →</b></button>
-  </div>`, 'm-dep');
-  const draw = () => {
-    const ok = amount >= 100 && amount <= 1000000, x = PAY_METHODS.find(v => v.k === method), b = bonusPct();
-    $$('.dpl-m', m).forEach(e => e.classList.toggle('on', e.dataset.m === method));
-    $$('.amounts button', m).forEach(e => e.classList.toggle('on', +e.dataset.a === amount));
-    $('#dplMet', m).textContent = x ? x.t : 'не выбран';
-    $('#dplAmt', m).textContent = ok ? money(amount) : '—';
-    $('#dplBonusRow', m).style.display = b ? '' : 'none';
-    $('#dplBonus', m).textContent = b ? `+${b}% · ${money(Math.round(amount * b / 100))}` : '';
+  </div>`, 'm-dep m-dpn');
+  const drawMethods = () => {
+    const T = PAY_TABS.find(t => t.k === tab);
+    $$('.dpn-rail [data-tab]', m).forEach(e => e.classList.toggle('on', e.dataset.tab === tab));
+    const list = T.m.map(k => PAY_METHODS.find(x => x.k === k)).filter(x => x && (!S.live || S.methods.includes(x.k)));
+    if (!list.some(x => x.k === method)) method = list[0] ? list[0].k : null;
+    const box = $('#dpnM', m);
+    box.innerHTML = list.map(x => `<button class="dpn-m${x.k === method ? ' on' : ''}" data-m="${x.k}">${x.tag ? `<span class="tagb">${x.tag}</span>` : ''}<span class="dpn-mi">${ic[x.i]}</span><span class="dpn-mt"><b>${x.t}</b><small>${x.s}</small></span><em>RUB</em></button>`).join('')
+      || '<p class="dpn-empty">Способы этой группы скоро появятся</p>';
+    box.classList.remove('sw'); void box.offsetWidth; box.classList.add('sw');
+    $$('.dpn-m', m).forEach(e => e.onclick = () => { method = e.dataset.m; $$('.dpn-m', m).forEach(b => b.classList.toggle('on', b === e)); draw(); });
+  };
+  const draw = (note = '') => {
+    const ok = amount >= 100 && amount <= 1000000, b = bonusPct();
+    $$('.dpn-chips button', m).forEach(e => e.classList.toggle('on', +e.dataset.a === amount));
     $('#depTotal', m).textContent = ok ? money(Math.round(amount * (1 + b / 100))) : '—';
-    $('#depRc', m).innerHTML = ok ? `${RC_IMG}<i>×</i>${rc(Math.floor(amount * DEP_RC))}<small>R-COIN</small>` : '—';
-    const gb = $('.dpl-get', m); gb.classList.remove('bump'); void gb.offsetWidth; gb.classList.add('bump');
-    const g = $('#depGo', m); g.innerHTML = `${ic.wallet}Оплатить ${ok ? money(amount) : ''}`; g.disabled = !ok;
-    const h = $('#depHint', m); h.textContent = !ok ? 'Сумма — от 100 до 1 000 000 ₽' : code ? `Промокод ${code} проверим при оплате` : refPct && refPct >= (st.depBonus || 0) ? `+${refPct}% к первому пополнению — вас пригласил друг` : ''; h.classList.toggle('err', !ok);
+    $('#depBon', m).textContent = ok && b ? `бонус +${b}%` : 'на баланс';
+    $('#depRc', m).textContent = ok ? '+' + rc(Math.floor(amount * DEP_RC)) : '—';
+    const gb = $('.dpn-get', m); gb.classList.remove('bump'); void gb.offsetWidth; gb.classList.add('bump');
+    const g = $('#depGo', m); g.innerHTML = `${ic.wallet}Пополнить${ok ? ' ' + money(amount) : ''}`; g.disabled = !ok;
+    const h = $('#depHint', m);
+    h.innerHTML = note || (!ok ? 'Сумма — от 100 до 1 000 000 ₽' : code ? `Промокод <b>${esc(code)}</b> проверим при оплате` : refPct && refPct >= (st.depBonus || 0) ? `+${refPct}% к первому пополнению — вас пригласил друг` : '');
+    h.classList.toggle('err', !ok);
   };
-  $$('.amounts button', m).forEach(e => e.onclick = () => { amount = +e.dataset.a; $('#depAmt', m).value = amount; draw(); });
+  $$('.dpn-rail [data-tab]', m).forEach(e => e.onclick = () => { tab = e.dataset.tab; drawMethods(); draw(); });
+  $$('.dpn-chips button', m).forEach(e => e.onclick = () => { amount = +e.dataset.a; $('#depAmt', m).value = amount; draw(); });
   $('#depAmt', m).oninput = e => { amount = Math.max(0, Math.round(+e.target.value || 0)); draw(); };
-  $('#depPromoBtn', m).onclick = () => { const c = $('#depPromo', m).value.trim().toUpperCase(); if (!/^[A-Z0-9]{2,24}$/.test(c)) return toast('Введите промокод', 'err'); code = c; toast(`Промокод <b>${esc(c)}</b> будет применён при оплате`); draw(); };
-  $('#dplSup', m).onclick = () => { closeModal(); openDepositSupport(amount); };
-  draw();
-  // касса и способы оплаты; бонус по приглашению друга
+  $('#depPromo', m).oninput = e => { const c = e.target.value.trim().toUpperCase(); code = /^[A-Z0-9]{2,24}$/.test(c) ? c : null; draw(); };
+  $('#dpnSup', m).onclick = () => closeModal();
+  $('#depGo', m).onclick = e => {
+    if (!method) return toast('Выберите способ оплаты', 'err');
+    // касса ещё не подключена — сообщаем прямо в окне, не закрывая его
+    if (!S.live) { const x = PAY_METHODS.find(v => v.k === method); return draw(`<b>${esc(x ? x.t : 'Онлайн-оплата')}</b> — подключаем, совсем скоро. Узнать о запуске первым — в нашем <a href="${TG_NEWS}" target="_blank" rel="noopener">Telegram</a>.`); }
+    payStart(amount, method, code, e.currentTarget);
+  };
+  drawMethods(); draw();
+  // бонус по приглашению друга; какие способы включены в кассе
   sb.rpc('my_referrals').then(({ data }) => { if (data && data.bonus) { refPct = +data.friend_pct || 0; if ($('#depTotal', m)) draw(); } }, () => {});
-  const S = await payStatus(); const box = $('#dplM', m); if (!box) return;
-  const list = PAY_METHODS.filter(x => !S.live || S.methods.includes(x.k));
-  box.innerHTML = list.map(x => `<button class="dpl-m" data-m="${x.k}">${x.tag ? `<span class="tagb">${x.tag}</span>` : ''}<span class="mi">${ic[x.i]}</span><span><b>${x.t}</b><small>${x.s}</small></span></button>`).join('');
-  if (S.live) method = list[0] && list[0].k;
-  $$('.dpl-m', m).forEach(e => e.onclick = () => { const x = PAY_METHODS.find(v => v.k === e.dataset.m); if (!S.live) return paySoon(x, amount); method = x.k; draw(); });
-  $('#depGo', m).onclick = e => { if (!S.live) return paySoon(PAY_METHODS.find(v => v.k === method), amount); if (!method) return toast('Выберите способ оплаты', 'err'); payStart(amount, method, code, e.currentTarget); };
-  draw();
-}
-/* пополнение через поддержку (запасной путь): игрок собирает заявку (ID + сумма) и отправляет её в поддержку, баланс начисляет администратор */
-function openDepositSupport(sum = 500) {
-  if (!st.user) return openAuth('login');
-  let amount = Math.max(100, Math.round(sum || 500));
-  const id = st.user.pid || st.user.rid || st.user.id;
-  const req = () => `Пополнение RUSH CASE\nID игрока: ${id}\nНик: ${st.user.name}\nСумма: ${fmt(amount)} ₽`;
-  const m = modal(`<div class="dpx">
-    <div class="dpx-head">
-      <span class="dpx-ico">${ic.wallet}</span>
-      <div><h2>Пополнение через поддержку</h2><p>Баланс зачислит администратор</p></div>
-      <div class="dpx-bal"><small>На балансе</small><b>${money(st.balance)}</b></div>
-    </div>
-    <div class="dpx-off"><i class="dpx-dot"></i><div><b>Заявка в поддержку</b><span>Отправьте заявку — поддержка пришлёт реквизиты, после оплаты баланс зачислится автоматически. Обычно это занимает несколько минут.</span></div></div>
-    <div class="dpx-grid">
-      <section class="dpx-card">
-        <div class="dpx-step"><i>1</i>Сумма пополнения</div>
-        <div class="dep-amt"><input class="inp" id="depAmt" type="number" min="100" step="50" value="${amount}" inputmode="numeric"><span>₽</span></div>
-        <div class="amounts">${[300, 500, 1000, 2500, 5000, 10000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
-        <div class="dpx-step"><i>2</i>Заявка для поддержки</div>
-        <div class="dpx-req"><div><span>ID игрока</span><b class="priv">${esc(id)}</b></div><div><span>Ник</span><b>${esc(st.user.name)}</b></div><div><span>Сумма</span><b id="depReqAmt"></b></div></div>
-        <div class="dpx-acts">
-          <button class="btn btn-primary btn-lg" id="depCopy">${ic.copy}Скопировать заявку</button>
-          ${SUPPORT.tg ? `<a class="btn btn-dark btn-lg" id="depTg" href="https://t.me/${SUPPORT.tg}" target="_blank" rel="noopener">${ic.tg}Telegram</a>` : ''}
-          <a class="btn btn-dark btn-lg" id="depMail">${ic.send}Написать на почту</a>
-        </div>
-        <p class="dpx-hint" id="depHint">Минимальная сумма — 100 ₽</p>
-      </section>
-      <aside class="dpx-how">
-        <div class="dpx-step"><i>3</i>Что дальше</div>
-        <ol>
-          <li><b>Отправьте заявку</b><span>Вставьте скопированный текст в сообщение поддержке.</span></li>
-          <li><b>Оплатите по реквизитам</b><span>Поддержка пришлёт удобный способ оплаты.</span></li>
-          <li><b>Баланс зачислится сам</b><span>Обновится на сайте автоматически — ничего нажимать не нужно.</span></li>
-        </ol>
-      </aside>
-    </div>
-  </div>`, 'm-dep');
-  const draw = () => {
-    const ok = amount >= 100 && amount <= 1000000;
-    $$('.amounts button', m).forEach(b => b.classList.toggle('on', +b.dataset.a === amount));
-    $('#depReqAmt', m).textContent = ok ? money(amount) : '—';
-    $('#depCopy', m).disabled = !ok;
-    $('#depMail', m).href = ok ? `mailto:${SUPPORT.mail}?subject=${encodeURIComponent('Пополнение баланса — ID ' + id)}&body=${encodeURIComponent(req())}` : '#';
-    $('#depMail', m).classList.toggle('dis', !ok);
-    $('#depHint', m).classList.toggle('err', !ok);
-  };
-  $$('.amounts button', m).forEach(b => b.onclick = () => { amount = +b.dataset.a; $('#depAmt', m).value = amount; draw(); });
-  $('#depAmt', m).oninput = e => { amount = Math.max(0, Math.round(+e.target.value || 0)); draw(); };
-  $('#depCopy', m).onclick = async () => {
-    try { await navigator.clipboard.writeText(req()); }
-    catch (e) { const ta = document.createElement('textarea'); ta.value = req(); document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e2) { /* ignore */ } ta.remove(); }
-    const b = $('#depCopy', m); b.innerHTML = `${ic.check}Заявка скопирована`; b.classList.add('done');
-    toast('Заявка скопирована — отправьте её в поддержку');
-    setTimeout(() => { b.innerHTML = `${ic.copy}Скопировать заявку`; b.classList.remove('done'); }, 2500);
-  };
-  $('#depMail', m).onclick = e => { if (amount < 100) e.preventDefault(); };
-  draw();
+  S = await payStatus(); if (!$('#dpnM', m)) return;
+  drawMethods(); draw();
 }
 
 /* =========================================================
