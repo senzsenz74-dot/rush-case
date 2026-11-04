@@ -51,7 +51,7 @@
 
 ## Оплата (с 04.11.2026)
 - Всё в Edge Function `supabase/functions/payment/index.ts`: касса **1plata** (адаптер '1plat': СБП/карта, `?action=create` / `?action=webhook`), скины **SkinsMoney** (`?action=skins_create` / `?action=skins`) и **Skinslink** (`?action=skinslink_create` / `?action=skinslink`), `?action=status` — что включено.
-- Зачисление только после перепроверки платежа у провайдера (правило владельца); **скины — через 7 дней** (защита от отката обмена, supabase/skins_hold.sql, pg_cron skins-release, отмена — admin_hold_cancel); база — `payments.sql` (pay_credit), `skins_pay.sql` (pay_skins, курс `site_cfg 'skins'.rate`, сейчас 78 ₽/$).
+- Зачисление только после перепроверки платежа у провайдера (правило владельца); **скины — через 7 дней** (защита от отката обмена, supabase/skins_hold.sql + skins_guard.sql: pg_cron skins-release → payment ?action=release перепроверяет у провайдера и только потом зачисляет; отмена — admin_hold_cancel); база — `payments.sql` (pay_credit), `skins_pay.sql` (pay_skins, курс `site_cfg 'skins'.rate`, сейчас 78 ₽/$).
 - Выкладка функции: Supabase → Edge Functions → payment → Code → вставить файл → **Deploy жмёт владелец**. Секреты (PAY_*, SM_*, SL_*) — только в Supabase → Edge Functions → Secrets, в чат не присылать.
 - Сайт: окно пополнения `openDeposit` (PAY_METHODS, PAY_TABS, paySkins, payStart) в js/app.js.
 

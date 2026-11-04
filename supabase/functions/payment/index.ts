@@ -8,6 +8,8 @@
 //   POST /functions/v1/payment?action=skins     (SkinsMoney) уведомление о депозите → подпись → pay_skins (supabase/skins_pay.sql)
 //   POST /functions/v1/payment?action=skinslink_create (игрок) {promo?} → {url} — пополнение скинами через Skinslink
 //   POST /functions/v1/payment?action=skinslink (Skinslink) уведомление → подпись → перепроверка статуса → pay_skins (только completed)
+//   POST /functions/v1/payment?action=release   (pg_cron раз в 10 мин, supabase/skins_guard.sql) — скины, у которых прошли 7 дней ожидания:
+//        ещё раз спрашиваем провайдера, что обмен не откатили, и только тогда зачисляем (pay_credit); откатили — pay_fail
 //
 // Секреты (Edge Functions → Secrets): PAY_PROVIDER (имя адаптера ниже), PAY_SHOP_ID, PAY_SECRET, PAY_SECRET2 (если касса даёт второй ключ),
 //   PAY_API_URL (адрес создания платежа у кассы), PAY_METHODS — какие способы показывать, через запятую (по умолчанию sbp,card,intl,crypto).
@@ -151,7 +153,15 @@ async function skinsCreate(req: Request, admin: ReturnType<typeof createClient>)
 }
 // перепроверка у SkinsMoney: депозит действительно завершён и деньги зачислены на наш баланс в их кабинете.
 // Только по их ответу (а не по уведомлению) пополняем игрока; сумма — тоже из их ответа.
-async function smConfirm(depId: string, payId: string): Promise<number | null> {
+// тестовые депозиты (Test Mode SkinsMoney) зачисляем только владельцам сайта и только пока задан SM_ALLOW_TEST=1 — игроку тестовый «скин» денег не даст
+async function smTestOk(admin: ReturnType<typeof createClient>, payId: string) {
+  if (env('SM_ALLOW_TEST') !== '1') return false;
+  const { data: p } = await admin.from('payments').select('uid').eq('id', payId).maybeSingle();
+  if (!p) return false;
+  const { data: pr } = await admin.from('profiles').select('is_admin').eq('id', p.uid).maybeSingle();
+  return !!pr?.is_admin;
+}
+async function smConfirm(depId: string, payId: string, testOk = false): Promise<number | null> {
   const sig = await sha256([depId, env('SM_SERVICE'), env('SM_HASH')].join('|'));
   const r = await fetch(`${SM_API}/v1/services/${env('SM_SERVICE')}/deposits/${depId}?signature=${sig}`, { headers: { authorization: 'Bearer ' + env('SM_TOKEN'), accept: 'application/json' } });
   const j = await r.json().catch(() => ({}));
@@ -162,7 +172,7 @@ async function smConfirm(depId: string, payId: string): Promise<number | null> {
   if (d.status !== 'success' || !d.traded_at || !okState || String(d.custom || '') !== payId || !(usd > 0)) {
     console.log('skinsmoney not settled', JSON.stringify({ status: d.status, traded_at: d.traded_at, trade_state: d.trade_state, usd })); return null;
   }
-  if (+d.test_mode === 1 && env('SM_ALLOW_TEST') !== '1') return null;
+  if (+d.test_mode === 1 && !testOk) { console.log('skinsmoney test deposit not credited', payId); return null; }
   return usd;
 }
 async function skinsIpn(req: Request, admin: ReturnType<typeof createClient>) {
@@ -172,11 +182,12 @@ async function skinsIpn(req: Request, admin: ReturnType<typeof createClient>) {
   const ok = () => new Response('OK', { status: 200, headers: { 'content-type': 'text/plain' } });
   const id = String(j.custom || ''), st = String(j.status || '');
   if (!/^[0-9a-f-]{36}$/i.test(id)) return ok();                              // депозит не с нашего сайта
-  if (+(j.isTest as number) === 1 && env('SM_ALLOW_TEST') !== '1') return ok(); // тестовые депозиты не зачисляем
+  const testOk = await smTestOk(admin, id);
+  if (+(j.isTest as number) === 1 && !testOk) return ok(); // тестовые депозиты не зачисляем (кроме владельцев при SM_ALLOW_TEST=1)
   if (st === 'failure') { await admin.rpc('pay_fail', { p_id: id, p_raw: j }); return ok(); }
   if (st !== 'success') return ok();                                           // waiting / pending — ждём следующего уведомления
   // уведомлению не верим на слово: спрашиваем SkinsMoney сами. Не подтвердили — не зачисляем, отвечаем ошибкой, они пришлют уведомление повторно
-  const usd = await smConfirm(String(j.transactionId || ''), id);
+  const usd = await smConfirm(String(j.transactionId || ''), id, testOk);
   if (usd === null) return new Response('not settled yet', { status: 409 });
   const { error } = await admin.rpc('pay_skins', { p_id: id, p_ext: String(j.transactionId || ''), p_usd: usd, p_raw: j });
   if (error) { console.log('skinsmoney credit', error.message); return new Response(error.message, { status: 400 }); } // SkinsMoney повторит
@@ -224,6 +235,31 @@ async function slConfirm(payId: string): Promise<{ usd: number; raw: unknown } |
   if (d.custom_currency !== 'RUB' || !(sum > 0) || !(rate > 0)) { console.log('skinslink no rub sum', JSON.stringify(d).slice(0, 300)); return null; }
   return { usd: sum / rate, raw: d }; // pay_skins умножит обратно на курс — получится та же сумма в рублях
 }
+// конец 7-дневного ожидания: перепроверяем у провайдера и только потом зачисляем
+async function release(admin: ReturnType<typeof createClient>) {
+  const { data: due } = await admin.from('payments').select('id, provider, ext_id, amount, raw').eq('status', 'hold').lte('hold_until', new Date().toISOString()).order('hold_until').limit(30);
+  const res = { credited: 0, failed: 0, waiting: 0 };
+  for (const p of (due || []) as { id: string; provider: string; ext_id: string; amount: number; raw: unknown }[]) {
+    let ok = false, bad = false;
+    try {
+      if (p.provider === 'skinslink') {
+        const r = await fetch(`${SL_API}/merchant/deposit/status?merchant_tx_id=${encodeURIComponent(p.id)}`, { headers: { 'x-api-key': env('SL_KEY'), accept: 'application/json' } });
+        const j = await r.json().catch(() => ({})), d = j?.data;
+        if (r.ok && j?.success && d && String(d.merchant_tx_id) === p.id) {
+          if (['reverted', 'failed', 'canceled'].includes(d.status)) bad = true;
+          else ok = d.status === 'completed' && +d.custom_currency_sum >= +p.amount - 0.01;
+        }
+      } else if (p.provider === 'skinsmoney') {
+        ok = (await smConfirm(String(p.ext_id || ''), p.id, await smTestOk(admin, p.id))) !== null;
+      }
+    } catch (e) { console.log('release check', p.id, String(e)); }
+    if (bad) { await admin.rpc('pay_fail', { p_id: p.id, p_raw: p.raw }); res.failed++; continue; }
+    if (!ok) { console.log('release: provider did not confirm, keep waiting', p.id, p.provider); res.waiting++; continue; }
+    const { error } = await admin.rpc('pay_credit', { p_id: p.id, p_ext: p.ext_id, p_amount: p.amount, p_raw: p.raw });
+    if (error) { console.log('release credit', p.id, error.message); res.waiting++; } else res.credited++;
+  }
+  return json(res);
+}
 async function slWebhook(req: Request, admin: ReturnType<typeof createClient>) {
   const raw = await req.text();
   let j: Record<string, unknown>; try { j = JSON.parse(raw); } catch (_) { return new Response('bad json', { status: 400 }); }
@@ -234,7 +270,7 @@ async function slWebhook(req: Request, admin: ReturnType<typeof createClient>) {
   const id = String(j.merchant_tx_id || ''), st = String(j.status || '');
   if (!/^[0-9a-f-]{36}$/i.test(id)) return ok();
   if (st === 'failed' || st === 'canceled') { await admin.rpc('pay_fail', { p_id: id, p_raw: j }); return ok(); }
-  if (st === 'reverted') { console.log('skinslink reverted', id); return ok(); }   // откат на блокировке — мы не зачисляли
+  if (st === 'reverted') { console.log('skinslink reverted', id); await admin.rpc('pay_fail', { p_id: id, p_raw: j }); return ok(); } // откат обмена — ожидание отменяется, баланс не придёт
   if (st !== 'completed') return ok();                                               // hold — ждём окончания блокировки Steam
   const c = await slConfirm(id);
   if (!c) return new Response('not completed yet', { status: 409 });
@@ -256,6 +292,7 @@ Deno.serve(async (req) => {
     return json({ live: !!P, methods: METHODS, skins: smOn(), skinslink: slOn(), skinsRate: rate });
   }
   // пополнение скинами работает независимо от основной кассы
+  if (action === 'release') return release(admin);
   if (action === 'skins_create') return smOn() ? skinsCreate(req, admin) : json({ error: 'skins disabled' }, 503);
   if (action === 'skins') return smOn() ? skinsIpn(req, admin) : new Response('disabled', { status: 503 });
   if (action === 'skinslink_create') return slOn() ? slCreate(req, admin) : json({ error: 'skinslink disabled' }, 503);

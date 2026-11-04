@@ -4238,7 +4238,7 @@ function sbInit() {
   const qs = new URLSearchParams(location.search), stTok = qs.get('steam_token'), stErr = qs.get('steam_error');
   const payRet = qs.get('pay');
   if (stTok || stErr || payRet) history.replaceState(null, '', location.pathname + location.hash);
-  if (payRet) setTimeout(() => { if (payRet === 'ok') { toast('Оплата прошла — баланс зачислится в течение пары минут' + (SK_HOLD ? `; пополнение скинами — через ${SK_HOLD} ${plural(SK_HOLD, 'день', 'дня', 'дней')} (защита от отката обмена Steam)` : '')); [3e3, 1e4, 3e4].forEach(ms => setTimeout(sbRefresh, ms)); } else toast('Оплата не завершена', 'err'); }, 800);
+  if (payRet) setTimeout(() => { if (payRet === 'ok') { toast('Проверяем оплату — баланс зачислится, как только деньги поступят в кассу (обычно пара минут)' + (SK_HOLD ? `; пополнение скинами — через ${SK_HOLD} ${plural(SK_HOLD, 'день', 'дня', 'дней')} (защита от отката обмена Steam)` : '')); [3e3, 1e4, 3e4].forEach(ms => setTimeout(sbRefresh, ms)); } else toast('Оплата не завершена', 'err'); }, 800);
   if (stErr) setTimeout(() => toast(stErr === 'cancel' ? 'Вход через Steam отменён' : 'Не удалось войти через Steam — попробуйте ещё раз', 'err'), 600);
   if (stTok) { sb.auth.verifyOtp({ token_hash: stTok, type: 'magiclink' }).then(({ data, error }) => { if (error || !data.session) return toast('Не удалось войти через Steam: ' + (error ? error.message : 'нет сессии'), 'err'); sbLoadProfile(data.session).then(ok => ok && afterLogin(false)); }); }
   loadCaseCfg().then(loadCustomCases).then(loadCaseSettings);
