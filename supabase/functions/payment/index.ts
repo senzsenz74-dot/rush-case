@@ -70,6 +70,8 @@ void md5; void hmac; // для адаптеров касс с подписью M
 // Секреты: SM_TOKEN (API-токен из кабинета), SM_SERVICE (Service ID), SM_HASH (Secret Signature Key), SM_ALLOW_TEST=1 — зачислять тестовые депозиты (только на время проверки).
 // В кабинете SkinsMoney: IPN URL (deposit) = https://<проект>.supabase.co/functions/v1/payment?action=skins
 const SM_API = 'https://api.skinsmoney.gg';
+// ссылка на обмен Steam в любом виде (лишние параметры, http) → partner, token и чистая ссылка
+const tradeParse = (t: unknown) => { const m = String(t || '').match(/partner=(\d+)&token=([\w-]+)/); return m ? { partner: +m[1], token: m[2], url: 'https://steamcommunity.com/tradeoffer/new/?partner=' + m[1] + '&token=' + m[2] } : null; };
 const smOn = () => !!(env('SM_TOKEN') && env('SM_SERVICE') && env('SM_HASH'));
 // значение поля так, как оно пришло в теле (без потери формата чисел: 2.50 ≠ 2.5)
 function rawField(raw: string, key: string): string | null {
@@ -98,11 +100,11 @@ async function skinsCreate(req: Request, admin: ReturnType<typeof createClient>)
   const { data: cfg } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle();
   const min = Math.max(.1, +(cfg?.v?.min ?? 1) || 1);
   const { data: prof } = await admin.from('profiles').select('data').eq('id', u.user.id).maybeSingle();
-  const trade = String(prof?.data?.trade || '');
+  const tp = tradeParse(b.trade) || tradeParse(prof?.data?.trade); // ссылка из окна пополнения, иначе из профиля
   const { data: pay, error } = await admin.from('payments').insert({ uid: u.user.id, amount: 1, method: 'skins', promo, provider: 'skinsmoney' }).select('id').single();
   if (error || !pay) return json({ error: 'db error' }, 500);
   const body: Record<string, unknown> = { minValue: min, currencyCode: 'USD', custom: pay.id, redirectUrl: SITE + '?pay=ok' };
-  if (/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/.test(trade)) body.tradeUrl = trade;
+  if (tp) body.tradeUrl = tp.url;
   try {
     const r = await fetch(`${SM_API}/v1/services/${env('SM_SERVICE')}/deposits`, { method: 'POST', headers: { authorization: 'Bearer ' + env('SM_TOKEN'), 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
@@ -161,12 +163,12 @@ async function slCreate(req: Request, admin: ReturnType<typeof createClient>) {
   const { data: cfg } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle();
   const rate = Math.max(.1, +(cfg?.v?.rate ?? 90) || 90);
   const { data: prof } = await admin.from('profiles').select('data').eq('id', u.user.id).maybeSingle();
-  const tm = String(prof?.data?.trade || '').match(/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=(\d+)&token=([\w-]+)$/);
+  const tm = tradeParse(b.trade) || tradeParse(prof?.data?.trade); // ссылка из окна пополнения, иначе из профиля
   const { data: pay, error } = await admin.from('payments').insert({ uid: u.user.id, amount: 1, method: 'skins', promo, provider: 'skinslink' }).select('id').single();
   if (error || !pay) return json({ error: 'db error' }, 500);
   const body: Record<string, unknown> = { merchant_tx_id: pay.id, game: 'csgo', result_url: `${env('SUPABASE_URL')}/functions/v1/payment?action=skinslink`,
     success_url: SITE + '?pay=ok', fail_url: SITE + '?pay=fail', custom_currency: 'RUB', custom_currency_multiplier: 1, custom_currency_rate: rate };
-  if (tm) { body.partner = +tm[1]; body.token = tm[2]; }
+  if (tm) { body.partner = tm.partner; body.token = tm.token; }
   try {
     const r = await fetch(`${SL_API}/merchant/create-intent`, { method: 'POST', headers: { 'x-api-key': env('SL_KEY'), 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));

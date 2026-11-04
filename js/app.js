@@ -4289,11 +4289,11 @@ async function payStart(amount, method, promo, btn) {
   } catch (e) { btn.disabled = false; btn.innerHTML = html; toast('Оплата сейчас недоступна — попробуйте позже', 'err'); }
 }
 /* пополнение скинами (SkinsMoney): сумма = стоимость отданных скинов × курс, зачисляет сервер по уведомлению */
-async function paySkins(promo, btn, prov = 'skins') {
+async function paySkins(promo, btn, prov = 'skins', trade = '') {
   const { data } = await sb.auth.getSession(); if (!data.session) return openAuth('login');
   const html = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Переходим к обмену…';
   try {
-    const r = await fetch(SB_URL + '/functions/v1/payment?action=' + (prov === 'skinslink' ? 'skinslink_create' : 'skins_create'), { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + data.session.access_token, apikey: SB_KEY }, body: JSON.stringify({ promo }) });
+    const r = await fetch(SB_URL + '/functions/v1/payment?action=' + (prov === 'skinslink' ? 'skinslink_create' : 'skins_create'), { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + data.session.access_token, apikey: SB_KEY }, body: JSON.stringify({ promo, trade }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.url) throw new Error(j.error || 'ошибка');
     location.href = j.url;
@@ -4319,6 +4319,8 @@ async function openDeposit(need = 0, promo = null) {
         <label class="dpn-l" for="depAmt">Сумма:<small>Мин. 100 ₽</small></label>
         <div class="dpn-in"><input class="inp" id="depAmt" type="number" min="100" step="50" placeholder="${need ? fmt(Math.max(100, Math.ceil(need / 50) * 50)) : 'Введите сумму'}" inputmode="numeric"><span>₽</span></div>
         <div class="dpn-chips">${[500, 1000, 2500, 5000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
+        <label class="dpn-l dpn-tr" for="depTrade">Ссылка на обмен:<small><a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">где взять?</a></small></label>
+        <div class="dpn-in dpn-tr"><input class="inp" id="depTrade" value="${esc(st.trade || '')}" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" autocomplete="off" spellcheck="false"></div>
         <label class="dpn-l" for="depPromo">Промокод:<small>если есть</small></label>
         <div class="dpn-in"><input class="inp" id="depPromo" value="${esc(promo || '')}" placeholder="Например, RUSH35" autocomplete="off" spellcheck="false" maxlength="24"><span>%</span></div>
         <button class="btn btn-primary dpn-go" id="depGo"></button>
@@ -4376,11 +4378,18 @@ async function openDeposit(need = 0, promo = null) {
   $('#depAmt', m).oninput = e => { amount = Math.max(0, Math.round(+e.target.value || 0)); draw(); };
   $('#depPromo', m).oninput = e => { const c = e.target.value.trim().toUpperCase(); code = /^[A-Z0-9]{2,24}$/.test(c) ? c : null; draw(); };
   $('#dpnSup', m).onclick = () => closeModal();
-  $('#depGo', m).onclick = e => {
+  $('#depGo', m).onclick = async e => {
     if (!method) return toast('Выберите способ оплаты', 'err');
     // касса ещё не подключена — сообщаем прямо в окне, не закрывая его
     const xm = PAY_METHODS.find(v => v.k === method);
-    if (isSk(method) && skOn(method)) return paySkins(code, e.currentTarget, method);
+    if (isSk(method) && skOn(method)) {
+      const btn = e.currentTarget, inp = $('#depTrade', m), tm = (inp.value || '').match(/partner=(\d+)&token=([\w-]+)/);
+      if (!tm) { inp.classList.add('err'); inp.focus(); return draw('Вставьте <b>ссылку на обмен</b> Steam — по ней провайдер увидит ваш инвентарь и отправит обмен.'); }
+      const trade = `https://steamcommunity.com/tradeoffer/new/?partner=${tm[1]}&token=${tm[2]}`;
+      inp.classList.remove('err');
+      if (trade !== st.trade) { const r = await srv('save_trade', { p_trade: trade }); if (!r) return; st.trade = trade; save(); }
+      return paySkins(code, btn, method, trade);
+    }
     if (!S.live || (xm && soon(xm))) { const x = xm; return draw(`<b>${esc(x ? x.t : 'Онлайн-оплата')}</b> — подключаем, совсем скоро. Узнать о запуске первым — в нашем <a href="${TG_NEWS}" target="_blank" rel="noopener">Telegram</a>.`); }
     payStart(amount, method, code, e.currentTarget);
   };
