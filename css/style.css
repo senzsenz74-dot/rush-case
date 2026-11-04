@@ -4574,6 +4574,8 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 @keyframes hotPulse{50%{box-shadow:0 0 22px 0 rgba(255,90,40,.95)}}
 .dpn-mi{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.05);color:var(--txt2)}
 .dpn-mi svg{width:22px;height:22px}
+.dpn-mi.img,.dpn-m.on .dpn-mi.img{background:none;box-shadow:none}
+.dpn-mi img{width:38px;height:38px;border-radius:50%;filter:drop-shadow(0 3px 6px rgba(0,0,0,.45))}
 .dpn-m.on .dpn-mi{background:var(--g-gold);color:var(--ink)}
 .dpn-mt{display:flex;flex-direction:column;gap:2px;min-width:0;padding-right:28px}
 .dpn-mt b{font-size:14px}
