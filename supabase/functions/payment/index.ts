@@ -92,6 +92,43 @@ const PROVIDERS: Record<string, Provider> = {
       return { id, ext: String(j.guid), amount: +pay.amount, paid: true, ok };
     },
   },
+  // Enot (enot.io, документация: https://docs.enot.io/e/new). Секреты: PAY_PROVIDER=enot, ENOT_SHOP (id кассы), ENOT_KEY (секретный ключ),
+  // ENOT_KEY2 (дополнительный ключ — подпись уведомлений), PAY_METHODS (например sbp,card). URL уведомлений в кассе: …/functions/v1/payment?action=webhook.
+  // Зачисляем только после перепроверки счёта у Enot (invoice/info): статус success, наш номер заказа, сумма — из их ответа.
+  enot: {
+    async createUrl(p) {
+      const body = { amount: p.amount, order_id: p.id, currency: 'RUB', shop_id: env('ENOT_SHOP'), hook_url: `${env('SUPABASE_URL')}/functions/v1/payment?action=webhook`,
+        success_url: SITE + '?pay=ok', fail_url: SITE + '?pay=fail', expire: 120, comment: 'Пополнение баланса RUSH CASE',
+        include_service: p.method === 'sbp' ? ['sbp'] : p.method === 'crypto' ? ['usdt_trc20', 'ton', 'bitcoin'] : ['card', 'mir_card'] };
+      const r = await fetch('https://api.enot.io/invoice/create', { method: 'POST', headers: { 'x-api-key': env('ENOT_KEY'), 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j?.data?.url) { console.log('enot create', r.status, JSON.stringify(j).slice(0, 400)); throw new Error('provider create failed'); }
+      return j.data.url;
+    },
+    async parse(req, raw) {
+      const j = JSON.parse(raw);
+      // подпись: hmac-sha256(дополнительный ключ, тело с ключами по алфавиту). У Enot в примерах два разных формата JSON — проверяем оба;
+      // не совпала — не страшно: деньги зачисляем только по ответу самого Enot (запрос с нашим секретным ключом)
+      const sort = (o: unknown): unknown => o && typeof o === 'object' && !Array.isArray(o) ? Object.keys(o as Record<string, unknown>).sort().reduce((a, k) => { a[k] = sort((o as Record<string, unknown>)[k]); return a; }, {} as Record<string, unknown>) : o;
+      const ser = (o: unknown, sp: boolean): string => Array.isArray(o) ? '[' + o.map(x => ser(x, sp)).join(sp ? ', ' : ',') + ']'
+        : o && typeof o === 'object' ? '{' + Object.entries(o as Record<string, unknown>).map(([k, v]) => JSON.stringify(k) + (sp ? ': ' : ':') + ser(v, sp)).join(sp ? ', ' : ',') + '}' : JSON.stringify(o);
+      const compact = ser(sort(j), false), spaced = ser(sort(j), true);
+      const sig = (req.headers.get('x-api-sha256-signature') || '').toLowerCase(), key = env('ENOT_KEY2');
+      if (!key || ![compact, spaced].some(s => safeEq(sig, createHmac('sha256', key).update(s).digest('hex')))) console.log('enot signature mismatch — проверяем счёт у Enot', j.order_id);
+      const ok = () => json({ ok: true });
+      const id = String(j.order_id || ''), st = String(j.status || '');
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return { id, ext: '', amount: 0, paid: false, skip: true, ok };
+      if (+j.type === 2 || st === 'refund') { console.log('enot refund', id, j.refund_amount); return { id, ext: '', amount: 0, paid: false, skip: true, ok }; } // возврат — разбираем вручную
+      if (st === 'fail' || st === 'expired') return { id, ext: String(j.invoice_id || ''), amount: 0, paid: false, ok };
+      if (st !== 'success') return { id, ext: '', amount: 0, paid: false, skip: true, ok };
+      // перепроверка у Enot: счёт действительно оплачен
+      const r = await fetch(`https://api.enot.io/invoice/info?shop_id=${encodeURIComponent(env('ENOT_SHOP'))}&order_id=${encodeURIComponent(id)}`, { headers: { 'x-api-key': env('ENOT_KEY'), accept: 'application/json' } });
+      const info = await r.json().catch(() => ({}));
+      const d = info?.data;
+      if (!r.ok || !d || String(d.order_id) !== id || d.status !== 'success') { console.log('enot not confirmed', r.status, JSON.stringify(info).slice(0, 300)); throw new Error('not confirmed'); }
+      return { id, ext: String(d.invoice_id || j.invoice_id || ''), amount: +d.invoice_amount, paid: true, ok };
+    },
+  },
   // тестовая касса — только для проверки цепочки на тестовом проекте (PAY_PROVIDER=test): «страница оплаты» сразу шлёт уведомление
   test: {
     async createUrl(p) { return `${env('SUPABASE_URL')}/functions/v1/payment?action=testpay&id=${p.id}`; },
