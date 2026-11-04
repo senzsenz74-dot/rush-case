@@ -2194,7 +2194,7 @@ function mountHomeBonus() {
     el('hbSub').textContent = left ? 'до следующего подарка' : 'подарок ждёт — заберите его';
     el('hbDot').textContent = left ? '' : 'доступен';
     const b = $('#hbBtn'); if (b) { b.textContent = left ? 'Подробнее' : 'Забрать'; b.classList.toggle('ghost', !!left); }
-    (t.closest('.hb2-c, .bx') || t).classList.toggle('ready', !left);
+    (t.closest('.hb2-c, .bx, .bx2') || t).classList.toggle('ready', !left);
   };
   every(tick, 1000);
 }
@@ -2211,17 +2211,15 @@ function mountHome() {
 /* три окна бонусов — компактно, столбиком справа от баннера */
 function bonusMini() {
   const got = (st.socials || []).length, left = dailyLeft(), all = SOCIALS.length;
-  // три бонуса в одном стиле: значок в золотом квадрате, подпись, крупное золотое число, одна кнопка справа
-  return `<div class="hbm bxs" id="homeBonus">
-    <article class="bx"><span class="bx-ic" aria-hidden="true"><b>%</b></span>
-      <div class="hbm-t"><span class="bx-l">Бонус к пополнению</span><b class="bx-v">+35%</b></div>
-      <div class="hbm-a"><button class="bx-btn" data-act="copy" data-copy="RUSH35" title="Скопировать промокод">RUSH35<i>${ic.copy}</i></button></div></article>
-    <article class="bx bx-daily${left ? '' : ' ready'}"><span class="bx-ic" aria-hidden="true">${ic.gift}</span>
-      <div class="hbm-t"><span class="bx-l">Ежедневный бонус <em class="bx-dot" id="hbDot">${left ? '' : 'доступен'}</em></span><b class="bx-v" id="hbTimer">${left ? dailyText() : 'до 250 ₽'}</b><div class="bx-bar"><i id="hbBar" style="width:${((1 - left / DAILY_MS) * 100).toFixed(1)}%"></i></div></div>
-      <div class="hbm-a"><a class="bx-btn${left ? ' ghost' : ''}" id="hbBtn" href="#/bonus">${left ? 'Подробнее' : 'Забрать'}</a></div></article>
-    <article class="bx"><span class="bx-ic" aria-hidden="true">${ic.users}</span>
-      <div class="hbm-t"><span class="bx-l">За подписки · ${got}/${all}</span><b class="bx-v">+10 ₽ <small>за канал</small></b></div>
-      <div class="hbm-a"><a class="bx-btn${got >= all ? ' ghost' : ''}" href="#/bonus">${got >= all ? 'Получено' : 'Подписаться'}</a></div></article>
+  // три бонуса: сверху значок и название на всю ширину, снизу крупное число и кнопка; большой полупрозрачный значок справа
+  const card = (cls, icon, label, value, btn, extra = '') => `<article class="bx2${cls}"><i class="bx2-wm" aria-hidden="true">${icon}</i>
+      <header class="bx2-h"><span class="bx2-ic" aria-hidden="true">${icon}</span><span class="bx2-l">${label}</span></header>
+      <div class="bx2-r">${value}${btn}</div>${extra}</article>`;
+  return `<div class="hbm bx2s" id="homeBonus">
+    ${card('', '<b>%</b>', 'Бонус к пополнению', '<b class="bx2-v">+35%</b>', `<button class="bx2-btn" data-act="copy" data-copy="RUSH35" title="Скопировать промокод">RUSH35<i>${ic.copy}</i></button>`)}
+    ${card(' bx2-daily' + (left ? '' : ' ready'), ic.gift, `Ежедневный бонус <em class="bx2-dot" id="hbDot">${left ? '' : 'доступен'}</em>`, `<b class="bx2-v" id="hbTimer">${left ? dailyText() : 'до 250 ₽'}</b>`,
+      `<a class="bx2-btn${left ? ' ghost' : ''}" id="hbBtn" href="#/bonus">${left ? 'Подробнее' : 'Забрать'}</a>`, `<div class="bx2-bar"><i id="hbBar" style="width:${((1 - left / DAILY_MS) * 100).toFixed(1)}%"></i></div>`)}
+    ${card('', ic.users, `За подписки <em class="bx2-n">${got}/${all}</em>`, '<b class="bx2-v">+10 ₽ <small>за канал</small></b>', `<a class="bx2-btn${got >= all ? ' ghost' : ''}" href="#/bonus">${got >= all ? 'Получено' : 'Подписаться'}</a>`)}
   </div>`;
 }
 function pageCases() {
