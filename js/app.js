@@ -4263,8 +4263,8 @@ const PAY_METHODS = [
   { k: 'crypto', t: 'Криптовалюта', s: 'USDT, BTC, TON', i: 'coin' },
   { k: 'yoomoney', t: 'ЮMoney', s: 'Кошелёк ЮMoney', i: 'wallet', soon: 1 },
   { k: 'payeer', t: 'Payeer', s: 'Кошелёк Payeer', i: 'wallet', soon: 1 },
+  { k: 'skinslink', t: 'Skinslink', s: 'Скины CS2 через обмен Steam', i: 'steam', tag: 'HOT', soon: 1 },
   { k: 'skins', t: 'SkinsMoney', s: 'Скины CS2 через обмен Steam', i: 'steam', soon: 1 },
-  { k: 'skinslink', t: 'Skinslink', s: 'Скины CS2 через обмен Steam', i: 'steam', soon: 1 },
   { k: 'mobile', t: 'Баланс телефона', s: 'МТС, Билайн, МегаФон, Tele2', i: 'send', soon: 1 },
 ];
 const TG_NEWS = 'https://t.me/rushcasse';
@@ -4301,7 +4301,7 @@ async function paySkins(promo, btn, prov = 'skins', trade = '') {
 }
 /* окно пополнения — поверх текущей страницы: слева вкладки (Карты / Крипта), справа способы оплаты, сумма, промокод и итог «Вы получите» */
 const PAY_TABS = [{ k: 'cards', t: 'Карты', i: 'card', m: ['sbp', 'card', 'intl'] }, { k: 'wallets', t: 'Кошельки', i: 'wallet', m: ['yoomoney', 'payeer'] },
-  { k: 'crypto', t: 'Крипта', i: 'coin', m: ['crypto'] }, { k: 'skins', t: 'Скины', i: 'knife', m: ['skins', 'skinslink'] }, { k: 'other', t: 'Другое', i: 'gem', m: ['mobile'] }];
+  { k: 'crypto', t: 'Крипта', i: 'coin', m: ['crypto'] }, { k: 'skins', t: 'Скины', i: 'knife', m: ['skinslink', 'skins'] }, { k: 'other', t: 'Другое', i: 'gem', m: ['mobile'] }];
 async function openDeposit(need = 0, promo = null) {
   if (!st.user) return openAuth('login');
   let amount = 0, tab = 'cards', method = 'sbp', code = promo, refPct = 0;
@@ -4341,7 +4341,7 @@ async function openDeposit(need = 0, promo = null) {
     const list = T.m.map(k => PAY_METHODS.find(x => x.k === k)).filter(x => x && (soon(x) || isSk(x.k) || !S.live || S.methods.includes(x.k)));
     if (!list.some(x => x.k === method)) method = list[0] ? list[0].k : null;
     const box = $('#dpnM', m);
-    box.innerHTML = list.map(x => `<button class="dpn-m${x.k === method ? ' on' : ''}${soon(x) ? ' soon' : ''}" data-m="${x.k}">${x.tag ? `<span class="tagb">${x.tag}</span>` : ''}<span class="dpn-mi">${ic[x.i]}</span><span class="dpn-mt"><b>${x.t}</b><small>${x.s}</small></span><em>${x.soon ? 'скоро' : 'RUB'}</em></button>`).join('')
+    box.innerHTML = list.map(x => `<button class="dpn-m${x.k === method ? ' on' : ''}${soon(x) ? ' soon' : ''}" data-m="${x.k}">${x.tag ? `<span class="tagb${x.tag === 'HOT' ? ' hot' : ''}">${x.tag === 'HOT' ? ic.fire : ''}${x.tag}</span>` : ''}<span class="dpn-mi">${ic[x.i]}</span><span class="dpn-mt"><b>${x.t}</b><small>${x.s}</small></span><em>${x.soon ? 'скоро' : 'RUB'}</em></button>`).join('')
       || '<p class="dpn-empty">Способы этой группы скоро появятся</p>';
     box.classList.remove('sw'); void box.offsetWidth; box.classList.add('sw');
     $$('.dpn-m', m).forEach(e => e.onclick = () => { method = e.dataset.m; $$('.dpn-m', m).forEach(b => b.classList.toggle('on', b === e)); draw(); });

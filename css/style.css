@@ -4569,6 +4569,9 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 .dpn-m.on{border-color:var(--gold);background:radial-gradient(120% 100% at 0 0,rgba(243,193,79,.16),transparent 60%),rgba(243,193,79,.04);box-shadow:0 0 0 1px rgba(243,193,79,.35),0 10px 30px -12px rgba(243,193,79,.45)}
 .dpn-m.on::after{content:"✓";position:absolute;right:10px;top:10px;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--g-gold);color:var(--ink);font:900 11px/1 var(--ff)}
 .dpn-m .tagb{position:absolute;left:64px;top:24px;padding:4px 8px;border-radius:999px;background:rgba(243,193,79,.14);border:1px solid rgba(243,193,79,.3);color:var(--gold);font:800 9.5px/1 var(--ff);letter-spacing:.08em;text-transform:uppercase}
+.dpn-m .tagb.hot{display:inline-flex;align-items:center;gap:3px;background:linear-gradient(135deg,#ff7a2f,#e5243b);border-color:rgba(255,140,80,.6);color:#fff;box-shadow:0 0 14px -2px rgba(255,90,40,.75);animation:hotPulse 1.8s ease-in-out infinite}
+.dpn-m .tagb.hot svg{width:10px;height:10px}
+@keyframes hotPulse{50%{box-shadow:0 0 22px 0 rgba(255,90,40,.95)}}
 .dpn-mi{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.05);color:var(--txt2)}
 .dpn-mi svg{width:22px;height:22px}
 .dpn-m.on .dpn-mi{background:var(--g-gold);color:var(--ink)}
