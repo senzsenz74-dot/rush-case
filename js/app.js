@@ -4270,8 +4270,8 @@ function openNewPass() {
    баланс зачисляет сервер. Включается сама: функция отвечает на ?action=status, есть ли касса (секрет PAY_PROVIDER) и какие способы (PAY_METHODS).
    Пока кассы нет — окно то же, но «Пополнить» показывает в окне «способ скоро» со ссылкой на Telegram. */
 const PAY_METHODS = [
-  { k: 'sbp', t: 'СБП', s: 'По QR или в приложении банка', i: 'bolt', tag: 'Быстро' },
-  { k: 'card', t: 'Карта РФ', s: 'МИР, Visa, Mastercard', i: 'card' },
+  { k: 'sbp', t: 'СБП', s: 'По QR или в приложении банка', i: 'bolt', img: 'assets/pay-sbp.webp', tag: 'Быстро' },
+  { k: 'card', t: 'Карта РФ', s: 'МИР, Visa, Mastercard', i: 'card', img: 'assets/pay-card.webp' },
   { k: 'intl', t: 'Зарубежная карта', s: 'Visa, Mastercard других стран', i: 'globe' },
   { k: 'crypto', t: 'Криптовалюта', s: 'USDT, BTC, TON', i: 'coin' },
   { k: 'yoomoney', t: 'ЮMoney', s: 'Кошелёк ЮMoney', i: 'wallet', soon: 1 },
@@ -4323,8 +4323,7 @@ async function openDeposit(need = 0, promo = null) {
   const soon = x => isSk(x.k) ? !skOn(x.k) : x.soon; // скины работают отдельно от основной кассы
   const bonusPct = () => Math.max(st.depBonus || 0, refPct);
   const m = modal(`<div class="dpn">
-    <nav class="dpn-rail">${PAY_TABS.map(t => `<button data-tab="${t.k}">${ic[t.i]}<span>${t.t}</span></button>`).join('')}
-      <div class="dpn-bal"><small>На балансе</small><b>${money(st.balance)}</b></div></nav>
+    <nav class="dpn-rail">${PAY_TABS.map(t => `<button data-tab="${t.k}">${ic[t.i]}<span>${t.t}</span></button>`).join('')}</nav>
     <div class="dpn-body">
       <div class="dpn-head"><h2>Выберите способ оплаты</h2>${need ? `<span class="dpn-need">Для открытия не хватает <b>${money(need)}</b></span>` : ''}</div>
       <div class="dpn-methods" id="dpnM"></div>
