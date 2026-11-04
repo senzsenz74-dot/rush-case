@@ -49,10 +49,18 @@
 - Права проверяет сервер: `is_admin()` = владелец; сотрудники — таблица `staff` (supabase/roles.sql). Владельцы — игроки #100003, #100004.
 - Возврат кейсов и апгрейда — 80%.
 
+## Оплата (с 04.11.2026)
+- Всё в Edge Function `supabase/functions/payment/index.ts`: касса **1plata** (адаптер '1plat': СБП/карта, `?action=create` / `?action=webhook`), скины **SkinsMoney** (`?action=skins_create` / `?action=skins`) и **Skinslink** (`?action=skinslink_create` / `?action=skinslink`), `?action=status` — что включено.
+- Зачисление только после перепроверки платежа у провайдера (правило владельца); база — `payments.sql` (pay_credit), `skins_pay.sql` (pay_skins, курс `site_cfg 'skins'.rate`, сейчас 78 ₽/$).
+- Выкладка функции: Supabase → Edge Functions → payment → Code → вставить файл → **Deploy жмёт владелец**. Секреты (PAY_*, SM_*, SL_*) — только в Supabase → Edge Functions → Secrets, в чат не присылать.
+- Сайт: окно пополнения `openDeposit` (PAY_METHODS, PAY_TABS, paySkins, payStart) в js/app.js.
+
 ## Локальный просмотр
 `.claude/launch.json` → `preview_start {name: "rushcase"}` (http://localhost:5178, `tools/serve.js`).
 
-## Незаконченное (на 02.11.2026)
+## Незаконченное (на 04.11.2026)
+- **Оплата не проверена реальным платежом** (1plata, Skinslink, SkinsMoney) — см. ЖУРНАЛ.md, «ИТОГ 04.11». После проверки SkinsMoney удалить секрет SM_ALLOW_TEST и выключить их Test Mode.
+- «Башня» (#/tower) — отложена: код есть, меню/маршрут/админка скрыты, supabase/tower.sql не запущен.
 - «Тактика» — сделан этап 1 из 5; дальше этап 2 (калибровка, `tools/tac-calibrate.js`), см. `ПЛАН_ТАКТИКА.md`.
 - Роли в админке — этапы 1–2 сделаны, этап 3 «Отчёт смены» не начат, см. `ПЛАН_РОЛИ.md`.
 - Ссылки на TikTok/соцсети — ждём от владельца.
