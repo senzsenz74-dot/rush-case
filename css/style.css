@@ -4915,3 +4915,6 @@ body.pg-tower::after{content:"";display:block;position:fixed;inset:0;z-index:-1;
   .tw-bet{position:static}
 }
 @media (prefers-reduced-motion:reduce){.tw-field *,.tw-field{animation:none!important}}
+.pfw-hold{display:flex;align-items:center;justify-content:flex-end;gap:5px;margin-top:4px;font-size:11.5px;font-weight:700;color:var(--txt2);cursor:help}
+.pfw-hold b{color:var(--gold-hi)}.pfw-hold svg{width:13px;height:13px;color:var(--gold)}
+.pfw-hold[hidden]{display:none}

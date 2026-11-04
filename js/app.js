@@ -2078,6 +2078,17 @@ function applyCaseCfg(c) {
   if (v.items || c.itemsOv) caseSetItems(c, v.items || d.items);
   c.itemsOv = !!v.items;
 }
+let SK_HOLD = 7; // пополнение скинами зачисляется через столько дней (site_cfg 'skins'.hold, supabase/skins_hold.sql)
+/* пополнения скинами в ожидании (защита от отката обмена): строка под балансом в профиле */
+async function pfHolds() {
+  const el = $('#pfHold'); if (!el || !sb || !st.user || !st.user.sb) return;
+  const { data } = await sb.from('payments').select('amount, hold_until').eq('uid', st.user.id).eq('status', 'hold').order('hold_until');
+  if (!data || !data.length || !el.isConnected) return;
+  const sum = data.reduce((a, p) => a + +p.amount, 0), d = new Date(data[0].hold_until);
+  el.innerHTML = `${AU_IC.lock}Ожидает зачисления <b>${money(sum)}</b> · ближайшее ${pad(d.getDate())}.${pad(d.getMonth() + 1)} в ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  el.title = 'Пополнение скинами зачисляется через ' + SK_HOLD + ' дн. после обмена — защита от отката обмена Steam';
+  el.hidden = false;
+}
 async function loadCaseCfg() {
   if (!sb) return;
   const { data, error } = await sb.from('site_cfg').select('k, v');
@@ -2088,6 +2099,7 @@ async function loadCaseCfg() {
   BANNERS = bn && Array.isArray(bn.v) ? bn.v : null;
   try { if (BANNERS) localStorage.setItem('rc.banners', JSON.stringify(BANNERS)); else localStorage.removeItem('rc.banners'); } catch (e) { /* */ }
   const tc = data.find(r => r.k === 'tower'); if (tc && tc.v) { if (+tc.v.rtp >= .3 && +tc.v.rtp <= .98) TOWER.rtp = +tc.v.rtp; TOWER.off = !!tc.v.off; if (Array.isArray(tc.v.top) && tc.v.top.length === 3) TOWER.top = tc.v.top.map(Number); if ($('#twTower') && !tw.game) drawTower(); }
+  const sk = data.find(r => r.k === 'skins'); if (sk && sk.v && sk.v.hold != null) SK_HOLD = Math.max(0, +sk.v.hold || 0);
   const bc = data.find(r => r.k === 'build'); if (bc && bc.v) { if (+bc.v.rtp >= .3 && +bc.v.rtp <= .98) BUILD.rtp = +bc.v.rtp; BUILD.off = !!bc.v.off; if ($('#bdSet')) drawBuild(); }
   const bl = data.find(r => r.k === 'blocks');
   if (bl && Array.isArray(bl.v) && bl.v.length) CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...bl.v.map(b => ({ ...b, ids: [] })));
@@ -3738,7 +3750,7 @@ function pageProfile() {
           </div>
         </div>
         <div class="pfh-wallet">
-          <div class="pfw-bal"><span>Баланс</span><b>${money(st.balance)}</b></div>
+          <div class="pfw-bal"><span>Баланс</span><b>${money(st.balance)}</b><small class="pfw-hold" id="pfHold" hidden></small></div>
           <div class="pfw-rc"><img class="rc-ic" src="assets/rcoin.webp" alt=""><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b></div>
           <div class="pfw-btns"><button class="btn btn-primary" data-act="deposit">${ic.plus}Пополнить</button><button class="btn btn-dark pf-stream${st.streamer ? ' on' : ''}" data-act="streamer" title="Режим стримера: вместо рублей — монеты, личные данные скрыты">${st.streamer ? ic.eyeOff : ic.eye}<span>Стример</span></button><button class="btn btn-dark" data-act="logout" title="Выйти" aria-label="Выйти">${ic.logout}</button></div>
         </div>
@@ -3756,6 +3768,7 @@ function pageProfile() {
 }
 function mountProfile(sub) {
   if (!st.user) return;
+  pfHolds();
   if (sub) pfTab = sub; // #/profile/team — сразу вкладка «Команда»
   $$('#pfTabs button').forEach(b => b.onclick = () => { pfTab = b.dataset.tab; drawPf(); });
   drawPf();
@@ -4225,7 +4238,7 @@ function sbInit() {
   const qs = new URLSearchParams(location.search), stTok = qs.get('steam_token'), stErr = qs.get('steam_error');
   const payRet = qs.get('pay');
   if (stTok || stErr || payRet) history.replaceState(null, '', location.pathname + location.hash);
-  if (payRet) setTimeout(() => { if (payRet === 'ok') { toast('Оплата прошла — баланс зачислится в течение пары минут'); [3e3, 1e4, 3e4].forEach(ms => setTimeout(sbRefresh, ms)); } else toast('Оплата не завершена', 'err'); }, 800);
+  if (payRet) setTimeout(() => { if (payRet === 'ok') { toast('Оплата прошла — баланс зачислится в течение пары минут' + (SK_HOLD ? `; пополнение скинами — через ${SK_HOLD} ${plural(SK_HOLD, 'день', 'дня', 'дней')} (защита от отката обмена Steam)` : '')); [3e3, 1e4, 3e4].forEach(ms => setTimeout(sbRefresh, ms)); } else toast('Оплата не завершена', 'err'); }, 800);
   if (stErr) setTimeout(() => toast(stErr === 'cancel' ? 'Вход через Steam отменён' : 'Не удалось войти через Steam — попробуйте ещё раз', 'err'), 600);
   if (stTok) { sb.auth.verifyOtp({ token_hash: stTok, type: 'magiclink' }).then(({ data, error }) => { if (error || !data.session) return toast('Не удалось войти через Steam: ' + (error ? error.message : 'нет сессии'), 'err'); sbLoadProfile(data.session).then(ok => ok && afterLogin(false)); }); }
   loadCaseCfg().then(loadCustomCases).then(loadCaseSettings);
@@ -4370,7 +4383,7 @@ async function openDeposit(need = 0, promo = null) {
     $('#depRc', m).textContent = `${Math.round(DEP_RC * 100)}%`;
     $('.dpn-get', m).classList.add('show');
     const g = $('#depGo', m); g.innerHTML = `${ic.steam}Пополнить скинами`; g.disabled = false;
-    $('#depHint', m).innerHTML = note || `Откроется страница ${method === 'skinslink' ? 'Skinslink' : 'SkinsMoney'}: выберите скины из своего Steam-инвентаря и отправьте обмен. Баланс пополнится, когда обмен завершится и деньги поступят — по стоимости скинов.`;
+    $('#depHint', m).innerHTML = note || `Откроется страница ${method === 'skinslink' ? 'Skinslink' : 'SkinsMoney'}: выберите скины из своего Steam-инвентаря и отправьте обмен. Баланс пополнится по стоимости скинов ${SK_HOLD ? `через <b>${SK_HOLD} ${plural(SK_HOLD, 'день', 'дня', 'дней')}</b> после обмена — это защита от отката обмена Steam` : 'сразу после обмена'}.`;
     $('#depHint', m).classList.remove('err');
   };
   $$('.dpn-rail [data-tab]', m).forEach(e => e.onclick = () => { tab = e.dataset.tab; drawMethods(); draw(); });
