@@ -14,6 +14,7 @@
 // Пока PAY_PROVIDER не задан, сайт показывает окно оплаты, но способы — «скоро» (подписка на Telegram и пополнение через поддержку).
 // Чтобы подключить кассу: дописать её адаптер в PROVIDERS (2 функции по её документации) и задать секреты.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createHash, createHmac } from 'node:crypto';
 
 const SITE = 'https://rush-case.online/';
 const env = (k: string) => Deno.env.get(k) || '';
@@ -29,7 +30,7 @@ const md5 = async (msg: string) => hex(await crypto.subtle.digest('MD5', enc.enc
 const safeEq = (a: string, b: string) => { if (a.length !== b.length) return false; let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0; };
 
 type Pay = { id: string; amount: number; method: string };
-type Note = { id: string; ext: string; amount: number; paid: boolean; ok: (r: unknown) => Response };
+type Note = { id: string; ext: string; amount: number; paid: boolean; skip?: boolean; ok: (r: unknown) => Response }; // skip — промежуточный статус: ничего не делаем
 type Provider = {
   createUrl: (p: Pay) => Promise<string>;                       // ссылка на страницу оплаты кассы
   parse: (req: Request, raw: string) => Promise<Note | null>;   // разобрать уведомление; null — подпись неверна
@@ -54,6 +55,41 @@ const PROVIDERS: Record<string, Provider> = {
       return { id: j.order_id, ext: String(j.payment_id), amount: +j.amount, paid: j.status === 'paid' || j.status === 'success', ok: () => json({ ok: true }) };
     },
   },
+  // 1plata (1plat.cash, документация: https://1plat.cash/docs). Секреты: PAY_PROVIDER=1plat, PAY_SHOP_ID (id магазина), PAY_SECRET (секретный ключ),
+  // PAY_METHODS (например sbp,card). Коллбек в настройках магазина: …/functions/v1/payment?action=webhook.
+  // Статусы платежа: -2 нет реквизитов, -1 черновик, 0 ждёт оплаты, 1 оплачен (ждёт нашего ответа 200), 2 закрыт.
+  // Зачисляем только после перепроверки платежа у 1plata (info по guid): статус 1 или 2, наш номер заказа, сумма — из их ответа.
+  '1plat': {
+    async createUrl(p) {
+      const uid = parseInt(p.id.replace(/-/g, '').slice(0, 7), 16); // user_id у них — число; берём из номера платежа
+      const method = p.method === 'card' || p.method === 'intl' ? 'card' : p.method === 'crypto' ? 'crypto' : 'sbp';
+      const body: Record<string, unknown> = { merchant_order_id: p.id, user_id: uid, amount: Math.round(p.amount), email: `${uid}@temp.com`, method };
+      if (method === 'crypto') body.currency = 'USDT';
+      const r = await fetch(`${env('PAY_API_URL') || 'https://1plat.cash'}/api/merchant/order/create/by-api`, { method: 'POST', headers: { 'x-shop': env('PAY_SHOP_ID'), 'x-secret': env('PAY_SECRET'), 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j?.success || !j?.url) { console.log('1plat create', r.status, JSON.stringify(j).slice(0, 400)); throw new Error('provider create failed'); }
+      return j.url;
+    },
+    async parse(_req, raw) {
+      const j = JSON.parse(raw);
+      // подпись v2: md5(merchant_id + amount + shop_id + secret); v1: hmac-sha256(secret, тело без подписей)
+      const amt = rawField(raw, 'amount') ?? String(j.amount);
+      const v2 = createHash('md5').update(String(j.merchant_id ?? '') + amt + env('PAY_SHOP_ID') + env('PAY_SECRET')).digest('hex');
+      const body = { ...j }; delete body.signature; delete body.signature_v2;
+      const v1 = createHmac('sha256', env('PAY_SECRET')).update(JSON.stringify(body)).digest('hex');
+      if (!safeEq(String(j.signature_v2 || ''), v2) && !safeEq(String(j.signature || ''), v1)) return null;
+      const ok = () => new Response('OK', { status: 200 });
+      const id = String(j.merchant_id || ''), st = +j.status;
+      if (st < 0) return { id, ext: String(j.guid || ''), amount: 0, paid: false, ok };            // нет реквизитов / отменён
+      if (st !== 1 && st !== 2) return { id, ext: '', amount: 0, paid: false, skip: true, ok };   // ждёт оплаты — ничего не делаем
+      // перепроверка у 1plata: платёж действительно оплачен
+      const r = await fetch(`${env('PAY_API_URL') || 'https://1plat.cash'}/api/merchant/order/info/${encodeURIComponent(String(j.guid || ''))}/by-api`, { headers: { 'x-shop': env('PAY_SHOP_ID'), 'x-secret': env('PAY_SECRET'), accept: 'application/json' } });
+      const info = await r.json().catch(() => ({}));
+      const pay = info?.payment;
+      if (!r.ok || !pay || String(pay.merchant_id) !== id || ![1, 2].includes(+pay.status)) { console.log('1plat not confirmed', r.status, JSON.stringify(info).slice(0, 300)); throw new Error('not confirmed'); }
+      return { id, ext: String(j.guid), amount: +pay.amount, paid: true, ok };
+    },
+  },
   // тестовая касса — только для проверки цепочки на тестовом проекте (PAY_PROVIDER=test): «страница оплаты» сразу шлёт уведомление
   test: {
     async createUrl(p) { return `${env('SUPABASE_URL')}/functions/v1/payment?action=testpay&id=${p.id}`; },
@@ -64,7 +100,7 @@ const PROVIDERS: Record<string, Provider> = {
     },
   },
 };
-void md5; void hmac; // для адаптеров касс с подписью MD5 / HMAC-SHA512
+void md5; void hmac; // запасные помощники для подписей (1plata использует node:crypto)
 
 // ---------- пополнение скинами: SkinsMoney (skinsmoney.gg, API https://doc.skinsmoney.gg) ----------
 // Секреты: SM_TOKEN (API-токен из кабинета), SM_SERVICE (Service ID), SM_HASH (Secret Signature Key), SM_ALLOW_TEST=1 — зачислять тестовые депозиты (только на время проверки).
@@ -244,9 +280,11 @@ Deno.serve(async (req) => {
   // 2) уведомление кассы
   if (action === 'webhook') {
     const raw = await req.text();
-    const n = await P.parse(req, raw).catch(() => null);
+    let n: Note | null;
+    try { n = await P.parse(req, raw); } catch (_) { return json({ error: 'not confirmed yet' }, 409); } // касса не подтвердила оплату — пусть пришлёт уведомление ещё раз
     if (!n) return json({ error: 'bad signature' }, 403);
     let rawJson: unknown = raw; try { rawJson = JSON.parse(raw); } catch (_) { /* форма */ }
+    if (n.skip) return n.ok({ ok: true });
     if (!n.paid) { await admin.rpc('pay_fail', { p_id: n.id, p_raw: rawJson }); return n.ok({ ok: true }); }
     const { data, error } = await admin.rpc('pay_credit', { p_id: n.id, p_ext: n.ext, p_amount: n.amount, p_raw: rawJson });
     if (error) return json({ error: error.message }, 400);   // касса повторит уведомление
