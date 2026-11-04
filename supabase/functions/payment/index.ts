@@ -4,6 +4,10 @@
 //   POST /functions/v1/payment?action=status   (сайт)   → {live, methods} — подключена ли касса и какие способы показывать
 //   POST /functions/v1/payment?action=create   (игрок)  {amount, method: 'sbp'|'card'|'intl'|'crypto', promo?} → {url}  — переход на оплату
 //   POST /functions/v1/payment?action=webhook  (касса)  уведомление → проверка подписи → pay_credit
+//   POST /functions/v1/payment?action=skins_create (игрок) {promo?} → {url} — пополнение скинами через SkinsMoney
+//   POST /functions/v1/payment?action=skins     (SkinsMoney) уведомление о депозите → подпись → pay_skins (supabase/skins_pay.sql)
+//   POST /functions/v1/payment?action=skinslink_create (игрок) {promo?} → {url} — пополнение скинами через Skinslink
+//   POST /functions/v1/payment?action=skinslink (Skinslink) уведомление → подпись → перепроверка статуса → pay_skins (только completed)
 //
 // Секреты (Edge Functions → Secrets): PAY_PROVIDER (имя адаптера ниже), PAY_SHOP_ID, PAY_SECRET, PAY_SECRET2 (если касса даёт второй ключ),
 //   PAY_API_URL (адрес создания платежа у кассы), PAY_METHODS — какие способы показывать, через запятую (по умолчанию sbp,card,intl,crypto).
@@ -62,13 +66,162 @@ const PROVIDERS: Record<string, Provider> = {
 };
 void md5; void hmac; // для адаптеров касс с подписью MD5 / HMAC-SHA512
 
+// ---------- пополнение скинами: SkinsMoney (skinsmoney.gg, API https://doc.skinsmoney.gg) ----------
+// Секреты: SM_TOKEN (API-токен из кабинета), SM_SERVICE (Service ID), SM_HASH (Secret Signature Key), SM_ALLOW_TEST=1 — зачислять тестовые депозиты (только на время проверки).
+// В кабинете SkinsMoney: IPN URL (deposit) = https://<проект>.supabase.co/functions/v1/payment?action=skins
+const SM_API = 'https://api.skinsmoney.gg';
+const smOn = () => !!(env('SM_TOKEN') && env('SM_SERVICE') && env('SM_HASH'));
+// значение поля так, как оно пришло в теле (без потери формата чисел: 2.50 ≠ 2.5)
+function rawField(raw: string, key: string): string | null {
+  const m = raw.match(new RegExp('"' + key + '"\\s*:\\s*("(?:[^"\\\\]|\\\\.)*"|[^,}\\s]+)'));
+  if (!m) return null;
+  let v = m[1];
+  if (v.startsWith('"')) { try { v = JSON.parse(v); } catch (_) { v = v.slice(1, -1); } }
+  return v;
+}
+// подпись: sha256( serviceId|minValue|tradedValue|steamId|transactionId|date|status|currency|ipnAttempt|isTest[|custom][|redirectUrl]|hashKey )
+async function smVerify(raw: string, j: Record<string, unknown>): Promise<boolean> {
+  const keys = ['serviceId', 'minValue', 'tradedValue', 'steamId', 'transactionId', 'date', 'status', 'currency', 'ipnAttempt', 'isTest'];
+  if (j.custom !== undefined) keys.push('custom');
+  if (j.redirectUrl !== undefined) keys.push('redirectUrl');
+  const sig = String(j.signature || '').toLowerCase();
+  const fromRaw = keys.map(k => rawField(raw, k) ?? ''), fromJson = keys.map(k => j[k] === undefined || j[k] === null ? '' : String(j[k]));
+  for (const parts of [fromRaw, fromJson]) if (safeEq(sig, await sha256([...parts, env('SM_HASH')].join('|')))) return true;
+  return false;
+}
+async function skinsCreate(req: Request, admin: ReturnType<typeof createClient>) {
+  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const { data: u } = await admin.auth.getUser(token);
+  if (!u?.user) return json({ error: 'not authenticated' }, 401);
+  const b = await req.json().catch(() => ({}));
+  const promo = typeof b.promo === 'string' && /^[A-Za-z0-9]{2,24}$/.test(b.promo) ? b.promo.toUpperCase() : null;
+  const { data: cfg } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle();
+  const min = Math.max(.1, +(cfg?.v?.min ?? 1) || 1);
+  const { data: prof } = await admin.from('profiles').select('data').eq('id', u.user.id).maybeSingle();
+  const trade = String(prof?.data?.trade || '');
+  const { data: pay, error } = await admin.from('payments').insert({ uid: u.user.id, amount: 1, method: 'skins', promo, provider: 'skinsmoney' }).select('id').single();
+  if (error || !pay) return json({ error: 'db error' }, 500);
+  const body: Record<string, unknown> = { minValue: min, currencyCode: 'USD', custom: pay.id, redirectUrl: SITE + '?pay=ok' };
+  if (/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/.test(trade)) body.tradeUrl = trade;
+  try {
+    const r = await fetch(`${SM_API}/v1/services/${env('SM_SERVICE')}/deposits`, { method: 'POST', headers: { authorization: 'Bearer ' + env('SM_TOKEN'), 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j?.data?.url) { console.log('skinsmoney create', r.status, JSON.stringify(j).slice(0, 400)); throw new Error('create failed'); }
+    await admin.from('payments').update({ ext_id: String(j.data.id) }).eq('id', pay.id);
+    return json({ url: j.data.url, id: pay.id });
+  } catch (_) { await admin.rpc('pay_fail', { p_id: pay.id }); return json({ error: 'provider unavailable' }, 502); }
+}
+// перепроверка у SkinsMoney: депозит действительно завершён и деньги зачислены на наш баланс в их кабинете.
+// Только по их ответу (а не по уведомлению) пополняем игрока; сумма — тоже из их ответа.
+async function smConfirm(depId: string, payId: string): Promise<number | null> {
+  const sig = await sha256([depId, env('SM_SERVICE'), env('SM_HASH')].join('|'));
+  const r = await fetch(`${SM_API}/v1/services/${env('SM_SERVICE')}/deposits/${depId}?signature=${sig}`, { headers: { authorization: 'Bearer ' + env('SM_TOKEN'), accept: 'application/json' } });
+  const j = await r.json().catch(() => ({}));
+  const d = j?.data;
+  if (!r.ok || !d) { console.log('skinsmoney confirm', r.status, JSON.stringify(j).slice(0, 300)); return null; }
+  const usd = +(d.real_usd_value ?? d.end_value ?? 0);
+  const okState = d.trade_state == null || +d.trade_state === 3; // 3 — обмен в Steam принят
+  if (d.status !== 'success' || !d.traded_at || !okState || String(d.custom || '') !== payId || !(usd > 0)) {
+    console.log('skinsmoney not settled', JSON.stringify({ status: d.status, traded_at: d.traded_at, trade_state: d.trade_state, usd })); return null;
+  }
+  if (+d.test_mode === 1 && env('SM_ALLOW_TEST') !== '1') return null;
+  return usd;
+}
+async function skinsIpn(req: Request, admin: ReturnType<typeof createClient>) {
+  const raw = await req.text();
+  let j: Record<string, unknown>; try { j = JSON.parse(raw); } catch (_) { return new Response('bad json', { status: 400 }); }
+  if (String(j.serviceId) !== env('SM_SERVICE') || !(await smVerify(raw, j))) { console.log('skinsmoney bad signature'); return new Response('bad signature', { status: 403 }); }
+  const ok = () => new Response('OK', { status: 200, headers: { 'content-type': 'text/plain' } });
+  const id = String(j.custom || ''), st = String(j.status || '');
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return ok();                              // депозит не с нашего сайта
+  if (+(j.isTest as number) === 1 && env('SM_ALLOW_TEST') !== '1') return ok(); // тестовые депозиты не зачисляем
+  if (st === 'failure') { await admin.rpc('pay_fail', { p_id: id, p_raw: j }); return ok(); }
+  if (st !== 'success') return ok();                                           // waiting / pending — ждём следующего уведомления
+  // уведомлению не верим на слово: спрашиваем SkinsMoney сами. Не подтвердили — не зачисляем, отвечаем ошибкой, они пришлют уведомление повторно
+  const usd = await smConfirm(String(j.transactionId || ''), id);
+  if (usd === null) return new Response('not settled yet', { status: 409 });
+  const { error } = await admin.rpc('pay_skins', { p_id: id, p_ext: String(j.transactionId || ''), p_usd: usd, p_raw: j });
+  if (error) { console.log('skinsmoney credit', error.message); return new Response(error.message, { status: 400 }); } // SkinsMoney повторит
+  return ok();
+}
+
+// ---------- пополнение скинами: Skinslink (skinslink.com, API https://docs.skinslink.com) ----------
+// Секреты: SL_KEY (API key), SL_SECRET (merchant secret — подпись уведомлений). Адрес уведомлений передаём в каждом депозите (result_url).
+// Страница Skinslink показывает игроку рубли по нашему курсу (custom_currency RUB). Зачисляем ТОЛЬКО статус completed
+// (hold — скины на 7-дневной блокировке Steam, деньги ещё могут откатиться) и только после перепроверки статуса у Skinslink.
+const SL_API = 'https://api.skinslink.com/api/v1';
+const slOn = () => !!(env('SL_KEY') && env('SL_SECRET'));
+const b64 = (hexStr: string) => btoa(String.fromCharCode(...hexStr.match(/../g)!.map(h => parseInt(h, 16))));
+async function slCreate(req: Request, admin: ReturnType<typeof createClient>) {
+  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const { data: u } = await admin.auth.getUser(token);
+  if (!u?.user) return json({ error: 'not authenticated' }, 401);
+  const b = await req.json().catch(() => ({}));
+  const promo = typeof b.promo === 'string' && /^[A-Za-z0-9]{2,24}$/.test(b.promo) ? b.promo.toUpperCase() : null;
+  const { data: cfg } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle();
+  const rate = Math.max(.1, +(cfg?.v?.rate ?? 90) || 90);
+  const { data: prof } = await admin.from('profiles').select('data').eq('id', u.user.id).maybeSingle();
+  const tm = String(prof?.data?.trade || '').match(/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=(\d+)&token=([\w-]+)$/);
+  const { data: pay, error } = await admin.from('payments').insert({ uid: u.user.id, amount: 1, method: 'skins', promo, provider: 'skinslink' }).select('id').single();
+  if (error || !pay) return json({ error: 'db error' }, 500);
+  const body: Record<string, unknown> = { merchant_tx_id: pay.id, game: 'csgo', result_url: `${env('SUPABASE_URL')}/functions/v1/payment?action=skinslink`,
+    success_url: SITE + '?pay=ok', fail_url: SITE + '?pay=fail', custom_currency: 'RUB', custom_currency_multiplier: 1, custom_currency_rate: rate };
+  if (tm) { body.partner = +tm[1]; body.token = tm[2]; }
+  try {
+    const r = await fetch(`${SL_API}/merchant/create-intent`, { method: 'POST', headers: { 'x-api-key': env('SL_KEY'), 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j?.success || !j?.data?.url) { console.log('skinslink create', r.status, JSON.stringify(j).slice(0, 400)); throw new Error('create failed'); }
+    await admin.from('payments').update({ ext_id: String(j.data.id) }).eq('id', pay.id);
+    return json({ url: j.data.url, id: pay.id });
+  } catch (_) { await admin.rpc('pay_fail', { p_id: pay.id }); return json({ error: 'provider unavailable' }, 502); }
+}
+// перепроверка у Skinslink: статус completed, наш номер заказа; сумма в рублях — из их ответа (custom_currency_sum)
+async function slConfirm(payId: string): Promise<{ usd: number; raw: unknown } | null> {
+  const r = await fetch(`${SL_API}/merchant/deposit/status?merchant_tx_id=${encodeURIComponent(payId)}`, { headers: { 'x-api-key': env('SL_KEY'), accept: 'application/json' } });
+  const j = await r.json().catch(() => ({}));
+  const d = j?.data;
+  if (!r.ok || !j?.success || !d) { console.log('skinslink confirm', r.status, JSON.stringify(j).slice(0, 300)); return null; }
+  if (d.status !== 'completed' || String(d.merchant_tx_id) !== payId) { console.log('skinslink not completed', d.status); return null; }
+  const sum = +d.custom_currency_sum, rate = +d.custom_currency_rate;
+  if (d.custom_currency !== 'RUB' || !(sum > 0) || !(rate > 0)) { console.log('skinslink no rub sum', JSON.stringify(d).slice(0, 300)); return null; }
+  return { usd: sum / rate, raw: d }; // pay_skins умножит обратно на курс — получится та же сумма в рублях
+}
+async function slWebhook(req: Request, admin: ReturnType<typeof createClient>) {
+  const raw = await req.text();
+  let j: Record<string, unknown>; try { j = JSON.parse(raw); } catch (_) { return new Response('bad json', { status: 400 }); }
+  // подпись: base64( sha256( trade_id + merchant_secret ) )
+  const want = b64(await sha256(String(j.trade_id ?? '') + env('SL_SECRET')));
+  if (!safeEq(String(j.sign || ''), want)) { console.log('skinslink bad signature'); return new Response('bad signature', { status: 403 }); }
+  const ok = () => new Response('OK', { status: 200 });
+  const id = String(j.merchant_tx_id || ''), st = String(j.status || '');
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return ok();
+  if (st === 'failed' || st === 'canceled') { await admin.rpc('pay_fail', { p_id: id, p_raw: j }); return ok(); }
+  if (st === 'reverted') { console.log('skinslink reverted', id); return ok(); }   // откат на блокировке — мы не зачисляли
+  if (st !== 'completed') return ok();                                               // hold — ждём окончания блокировки Steam
+  const c = await slConfirm(id);
+  if (!c) return new Response('not completed yet', { status: 409 });
+  const { error } = await admin.rpc('pay_skins', { p_id: id, p_ext: 'sl-' + String(j.trade_id ?? ''), p_usd: c.usd, p_raw: { webhook: j, status: c.raw } });
+  if (error) { console.log('skinslink credit', error.message); return new Response(error.message, { status: 400 }); }
+  return ok();
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   const url = new URL(req.url), action = url.searchParams.get('action');
   const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
   const P = PROVIDERS[env('PAY_PROVIDER')];
   const METHODS = (env('PAY_METHODS') || 'sbp,card,intl,crypto').split(',').map(x => x.trim()).filter(x => ['sbp', 'card', 'intl', 'crypto'].includes(x));
-  if (action === 'status') return json({ live: !!P, methods: METHODS });
+  if (action === 'status') {
+    let rate = 0; if (smOn()) { const { data } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle(); rate = +(data?.v?.rate ?? 90) || 90; }
+    if (!rate && slOn()) { const { data } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle(); rate = +(data?.v?.rate ?? 90) || 90; }
+    return json({ live: !!P, methods: METHODS, skins: smOn(), skinslink: slOn(), skinsRate: rate });
+  }
+  // пополнение скинами работает независимо от основной кассы
+  if (action === 'skins_create') return smOn() ? skinsCreate(req, admin) : json({ error: 'skins disabled' }, 503);
+  if (action === 'skins') return smOn() ? skinsIpn(req, admin) : new Response('disabled', { status: 503 });
+  if (action === 'skinslink_create') return slOn() ? slCreate(req, admin) : json({ error: 'skinslink disabled' }, 503);
+  if (action === 'skinslink') return slOn() ? slWebhook(req, admin) : new Response('disabled', { status: 503 });
   if (!P) return json({ error: 'payments disabled' }, 503);
 
   // 1) игрок создаёт платёж

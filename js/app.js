@@ -79,6 +79,7 @@ const ic = {
   edit: sv('<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
   steam: sv('<circle cx="12" cy="12" r="9.5"/><circle cx="15.5" cy="9" r="2.6"/><circle cx="8.5" cy="15.5" r="2"/><path d="M10.3 14.6l3-3.6"/>'),
 };
+ic.tower = sv('<path d="M6 21V10L4 8V3h3v2h2V3h6v2h2V3h3v5l-2 2v11z"/><path d="M10 21v-4a2 2 0 0 1 4 0v4"/><path d="M9 12h.01M15 12h.01"/>');
 
 /* ---------- rarity ---------- */
 const RAR = {
@@ -1577,6 +1578,7 @@ const NAV = [
   { k: 'cases', h: '/', t: 'Кейсы', i: 'box' }, // отдельной главной нет — сайт открывается сразу на кейсах
   { k: 'upgrade', h: '/upgrade', t: 'Апгрейд', i: 'up' },
   { k: 'crash', h: '/crash', t: 'Краш', i: 'bomb', nw: 1 },
+  // { k: 'tower', h: '/tower', t: 'Башня', i: 'tower', nw: 1 }, // «Башня» отложена — в разработке (код ниже, страница скрыта)
   { k: 'contracts', h: '/contracts', t: 'Контракты', i: 'swap' },
   { k: 'jackpot', h: '/jackpot', t: 'Ставки', i: 'coins' },
   { k: 'bonus', h: '/bonus', t: 'Бонусы', i: 'gift' },
@@ -1713,9 +1715,9 @@ const LD_DOC = sv('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h
 // запись ленты: t — 'case' (по умолчанию), 'upg' — апгрейд, 'con' — контракт; x — во сколько раз дороже ставки
 const liveHtml = d => {
   const s = SK[d.n], c = d.t ? null : caseById(d.c);
-  const href = d.uid ? `#/u/${d.uid}` : d.t === 'crash' ? '#/crash' : d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
-  const src = d.t === 'crash' ? `Краш x${(+d.x).toFixed(2)}` : d.t === 'upg' ? `Апгрейд ×${d.x.toFixed(d.x < 10 ? 1 : 0)}` : d.t === 'con' ? `Контракт ×${d.x.toFixed(1)}` : c ? 'Кейс «' + c.name + '»' : d.c;
-  const tag = d.t === 'crash' ? `<span class="ld-t crash">${ic.bomb}</span>` : d.t === 'upg' ? `<span class="ld-t upg">${ic.up}</span>` : d.t === 'con' ? `<span class="ld-t con">${LD_DOC}</span>` : '';
+  const href = d.uid ? `#/u/${d.uid}` : d.t === 'crash' ? '#/crash' : d.t === 'tower' ? '#/tower' : d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
+  const src = d.t === 'crash' ? `Краш x${(+d.x).toFixed(2)}` : d.t === 'tower' ? `Башня ×${(+d.x).toFixed(2)}` : d.t === 'upg' ? `Апгрейд ×${d.x.toFixed(d.x < 10 ? 1 : 0)}` : d.t === 'con' ? `Контракт ×${d.x.toFixed(1)}` : c ? 'Кейс «' + c.name + '»' : d.c;
+  const tag = d.t === 'crash' ? `<span class="ld-t crash">${ic.bomb}</span>` : d.t === 'tower' ? `<span class="ld-t tower">${ic.tower}</span>` : d.t === 'upg' ? `<span class="ld-t upg">${ic.up}</span>` : d.t === 'con' ? `<span class="ld-t con">${LD_DOC}</span>` : '';
   return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${href}" title="${esc(s.name)}">${tag}<img src="${imgUrl(s, 'xs')}" alt="" loading="lazy" decoding="async"><span class="ld-f">${esc(s.f)}</span><span class="ld-w">${esc(s.w)}</span><span class="ld-u"><small>${esc(src)}</small>${esc(d.u)}</span></a>`;
 };
 const liveOk = d => liveFilter === 'all' || SK[d.n].p >= 1000;
@@ -2085,6 +2087,7 @@ async function loadCaseCfg() {
   const bn = data.find(r => r.k === 'banners'); // баннеры главной (нет — стандартный набор); копия в браузере — без мелькания при загрузке
   BANNERS = bn && Array.isArray(bn.v) ? bn.v : null;
   try { if (BANNERS) localStorage.setItem('rc.banners', JSON.stringify(BANNERS)); else localStorage.removeItem('rc.banners'); } catch (e) { /* */ }
+  const tc = data.find(r => r.k === 'tower'); if (tc && tc.v) { if (+tc.v.rtp >= .3 && +tc.v.rtp <= .98) TOWER.rtp = +tc.v.rtp; TOWER.off = !!tc.v.off; if (Array.isArray(tc.v.top) && tc.v.top.length === 3) TOWER.top = tc.v.top.map(Number); if ($('#twTower') && !tw.game) drawTower(); }
   const bc = data.find(r => r.k === 'build'); if (bc && bc.v) { if (+bc.v.rtp >= .3 && +bc.v.rtp <= .98) BUILD.rtp = +bc.v.rtp; BUILD.off = !!bc.v.off; if ($('#bdSet')) drawBuild(); }
   const bl = data.find(r => r.k === 'blocks');
   if (bl && Array.isArray(bl.v) && bl.v.length) CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...bl.v.map(b => ({ ...b, ids: [] })));
@@ -3709,8 +3712,8 @@ function mountBonus() {
    PROFILE
    ========================================================= */
 let pfTab = 'inv';
-const STATUS = { own: ['В инвентаре', 'st-ok'], sold: ['Продан', 'st-mute'], out: ['Выведен в Steam', 'st-ok'], pend: ['Выводится в Steam…', 'st-warn'], upg: ['Сгорел в апгрейде', 'st-bad'], con: ['Использован в контракте', 'st-mute'], bet: ['В ставке', 'st-warn'], jp: ['Поставлен в ставки', 'st-mute'] };
-const fromName = f => f === 'jackpot' ? 'Ставки' : f === 'upgrade' ? 'Апгрейд' : f === 'contract' ? 'Контракт' : (caseById(f) ? 'Кейс «' + caseById(f).name + '»' : f);
+const STATUS = { own: ['В инвентаре', 'st-ok'], sold: ['Продан', 'st-mute'], out: ['Выведен в Steam', 'st-ok'], pend: ['Выводится в Steam…', 'st-warn'], upg: ['Сгорел в апгрейде', 'st-bad'], con: ['Использован в контракте', 'st-mute'], bet: ['В ставке', 'st-warn'], jp: ['Поставлен в ставки', 'st-mute'], tower: ['Поставлен в башне', 'st-mute'] };
+const fromName = f => f === 'tower' ? 'Башня' : f === 'jackpot' ? 'Ставки' : f === 'upgrade' ? 'Апгрейд' : f === 'contract' ? 'Контракт' : (caseById(f) ? 'Кейс «' + caseById(f).name + '»' : f);
 function pageProfile() {
   if (!st.user) return `<section class="container"><div class="empty-big">${ic.user}<h2>Войдите в аккаунт</h2><p>Чтобы видеть инвентарь, историю дропов и статистику.</p><button class="btn btn-primary btn-lg" data-act="login">${ic.login}Войти</button></div></section>`;
   const u = st.user, rk = rankOf(st.stats.spent), best = st.stats.best && SK[st.stats.best];
@@ -4260,7 +4263,8 @@ const PAY_METHODS = [
   { k: 'crypto', t: 'Криптовалюта', s: 'USDT, BTC, TON', i: 'coin' },
   { k: 'yoomoney', t: 'ЮMoney', s: 'Кошелёк ЮMoney', i: 'wallet', soon: 1 },
   { k: 'payeer', t: 'Payeer', s: 'Кошелёк Payeer', i: 'wallet', soon: 1 },
-  { k: 'skins', t: 'Скины CS2', s: 'Обмен через Steam', i: 'steam', soon: 1 },
+  { k: 'skins', t: 'SkinsMoney', s: 'Скины CS2 через обмен Steam', i: 'steam', soon: 1 },
+  { k: 'skinslink', t: 'Skinslink', s: 'Скины CS2 через обмен Steam', i: 'steam', soon: 1 },
   { k: 'mobile', t: 'Баланс телефона', s: 'МТС, Билайн, МегаФон, Tele2', i: 'send', soon: 1 },
 ];
 const TG_NEWS = 'https://t.me/rushcasse';
@@ -4270,8 +4274,8 @@ async function payStatus() {
   try {
     const r = await fetch(SB_URL + '/functions/v1/payment?action=status', { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: '{}' });
     const j = await r.json().catch(() => ({}));
-    payStat = { live: !!(r.ok && j.live), methods: Array.isArray(j.methods) && j.methods.length ? j.methods : PAY_METHODS.map(x => x.k) };
-  } catch (e) { payStat = { live: false, methods: PAY_METHODS.map(x => x.k) }; }
+    payStat = { live: !!(r.ok && j.live), methods: Array.isArray(j.methods) && j.methods.length ? j.methods : PAY_METHODS.map(x => x.k), skins: !!(r.ok && j.skins), skinslink: !!(r.ok && j.skinslink), skinsRate: +j.skinsRate || 0 };
+  } catch (e) { payStat = { live: false, methods: PAY_METHODS.map(x => x.k), skins: false, skinslink: false, skinsRate: 0 }; }
   payStatT = Date.now(); return payStat;
 }
 async function payStart(amount, method, promo, btn) {
@@ -4284,13 +4288,26 @@ async function payStart(amount, method, promo, btn) {
     location.href = j.url;
   } catch (e) { btn.disabled = false; btn.innerHTML = html; toast('Оплата сейчас недоступна — попробуйте позже', 'err'); }
 }
+/* пополнение скинами (SkinsMoney): сумма = стоимость отданных скинов × курс, зачисляет сервер по уведомлению */
+async function paySkins(promo, btn, prov = 'skins') {
+  const { data } = await sb.auth.getSession(); if (!data.session) return openAuth('login');
+  const html = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Переходим к обмену…';
+  try {
+    const r = await fetch(SB_URL + '/functions/v1/payment?action=' + (prov === 'skinslink' ? 'skinslink_create' : 'skins_create'), { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + data.session.access_token, apikey: SB_KEY }, body: JSON.stringify({ promo }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.url) throw new Error(j.error || 'ошибка');
+    location.href = j.url;
+  } catch (e) { btn.disabled = false; btn.innerHTML = html; toast('Пополнение скинами сейчас недоступно — попробуйте позже', 'err'); }
+}
 /* окно пополнения — поверх текущей страницы: слева вкладки (Карты / Крипта), справа способы оплаты, сумма, промокод и итог «Вы получите» */
 const PAY_TABS = [{ k: 'cards', t: 'Карты', i: 'card', m: ['sbp', 'card', 'intl'] }, { k: 'wallets', t: 'Кошельки', i: 'wallet', m: ['yoomoney', 'payeer'] },
-  { k: 'crypto', t: 'Крипта', i: 'coin', m: ['crypto'] }, { k: 'skins', t: 'Скины', i: 'knife', m: ['skins'] }, { k: 'other', t: 'Другое', i: 'gem', m: ['mobile'] }];
+  { k: 'crypto', t: 'Крипта', i: 'coin', m: ['crypto'] }, { k: 'skins', t: 'Скины', i: 'knife', m: ['skins', 'skinslink'] }, { k: 'other', t: 'Другое', i: 'gem', m: ['mobile'] }];
 async function openDeposit(need = 0, promo = null) {
   if (!st.user) return openAuth('login');
   let amount = 0, tab = 'cards', method = 'sbp', code = promo, refPct = 0;
-  let S = { live: false, methods: PAY_METHODS.map(x => x.k) };
+  let S = { live: false, methods: PAY_METHODS.map(x => x.k), skins: false, skinslink: false, skinsRate: 0 };
+  const isSk = k => k === 'skins' || k === 'skinslink', skOn = k => k === 'skins' ? S.skins : k === 'skinslink' ? S.skinslink : false;
+  const soon = x => isSk(x.k) ? !skOn(x.k) : x.soon; // скины работают отдельно от основной кассы
   const bonusPct = () => Math.max(st.depBonus || 0, refPct);
   const m = modal(`<div class="dpn">
     <nav class="dpn-rail">${PAY_TABS.map(t => `<button data-tab="${t.k}">${ic[t.i]}<span>${t.t}</span></button>`).join('')}
@@ -4319,15 +4336,17 @@ async function openDeposit(need = 0, promo = null) {
   const drawMethods = () => {
     const T = PAY_TABS.find(t => t.k === tab);
     $$('.dpn-rail [data-tab]', m).forEach(e => e.classList.toggle('on', e.dataset.tab === tab));
-    const list = T.m.map(k => PAY_METHODS.find(x => x.k === k)).filter(x => x && (x.soon || !S.live || S.methods.includes(x.k)));
+    const list = T.m.map(k => PAY_METHODS.find(x => x.k === k)).filter(x => x && (soon(x) || isSk(x.k) || !S.live || S.methods.includes(x.k)));
     if (!list.some(x => x.k === method)) method = list[0] ? list[0].k : null;
     const box = $('#dpnM', m);
-    box.innerHTML = list.map(x => `<button class="dpn-m${x.k === method ? ' on' : ''}${x.soon ? ' soon' : ''}" data-m="${x.k}">${x.tag ? `<span class="tagb">${x.tag}</span>` : ''}<span class="dpn-mi">${ic[x.i]}</span><span class="dpn-mt"><b>${x.t}</b><small>${x.s}</small></span><em>${x.soon ? 'скоро' : 'RUB'}</em></button>`).join('')
+    box.innerHTML = list.map(x => `<button class="dpn-m${x.k === method ? ' on' : ''}${soon(x) ? ' soon' : ''}" data-m="${x.k}">${x.tag ? `<span class="tagb">${x.tag}</span>` : ''}<span class="dpn-mi">${ic[x.i]}</span><span class="dpn-mt"><b>${x.t}</b><small>${x.s}</small></span><em>${x.soon ? 'скоро' : 'RUB'}</em></button>`).join('')
       || '<p class="dpn-empty">Способы этой группы скоро появятся</p>';
     box.classList.remove('sw'); void box.offsetWidth; box.classList.add('sw');
     $$('.dpn-m', m).forEach(e => e.onclick = () => { method = e.dataset.m; $$('.dpn-m', m).forEach(b => b.classList.toggle('on', b === e)); draw(); });
   };
   const draw = (note = '') => {
+    if (isSk(method) && skOn(method)) return drawSkins(note);
+    $('.dpn-form', m).classList.remove('sk');
     const ok = amount >= 100 && amount <= 1000000, b = bonusPct();
     $$('.dpn-chips button', m).forEach(e => e.classList.toggle('on', +e.dataset.a === amount));
     $('#depTotal', m).textContent = ok ? money(Math.round(amount * (1 + b / 100))) : '—';
@@ -4340,6 +4359,18 @@ async function openDeposit(need = 0, promo = null) {
     h.innerHTML = note || (!ok ? (amount ? 'Сумма — от 100 до 1 000 000 ₽' : '') : code ? `Промокод <b>${esc(code)}</b> проверим при оплате` : refPct && refPct >= (st.depBonus || 0) ? `+${refPct}% к первому пополнению — вас пригласил друг` : '');
     h.classList.toggle('err', !ok && amount > 0);
   };
+  // скины: сумма — стоимость отданных скинов, показываем курс и бонус
+  const drawSkins = (note = '') => {
+    const b = bonusPct(), rate = S.skinsRate || 0;
+    $('.dpn-form', m).classList.add('sk');
+    $('#depTotal', m).textContent = rate ? `1 $ = ${money(rate)}` : 'по стоимости скинов';
+    $('#depBon', m).textContent = b ? `бонус +${b}%` : 'на баланс';
+    $('#depRc', m).textContent = `${Math.round(DEP_RC * 100)}%`;
+    $('.dpn-get', m).classList.add('show');
+    const g = $('#depGo', m); g.innerHTML = `${ic.steam}Пополнить скинами`; g.disabled = false;
+    $('#depHint', m).innerHTML = note || `Откроется страница ${method === 'skinslink' ? 'Skinslink' : 'SkinsMoney'}: выберите скины из своего Steam-инвентаря и отправьте обмен. Баланс пополнится, когда обмен завершится и деньги поступят — по стоимости скинов.`;
+    $('#depHint', m).classList.remove('err');
+  };
   $$('.dpn-rail [data-tab]', m).forEach(e => e.onclick = () => { tab = e.dataset.tab; drawMethods(); draw(); });
   $$('.dpn-chips button', m).forEach(e => e.onclick = () => { amount = +e.dataset.a; $('#depAmt', m).value = amount; draw(); });
   $('#depAmt', m).oninput = e => { amount = Math.max(0, Math.round(+e.target.value || 0)); draw(); };
@@ -4349,7 +4380,8 @@ async function openDeposit(need = 0, promo = null) {
     if (!method) return toast('Выберите способ оплаты', 'err');
     // касса ещё не подключена — сообщаем прямо в окне, не закрывая его
     const xm = PAY_METHODS.find(v => v.k === method);
-    if (!S.live || (xm && xm.soon)) { const x = xm; return draw(`<b>${esc(x ? x.t : 'Онлайн-оплата')}</b> — подключаем, совсем скоро. Узнать о запуске первым — в нашем <a href="${TG_NEWS}" target="_blank" rel="noopener">Telegram</a>.`); }
+    if (isSk(method) && skOn(method)) return paySkins(code, e.currentTarget, method);
+    if (!S.live || (xm && soon(xm))) { const x = xm; return draw(`<b>${esc(x ? x.t : 'Онлайн-оплата')}</b> — подключаем, совсем скоро. Узнать о запуске первым — в нашем <a href="${TG_NEWS}" target="_blank" rel="noopener">Telegram</a>.`); }
     payStart(amount, method, code, e.currentTarget);
   };
   drawMethods(); draw();
@@ -5183,7 +5215,7 @@ const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
 const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash', 'build'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'promo', 'tours', 'staff'], 'globe']];
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -5717,6 +5749,7 @@ function admDraw() {
   if (admTab === 'support') return admSupport(box);
   if (admTab === 'promo') return admPromo(box);
   if (admTab === 'build') return admBuild(box);
+  if (admTab === 'tower') return admTower(box);
   admTabData(box, R[admTab] || axDash);
 }
 /* ---------- выгрузка статистики в Excel (.xlsx, библиотека SheetJS грузится по кнопке) ---------- */
@@ -6966,6 +6999,588 @@ function admBuild(box) {
   };
 }
 
+/* =========================================================
+   БАШНЯ (#/tower): 8 этажей × 4 клетки, в ряду 1–3 бомбы. Ставка — скины и/или баланс (от 10 ₽).
+   Множитель этажа k: min(окупаемость / p^k, m1 · (T / m1)^((k−1)/7)), p = (4 − бомб) / 4, m1 = окупаемость / p,
+   T — «вершина» на 8-м этаже (по умолчанию ×7,5 / ×20 / ×50), как на сервере (supabase/tower.sql).
+   Пройденный этаж — можно забрать скин ≈ ставка × множитель. Бомба — ставка сгорает.
+   Раскладку бомб знает только сервер. «Демо» — игра на сайте без денег.
+   ========================================================= */
+const TOWER = { rtp: .75, off: false, floors: 8, cols: 4, min: 10, maxItems: 10, top: [7.5, 20, 50] };
+const tw = { bombs: 1, bal: 0, sel: [], game: null, demo: false, busy: false, last: [] };
+const twTop = (b, g) => g && g.top ? +g.top : TOWER.top[b - 1];
+function twM(b, k, rtp = TOWER.rtp, top = TOWER.top[b - 1]) {
+  if (k <= 0) return 0;
+  const p = (4 - b) / 4, m1 = rtp / p, fair = rtp / Math.pow(p, k), curve = m1 * Math.pow(Math.max(1, top / m1), (k - 1) / (TOWER.floors - 1));
+  return Math.round(Math.min(fair, curve) * 100) / 100;
+}
+const twGM = (g, k) => twM(g.bombs, k, g.rtp ? +g.rtp : TOWER.rtp, twTop(g.bombs, g));
+const twX = x => '×' + (+x).toFixed(2).replace(/\.?0+$/, '');
+/* скин ценой ≈ v — приз этажа (ближайший по цене) */
+const TW_POOL = UPG_CAT.filter(s => s.c !== 'cash' && s.p > 0);
+function twSkin(v) {
+  let lo = 0, hi = TW_POOL.length - 1;
+  if (hi < 0) return null;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (TW_POOL[m].p < v) lo = m + 1; else hi = m; }
+  const a = TW_POOL[lo], b = TW_POOL[Math.max(0, lo - 1)];
+  return Math.abs(b.p - v) < Math.abs(a.p - v) ? b : a;
+}
+const twItems = () => tw.sel.map(id => st.inv.find(x => x.id === id && x.st === 'own')).filter(x => x && SK[x.n]);
+const twStake = () => tw.game ? +tw.game.stake : Math.round((twItems().reduce((a, x) => a + SK[x.n].p, 0) + (+tw.bal || 0)) * 100) / 100;
+const twCur = () => tw.game || { bombs: tw.bombs, rtp: TOWER.rtp, top: TOWER.top[tw.bombs - 1], level: 0, picks: [], status: 'idle', stake: twStake() };
+const TW_BOMB = ic.bomb;
+const TW_Q = sv('<path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5"/><path d="M12 18h.01"/>');
+
+/* текстура каменной кладки: рисуется один раз, бесшовная 512×512 (камни разной ширины, швы, сколы, крапинки) */
+let twStoneUrl = '';
+function twStone() {
+  if (twStoneUrl) return twStoneUrl;
+  const S = 512, c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d'); let seed = 7;
+  const R = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.fillStyle = '#120e0b'; x.fillRect(0, 0, S, S);
+  const rows = [60, 68, 56, 64, 72, 60, 64, 68]; let y = 0; // сумма = 512
+  rows.forEach((h, ri) => {
+    let xx = -R() * 80;
+    while (xx < S) {
+      const w = 70 + R() * 90, gap = 4 + R() * 2, x0 = xx + gap / 2, y0 = y + gap / 2, ww = w - gap, hh = h - gap;
+      const hue = 24 + R() * 12, sat = 7 + R() * 8, lig = 19 + R() * 12;
+      [0, -S, S].forEach(off => {
+        const X = x0 + off; if (X > S || X + ww < 0) return;
+        const r = 5 + R() * 6;
+        x.save(); x.beginPath();
+        x.moveTo(X + r, y0 + R() * 2); x.lineTo(X + ww - r, y0 + R() * 2); x.quadraticCurveTo(X + ww, y0, X + ww - R() * 2, y0 + r);
+        x.lineTo(X + ww - R() * 2, y0 + hh - r); x.quadraticCurveTo(X + ww, y0 + hh, X + ww - r, y0 + hh - R() * 2);
+        x.lineTo(X + r, y0 + hh - R() * 2); x.quadraticCurveTo(X, y0 + hh, X + R() * 2, y0 + hh - r); x.lineTo(X + R() * 2, y0 + r); x.quadraticCurveTo(X, y0, X + r, y0);
+        x.closePath(); x.clip();
+        const g = x.createLinearGradient(X, y0, X + ww * .6, y0 + hh);
+        g.addColorStop(0, `hsl(${hue} ${sat}% ${lig + 7}%)`); g.addColorStop(1, `hsl(${hue} ${sat + 2}% ${lig - 5}%)`);
+        x.fillStyle = g; x.fillRect(X, y0, ww, hh);
+        for (let k = 0; k < ww * hh / 30; k++) { x.fillStyle = R() < .5 ? `rgba(0,0,0,${.06 + R() * .12})` : `rgba(255,240,220,${.03 + R() * .06})`; x.fillRect(X + R() * ww, y0 + R() * hh, 1 + R() * 2, 1 + R() * 2); }
+        for (let k = 0; k < 2; k++) { x.strokeStyle = `rgba(0,0,0,${.18 + R() * .15})`; x.lineWidth = .8; x.beginPath(); let px = X + R() * ww, py = y0 + R() * hh; x.moveTo(px, py); for (let s = 0; s < 4; s++) { px += (R() - .5) * 22; py += (R() - .3) * 12; x.lineTo(px, py); } x.stroke(); }
+        x.fillStyle = 'rgba(255,235,210,.10)'; x.fillRect(X, y0, ww, 3); x.fillRect(X, y0, 3, hh);
+        x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(X, y0 + hh - 4, ww, 4); x.fillRect(X + ww - 4, y0, 4, hh);
+        x.restore();
+      });
+      xx += w;
+    }
+    y += h;
+  });
+  return (twStoneUrl = c.toDataURL('image/jpeg', .86));
+}
+
+function pageTower() {
+  return `<div class="tw-bgfx" aria-hidden="true"><i class="tw-lamp"></i><i class="tw-lamp2"></i></div>
+  <section class="container tw" style="--stone:url(${twStone()})">
+    <div class="page-head tw-head"><h1>Баш<em>ня</em></h1><p>8 этажей, на каждом — четыре комнаты. Выберите комнату: боец подбежит, поставит лестницу и залезет. Пусто — этаж открыт, можно выше. Бомба — его выбросит взрывом. Скин можно забрать в любой момент.</p></div>
+    <div class="tw-main">
+      <div class="tw-bet" id="twBet"></div>
+      <div class="tw-stage" id="twStage">
+        <canvas class="tw-3d" id="tw3d" aria-hidden="true"></canvas>
+        <div class="tw-field" id="twField">
+          <div class="tw-roof" aria-hidden="true"></div>
+          <div class="tw-body"><div class="tw-tower" id="twTower"></div></div>
+          <div class="tw-base" aria-hidden="true"><i class="tw-gate"></i><span class="tw-sign">Старт</span></div>
+          <div class="tw-flash" id="twFlash"></div>
+        </div>
+      </div>
+    </div>
+    <div class="tw-last" id="twLast"></div>
+  </section>`;
+}
+async function mountTower() {
+  tw.sel = tw.sel.filter(id => st.inv.find(x => x.id === id && x.st === 'own'));
+  tw.opened = null; tw.reveal = false;
+  drawTower();
+  tw3dInit();
+  if (sb && st.user && st.user.sb && !tw.demo) {
+    const { data, error } = await sb.rpc('tower_state');
+    if (!error && data) {
+      if (data.rtp) TOWER.rtp = +data.rtp; TOWER.off = !!data.off;
+      if (Array.isArray(data.top) && data.top.length === 3) TOWER.top = data.top.map(Number);
+      tw.last = data.last || [];
+      if (data.game && !tw.game) { tw.game = data.game; tw.demo = false; tw.bombs = data.game.bombs; }
+      drawTower(); tw3dGo('sync');
+    }
+  }
+}
+function drawTower() {
+  if (!$('#twTower')) return;
+  drawTwBet(); drawTwTower(); drawTwLast();
+}
+/* ---------- окно ставки ---------- */
+function drawTwBet() {
+  const box = $('#twBet'); if (!box) return;
+  const g = tw.game, play = g && g.status === 'play', stake = twStake(), b = play ? g.bombs : tw.bombs;
+  const its = twItems(), mine = own().slice().sort((x, y) => SK[y.n].p - SK[x.n].p);
+  const lvl = g ? g.level : 0, xNow = play ? twGM(g, lvl) : 0, win = Math.round(stake * xNow * 100) / 100;
+  let main;
+  if (play) main = lvl ? `<button class="btn btn-primary btn-lg tw-go tw-cash" id="twCash">${ic.coins}Забрать ${money(win)}</button>`
+    : `<button class="btn btn-lg tw-go tw-wait" disabled>Откройте клетку на 1-м этаже</button>`;
+  else if (TOWER.off) main = `<button class="btn btn-lg tw-go tw-wait" disabled>Режим временно закрыт</button>`;
+  else if (!st.user) main = `<button class="btn btn-primary btn-lg tw-go" data-act="login">${ic.login}Войти и играть</button>`;
+  else main = `<button class="btn btn-primary btn-lg tw-go" id="twStart"${stake >= TOWER.min ? '' : ' disabled'}>${stake >= TOWER.min ? `Играть на ${money(stake)}` : `Ставка от ${money(TOWER.min)}`}</button>`;
+  box.innerHTML = `
+    <div class="tw-sec"><div class="tw-h"><b>Бомб в ряду</b></div>
+      <div class="tw-bombs">${[1, 2, 3].map(n => `<button data-b="${n}" class="${b === n ? 'on' : ''}"${play ? ' disabled' : ''}><i>${Array.from({ length: n }, () => TW_BOMB).join('')}</i><small>до ${twX(twM(n, TOWER.floors, TOWER.rtp, TOWER.top[n - 1]))}</small></button>`).join('')}</div></div>
+    <div class="tw-sec"><div class="tw-h"><b>С баланса</b><span>${st.user ? money(st.balance) : ''}</span></div>
+      <div class="tw-balr"><input class="inp" id="twBal" type="number" min="0" step="1" inputmode="decimal" placeholder="0 ₽" value="${play ? (+g.bal || '') : (tw.bal || '')}"${play ? ' disabled' : ''}>
+        ${['+10', '+100', '×2'].map(v => `<button class="chip" data-add="${v}"${play ? ' disabled' : ''}>${v}</button>`).join('')}<button class="chip tw-x0" data-add="0" aria-label="Сбросить"${play ? ' disabled' : ''}>${ic.close}</button></div></div>
+    <div class="tw-sec"><div class="tw-h"><b>Скины</b><span>${play ? (g.items || []).length + ' в ставке' : `${its.length}/${TOWER.maxItems} · ${money(its.reduce((a, x) => a + SK[x.n].p, 0))}`}</span>${!play && its.length ? '<button class="tw-clr" id="twClr">Очистить</button>' : ''}</div>
+      ${play ? `<div class="tw-inplay">${(g.items || []).map(n => SK[n] ? `<img class="r-${SK[n].r}" src="${imgUrl(SK[n], 's')}" alt="" title="${esc(n)}">` : '').join('') || '<span>ставка с баланса</span>'}</div>`
+        : !st.user ? `<div class="tw-empty">${ic.user}<span>Войдите, чтобы ставить скины</span></div>`
+        : mine.length ? `<div class="mini-grid tw-inv" id="twInv">${mine.map(x => mcard(SK[x.n], `data-id="${x.id}"`)).join('')}</div>` : `<div class="tw-empty">${ic.box}<span>Инвентарь пуст — играйте на баланс</span></div>`}</div>
+    <div class="tw-sum"><span>Ставка</span><b>${money(stake)}</b></div>
+    <div class="tw-btns">${main}${play ? '' : `<button class="btn btn-sm btn-gline tw-demo" id="twDemo">${ic.eye}Демо</button>`}</div>
+    ${tw.demo && play ? '<div class="cc-note">Это <b>демо-игра</b> — без денег, выигрыш не сохраняется.</div>' : ''}`;
+  $$('[data-b]', box).forEach(el => el.onclick = () => { tw.bombs = +el.dataset.b; Snd.click(); drawTower(); });
+  const bi = $('#twBal'); if (bi) bi.oninput = () => { tw.bal = Math.max(0, Math.round((+bi.value || 0) * 100) / 100); twSumOnly(); drawTwTower(); };
+  $$('[data-add]', box).forEach(el => el.onclick = () => {
+    const a = el.dataset.add; tw.bal = a === '0' ? 0 : a === '×2' ? (tw.bal || 0) * 2 : (tw.bal || 0) + parseFloat(a);
+    if (st.user) tw.bal = Math.min(tw.bal, Math.floor(st.balance * 100) / 100);
+    Snd.click(); drawTower();
+  });
+  $$('[data-id]', $('#twInv') || box).forEach(el => {
+    if (tw.sel.includes(el.dataset.id)) el.classList.add('sel');
+    el.onclick = () => {
+      const id = el.dataset.id;
+      if (tw.sel.includes(id)) tw.sel = tw.sel.filter(x => x !== id);
+      else { if (tw.sel.length >= TOWER.maxItems) return toast(`Не больше ${TOWER.maxItems} скинов`, 'err'); tw.sel.push(id); }
+      Snd.safeSel(tw.sel.includes(id)); drawTower();
+    };
+  });
+  const cl = $('#twClr'); if (cl) cl.onclick = () => { tw.sel = []; drawTower(); };
+  const s0 = $('#twStart'); if (s0) s0.onclick = () => twStart(false);
+  const dm = $('#twDemo'); if (dm) dm.onclick = () => twStart(true);
+  const cs = $('#twCash'); if (cs) cs.onclick = twCash;
+}
+// ввод суммы — обновляем итог и кнопку, поле не теряет фокус
+function twSumOnly() {
+  const s = twStake(), b = $('.tw-sum b'); if (b) b.textContent = money(s);
+  const st0 = $('#twStart'); if (st0) { st0.disabled = s < TOWER.min; st0.textContent = s >= TOWER.min ? `Играть на ${money(s)}` : `Ставка от ${money(TOWER.min)}`; }
+}
+/* ---------- башня: клетки — каменные арки с решёткой; решётка уезжает вверх, когда боец забрался ---------- */
+function drawTwTower() {
+  const box = $('#twTower'); if (!box) return;
+  const g = twCur(), play = g.status === 'play', over = g.status === 'lost' || g.status === 'cash', lvl = g.level || 0;
+  const lay = g.layout, picks = g.picks || [], stake = twStake() || 100;
+  const op = tw.opened, rev = tw.reveal; tw.opened = null; tw.reveal = false; // анимируем только то, что открылось сейчас
+  let html = '';
+  for (let i = TOWER.floors - 1; i >= 0; i--) {
+    const x = twGM(g, i + 1), sk = twSkin(stake * x);
+    const cur = play && i === lvl, done = (play || over) && i < lvl, pick = picks[i];
+    const cls = ['tw-row', cur ? 'cur' : '', done ? 'done' : '', play && i > lvl ? 'up' : '', over && g.status === 'lost' && i === lvl ? 'dead' : '', !play && !over && i === 0 ? 'nxt' : ''].join(' ');
+    const rowFresh = op && op.i === i;
+    const cells = Array.from({ length: TOWER.cols }, (_, c) => {
+      const bomb = lay && lay[i] && lay[i].includes(c), mine = pick === c && (done || (over && i === lvl && bomb));
+      let k = 'tw-c', inner = '', open = false, fresh = false;
+      if (mine && !bomb) { k += ' ok'; inner = sk ? `<img src="${imgUrl(sk, 's')}" alt="">` : ic.check; open = true; fresh = rowFresh; }
+      else if (mine && bomb) { k += ' boom'; inner = `<i class="tw-ring"></i>${TW_BOMB}`; open = true; fresh = rowFresh; }
+      else if (over && bomb) { k += ' bomb-r'; inner = TW_BOMB; open = true; fresh = rev; }
+      else if (over && lay) { k += ' safe-r'; open = true; fresh = rev; }
+      else if (done) { k += ' vac'; open = true; fresh = rowFresh; } // пройденный этаж открыт целиком
+      if (open) k += fresh ? ' opening' : ' open';
+      const dl = fresh ? (pick === c ? 0 : 140 + Math.abs(c - (pick ?? 0)) * 90) + (rev && !rowFresh ? (TOWER.floors - i) * 50 : 0) : 0;
+      return `<button class="${k}" data-c="${c}"${cur ? '' : ' tabindex="-1"'} style="--d:${dl}ms" aria-label="Клетка ${c + 1}"><span class="tw-room"></span><span class="tw-in">${inner}</span><span class="tw-grate"><i class="tw-q">${TW_Q}</i></span></button>`;
+    }).join('');
+    html += `<div class="${cls}" data-l="${i}"><div class="tw-cells">${cells}</div><div class="tw-x"><b class="tw-sign">${twX(x)}</b></div></div>`;
+  }
+  box.innerHTML = html;
+  const fld = $('#twField');
+  if (!over) fld.classList.remove('flash-boom', 'flash-win', 'shake');
+  fld.classList.toggle('play', play); fld.classList.toggle('lost', g.status === 'lost'); fld.classList.toggle('won', g.status === 'cash');
+  if (play && !tw.busy) $$(`.tw-row.cur .tw-c`, box).forEach(el => el.onclick = () => twStep(+el.dataset.c, el));
+}
+function drawTwLast() {
+  const box = $('#twLast'); if (!box) return;
+  box.innerHTML = tw.last.length ? `${secTitle('Ваши последние игры')}<div class="tw-hist">${tw.last.map(h => {
+    const s = h.prize && SK[h.prize];
+    return `<div class="tw-h1 ${h.status}"><span>${h.bombs} ${plural(h.bombs, 'бомба', 'бомбы', 'бомб')} · этаж ${h.level}</span><b>${h.status === 'cash' ? twX(+h.mult) : 'Бомба'}</b>${s ? `<img class="r-${s.r}" src="${imgUrl(s, 's')}" alt="" title="${esc(s.name)}">` : ''}<em>${h.status === 'cash' ? money(+h.prize_p) : '−' + money(+h.stake)}</em></div>`;
+  }).join('')}</div>` : '';
+}
+/* ---------- 3D: боец-спецназовец живёт внутри башни (three.js с CDN, как в краше) ----------
+   Холст поверх башни, перспектива «1 единица = 1 px» в плоскости z=0; клетки, этажи и земля берутся из разметки.
+   Ход: боец бежит по своему этажу под выбранную клетку → ставит лестницу → лезет → забирается в клетку → решётка поднимается (результат);
+   пусто — стоит в клетке, открывается весь этаж; бомба — взрывом выбрасывает из клетки; выигрыш — поднимает кулак. */
+const t3 = { on: false, gen: 0 };
+let twLib = null;
+const twLoadLib = () => twLib || (twLib = Promise.all([import('three'), import('three/addons/geometries/RoundedBoxGeometry.js')]).catch(e => { twLib = null; throw e; }));
+function twWoodTex(T) {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 256; const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 64, 0); g.addColorStop(0, '#6b4524'); g.addColorStop(.5, '#8a5a30'); g.addColorStop(1, '#5a391d');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 256);
+  for (let i = 0; i < 26; i++) { x.strokeStyle = `rgba(40,22,8,${.15 + Math.random() * .25})`; x.lineWidth = .6 + Math.random() * 1.4; x.beginPath(); let px = Math.random() * 64; x.moveTo(px, 0); for (let y = 0; y <= 256; y += 16) { px += (Math.random() - .5) * 3; x.lineTo(px, y); } x.stroke(); }
+  const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; return t;
+}
+function twGlow(T, a, b) {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, a); g.addColorStop(1, b); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t;
+}
+/* боец: размеры в метрах, рост ~1,8 */
+function twSoldier(T, RB) {
+  const M = (c, r = .85, m = 0) => new T.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
+  const mat = { cloth: M('#7a715a', .92), pants: M('#5f5a47', .92), vest: M('#3a3b31', .9), tan: M('#a08a62', .88), dark: M('#18181a', .7), boot: M('#2b231b', .75), helm: M('#5d6446', .55), metal: M('#3a3d40', .45, .6), gold: M('#f3c14f', .35, .8), glass: M('#0b0f14', .15, .3), strap: M('#5e5340') };
+  const mesh = (geo, m, p = [0, 0, 0], r, s) => { const o = new T.Mesh(geo, m); o.position.set(...p); if (r) o.rotation.set(...r); if (s) o.scale.set(...s); return o; };
+  const grp = (p = [0, 0, 0]) => { const g = new T.Group(); g.position.set(...p); return g; };
+  const cap = (r, l) => new T.CapsuleGeometry(r, l, 6, 14), rb = (w, h, d, rr = .02) => new RB(w, h, d, 3, rr);
+  const root = grp(), pelvis = grp([0, .98, 0]); root.add(pelvis);
+  pelvis.add(mesh(rb(.35, .19, .23, .06), mat.pants));
+  [-.12, 0, .12].forEach(x => pelvis.add(mesh(rb(.085, .09, .05, .015), mat.vest, [x, .03, -.13])));
+  pelvis.add(mesh(rb(.38, .055, .25, .015), mat.dark, [0, .08, 0]));
+  pelvis.add(mesh(rb(.06, .035, .02, .006), mat.gold, [0, .07, .12]));
+  pelvis.add(mesh(rb(.09, .1, .06, .02), mat.tan, [.17, .02, -.04])); // подсумок на бедре
+  const spine = grp([0, .08, 0]); pelvis.add(spine);
+  spine.add(mesh(cap(.15, .26), mat.cloth, [0, .2, 0], null, [1.12, 1, .8]));
+  spine.add(mesh(rb(.37, .35, .27, .05), mat.vest, [0, .23, 0]));
+  [-.11, 0, .11].forEach(x => spine.add(mesh(rb(.09, .11, .05, .015), mat.tan, [x, .14, .145])));
+  spine.add(mesh(rb(.34, .03, .28, .01), mat.strap, [0, .34, 0]));
+  // рюкзак со скаткой, рацией и шевроном с короной
+  const pack = grp([0, .25, -.2]); spine.add(pack);
+  pack.add(mesh(rb(.3, .36, .15, .04), M('#6e6249', .9)));
+  pack.add(mesh(rb(.26, .12, .05, .02), M('#7a6748'), [0, -.08, -.08]));
+  pack.add(mesh(new T.CylinderGeometry(.065, .065, .32, 16), M('#3d3f30'), [0, .22, 0], [0, 0, Math.PI / 2]));
+  pack.add(mesh(rb(.07, .14, .05, .015), mat.dark, [.13, .05, -.02]));
+  pack.add(mesh(new T.CylinderGeometry(.006, .006, .38, 6), mat.dark, [.15, .3, -.02]));
+  pack.add(mesh(rb(.11, .07, .012, .006), mat.gold, [0, .06, -.08]));
+  [-.1, .1].forEach(x => { pack.add(mesh(rb(.04, .42, .02, .008), mat.strap, [x, .02, .09])); pack.add(mesh(rb(.045, .03, .2, .01), mat.strap, [x, .2, .17])); });
+  // автомат за спиной, наискосок
+  const gun = grp([0, .22, -.3]); gun.rotation.z = .75; spine.add(gun);
+  gun.add(mesh(rb(.055, .5, .06, .01), mat.dark));
+  gun.add(mesh(new T.CylinderGeometry(.012, .012, .28, 8), mat.metal, [0, .38, 0]));
+  gun.add(mesh(rb(.04, .12, .05, .008), mat.dark, [.03, -.05, .02], [0, 0, -.25]));
+  gun.add(mesh(rb(.05, .16, .07, .01), M('#2b2b2e'), [0, -.32, 0]));
+  // шея и голова: балаклава, очки, каска с креплением ПНВ
+  spine.add(mesh(new T.CylinderGeometry(.055, .06, .09, 12), mat.dark, [0, .43, 0]));
+  const head = grp([0, .47, 0]); head.scale.setScalar(1.12); spine.add(head);
+  head.add(mesh(new T.SphereGeometry(.112, 24, 18), mat.dark, [0, .09, 0], null, [.95, 1.05, 1]));
+  head.add(mesh(rb(.17, .05, .05, .02), mat.glass, [0, .11, .085]));
+  head.add(mesh(new T.TorusGeometry(.112, .012, 6, 24), mat.dark, [0, .11, 0], [Math.PI / 2, 0, 0]));
+  head.add(mesh(new T.SphereGeometry(.138, 26, 14, 0, Math.PI * 2, 0, Math.PI * .55), mat.helm, [0, .115, -.005], null, [1, .95, 1.1]));
+  head.add(mesh(new T.TorusGeometry(.137, .009, 6, 30), mat.helm, [0, .135, -.005], [Math.PI / 2, 0, 0], [1, 1.1, 1]));
+  head.add(mesh(rb(.05, .04, .03, .008), mat.metal, [0, .2, .12]));
+  [-1, 1].forEach(s => head.add(mesh(rb(.012, .05, .05, .004), mat.dark, [s * .13, .12, 0])));
+  head.add(mesh(rb(.07, .04, .025, .01), mat.tan, [0, .22, -.1], [-.5, 0, 0]));
+  head.add(mesh(new T.TorusGeometry(.142, .008, 6, 30), mat.dark, [0, .17, 0], [Math.PI / 2, 0, 0], [1, 1.1, 1]));
+  head.add(mesh(rb(.03, .025, .02, .006), M('#2f3a2a'), [0, .245, -.06]));
+  head.add(mesh(new T.SphereGeometry(.008, 8, 6), new T.MeshBasicMaterial({ color: '#7dff7a' }), [0, .262, -.06]));
+  // руки
+  const arm = s => {
+    const sh = grp([s * .205, .36, 0]); spine.add(sh);
+    sh.add(mesh(new T.SphereGeometry(.072, 16, 12), mat.vest, [0, -.01, 0]));
+    sh.add(mesh(cap(.055, .19), mat.cloth, [0, -.13, 0]));
+    const el = grp([0, -.27, 0]); sh.add(el);
+    el.add(mesh(new T.SphereGeometry(.058, 12, 10), mat.vest, [0, 0, -.012]));
+    el.add(mesh(cap(.05, .17), mat.cloth, [0, -.12, 0]));
+    el.add(mesh(new T.CylinderGeometry(.056, .052, .05, 12), mat.dark, [0, -.2, 0]));
+    const hd = grp([0, -.27, 0]); el.add(hd);
+    hd.add(mesh(rb(.075, .1, .055, .02), mat.dark, [0, -.03, 0]));
+    hd.add(mesh(rb(.03, .05, .03, .01), mat.dark, [-s * .045, -.01, .02], [0, 0, s * .4]));
+    return { sh, el, hd };
+  };
+  const leg = s => {
+    const hp = grp([s * .09, -.05, 0]); pelvis.add(hp);
+    hp.add(mesh(cap(.09, .26), mat.pants, [0, -.2, 0]));
+    hp.add(mesh(rb(.04, .13, .11, .015), mat.pants, [s * .095, -.22, 0]));
+    hp.add(mesh(rb(.015, .02, .1, .005), mat.dark, [s * .117, -.16, 0]));
+    const kn = grp([0, -.42, 0]); hp.add(kn);
+    kn.add(mesh(rb(.1, .11, .05, .02), mat.tan, [0, 0, .06]));
+    kn.add(mesh(cap(.076, .26), mat.pants, [0, -.2, 0]));
+    const an = grp([0, -.44, 0]); kn.add(an);
+    an.add(mesh(rb(.115, .12, .22, .035), mat.boot, [0, -.04, .04]));
+    an.add(mesh(rb(.12, .025, .23, .01), mat.dark, [0, -.1, .04]));
+    an.add(mesh(new T.CylinderGeometry(.07, .07, .05, 12), mat.boot, [0, .03, 0]));
+    return { hp, kn, an };
+  };
+  const aL = arm(1), aR = arm(-1), lL = leg(1), lR = leg(-1);
+  root.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+  return { root, pelvis, spine, head, aL, aR, lL, lR };
+}
+function twLadder(T, wood) {
+  const g = new T.Group(), W = .5, mRail = new T.MeshStandardMaterial({ map: wood, roughness: .8 }), mRung = new T.MeshStandardMaterial({ map: wood, roughness: .75, color: '#d8c0a0' }), mIron = new T.MeshStandardMaterial({ color: '#3b3a38', roughness: .5, metalness: .6 });
+  const rail = new T.BoxGeometry(.06, 1, .065); rail.translate(0, .5, 0);
+  const rL = new T.Mesh(rail, mRail), rR = new T.Mesh(rail, mRail); rL.position.x = -W / 2; rR.position.x = W / 2; g.add(rL, rR);
+  const MAX = 24, rung = new T.CylinderGeometry(.022, .022, W, 10); rung.rotateZ(Math.PI / 2);
+  const rungs = new T.InstancedMesh(rung, mRung, MAX), m4 = new T.Matrix4();
+  for (let i = 0; i < MAX; i++) { m4.makeTranslation(0, .2 + i * .28, 0); rungs.setMatrixAt(i, m4); }
+  g.add(rungs);
+  [-1, 1].forEach(s => { const f = new T.Mesh(new T.BoxGeometry(.085, .045, .09), mIron); f.position.set(s * W / 2, .02, 0); g.add(f); });
+  return { g, rL, rR, rungs, len: 1, set(len) { this.len = Math.max(.4, len); rL.scale.y = rR.scale.y = this.len; rungs.count = Math.max(0, Math.min(MAX, Math.floor((this.len - .08) / .28))); } };
+}
+async function tw3dInit() {
+  const cv = $('#tw3d'); if (!cv) return;
+  const gen = ++t3.gen;
+  let T, RB;
+  try { const [a, b] = await twLoadLib(); T = a; RB = b.RoundedBoxGeometry; } catch (e) { return; }
+  if (gen !== t3.gen || !cv.isConnected) return;
+  const ren = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+  ren.setPixelRatio(Math.min(2.5, Math.max(2, window.devicePixelRatio || 1))); // боец небольшой — рисуем с запасом чёткости
+  ren.outputColorSpace = T.SRGBColorSpace; ren.toneMapping = T.ACESFilmicToneMapping; ren.toneMappingExposure = 1.3;
+  const scene = new T.Scene(), cam = new T.PerspectiveCamera(18, 1, 10, 20000);
+  scene.add(new T.HemisphereLight(0xe8dccb, 0x24162e, 1.0));
+  const key = new T.DirectionalLight(0xffd2a0, 3.4); key.position.set(.7, 1.0, 1.4); scene.add(key);  // тёплый свет факелов спереди-сверху
+  const rim = new T.DirectionalLight(0xb05cff, 1.5); rim.position.set(-1.2, .5, .35); scene.add(rim); // фиолетовый контур — как дым на фоне
+  const rig = new T.Group(); scene.add(rig);
+  const ch = twSoldier(T, RB); rig.add(ch.root);
+  const lad = twLadder(T, twWoodTex(T)); scene.add(lad.g); lad.g.visible = false;
+  const shadow = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: twGlow(T, 'rgba(0,0,0,.65)', 'rgba(0,0,0,0)'), transparent: true, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; rig.add(shadow);
+  Object.assign(t3, { on: true, T, ren, scene, cam, rig, ch, lad, shadow, cv, q: [], act: null,
+    x: 0, y: 0, face: 0, faceT: 0, mode: 'stand', ph: 0, pop: 1, vel: null, lx: 0, ly: 0, lenT: 1, ladS: 0 });
+  tw3dGo('sync');
+  let last = performance.now();
+  const loop = now => {
+    if (gen !== t3.gen) return;
+    if (!cv.isConnected) { t3.on = false; ren.dispose(); return; }
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    twTick(dt, now / 1000); requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+/* разметка → мир (пиксели холста, ось y вверх): центры колонок и пол каждого этажа, земля под цоколем */
+function twMetrics() {
+  const cr = t3.cv.getBoundingClientRect(), base = $('.tw-base'); if (!base) return null;
+  const rows = {}; let cellH = 80;
+  $$('.tw-row').forEach(r => {
+    const cs = $$('.tw-c', r).map(c => c.getBoundingClientRect()); if (!cs.length) return;
+    cellH = cs[0].height;
+    rows[+r.dataset.l] = { floor: -(cs[0].bottom - cr.top) + 2, cols: cs.map(b => b.left + b.width / 2 - cr.left) };
+  });
+  const br = base.getBoundingClientRect();
+  return { w: cr.width, h: cr.height, rows, ground: -(br.bottom - cr.top) + 4, gx: br.left + br.width * .5 - cr.left, ppm: cellH * .86 / 1.8 };
+}
+const twFloorY = (m, lvl) => lvl < 0 ? m.ground : (m.rows[lvl] ? m.rows[lvl].floor : m.ground);
+const twColX = (m, lvl, c) => m.rows[Math.max(0, lvl)] ? m.rows[Math.max(0, lvl)].cols[c] : m.gx;
+/* события игры */
+function tw3dGo(ev, o = {}) {
+  if (!t3.on) { if (o.cb) o.cb(); return; }
+  const m = twMetrics(); if (!m) { if (o.cb) o.cb(); return; }
+  const g = twCur();
+  if (ev === 'sync' || ev === 'reset') {
+    t3.q = []; t3.act = null; t3.vel = null; t3.lad.g.visible = false; t3.ch.root.visible = true;
+    t3.ch.root.position.set(0, 0, 0); t3.ch.root.rotation.set(0, 0, 0);
+    if (g.status === 'play' && g.level > 0) { const p = (g.picks || [])[g.level - 1] ?? 0; t3.x = twColX(m, g.level - 1, p); t3.y = twFloorY(m, g.level - 1); }
+    else { t3.x = m.gx; t3.y = m.ground; }
+    t3.mode = 'stand'; t3.faceT = 0; if (ev === 'sync') t3.face = 0; t3.pop = ev === 'reset' ? 0 : 1;
+    return;
+  }
+  if (ev === 'go') {
+    const x = twColX(m, o.lvl, o.col), y0 = t3.y, y1 = twFloorY(m, o.lvl);
+    t3.q = [{ k: 'run', x }, { k: 'place', y0, y1, t: .45 }, { k: 'climb', y1 }, { k: 'enter', t: .3, cb: o.cb }];
+    twNext(); return;
+  }
+  if (ev === 'stand') { t3.mode = 'stand'; t3.faceT = 0; return; }
+  if (ev === 'win') { t3.mode = 'win'; t3.faceT = 0; return; }
+  if (ev === 'fall') { t3.q = []; t3.act = null; t3.mode = 'fall'; t3.vel = { x: (Math.random() < .5 ? -1 : 1) * 1.6, y: 3.4, z: 2.2, rx: -3 - Math.random() * 3, rz: 4 + Math.random() * 3 }; t3.lad.g.visible = false; return; }
+}
+function twNext() {
+  const a = t3.q.shift(); t3.act = a || null; if (!a) return;
+  t3.actT = 0;
+  if (a.k === 'run') { t3.mode = Math.abs(a.x - t3.x) > 3 ? 'run' : 'stand'; t3.faceT = a.x > t3.x ? Math.PI / 2 : -Math.PI / 2; }
+  if (a.k === 'place') {
+    t3.mode = 'lift'; t3.faceT = Math.PI;
+    const m = twMetrics(); t3.lenT = m ? (a.y1 - a.y0) / m.ppm + .45 : 2;
+    t3.lad.set(t3.lenT); t3.lad.g.visible = true; t3.lx = t3.x; t3.ly = a.y0; t3.ladS = 0;
+  }
+  if (a.k === 'climb') { t3.mode = 'climb'; t3.faceT = Math.PI; }
+  if (a.k === 'enter') { t3.mode = 'stand'; t3.faceT = 0; }
+}
+const twEase = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+function twTick(dt, time) {
+  const m = twMetrics(); if (!m) return;
+  const { ren, cam, rig, ch, lad, shadow } = t3, pr = ren.getPixelRatio();
+  if (ren.domElement.width !== Math.round(m.w * pr) || ren.domElement.height !== Math.round(m.h * pr)) ren.setSize(m.w, m.h, false);
+  cam.aspect = m.w / m.h; cam.position.set(m.w / 2, -m.h / 2, (m.h / 2) / Math.tan(cam.fov * Math.PI / 360)); cam.lookAt(m.w / 2, -m.h / 2, 0); cam.far = cam.position.z * 3; cam.updateProjectionMatrix();
+  const a = t3.act, ppm = m.ppm;
+  if (a) {
+    t3.actT += dt;
+    if (a.k === 'run') {
+      const d = a.x - t3.x, sp = 3.4 * ppm * dt, st = Math.sign(d) * Math.min(Math.abs(d), sp);
+      t3.x += st; t3.ph += Math.abs(st) / (1.15 * ppm);
+      if (Math.abs(a.x - t3.x) < .5) { t3.x = a.x; twNext(); }
+    } else if (a.k === 'place') {
+      const k = Math.min(1, t3.actT / a.t); t3.ladS = twEase(k);
+      if (k >= 1) twNext();
+    } else if (a.k === 'climb') {
+      const d = a.y1 - t3.y, sp = 1.5 * ppm * dt, st = Math.sign(d) * Math.min(Math.abs(d), sp);
+      t3.y += st; t3.ph += Math.abs(st) / (.56 * ppm);
+      if (Math.abs(a.y1 - t3.y) < .5) { t3.y = a.y1; twNext(); }
+    } else if (a.k === 'enter') {
+      const k = Math.min(1, t3.actT / a.t); t3.ladS = 1 - k;
+      if (k >= 1) { lad.g.visible = false; const cb = a.cb; twNext(); if (cb) cb(); }
+    }
+  }
+  // поворот корпуса
+  let df = t3.faceT - t3.face; while (df > Math.PI) df -= Math.PI * 2; while (df < -Math.PI) df += Math.PI * 2;
+  t3.face += df * Math.min(1, dt * 10);
+  // лестница: поднимается с пола у стены (наклон к стене), потом убирается
+  if (lad.g.visible) {
+    lad.g.position.set(t3.lx, t3.ly, -.34 * ppm); lad.g.scale.setScalar(ppm);
+    lad.g.rotation.set((1 - t3.ladS) * Math.PI / 2 * .95 - t3.ladS * .05, 0, 0);
+    lad.set(t3.lenT * (t3.act && t3.act.k === 'enter' ? Math.max(.05, t3.ladS) : 1));
+  }
+  // боец
+  const s = ch.root;
+  rig.scale.setScalar(ppm);
+  if (t3.mode === 'fall' && t3.vel) {
+    const v = t3.vel; v.y -= 12 * dt;
+    s.position.x += v.x * dt; s.position.y += v.y * dt; s.position.z += v.z * dt; s.rotation.x += v.rx * dt; s.rotation.z += v.rz * dt;
+    if (rig.position.y + s.position.y * ppm < -m.h - 200) s.visible = false;
+  } else {
+    const bob = t3.mode === 'run' ? Math.abs(Math.sin(t3.ph * Math.PI * 2)) * .05 : 0;
+    rig.position.set(t3.x, t3.y, t3.mode === 'climb' ? -.05 * ppm : .1 * ppm);
+    s.position.set(0, bob, 0); s.rotation.set(t3.mode === 'run' ? .12 : 0, t3.face, 0);
+    if (t3.pop < 1) { t3.pop = Math.min(1, t3.pop + dt * 2.2); }
+    s.scale.setScalar(t3.pop < 1 ? Math.max(.01, 1 - Math.pow(1 - t3.pop, 3)) : 1);
+  }
+  twPose(ch, t3.mode === 'climb' && !(a && a.k === 'climb') ? 'hold' : t3.mode, t3.ph, time, dt);
+  shadow.position.set(0, .01, 0); shadow.scale.set(.7, .45, 1); shadow.visible = t3.mode !== 'fall' && t3.mode !== 'climb';
+  ren.render(t3.scene, cam);
+}
+/* позы: цели суставов, плавно догоняем */
+function twPose(ch, mode, ph, time, dt) {
+  const s = Math.sin(ph * Math.PI * 2), up = x => Math.max(0, x), br = Math.sin(time * 2.2) * .03;
+  let P;
+  if (mode === 'climb' || mode === 'hold') {
+    const S = mode === 'climb' ? s : 0;
+    P = { sLx: -2.45 - .4 * S, sLz: .1, sRx: -2.45 + .4 * S, sRz: -.1, eL: -.45 - .45 * up(S), eR: -.45 - .45 * up(-S),
+      hL: -.3 - .85 * up(-S), kL: .35 + 1.35 * up(-S), hR: -.3 - .85 * up(S), kR: .35 + 1.35 * up(S), aL: .2, aR: .2,
+      spX: .12 + br, spZ: .05 * S, hdY: .1, hdX: -.15 };
+  } else if (mode === 'run') {
+    P = { sLx: .85 * s, sLz: .12, sRx: -.85 * s, sRz: -.12, eL: -1.1, eR: -1.1, hL: -.85 * s - .1, kL: .25 + 1.1 * up(s), hR: .85 * s - .1, kR: .25 + 1.1 * up(-s), aL: .1, aR: .1, spX: .18, spZ: 0, hdY: 0, hdX: -.12 };
+  } else if (mode === 'lift') {
+    P = { sLx: -2.0, sLz: .25, sRx: -2.0, sRz: -.25, eL: -.6, eR: -.6, hL: -.4, kL: .6, hR: -.1, kR: .3, aL: .1, aR: .1, spX: .2, spZ: 0, hdY: 0, hdX: -.3 };
+  } else if (mode === 'win') {
+    P = { sLx: .1, sLz: .2, sRx: -3.0 + .12 * Math.sin(time * 9), sRz: -.3, eL: -.4, eR: -.2, hL: 0, kL: .05, hR: -.05, kR: .1, aL: 0, aR: 0, spX: -.05, spZ: -.08, hdY: .15, hdX: .12 };
+  } else if (mode === 'fall') {
+    const w = time * 11;
+    P = { sLx: -2.6 + .7 * Math.sin(w), sLz: .9, sRx: -.6 + .8 * Math.cos(w * 1.2), sRz: -.9, eL: -.4, eR: -1.1, hL: -1.1 + .5 * Math.sin(w), kL: 1, hR: .3, kR: .4, aL: 0, aR: 0, spX: -.3, spZ: .2, hdY: .4, hdX: .3 };
+  } else { // стоит лицом к нам, дышит, оглядывается
+    P = { sLx: .08, sLz: .14, sRx: .08, sRz: -.14, eL: -.25, eR: -.25, hL: .02, kL: .06, hR: -.02, kR: .06, aL: 0, aR: 0, spX: br, spZ: 0, hdY: .35 * Math.sin(time * .5), hdX: .05 };
+  }
+  const k = Math.min(1, dt * (mode === 'climb' || mode === 'run' ? 22 : 9)), J = (o, ax, v) => { o.rotation[ax] += (v - o.rotation[ax]) * k; };
+  J(ch.aL.sh, 'x', P.sLx); J(ch.aL.sh, 'z', P.sLz); J(ch.aR.sh, 'x', P.sRx); J(ch.aR.sh, 'z', P.sRz);
+  J(ch.aL.el, 'x', P.eL); J(ch.aR.el, 'x', P.eR);
+  J(ch.lL.hp, 'x', P.hL); J(ch.lL.kn, 'x', P.kL); J(ch.lR.hp, 'x', P.hR); J(ch.lR.kn, 'x', P.kR);
+  J(ch.lL.an, 'x', P.aL); J(ch.lR.an, 'x', P.aR);
+  J(ch.spine, 'x', P.spX); J(ch.spine, 'z', P.spZ); J(ch.head, 'y', P.hdY); J(ch.head, 'x', P.hdX);
+  ch.spine.scale.y = 1 + Math.sin(time * 2.2) * .008;
+}
+/* ---------- игра ---------- */
+async function twStart(demo) {
+  if (tw.busy) return;
+  const stake = demo ? Math.max(twStake(), 100) : twStake();
+  if (!demo) {
+    if (!st.user) return openAuth('login');
+    if (stake < TOWER.min) return toast(`Ставка от ${money(TOWER.min)}`, 'err');
+    if ((tw.bal || 0) > st.balance) return openDeposit(tw.bal - st.balance);
+  }
+  tw.busy = true;
+  if (demo) {
+    const mix = () => { const a = [0, 1, 2, 3]; for (let i = 3; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const layout = Array.from({ length: TOWER.floors }, () => mix().slice(0, tw.bombs).sort());
+    tw.game = { id: 0, bombs: tw.bombs, stake, items: [], bal: stake, rtp: TOWER.rtp, top: TOWER.top[tw.bombs - 1], level: 0, picks: [], status: 'play', layout: null, _lay: layout };
+    tw.demo = true;
+  } else {
+    const r = await srv('tower_start', { p_ids: twItems().map(x => x.id), p_bal: tw.bal || 0, p_bombs: tw.bombs });
+    if (!r) { tw.busy = false; return; }
+    tw.game = r.game; tw.demo = false; tw.sel = []; tw.bal = 0;
+  }
+  tw.busy = false; Snd.bdBuy ? Snd.bdBuy() : Snd.click();
+  drawTower();
+  const fld = $('#twField'); if (fld) { fld.classList.remove('start'); void fld.offsetWidth; fld.classList.add('start'); }
+  const row = $('.tw-row.cur'); if (row && row.getBoundingClientRect().bottom > innerHeight) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+async function twStep(c, el) {
+  const g = tw.game; if (!g || g.status !== 'play' || tw.busy) return;
+  tw.busy = true; if (el) el.classList.add('target'); Snd.click();
+  let boom, ng;
+  if (tw.demo) {
+    boom = g._lay[g.level].includes(c);
+    ng = { ...g, picks: [...g.picks, c] };
+    if (boom) { ng.status = 'lost'; ng.layout = g._lay; }
+    else { ng.level = g.level + 1; if (ng.level >= TOWER.floors) { ng.status = 'cash'; ng.layout = g._lay; ng.mult = twGM(g, ng.level); const s = twSkin(g.stake * ng.mult); ng.prize = s && s.name; ng.prize_p = s && s.p; } }
+  } else {
+    const r = await srv('tower_step', { p_id: g.id, p_col: c });
+    if (!r) { tw.busy = false; drawTwTower(); return; }
+    boom = r.boom; ng = r.game;
+  }
+  // результат показываем, когда боец забрался в клетку
+  const apply = () => {
+    tw.game = ng; tw.busy = false;
+    tw.opened = { i: g.level, c }; if (ng.status !== 'play') tw.reveal = true;
+    Snd.noise(.18, .22, 0, 1400, 1.2); // лязг решётки
+    drawTower();
+    if (boom) { Snd.lose(); twFx('boom'); tw3dGo('fall'); twLost(ng); }
+    else {
+      Snd.tone(520 + ng.level * 70, .12, 'triangle', .06, .1, 760 + ng.level * 80);
+      if (ng.status === 'cash') { tw3dGo('win'); twWon(ng); }
+      else { tw3dGo('stand'); const row = $('.tw-row.cur'); if (row && row.getBoundingClientRect().top < 90) row.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    }
+  };
+  if (t3.on) tw3dGo('go', { lvl: g.level, col: c, cb: apply }); else apply();
+}
+async function twCash() {
+  const g = tw.game; if (!g || g.status !== 'play' || !g.level || tw.busy) return;
+  tw.busy = true;
+  let ng;
+  if (tw.demo) { const m = twGM(g, g.level), s = twSkin(g.stake * m); ng = { ...g, status: 'cash', mult: m, prize: s && s.name, prize_p: s && s.p, layout: g._lay }; }
+  else { const r = await srv('tower_cash', { p_id: g.id }); if (!r) { tw.busy = false; return; } ng = r.game; }
+  tw.game = ng; tw.busy = false; tw.reveal = true;
+  drawTower(); tw3dGo('win'); twWon(ng);
+}
+/* вспышка поля: boom — красная, тряска; win — золотые искры из короны */
+function twFx(kind) {
+  const f = $('#twField'), fl = $('#twFlash'); if (!f || !fl) return;
+  f.classList.remove('shake', 'flash-boom', 'flash-win'); void f.offsetWidth;
+  if (kind === 'boom') f.classList.add('shake', 'flash-boom');
+  else {
+    f.classList.add('flash-win');
+    fl.innerHTML = Array.from({ length: 26 }, () => `<i style="--a:${rand(0, 360).toFixed(0)}deg;--r:${rand(70, 190).toFixed(0)}px;--s:${rand(.6, 1.4).toFixed(2)};--dl:${rand(0, 180).toFixed(0)}ms"></i>`).join('');
+  }
+}
+function twEnd(ng) {
+  if (!tw.demo) tw.last = [{ bombs: ng.bombs, stake: ng.stake, level: ng.level, status: ng.status, mult: ng.mult, prize: ng.prize, prize_p: ng.prize_p }, ...tw.last].slice(0, 10);
+  setTimeout(() => { if (tw.game === ng) { tw.game = null; tw.demo = false; drawTower(); tw3dGo('reset'); } }, 3600);
+}
+function twWon(ng) {
+  Snd.coin(); twFx('win');
+  const s = ng.prize && SK[ng.prize];
+  toast(`${tw.demo ? 'Демо: ' : ''}${twX(+ng.mult)} — ${s ? esc(s.name) + ' · ' + money(s.p) : money(+ng.prize_p || 0)}${tw.demo ? '' : ' в инвентаре'}`);
+  twEnd(ng);
+}
+function twLost(ng) {
+  toast(tw.demo ? 'Демо: бомба! Попробуйте ещё' : `Бомба! Ставка ${money(+ng.stake)} сгорела`, 'err');
+  twEnd(ng);
+}
+/* админка: окупаемость, вершины, закрытие, итоги (site_cfg 'tower', tower_admin_stats) */
+function admTower(box) {
+  box.innerHTML = axCard('Башня — настройки', `<div class="ax-bd">
+    <label class="ax-bd-f">Окупаемость, %<input class="inp" id="atRtp" type="number" min="30" max="98" step="1" value="${Math.round(TOWER.rtp * 100)}" inputmode="numeric"></label>
+    ${[1, 2, 3].map(b => `<label class="ax-bd-f">Вершина, ${b} ${plural(b, 'бомба', 'бомбы', 'бомб')}<input class="inp" id="atTop${b}" type="number" min="1.1" max="1000" step="0.1" value="${TOWER.top[b - 1]}" inputmode="decimal"></label>`).join('')}
+    <label class="switch"><input type="checkbox" id="atOff"${TOWER.off ? ' checked' : ''}><i></i>Режим закрыт</label>
+    <button class="btn btn-primary btn-sm" id="atSave">${ic.check}Сохранить</button></div>
+    <p class="ax-foot">Вершина — множитель 8-го (верхнего) этажа. Этажи ниже растут к ней плавно, но никогда не выше честного расчёта при заданной окупаемости (на высоких этажах сайт оставляет себе больше). Изменения действуют на игры, начатые после сохранения.</p>
+    <div class="ax-tw" id="atStats"><span class="spinner"></span></div>`);
+  $('#atSave').onclick = async () => {
+    const v = Math.round(+$('#atRtp').value), top = [1, 2, 3].map(b => Math.round(+$('#atTop' + b).value * 100) / 100);
+    if (!(v >= 30 && v <= 98)) return toast('Окупаемость — от 30 до 98%', 'err');
+    if (top.some(t => !(t >= 1.1 && t <= 1000))) return toast('Вершина — от ×1,1 до ×1000', 'err');
+    const val = { rtp: v / 100, off: $('#atOff').checked, top };
+    const { error } = await sb.from('site_cfg').upsert({ k: 'tower', v: val, updated_at: new Date().toISOString() });
+    if (error) return cfgErr(error);
+    TOWER.rtp = val.rtp; TOWER.off = val.off; TOWER.top = top; toast('Сохранено');
+  };
+  (async () => {
+    const now = new Date(), day = 864e5, per = [['Сегодня', new Date(now.toDateString())], ['7 дней', new Date(now - 7 * day)], ['30 дней', new Date(now - 30 * day)]];
+    const rows = await Promise.all(per.map(([, f]) => sb.rpc('tower_admin_stats', { p_from: f.toISOString(), p_to: new Date(+now + 6e4).toISOString() })));
+    const el = $('#atStats'); if (!el) return;
+    if (rows.some(r => r.error)) { el.innerHTML = '<p class="ax-foot">Нет данных — запустите supabase/tower.sql</p>'; return; }
+    el.innerHTML = `<table class="ax-t"><tr><th></th><th>Игр</th><th>Ставки</th><th>Выплачено</th><th>Прибыль</th><th>Окупаемость</th></tr>${rows.map((r, i) => { const d = r.data || {}, st_ = +d.stake || 0, pd = +d.paid || 0;
+      return `<tr><td>${per[i][0]}</td><td>${fmt(+d.n || 0)}</td><td>${money(st_)}</td><td>${money(pd)}</td><td>${money(st_ - pd)}</td><td>${st_ ? Math.round(pd / st_ * 100) + '%' : '—'}</td></tr>`; }).join('')}</table>`;
+  })();
+}
+
 function pageCrash() {
   return `<section class="container crash" id="crash">
     <div class="cr-glass cr-top">
@@ -7732,7 +8347,8 @@ function route() {
   ioScan();
   tutAuto(key); // обучение новичков (кнопка «?» и первый заход)
   document.body.classList.toggle('pg-crash', key === 'crash');
-  document.body.classList.toggle('pg-build', key === 'build'); // «Собери сам» — свой фон (assets/bg-build.webp)
+  document.body.classList.toggle('pg-build', key === 'build');
+  document.body.classList.toggle('pg-tower', key === 'tower'); // «Башня» — свой фон (assets/bg-tower.webp) // «Собери сам» — свой фон (assets/bg-build.webp)
   const navKey = key === '' || key === 'case' || key === 'build' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
