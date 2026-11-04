@@ -31,3 +31,7 @@ revoke all on function public.pay_skins(uuid, text, numeric, jsonb) from public,
 grant execute on function public.pay_skins(uuid, text, numeric, jsonb) to service_role;
 
 select 'Пополнение скинами — готово' as result;
+
+-- 04.11.2026: функция оплаты (серверная роль) читает курс из site_cfg и ссылку на обмен из profiles — без этих прав брала курс 90 по умолчанию
+grant select on public.site_cfg to service_role;
+grant select on public.profiles to service_role;
