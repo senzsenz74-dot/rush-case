@@ -2436,11 +2436,13 @@ function pageCase(id) {
   const c = caseById(id); if (!c) return page404();
   const ghost = Array.from({ length: 12 }, () => { const s = roll(c.items, 'fw'); return `<div class="gcard r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><div class="gc-w">${esc(s.w)}</div><div class="gc-f">${esc(s.f)}</div></div>`; }).join('');
   const embers = Array.from({ length: 44 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 7)}s;--x:${rand(-60, 60)}px;--s:${rand(.5, 1.3)}"></i>`).join('');
+  // своя рамка рулетки: у кейса (c.frame) или у всего раздела «В гостях у бабушки»
+  const fr = c.frame || (caseBlockId(c) === 'babushka' ? { src: 'assets/frame-babushka.webp', cls: 'f-babushka', nofx: true } : null);
   return `<section class="container case-page" style="--ca:${c.th.a}">
     <div class="cp-head"><a href="${c.build ? '#/build' : '#/cases'}" class="back">${ic.left}${c.build ? 'Собрать новый' : 'Все кейсы'}</a>
       <div class="cp-title"><i class="cp-line l"></i><h1>${c.name}</h1><i class="cp-line r"></i></div>
       <i></i></div>
-    <div class="rl-framed ${c.frame ? c.frame.cls : ''}"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
+    <div class="rl-framed ${fr ? fr.cls : ''}"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
       <svg class="rl-frame" id="rlFrame" aria-hidden="true"><polygon class="f-glow"/><polygon class="f-line"/></svg>
       <div class="rl-side l"></div><div class="rl-side r"></div>
       <div class="rl-stage"><i class="rs-burst"></i><i class="rs-glow"></i><div class="rs-embers">${embers}</div><i class="rs-ground"></i></div>
@@ -2448,7 +2450,7 @@ function pageCase(id) {
       <div class="rl-strips" id="strips"></div>
       <div class="rl-marker"></div>
       <div class="rl-reveal" id="reveal"></div>
-    </div></div><img class="rl-frame-img" src="${c.frame ? c.frame.src : 'assets/frame-case.png'}" alt="" draggable="false">${c.frame ? '<i class="rl-spark s1"></i><i class="rl-spark s2"></i><i class="rl-spark s3"></i><i class="rl-spark s4"></i>' : '<i class="rl-crown c1"></i><i class="rl-crown c2"></i>' + FRAME_FX}</div>
+    </div></div><img class="rl-frame-img" src="${fr ? fr.src : 'assets/frame-case.png'}" alt="" draggable="false">${fr ? fr.nofx ? '' : '<i class="rl-spark s1"></i><i class="rl-spark s2"></i><i class="rl-spark s3"></i><i class="rl-spark s4"></i>' : '<i class="rl-crown c1"></i><i class="rl-crown c2"></i>' + FRAME_FX}</div>
     <div class="cc" id="cc"></div>
     ${secTitle('Содержимое кейса')}
     <div class="items-grid">${c.items.map(s => itemCard(s)).join('')}</div>
