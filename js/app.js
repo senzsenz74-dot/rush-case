@@ -2293,6 +2293,10 @@ function mountCases() {
   if (!mountCases.docClick) document.addEventListener('click', mountCases.docClick = e => { const p = $('#secPop'); if (p && !p.hidden && !e.target.closest('#secMore')) p.hidden = true; });
   if (window.ResizeObserver) { const ro = new ResizeObserver(() => { if (!row.isConnected) return ro.disconnect(); fit(); }); ro.observe(row); }
   fit();
+  // пришли со страницы кейса кнопкой «Все кейсы» — прокручиваем к его карточке и подсвечиваем
+  let back = null; try { back = sessionStorage.getItem('rc.backTo'); sessionStorage.removeItem('rc.backTo'); } catch (e) { /* */ }
+  const card = back && $(`.case-card[href="#/case/${CSS.escape(back)}"]`);
+  if (card) setTimeout(() => { card.scrollIntoView({ block: 'center', behavior: 'instant' }); card.classList.add('cc-flash'); }, 60);
 }
 
 /* =========================================================
@@ -2509,6 +2513,8 @@ function frameSmoke() {
   requestAnimationFrame(tick);
 }
 function mountCase(id) {
+  // «Все кейсы» — вернуться к карточке этого кейса в витрине (mountCases прокрутит к ней)
+  const bk = $('.cp-head .back'); if (bk && id !== 'build') bk.onclick = () => { try { sessionStorage.setItem('rc.backTo', id); } catch (e) { /* */ } };
   Snd.warm(['lock', 'tick']);
   setTimeout(frameSmoke, 50);
   const c = caseById(id); if (!c) return;

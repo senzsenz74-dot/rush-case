@@ -4940,3 +4940,7 @@ body.pg-tower::after{content:"";display:block;position:fixed;inset:0;z-index:-1;
     -webkit-mask-size:70% 82%,100% 100%;mask-size:70% 82%,100% 100%;-webkit-mask-position:51% top,center;mask-position:51% top,center}
   .rl-framed.f-babushka .rl-floor{top:66%}
 }
+@media (min-width:1101px){.rl-framed.f-babushka{margin-top:18px}} /* головы персонажей выше обычной рамки — не заезжают под «Все кейсы» */
+/* «Все кейсы» со страницы кейса — возвращаемся к карточке этого кейса и подсвечиваем её */
+.case-card.cc-flash{animation:ccFlash 1.8s ease-out}
+@keyframes ccFlash{0%,35%{box-shadow:0 0 0 2px var(--gold),0 0 34px rgba(243,193,79,.7);transform:translateY(-4px)}100%{box-shadow:none;transform:none}}
