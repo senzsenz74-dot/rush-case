@@ -5063,6 +5063,7 @@ function pageAdmin() {
   if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
   return `<section class="container cases-wide ax" id="adm">
     <header class="ax-top"><div class="ax-ttl"><span>Админ-панель</span><h1>RUSH CASE</h1></div><div class="ax-period" id="axPeriod"></div></header>
+    <div class="ax-feed" id="axFeed"></div>
     <div class="ax-lay"><nav class="ax-tabs ax-side" id="admTabs"></nav>
     <div id="admBody"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div></div>
   </section>`;
@@ -5109,6 +5110,7 @@ async function mountAdmin() {
     + (tabs.some(([k]) => !inG.has(k)) ? `<div class="ax-sg"><button class="ax-sgh" type="button" title="Другое" aria-label="Другое">${ic.star}</button><div class="ax-fly"><b>Другое</b>${tabs.filter(([k]) => !inG.has(k)).map(btn).join('')}</div></div>` : '');
   if (!tabs.length) return ($('#admBody').innerHTML = `<div class="empty">${ic.shield}Владелец ещё не открыл вам разделы админки.</div>`);
   admPeriodBar();
+  admLiveInit(); // лента событий онлайн (только владельцу)
   // разделы: наведение открывает список вкладок; нажатие — для телефона; после выбора вкладки список закрывается
   $$('#admTabs .ax-sg').forEach(g => { $('.ax-sgh', g).onclick = () => { const o = !g.classList.contains('open'); $$('#admTabs .ax-sg').forEach(x => x.classList.remove('open', 'shut')); g.classList.toggle('open', o); }; g.onmouseleave = () => g.classList.remove('shut', 'open'); });
   $$('#admTabs [data-t]').forEach(b => b.onclick = () => { const g = b.closest('.ax-sg'); if (g) { g.classList.remove('open'); g.classList.add('shut'); } admTab = b.dataset.t; try { localStorage.setItem('rc.admTab', admTab); } catch (e) { /* */ } admDraw(); });
@@ -5260,7 +5262,7 @@ async function admTabData(box, render) {
   box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Считаем…</div>';
   let D; try { D = await admFetch(); } catch (e) { return (box.innerHTML = admErr(e) + '<div class="ax-empty">Нужны supabase/stats.sql, admin2.sql, admin_bets.sql, stats_cases.sql.</div>'); }
   if (!$('#admBody') || box !== $('#admBody')) return;
-  render(box, D);
+  render(box, D); admLive.sig = admSig(admTab, D);
   $$('.ax-col[data-day]', box).forEach(c => c.onclick = () => admDayView(c.dataset.day));
 }
 function axDash(box, D) {
@@ -5522,13 +5524,15 @@ const wdOver = w => {
 };
 const WD_ADM = { wait: ['ждёт решения', 'warn'], new: ['в очереди', 'warn'], buying: ['покупается', 'warn'], sent: ['ждёт принятия обмена', 'warn'], prot: ['получен, защита обмена', 'pos'], done: ['выведен', 'pos'], fail: ['отменён', 'neg'] };
 // D = null — сотрудник: без денег маркета и настроек, решает только заявки «ждут решения»
-async function axOut(box, D) {
+async function axOut(box, D, quiet) {
   const own = !!D, [f, t] = D ? [D.f, D.t] : admRangeDates();
-  box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем заявки…</div>';
+  if (!quiet) box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем заявки…</div>';
   const [wr, cr] = await Promise.all([sb.from('withdrawals').select('*').order('id', { ascending: false }).limit(own ? 500 : 200), own ? sb.from('market_cfg').select('*').maybeSingle() : { data: {} }]);
   if (!box.isConnected) return;
-  if (wr.error) return (box.innerHTML = admErr(wr.error) + '<p class="ax-foot">Выполните supabase/market.sql в Supabase.</p>');
+  if (wr.error) return quiet ? undefined : (box.innerHTML = admErr(wr.error) + '<p class="ax-foot">Выполните supabase/market.sql в Supabase.</p>');
   const W = wr.data || [], C = cr.data || {};
+  // тихое обновление (админка онлайн): если заявки не поменялись — не перерисовываем
+  const sig = JSON.stringify([W, C, own]); if (quiet && box.dataset.outSig === sig) return; box.dataset.outSig = sig;
   let P;
   if (D) P = Object.fromEntries(D.players.map(p => [p.id, p]));
   else {
@@ -5767,6 +5771,7 @@ async function admPromoList() {
 function admDraw() {
   const box = $('#admBody'); if (!box) return;
   supAdmBadge(); // счётчик новых обращений на вкладке «Поддержка»
+  box.classList.remove('ax-quiet'); delete box.dataset.dirty; admLive.sig = ''; // вкладку рисуем заново — снова с анимацией
   $$('#admTabs [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === admTab));
   if (!sb) return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
   const R = { dash: axDash, money: axMoney, books: axBooks, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, crash: axCrash, out: axOut, players: axPlayers };
@@ -5781,6 +5786,117 @@ function admDraw() {
   if (admTab === 'tower') return admTower(box);
   admTabData(box, R[admTab] || axDash);
 }
+/* ---------- админка онлайн: лента событий (Supabase Realtime, supabase/admin_live.sql) + тихий пересчёт цифр раз в 15 с ----------
+   лента — только владельцу (там деньги); цифры открытой вкладки пересчитываются, пока админка открыта и видна: без спиннера и анимаций,
+   прокрутка остаётся на месте, вкладку не трогаем, пока в ней что-то вводят или навели на график */
+const admLive = { ch: null, on: false, loaded: false, feed: [], seen: new Set(), names: {}, sig: '', busy: false, kick: 0,
+  snd: (() => { try { return localStorage.getItem('rc.admSnd') !== '0'; } catch (e) { return true; } })() };
+const ADM_SOFT = ['dash', 'money', 'online', 'cases', 'bets', 'upg', 'crash', 'out'];
+const ADM_WIN = 1000; // выигрыши в ленте — от этой суммы, ₽
+async function admNames(uids) {
+  const need = [...new Set(uids)].filter(u => u && !admLive.names[u]);
+  if (!need.length) return;
+  const { data } = await sb.from('profiles').select('id, pid, name').in('id', need);
+  (data || []).forEach(p => { admLive.names[p.id] = p; });
+}
+const admWinP = r => (SK[r.n] && SK[r.n].p) || 0;
+const ADM_EV = {
+  dep: r => ({ k: 'dep', id: 'p' + r.id, ts: r.paid_at || r.created_at, uid: r.uid, html: `<b class="pos">+${money(+r.credited || +r.amount)}</b> пополнение${r.provider ? ' · ' + esc(r.provider) : ''}` }),
+  wd: r => { const tx = (WD_ADM[r.status] || [r.status])[0], s = SK[r.n];
+    return { k: r.status === 'fail' ? 'fail' : 'wd', id: 'w' + r.id + r.status, ts: r.status === 'new' || r.status === 'wait' ? r.created_at : r.updated_at || r.created_at, uid: r.uid,
+      html: `вывод <b>${esc(s ? s.name : r.n)}</b> ${money(+r.price)} · ${esc(tx)}` }; },
+  win: r => ({ k: 'win', id: 'd' + r.id, ts: r.ts, uid: r.uid, name: r.name,
+    html: `выиграл <b>${esc(SK[r.n] ? SK[r.n].name : r.n)}</b> ${money(admWinP(r))}${r.t === 'upg' ? ' · апгрейд' : r.t === 'con' ? ' · контракт' : r.t === 'crash' ? ' · краш' : ''}` }),
+  sup: r => ({ k: 'sup', id: 's' + r.id, ts: r.opened_at || new Date().toISOString(), uid: null, html: '<b>новое обращение</b> в поддержку' })
+};
+function admFeedAdd(evs, fresh) {
+  let add = 0;
+  for (const e of evs) { if (admLive.seen.has(e.id)) continue; admLive.seen.add(e.id); e.fresh = fresh; e.at = Date.now(); admLive.feed.push(e); add++; }
+  if (!add) return 0;
+  admLive.feed.sort((a, b) => +new Date(b.ts) - +new Date(a.ts)); admLive.feed.length = Math.min(admLive.feed.length, 40);
+  admFeedDraw(); return add;
+}
+function admFeedDraw() {
+  const box = $('#axFeed'); if (!box) return;
+  const tm = v => { const d = new Date(v); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const who = e => { const p = admLive.names[e.uid]; return e.uid ? (p ? plink(p.pid, esc(p.name || '?')) : esc(e.name || 'игрок')) + ' · ' : ''; };
+  const list = admLive.feed.map(e => `<div class="axf-i axf-${e.k}${e.fresh && Date.now() - e.at < 5000 ? ' new' : ''}"><time>${tm(e.ts)}</time><span>${who(e)}${e.html}</span></div>`).join('');
+  const sc = $('.axf-l', box), x = sc ? sc.scrollLeft : 0;
+  box.innerHTML = `<div class="axf-h"><i class="axf-dot${admLive.on ? ' on' : ''}" title="${admLive.on ? 'онлайн: события приходят сами' : 'подключаемся…'}"></i><b>Сейчас на сайте</b>
+    <button class="ax-btn ax-sm" id="axSnd" title="Звук на пополнение и вывод">${admLive.snd ? '🔔 Звук' : '🔕 Без звука'}</button></div>
+    <div class="axf-l">${list || `<span class="ax-mute">Пока тихо — пополнения, выводы, обращения и выигрыши от ${fmt(ADM_WIN)} ₽ появятся здесь сами</span>`}</div>`;
+  if (x) $('.axf-l', box).scrollLeft = x;
+  $('#axSnd', box).onclick = () => { admLive.snd = !admLive.snd; try { localStorage.setItem('rc.admSnd', admLive.snd ? '1' : '0'); } catch (e) { /* */ } admFeedDraw(); admBeep('dep'); };
+}
+function admBeep(k) {
+  if (!admLive.snd) return;
+  if (k === 'dep') { Snd.tone(784, .12, 'sine', .07); Snd.tone(1175, .22, 'sine', .06, .1); }
+  else if (k === 'wd' || k === 'fail') { Snd.tone(523, .14, 'triangle', .06); Snd.tone(392, .2, 'triangle', .05, .12); }
+}
+async function admLiveEv(e, beep) {
+  if (e.uid) await admNames([e.uid]).catch(() => {});
+  if (admFeedAdd([e], true) && beep) admBeep(e.k);
+  // деньги или вывод изменились — пересчитать цифры открытой вкладки
+  if (e.k !== 'win' && e.k !== 'sup') { clearTimeout(admLive.kick); admLive.kick = setTimeout(admSoft, 1500); }
+}
+async function admLiveInit() {
+  if (!sb || !$('#axFeed')) return;
+  if (!admOwner()) return $('#axFeed').remove();
+  admFeedDraw();
+  if (!admLive.loaded) {
+    admLive.loaded = true;
+    const since = new Date(Date.now() - 864e5).toISOString();
+    const [p, w, d] = await Promise.all([
+      sb.from('payments').select('id, uid, amount, credited, method, provider, status, created_at, paid_at').eq('status', 'paid').gte('paid_at', since).order('paid_at', { ascending: false }).limit(15),
+      sb.from('withdrawals').select('id, uid, n, price, status, created_at, updated_at').gte('created_at', since).order('id', { ascending: false }).limit(15),
+      sb.from('live_drops').select('*').gte('ts', since).order('id', { ascending: false }).limit(300)]);
+    const evs = [...(p.data || []).map(ADM_EV.dep), ...(w.data || []).map(ADM_EV.wd), ...(d.data || []).filter(r => admWinP(r) >= ADM_WIN).slice(0, 15).map(ADM_EV.win)];
+    await admNames(evs.map(e => e.uid)).catch(() => {});
+    admFeedAdd(evs, false);
+  }
+  if (admLive.ch) return;
+  admLive.ch = sb.channel('adm-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, x => { const r = x.new; if (r && r.status === 'paid') admLiveEv(ADM_EV.dep(r), true); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals' }, x => {
+      const r = x.new; if (!r || !r.id) return;
+      if (['new', 'wait', 'done', 'fail'].includes(r.status)) admLiveEv(ADM_EV.wd(r), x.eventType === 'INSERT');
+      else if (admTab === 'out') { clearTimeout(admLive.kick); admLive.kick = setTimeout(admSoft, 800); } // покупка/обмен — только обновить таблицу
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_drops' }, x => { const r = x.new; if (r && admWinP(r) >= ADM_WIN) admLiveEv(ADM_EV.win(r), false); })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_tickets' }, x => { if (x.new) admLiveEv(ADM_EV.sup(x.new), false); })
+    .subscribe(s => { const on = s === 'SUBSCRIBED'; if (on !== admLive.on) { admLive.on = on; admFeedDraw(); } });
+}
+const admSig = (tab, D) => JSON.stringify([tab, +D.f, +D.t, D.rows, D.T, D.now, D.snap, D.sum, D.UT, D.BT, D.CT, D.cp]);
+/* тихо пересчитать открытую вкладку */
+async function admSoft() {
+  const box = $('#admBody'), a = document.activeElement;
+  if (!box || !sb || admLive.busy || document.hidden || !ADM_SOFT.includes(admTab)) return;
+  if (box.dataset.dirty || (a && box.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+  if (box.querySelector('.ax-col:hover, .ax-col:focus') || $('#modal-root .modal-ov')) return;
+  if (!admOwner() && admTab !== 'out') return;
+  admLive.busy = true;
+  const tab = admTab, y = window.scrollY, xs = $$('.ax-tw', box).map(e => e.scrollLeft);
+  const back = () => { $$('.ax-tw', box).forEach((e, i) => { if (xs[i]) e.scrollLeft = xs[i]; }); if (Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y); };
+  try {
+    if (tab === 'out') {
+      const D = admOwner() ? await admFetch() : null;
+      if (admTab !== tab || box !== $('#admBody')) return;
+      box.classList.add('ax-quiet'); await axOut(box, D, true); back(); return;
+    }
+    const D = await admFetch(true);
+    if (admTab !== tab || box !== $('#admBody') || box.dataset.dirty || !box.querySelector('.ax-kpis, .ax-card')) return;
+    const sig = admSig(tab, D);
+    if (sig === admLive.sig) return; // ничего не поменялось — не перерисовываем
+    admLive.sig = sig;
+    const R = { dash: axDash, money: axMoney, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, crash: axCrash };
+    box.classList.add('ax-quiet'); R[tab](box, D);
+    $$('.ax-col[data-day]', box).forEach(c => c.onclick = () => admDayView(c.dataset.day));
+    back();
+  } catch (e) { /* связь моргнула — повторим через 15 с */ } finally { admLive.busy = false; }
+}
+setInterval(() => { if ($('#admBody')) admSoft(); }, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && $('#admBody')) admSoft(); });
+document.addEventListener('input', e => { const b = $('#admBody'); if (b && b.contains(e.target)) b.dataset.dirty = '1'; });
 /* ---------- выгрузка статистики в Excel (.xlsx, библиотека SheetJS грузится по кнопке) ---------- */
 let xlsxLib = null;
 const loadXlsx = () => xlsxLib || (xlsxLib = new Promise((res, rej) => {

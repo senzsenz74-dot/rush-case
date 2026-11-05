@@ -3598,6 +3598,22 @@ body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#0
 .ax-tabs button.on{color:#fff}.ax-tabs button.on::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:2px;background:#fff}
 .ax-load{display:flex;align-items:center;gap:10px;justify-content:center;padding:60px 0;color:var(--ax-mut)}
 .ax-empty{padding:28px 10px;text-align:center;color:var(--ax-mut);font-size:13.5px}.ax-empty.ok{color:var(--ax-pos)}
+/* ===== админка онлайн: лента событий + тихое обновление ===== */
+.ax-quiet *,.ax-quiet *::before,.ax-quiet *::after{animation:none!important;transition:none!important}
+.ax-feed{margin:0 0 16px;padding:10px 12px;border-radius:12px;background:var(--ax-card);border:1px solid var(--ax-line);min-width:0}
+.ax-feed:empty{display:none}
+.axf-h{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px}.axf-h b{color:#fff}.axf-h .ax-btn{margin-left:auto}
+.axf-dot{width:8px;height:8px;border-radius:50%;background:#6b7080;flex:none}
+.axf-dot.on{background:var(--ax-pos);box-shadow:0 0 8px var(--ax-pos);animation:axfPulse 2s infinite}
+@keyframes axfPulse{50%{opacity:.4}}
+.axf-l{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.axf-i{flex:none;display:flex;gap:8px;align-items:baseline;max-width:340px;padding:7px 10px;border-radius:9px;background:var(--ax-card2);border:1px solid var(--ax-line);border-left:3px solid #6b7080;font-size:12.5px;line-height:1.35}
+.axf-i span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.axf-i time{color:var(--ax-mut);font-variant-numeric:tabular-nums}
+.axf-dep{border-left-color:var(--ax-pos)}.axf-wd{border-left-color:#f59e0b}.axf-fail{border-left-color:var(--ax-neg)}.axf-win{border-left-color:#a855f7}.axf-sup{border-left-color:#38bdf8}
+.axf-i.new{animation:axfNew 5s ease-out}
+@keyframes axfNew{0%{background:rgba(250,204,21,.35);transform:translateY(-4px)}15%{transform:none}100%{background:var(--ax-card2)}}
+@media (max-width:640px){.axf-i{max-width:82vw}}
 .ax-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
 .ax-kpi{padding:14px 15px;border-radius:12px;background:var(--ax-card);border:1px solid var(--ax-line);min-width:0}
 .ax-l{display:block;font:600 12px var(--ff-b,inherit);color:var(--ax-mut)}
