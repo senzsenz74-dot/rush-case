@@ -2533,6 +2533,7 @@ function mountCase(id) {
   Snd.warm(['lock', 'tick']);
   setTimeout(frameSmoke, 50);
   const c = caseById(id); if (!c) return;
+  if (c.ui === 'cs2' && $('.c2p')) c2Mount(); // 3D-сцена CS2 CASE
   if (c.snd) Snd.preloadSet(c.snd);
   spinning = false;
   ccIdle(c);
@@ -2771,10 +2772,152 @@ const c2Sorted = c => c.items.slice().sort((a, b) => RAR[a.r].o - RAR[b.r].o || 
 const c2Tile = (s, cls = '') => s.r === 'rare'
   ? `<div class="c2t c2t-gold ${cls}"><i class="c2t-q">?</i></div>`
   : `<div class="c2t r-${s.r} ${cls}"><img src="${imgUrl(s, 'm')}" alt="" draggable="false" loading="lazy"></div>`;
+/* ---------- CS2 CASE: 3D-сцена — видео-фон Mirage + 3D-кейс из Blender (файлы в assets/cs2case/) ----------
+   по пробе blender/export/probe (ветка blender): свет как в Blender, тень кейса на полу (пол-«ловец теней»
+   только там, где пол на солнце — floor_lit.glb; тени стен — occluders.glb), пыль удара (dust.json).
+   анимация одна, по кадрам (30 к/с): падение 1–75, покой 75, открытие ключом 101–168.
+   пока всё не загрузилось — на сцене только значок загрузки; не загрузилось за 30 с — картинка кейса как раньше */
+const C2D = { dir: 'assets/cs2case/', v: 1, FPS: 30, DROP: [1, 75], OPEN: [101, 168], REST: 75 };
+let c2s = null; // текущая 3D-сцена страницы
+const c2Lib = () => C2D.lib || (C2D.lib = Promise.all([
+  import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/loaders/RGBELoader.js'),
+]).catch(e => { C2D.lib = null; throw e; }));
+function c2Mount() {
+  const root = $('.c2p'), host = $('#c2Stage'); if (!root || !host) return;
+  if (c2s) c2s.kill();
+  const S = c2s = { alive: true, ready: false, kill: () => { S.alive = false; } };
+  const video = $('video', host), canvas = $('canvas', host);
+  const fail = () => { if (!S.alive || S.ready) return; S.kill(); root.classList.add('c2-ready', 'c2-no3d'); };
+  const timer = setTimeout(fail, 30000);
+  const vReady = new Promise(res => {
+    const ok = () => res(); video.addEventListener('canplaythrough', ok, { once: true }); video.addEventListener('error', ok, { once: true });
+  });
+  video.src = C2D.dir + 'bg.mp4?v=' + C2D.v; video.load();
+  c2Lib().then(async ([THREE, { GLTFLoader }, { RGBELoader }]) => {
+    if (!S.alive) return;
+    const url = f => C2D.dir + f + '?v=' + C2D.v;
+    const P = { sun: 9, env: .08, shadow: .55, dust: 3, fill: .3 }; // подогнано в пробе под рендер Blender
+    const BL = (x, y, z) => new THREE.Vector3(x, z, -y); // Blender (Z вверх) → three (Y вверх)
+    const FLOOR_Y = -4.064, CASE_POS = BL(7.098, 52.9, -4.064);
+    const H_FOV = 2 * Math.atan(18 / 25); // камера Blender: матрица 36 мм, объектив 25 мм (по ширине)
+    let renderer;
+    try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true }); } catch (e) { return fail(); }
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+    renderer.setClearColor(0x000000, 0);
+    renderer.toneMapping = THREE.AgXToneMapping; renderer.toneMappingExposure = 1;
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(43.6, 16 / 9, .05, 200);
+    // солнце — направление луча из Blender
+    const sunDir = BL(-0.3849, -0.7231, -0.5736).normalize();
+    const sun = new THREE.DirectionalLight(new THREE.Color().setRGB(1, .62, .32, THREE.LinearSRGBColorSpace), P.sun);
+    sun.position.copy(CASE_POS).addScaledVector(sunDir, -14); sun.target.position.copy(CASE_POS); sun.castShadow = true;
+    Object.assign(sun.shadow.camera, { left: -1.6, right: 1.6, top: 1.6, bottom: -1.6, near: .5, far: 20 });
+    sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = .015; sun.shadow.radius = 4;
+    scene.add(sun, sun.target, new THREE.HemisphereLight(0xffb070, 0x8a5a30, P.fill)); // + тёплый отсвет песочных стен
+    let dirty = true;
+    const load = f => new Promise((res, rej) => new GLTFLoader().load(url(f), res, undefined, rej));
+    // пол-«ловец теней»: только тень кейса (тени домов уже в видео)
+    const floorMat = new THREE.ShadowMaterial({ opacity: P.shadow });
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), floorMat); floor.receiveShadow = true;
+    let floorReady = false, occl = null;
+    load('floor_lit.glb').then(g => { let geo; g.scene.traverse(o => { if (o.isMesh) { o.updateWorldMatrix(true, false); geo = o.geometry.clone().applyMatrix4(o.matrixWorld); } }); if (geo) { floor.geometry.dispose(); floor.geometry = geo; floorReady = true; scene.add(floor); dirty = true; } }).catch(() => {});
+    load('occluders.glb').then(g => { occl = g.scene; occl.traverse(o => { if (o.isMesh) { o.material = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }); o.castShadow = true; } }); scene.add(occl); dirty = true; }).catch(() => {});
+    // небо для отражений (тёплый оттенок как в Blender) — грузится в фоне, кейс показываем не дожидаясь
+    new RGBELoader().setDataType(THREE.FloatType).load(url('sky.hdr'), tex => {
+      if (!S.alive) return tex.dispose();
+      const d = tex.image.data; for (let i = 0; i < d.length; i += 4) { d[i + 1] *= .9; d[i + 2] *= .78; }
+      tex.needsUpdate = true; tex.mapping = THREE.EquirectangularReflectionMapping;
+      scene.environment = tex; scene.environmentRotation.set(0, Math.PI, 0); scene.environmentIntensity = P.env; dirty = true;
+    });
+    // пыль удара: облачка из Blender, путь/размер/прозрачность по кадрам
+    const dust = [], dustTex = (() => {
+      const N = 128, c = document.createElement('canvas'); c.width = c.height = N;
+      const g = c.getContext('2d'), img = g.createImageData(N, N);
+      const h = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
+      const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf); return (h(xi, yi) * (1 - u) + h(xi + 1, yi) * u) * (1 - v) + (h(xi, yi + 1) * (1 - u) + h(xi + 1, yi + 1) * u) * v; };
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const px = x / N - .5, py = y / N - .5, r = Math.hypot(px, py) * 2;
+        let n = 0, a = 1, f = 3, t = 0; for (let o = 0; o < 5; o++) { n += vn(px * f + 7, py * f + 3) * a; t += a; a *= .5; f *= 2; }
+        const i = (y * N + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = 255; img.data[i + 3] = Math.min(255, Math.max(1 - r, 0) * (n / t) * 255);
+      }
+      g.putImageData(img, 0, 0); return new THREE.CanvasTexture(c);
+    })();
+    fetch(url('dust.json')).then(r => r.json()).then(j => j.puffs.forEach(p => {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: dustTex, color: new THREE.Color().setRGB(.95 * .75, .72 * .75, .48 * .75, THREE.LinearSRGBColorSpace), depthWrite: false, transparent: true }));
+      s.visible = false; scene.add(s); dust.push({ s, k: p.k });
+    })).catch(() => {});
+    const dustFrame = f => dust.forEach(d => {
+      const k = d.k; if (f < k[0][0] || f > k[k.length - 1][0]) { d.s.visible = false; return; }
+      let i = 0; while (i < k.length - 2 && k[i + 1][0] <= f) i++;
+      const p = k[i], q = k[i + 1] || p, t = q[0] > p[0] ? (f - p[0]) / (q[0] - p[0]) : 0, L = (u, v) => u + (v - u) * t;
+      d.s.position.copy(BL(L(p[1], q[1]), L(p[2], q[2]), L(p[3], q[3]))); d.s.scale.setScalar(L(p[4], q[4]));
+      d.s.material.opacity = Math.min(1, L(p[5], q[5]) * P.dust); d.s.visible = d.s.material.opacity > .002;
+    });
+    // кейс
+    const gl = await load('case.glb');
+    if (!S.alive) return renderer.dispose();
+    const caseMats = new Set();
+    scene.add(gl.scene);
+    gl.scene.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; caseMats.add(o.material); } });
+    const camNode = gl.scene.getObjectByName('CAM_MAIN');
+    const mixer = new THREE.AnimationMixer(gl.scene), action = mixer.clipAction(gl.animations[0]);
+    action.play(); action.paused = true;
+    const setFrame = f => { action.time = f / C2D.FPS; mixer.update(0); dustFrame(f); dirty = true; };
+    setFrame(1);
+    // размер: видео object-fit:cover, камера повторяет ту же обрезку
+    const resize = () => {
+      const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return;
+      renderer.setSize(w, h, false); cam.aspect = w / h;
+      const a = w / h, v169 = 2 * Math.atan(Math.tan(H_FOV / 2) / (16 / 9));
+      cam.fov = THREE.MathUtils.radToDeg(a >= 16 / 9 ? 2 * Math.atan(Math.tan(H_FOV / 2) / a) : v169);
+      cam.updateProjectionMatrix(); dirty = true;
+    };
+    const ro = new ResizeObserver(resize); ro.observe(host); resize();
+    let seg = null;
+    S.play = ([a, b], speed = 1) => new Promise(res => { if (seg) seg.res(); seg = { a, b, t0: performance.now(), speed, res }; });
+    S.rest = () => { if (seg) { seg.res(); seg = null; } setFrame(C2D.REST); };
+    const draw = () => {
+      camNode.updateWorldMatrix(true, false); camNode.getWorldPosition(cam.position); camNode.getWorldQuaternion(cam.quaternion); cam.updateMatrixWorld();
+      // 1) кейс с тенями от стен и от себя; 2) пол-ловец — только тень кейса
+      renderer.autoClear = false; renderer.clear();
+      floor.visible = false; if (occl) occl.visible = true;
+      renderer.render(scene, cam);
+      const dv = dust.map(d => d.s.visible); dust.forEach(d => { d.s.visible = false; });
+      floor.visible = floorReady; if (occl) occl.visible = false; caseMats.forEach(m => { m.colorWrite = false; });
+      renderer.render(scene, cam);
+      caseMats.forEach(m => { m.colorWrite = true; }); dust.forEach((d, i) => { d.s.visible = dv[i]; });
+    };
+    const tick = now => {
+      if (!S.alive || !host.isConnected) return S.kill();
+      if (seg) {
+        const f = Math.min(seg.b, seg.a + (now - seg.t0) / 1000 * C2D.FPS * seg.speed);
+        setFrame(f); if (f >= seg.b) { const r = seg.res; seg = null; r(); }
+      }
+      if (dirty) { dirty = false; draw(); }
+      requestAnimationFrame(tick);
+    };
+    S.kill = () => {
+      if (!S.alive && S.disposed) return; S.alive = false; S.disposed = true;
+      ro.disconnect(); if (seg) seg.res();
+      try { video.pause(); video.removeAttribute('src'); video.load(); } catch (e) { /* */ }
+      renderer.dispose(); renderer.forceContextLoss();
+    };
+    await vReady;
+    if (!S.alive) return;
+    clearTimeout(timer);
+    S.ready = true;
+    video.play().catch(() => {});
+    root.classList.add('c2-ready', 'c2-3d');
+    requestAnimationFrame(tick);
+    S.play(C2D.DROP); // кейс падает
+  }).catch(fail);
+}
 function pageCaseCs2(c) {
   const its = c2Sorted(c), reg = its.filter(s => s.r !== 'rare'), rare = its.filter(s => s.r === 'rare');
   return `<section class="case-page c2p" style="--ca:${c.th.a}"><i class="c2-bg" aria-hidden="true"></i>
     <div class="c2-scene">
+      <div class="c2-stage" id="c2Stage" aria-hidden="true"><video muted loop playsinline preload="auto"></video><canvas></canvas></div>
+      <i class="c2-load" aria-hidden="true"></i>
       <a href="#/cases" class="back c2-back">${ic.left}Все кейсы</a>
       <div class="c2-hd"><h1>Открыть кейс</h1><p>Открыть <b>${esc(c.name)}</b></p><small><i>i</i>Каждое открытие — один предмет из списка ниже</small></div>
       <div class="c2-rl" id="rl">
@@ -2794,7 +2937,9 @@ function pageCaseCs2(c) {
 function cs2Idle(c) {
   const cc = $('#cc'); if (!cc) return;
   caseN = 1;
-  const p = $('.c2p'); if (p) p.classList.remove('c2-go'); // ряд предметов снова виден
+  const p = $('.c2p');
+  if (p && p.classList.contains('c2-go') && c2s && c2s.ready) { c2s.rest(); c2s.play(C2D.DROP); } // открыли — новый кейс падает
+  if (p) p.classList.remove('c2-go', 'c2-dim'); // ряд предметов снова виден
   let main;
   if (c.disabled) main = `<button class="c2-btn" disabled>Кейс временно закрыт</button>`;
   else if (!st.user) main = `<button class="c2-btn" data-act="login">Войти и открыть</button>`;
@@ -2840,12 +2985,13 @@ async function cs2Spin(c, wins, given, demo) {
     <i class="c2-ring" aria-hidden="true"></i><i class="c2-mark" aria-hidden="true"></i>`;
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   const alive = () => my === spinId && document.body.contains(rl);
-  // 1) кейс вздрагивает — замок открывается
-  rl.classList.add('unlocking'); Snd.lock();
-  await sleep(st.fast ? 450 : 850);
+  // 1) замок открывается: 3D-кейс — анимация ключом из Blender; без 3D — картинка вздрагивает
+  Snd.lock();
+  if (c2s && c2s.ready) await c2s.play(C2D.OPEN, st.fast ? 2 : 1);
+  else { rl.classList.add('unlocking'); await sleep(st.fast ? 450 : 850); rl.classList.remove('unlocking'); }
   if (!alive()) return;
-  // 2) кейс уходит, раскрывается лупа
-  rl.classList.remove('unlocking'); rl.classList.add('spinning');
+  // 2) фон размывается, кейс уходит, раскрывается лупа
+  $('.c2p').classList.add('c2-dim'); rl.classList.add('spinning');
   await sleep(st.fast ? 250 : 550);
   if (!alive()) return;
   const tracks = $$('.track', box), band = $('.c2-out', box), win = $('.is-win', tracks[0]);

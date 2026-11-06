@@ -5083,3 +5083,18 @@ body.pg-contracts .dos{max-width:1120px}
 body.pg-c2{--lw:0px;padding-left:0}
 body.pg-c2 .live,body.pg-c2 #footer{display:none}
 body.pg-c2 #app{padding-bottom:0}
+/* CS2 CASE — 3D-сцена: видео-фон Mirage + 3D-кейс (холст поверх видео); пока грузится — только значок загрузки */
+.c2-stage{position:absolute;inset:0;z-index:0;opacity:0;transform:translateY(-8vh);transition:opacity .8s ease,transform .8s cubic-bezier(.4,0,.2,1)}
+/* в покое сцена приподнята, чтобы кейс не уходил под панель скинов; при открытии панель убирается — сцена плавно опускается */
+.c2-go .c2-stage{transform:none}
+.c2-stage video,.c2-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.c2-stage video{object-fit:cover}
+.c2-ready.c2-3d .c2-stage{opacity:1}
+.c2-3d .c2-case{display:none}
+.c2p:not(.c2-ready) .c2-case{opacity:0}
+/* во время лупы фон плавно затемняется (размытие огромного слоя с видео тяжело для видеокарты) */
+.c2-stage::after{content:"";position:absolute;inset:0;background:rgba(6,7,10,.62);opacity:0;transition:opacity .7s ease}
+.c2-dim .c2-stage::after{opacity:1}
+.c2-load{position:absolute;left:50%;top:43%;z-index:3;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:3px solid rgba(255,255,255,.14);border-top-color:#f3c14f;animation:c2spin .8s linear infinite;transition:opacity .3s}
+.c2-ready .c2-load{opacity:0;visibility:hidden;animation:none}
+@keyframes c2spin{to{transform:rotate(360deg)}}
