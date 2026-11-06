@@ -2931,7 +2931,7 @@ function pageCaseCs2(c) {
     <div class="c2-panel">
       <div class="c2-items"><div>
       <div class="c2-ptitle">Откройте и получите один из следующих предметов</div>
-      <div class="c2-grid">${reg.map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<em>${money(s.p)}</em><b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${rare.length ? `<button class="c2-it c2-rare" id="c2Rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет ★</b><span>ножи и перчатки</span></button>` : ''}</div></div></div>
+      <div class="c2-grid">${reg.map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<em>${money(s.p)}</em><b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${rare.length ? `<button class="c2-it c2-rare" id="c2Rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет</b><span>ножи и перчатки</span></button>` : ''}</div></div></div>
       <div class="c2-cc" id="cc"></div>
     </div>
   </section>`;
