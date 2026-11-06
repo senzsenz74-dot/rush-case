@@ -5017,6 +5017,9 @@ body.pg-contracts .dos{max-width:1120px}
 /* плитка предмета — как в инвентаре CS2: серый фон, полоска редкости снизу */
 .c2t{position:relative;flex:0 0 190px;height:150px;display:grid;place-items:center;border-radius:2px;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#6d737e 0%,#4a4f59 55%,#353941 100%);box-shadow:inset 0 -5px 0 var(--rc,#888)}
 .c2t img{width:86%;height:78%;object-fit:contain;filter:drop-shadow(0 6px 8px rgba(0,0,0,.45));margin-bottom:6px}
+/* в ленте рулетки — скины крупнее, почти на всю плитку */
+.c2-band .c2t img{width:100%;height:100%;margin:0;transform:scale(1.12) translateY(-3%)}
+.c2-band .c2t-q{width:52%}
 .c2t-gold{--rc:#e4ae39;background:radial-gradient(circle at 50% 45%,#f6dc8a 0%,#d9a83c 45%,#9c6b16 100%)}
 .c2t-q{display:grid;place-items:center;width:46%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffe9a8,#d7a031 60%,#9b6a12);box-shadow:0 0 0 4px rgba(255,236,170,.55),0 0 0 7px rgba(120,80,10,.35),0 8px 18px rgba(0,0,0,.35);font:800 34px/1 var(--ff-h);color:#fff;text-shadow:0 2px 3px rgba(110,70,0,.6);font-style:normal;margin-bottom:6px}
 /* панель снизу */
