@@ -742,7 +742,7 @@ const CASES = [
   },
   {
     // «CS2 CASE» — заготовка под кейс с 3D-сценой открытия (модель и видео-фон из Blender подключим позже); пока виден только админу (adm)
-    id: 'cs2', name: 'CS2 CASE', price: 100, tag: 'Новый', tagIc: 'star', rtp: 0.8, adm: true,
+    id: 'cs2', name: 'CS2 CASE', price: 100, tag: 'Новый', tagIc: 'star', rtp: 0.8, adm: true, ui: 'cs2', // ui: 'cs2' — открытие как в CS2 (только на ПК)
     sub: 'Тестовый кейс: простое наполнение для примера',
     th: { a: '#f3c14f' }, img: 'assets/case-rush.webp',
     exact: [
@@ -2452,6 +2452,7 @@ function pageCase(id) {
   if (id === 'build') { setTimeout(() => { location.hash = '#/build'; }); return ''; }
   if (/^b-/.test(id || '') && !caseById(id)) { setTimeout(() => { location.hash = st.user ? '#/profile' : '#/build'; }); return ''; }
   const c = caseById(id); if (!c || !caseSeen(c)) return page404();
+  if (c.ui === 'cs2' && window.innerWidth >= 900) return pageCaseCs2(c); // вид как в CS2 — только на компьютере
   const ghost = Array.from({ length: 12 }, () => { const s = roll(c.items, 'fw'); return `<div class="gcard r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><div class="gc-w">${esc(s.w)}</div><div class="gc-f">${esc(s.f)}</div></div>`; }).join('');
   const embers = Array.from({ length: 44 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 7)}s;--x:${rand(-60, 60)}px;--s:${rand(.5, 1.3)}"></i>`).join('');
   // своя рамка рулетки: у кейса (c.frame) или у всего раздела «В гостях у бабушки»
@@ -2541,13 +2542,14 @@ function mountCase(id) {
 }
 function resetRoulette() {
   const rl = $('#rl'); if (!rl) return;
-  rl.classList.remove('spinning', 'revealed', 'vert'); delete rl.dataset.n;
-  $('#strips').innerHTML = ''; $('#reveal').innerHTML = '';
+  rl.classList.remove('spinning', 'revealed', 'vert', 'unlocking', 'c2-close'); delete rl.dataset.n;
+  $('#strips').innerHTML = ''; $('#strips').classList.remove('done'); $('#reveal').innerHTML = '';
 }
 const FARM_N = [20, 30, 50, 100]; // кнопки количества фарм-кейса (видны всегда; не хватает денег — «Пополнить»)
 const MANY_N = 7; // больше — без рулеток, сразу итог
 function ccIdle(c) {
   const cc = $('#cc'); if (!cc) return;
+  if (c2On(c)) return cs2Idle(c);
   const have = c.rc ? (st.rcoin || 0) : st.balance;
   const cap = c.farm ? c.farm.maxN : 7, maxN = st.user ? clamp(Math.floor(have / c.price + 1e-9), 1, cap) : cap;
   // фарм-кейс: x20 x30 x50 x100 — всегда все (на выбранное не хватает — кнопка «Пополнить»); обычный — x1…x7, сколько хватает денег
@@ -2598,14 +2600,16 @@ function rollDemo(c) {
   let r = Math.random() * sw; for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) return pool[i]; }
   return pool[0];
 }
-async function openCase(c, demo) {
+async function openCase(c, demo, ok) { // ok — подтверждено в окне CS2 CASE
   if (spinning) return;
+  const c2 = c2On(c); if (c2) caseN = 1;
   const n = caseN, cost = c.price * n;
   if (!demo) {
     if (c.disabled) return toast('Кейс временно закрыт администрацией', 'err');
     if (!st.user) return openAuth('login');
     if (c.rc) { if ((st.rcoin || 0) < cost) return toast(`Не хватает ${rc(cost - (st.rcoin || 0))} R-COIN — они начисляются за открытия кейсов`, 'err'); }
     else if (st.balance < cost) return openDeposit(cost - st.balance);
+    if (c2 && !ok) return cs2Confirm(c, () => openCase(c, false, true));
   }
   let wins, given = [];
   if (demo) wins = Array.from({ length: n }, () => rollDemo(c));
@@ -2619,6 +2623,7 @@ async function openCase(c, demo) {
     if (wins.length !== n) return toast('Ошибка выдачи — обновите страницу', 'err');
     given = r.drops.map(d => d.cash ? { id: uid(), n: d.n, st: 'cash' } : d.sold != null ? { id: uid(), n: d.n, st: 'autosold' } : (st.inv.find(x => x.id === d.id) || { id: d.id, n: d.n, st: 'own' }));
   }
+  if (c2) return cs2Spin(c, wins, given, demo);
   if (n > MANY_N) return openMany(c, wins, given, demo);
   resetRoulette();
   wins.forEach(s => { new Image().src = imgUrl(s, 'l'); }); // большие картинки грузим, пока крутится рулетка
@@ -2757,6 +2762,124 @@ function itemTilt(root) {
     };
     requestAnimationFrame(tick);
   });
+}
+/* ---------- CS2 CASE: открытие как в игре CS2 (только на ПК, ширина от 900px) ----------
+   сверху сцена с кейсом (позже — 3D), снизу полупрозрачная панель предметов (ножи — золотой плиткой «?»),
+   «Открыть» → окно подтверждения → рулетка в круглой «лупе» → обычный экран выигрыша (showReveal) */
+const c2On = c => c.ui === 'cs2' && !!$('.c2p');
+const c2Sorted = c => c.items.slice().sort((a, b) => RAR[a.r].o - RAR[b.r].o || a.p - b.p);
+const c2Tile = (s, cls = '') => s.r === 'rare'
+  ? `<div class="c2t c2t-gold ${cls}"><i class="c2t-q">?</i></div>`
+  : `<div class="c2t r-${s.r} ${cls}"><img src="${imgUrl(s, 'm')}" alt="" draggable="false" loading="lazy"></div>`;
+function pageCaseCs2(c) {
+  const its = c2Sorted(c), reg = its.filter(s => s.r !== 'rare'), rare = its.filter(s => s.r === 'rare');
+  return `<section class="case-page c2p" style="--ca:${c.th.a}"><i class="c2-bg" aria-hidden="true"></i>
+    <div class="c2-scene">
+      <a href="#/cases" class="back c2-back">${ic.left}Все кейсы</a>
+      <div class="c2-hd"><h1>Открыть кейс</h1><p>Открыть <b>${esc(c.name)}</b></p><small><i>i</i>Каждое открытие — один предмет из списка ниже</small></div>
+      <div class="c2-rl" id="rl">
+        <div class="c2-case">${caseArt(c, 'big')}</div>
+        <div class="c2-spin" id="strips"></div>
+        <div class="rl-reveal" id="reveal"></div>
+      </div>
+    </div>
+    <div class="c2-panel">
+      <div class="c2-items"><div>
+      <div class="c2-ptitle">Откройте и получите один из следующих предметов</div>
+      <div class="c2-grid">${reg.map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<em>${money(s.p)}</em><b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${rare.length ? `<button class="c2-it c2-rare" id="c2Rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет ★</b><span>ножи и перчатки</span></button>` : ''}</div></div></div>
+      <div class="c2-cc" id="cc"></div>
+    </div>
+  </section>`;
+}
+function cs2Idle(c) {
+  const cc = $('#cc'); if (!cc) return;
+  caseN = 1;
+  const p = $('.c2p'); if (p) p.classList.remove('c2-go'); // ряд предметов снова виден
+  let main;
+  if (c.disabled) main = `<button class="c2-btn" disabled>Кейс временно закрыт</button>`;
+  else if (!st.user) main = `<button class="c2-btn" data-act="login">Войти и открыть</button>`;
+  else if (st.balance >= c.price) main = `<button class="c2-btn" id="openBtn">Открыть кейс<small>${money(c.price)}</small></button>`;
+  else main = `<button class="c2-btn" data-act="deposit" data-need="${c.price - st.balance}">Пополнить на ${money(c.price - st.balance)}</button>`;
+  cc.innerHTML = `<label class="switch"><input type="checkbox" id="fastChk"${st.fast ? ' checked' : ''}><i></i>Быстрое открытие</label>
+    ${!st.user ? '<span class="c2-note">В демо выигрыш не сохраняется</span>' : ''}<span style="flex:1"></span>
+    <button class="c2-btn c2-ghost" id="demoBtn">${ic.eye}Демо</button>${main}`;
+  $('#fastChk').onchange = e => { st.fast = e.target.checked; save(); };
+  const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
+  $('#demoBtn').onclick = () => openCase(c, true);
+  const rb = $('#c2Rare'); if (rb) rb.onclick = () => c2RareList(c);
+}
+/* золотая плитка: какие редкие предметы могут выпасть */
+function c2RareList(c) {
+  const rare = c2Sorted(c).filter(s => s.r === 'rare').reverse();
+  modal(`<div class="c2rare"><h2>★ Редкий особый предмет ★</h2><p>Один из этих предметов может выпасть вместо обычного скина</p>
+    <div class="c2rare-l">${rare.map(s => `<div class="c2rare-i r-rare"><img src="${imgUrl(s, 'm')}" alt=""><b>${esc(s.w)}</b><span>${esc(s.f)}</span><em>${money(s.p)}</em></div>`).join('')}</div></div>`, 'm-c2rare');
+}
+/* окно подтверждения, как в CS2 */
+function cs2Confirm(c, go) {
+  const m = modal(`<div class="c2ok"><div class="c2ok-art">${caseArt(c)}</div><div class="c2ok-tx">
+      <h3>Открыть ${esc(c.name)}</h3>
+      <p>Вы получите один предмет из кейса ${esc(c.name)} — он сразу попадёт в ваш инвентарь.</p>
+      <p class="c2ok-sum">Спишется <b>${money(c.price)}</b> · на балансе ${money(st.balance)}</p>
+      <div class="c2ok-btns"><button class="c2-btn c2-green" id="c2Go">Открыть</button><button class="c2-btn c2-ghost" id="c2No">Отмена</button></div>
+    </div></div>`, 'm-c2ok');
+  Snd.click && Snd.click();
+  $('#c2No', m).onclick = closeModal;
+  $('#c2Go', m).onclick = () => { closeModal(); go(); };
+  setTimeout(() => { const b = $('#c2Go', m); if (b) b.focus(); }, 60);
+}
+/* рулетка в «лупе»: лента идёт через всю сцену (размыта и затемнена), в круге по центру — она же крупно и чётко */
+async function cs2Spin(c, wins, given, demo) {
+  resetRoulette();
+  const w = wins[0]; new Image().src = imgUrl(w, 'l');
+  spinning = true;
+  const my = ++spinId, rl = $('#rl'), box = $('#strips');
+  $('.c2p').classList.add('c2-go'); // ряд предметов плавно убирается, лупа — по центру экрана
+  const cards = Array.from({ length: STRIP_LEN }, (_, i) => c2Tile(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT ? 'is-win' : '')).join('');
+  box.innerHTML = `<div class="c2-band c2-out"><div class="track">${cards}</div></div>
+    <div class="c2-lens"><div class="c2-lens-in"><div class="c2-band"><div class="track">${cards}</div></div></div></div>
+    <i class="c2-ring" aria-hidden="true"></i><i class="c2-mark" aria-hidden="true"></i>`;
+  $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
+  const alive = () => my === spinId && document.body.contains(rl);
+  // 1) кейс вздрагивает — замок открывается
+  rl.classList.add('unlocking'); Snd.lock();
+  await sleep(st.fast ? 450 : 850);
+  if (!alive()) return;
+  // 2) кейс уходит, раскрывается лупа
+  rl.classList.remove('unlocking'); rl.classList.add('spinning');
+  await sleep(st.fast ? 250 : 550);
+  if (!alive()) return;
+  const tracks = $$('.track', box), band = $('.c2-out', box), win = $('.is-win', tracks[0]);
+  const cw = win.offsetWidth, step = cw + (parseFloat(getComputedStyle(tracks[0]).gap) || 0), center = band.clientWidth / 2;
+  const base = win.offsetLeft + cw / 2 - center, target = -(base + (Math.random() - .5) * cw * .8);
+  const set = (tr, px) => tracks.forEach(t => { t.style.transition = tr; t.style.transform = `translate3d(${px}px,0,0)`; });
+  set('none', 0); void tracks[0].offsetWidth;
+  const dur = st.fast ? 3000 : 8500;
+  set(`transform ${dur}ms cubic-bezier(.08,.6,.08,1)`, target);
+  let raf = 0, last = null;
+  const pos = () => new DOMMatrixReadOnly(getComputedStyle(tracks[0]).transform).m41;
+  const loop = () => { const idx = Math.floor((-pos() + center) / step); if (last !== null && idx !== last) Snd.tickCase(); last = idx; raf = requestAnimationFrame(loop); };
+  raf = requestAnimationFrame(loop);
+  await new Promise(res => {
+    let done = false;
+    const fin = () => { if (done) return; done = true; res(); };
+    let t = setTimeout(fin, dur + 200);
+    tracks[0].addEventListener('transitionend', function te(e) { if (e.target !== tracks[0]) return; tracks[0].removeEventListener('transitionend', te); clearTimeout(t); fin(); });
+    $('#skipBtn').onclick = () => { if (done) return; clearTimeout(t); const p = pos(); set('none', p); void tracks[0].offsetWidth; set('transform .4s cubic-bezier(.2,.8,.3,1)', target); t = setTimeout(fin, 430); };
+  });
+  cancelAnimationFrame(raf);
+  if (!alive()) return;
+  // 3) доводка к центру предмета, предмет подсвечивается
+  set('transform .5s cubic-bezier(.3,1.3,.5,1)', -base);
+  await sleep(520);
+  box.classList.add('done');
+  await sleep(650);
+  if (!alive()) return;
+  // 4) лупа схлопывается — экран выигрыша
+  rl.classList.add('c2-close');
+  await sleep(320);
+  if (!alive()) return;
+  showReveal(c, wins, given, demo);
+  spinning = false;
 }
 function showReveal(c, wins, given, demo) {
   const best = wins.reduce((a, s) => s.p > a.p ? s : a, wins[0]);
@@ -8508,6 +8631,7 @@ function route() {
   document.body.classList.toggle('pg-crash', key === 'crash');
   document.body.classList.toggle('pg-build', key === 'build');
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
+  document.body.classList.toggle('pg-c2', !!$('.c2p')); // CS2 CASE на ПК — во весь экран, без ленты LIVE и подвала
   document.body.classList.toggle('pg-tower', key === 'tower'); // «Башня» — свой фон (assets/bg-tower.webp) // «Собери сам» — свой фон (assets/bg-build.webp)
   const navKey = key === '' || key === 'case' || key === 'build' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));

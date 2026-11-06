@@ -4970,3 +4970,109 @@ body.pg-contracts::after{content:"";display:block;position:fixed;inset:0;z-index
 body.pg-contracts .dos{max-width:1120px}
 /* телефон и планшет: краёв почти не видно — показываем центр и приглушаем, чтобы текст читался */
 @media (max-width:1100px){body.pg-contracts::before{filter:brightness(.55)}}
+
+/* ---------- cs2 case ---------- */
+/* CS2 CASE — открытие как в игре CS2 (только ПК): сцена с кейсом, снизу полупрозрачная панель предметов, рулетка в «лупе» */
+@property --cy{syntax:"<percentage>";inherits:true;initial-value:50%}
+.c2p{position:relative;isolation:isolate;height:calc(100vh - var(--c2h,78px));min-height:620px;overflow:hidden}
+.c2-scene{--cy:43%;position:absolute;inset:0;z-index:1;overflow:hidden;transition:--cy .7s cubic-bezier(.4,0,.2,1)}
+.c2-go .c2-scene{--cy:50%}
+.c2-bg{position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse 60% 55% at 50% 42%,color-mix(in srgb,var(--ca) 22%,transparent),transparent 70%),repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 120px),linear-gradient(180deg,#1b1e25 0%,#111318 60%,#0a0b0e 100%)}
+.c2-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 45%,rgba(0,0,0,.6))}
+.c2-back{position:absolute;left:28px;top:20px;z-index:8}
+.c2-hd{position:absolute;left:0;right:0;top:16px;z-index:7;text-align:center;pointer-events:none;transition:opacity .4s}
+.c2-hd h1{font-size:28px;font-weight:700;letter-spacing:.01em;color:#eef1f6;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+.c2-hd p{margin:2px 0 0;font-size:16px;color:#c7ccd6}
+.c2-hd p b{color:#fff}
+.c2-hd small{display:inline-flex;align-items:center;gap:7px;margin-top:4px;font-size:13px;color:#9aa2b1}
+.c2-hd small i{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#d7dbe3;color:#111;font:700 11px/1 serif;font-style:normal}
+.c2-rl{position:absolute;inset:0}
+.c2-case{position:absolute;left:50%;top:var(--cy);height:min(48%,390px);aspect-ratio:1.18;transform:translate(-50%,-50%);transition:transform .6s cubic-bezier(.5,0,.2,1),opacity .5s,filter .5s}
+.c2-case .case-art{width:100%;height:100%}
+.c2-case .ca-img{filter:drop-shadow(0 30px 40px rgba(0,0,0,.65));animation:c2float 5s ease-in-out infinite}
+@keyframes c2float{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-50%,calc(-50% - 10px)) rotate(-1deg)}}
+.c2-rl.unlocking .c2-case .ca-img{animation:lockShake .85s cubic-bezier(.36,.07,.19,.97) both}
+.c2-rl.spinning .c2-case,.c2-rl.revealed .c2-case{opacity:.18;filter:blur(10px);transform:translate(-50%,-50%) scale(1.15)}
+/* лента: снаружи лупы — размыта и темнее, в лупе — крупно и чётко */
+.c2-spin{position:absolute;inset:0;pointer-events:none}
+.c2-spin:empty{display:none}
+.c2-band{position:absolute;left:0;right:0;top:var(--cy);height:150px;margin-top:-75px;overflow:hidden}
+.c2-band .track{display:flex;gap:6px;height:100%;will-change:transform}
+.c2-out{filter:blur(2.5px) brightness(.5) saturate(.8);opacity:0;transition:opacity .45s}
+.c2-rl.spinning .c2-out{opacity:1}
+.c2-lens{position:absolute;inset:0;clip-path:circle(0 at 50% var(--cy));transition:clip-path .6s cubic-bezier(.2,.9,.25,1.05);background:radial-gradient(circle at 50% var(--cy),rgba(255,255,255,.07),rgba(0,0,0,.2) 230px)}
+.c2-rl.spinning .c2-lens{clip-path:circle(min(230px,19vw,27vh) at 50% var(--cy))}
+.c2-rl.c2-close .c2-lens{clip-path:circle(0 at 50% var(--cy));transition-duration:.3s}
+.c2-lens-in{position:absolute;inset:0;transform:scale(1.32);transform-origin:50% var(--cy)}
+.c2-ring{position:absolute;left:50%;top:var(--cy);width:min(460px,38vw,54vh);aspect-ratio:1;transform:translate(-50%,-50%) scale(0);border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 0 0 9px rgba(0,0,0,.35),0 0 60px 10px rgba(0,0,0,.55),inset 0 0 40px rgba(0,0,0,.55);transition:transform .6s cubic-bezier(.2,.9,.25,1.05)}
+.c2-rl.spinning .c2-ring{transform:translate(-50%,-50%) scale(1)}
+.c2-rl.c2-close .c2-ring{transform:translate(-50%,-50%) scale(0);transition-duration:.3s}
+.c2-mark{position:absolute;left:50%;top:var(--cy);width:3px;height:206px;transform:translate(-50%,-50%);background:linear-gradient(180deg,#f7d774,#e3a923);box-shadow:0 0 10px rgba(240,190,60,.8);border-radius:2px;opacity:0;transition:opacity .3s .35s}
+.c2-rl.spinning .c2-mark{opacity:1}
+.c2-rl.c2-close .c2-mark{opacity:0;transition-delay:0s}
+.c2-spin.done .c2-lens .c2t:not(.is-win){filter:brightness(.45) grayscale(.5);transition:filter .4s}
+.c2-spin.done .c2-lens .c2t.is-win{box-shadow:inset 0 -5px 0 var(--rc,#e4ae39),0 0 0 2px #f7d774,0 0 40px color-mix(in srgb,var(--rc,#e4ae39) 70%,transparent)}
+.c2-rl .rl-reveal{z-index:9}
+.c2-rl.revealed .rl-reveal{opacity:1;visibility:visible}
+/* плитка предмета — как в инвентаре CS2: серый фон, полоска редкости снизу */
+.c2t{position:relative;flex:0 0 190px;height:150px;display:grid;place-items:center;border-radius:2px;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#6d737e 0%,#4a4f59 55%,#353941 100%);box-shadow:inset 0 -5px 0 var(--rc,#888)}
+.c2t img{width:86%;height:78%;object-fit:contain;filter:drop-shadow(0 6px 8px rgba(0,0,0,.45));margin-bottom:6px}
+.c2t-gold{--rc:#e4ae39;background:radial-gradient(circle at 50% 45%,#f6dc8a 0%,#d9a83c 45%,#9c6b16 100%)}
+.c2t-q{display:grid;place-items:center;width:46%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffe9a8,#d7a031 60%,#9b6a12);box-shadow:0 0 0 4px rgba(255,236,170,.55),0 0 0 7px rgba(120,80,10,.35),0 8px 18px rgba(0,0,0,.35);font:800 34px/1 var(--ff-h);color:#fff;text-shadow:0 2px 3px rgba(110,70,0,.6);font-style:normal;margin-bottom:6px}
+/* панель снизу */
+/* панель — прозрачное стекло: за ним всё видно, но чуть размыто */
+.c2-panel{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:14px max(28px,calc((100% - 1500px) / 2)) 16px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02) 30%,rgba(10,12,16,.28));backdrop-filter:blur(7px) saturate(140%);-webkit-backdrop-filter:blur(7px) saturate(140%);border-top:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 -20px 40px rgba(0,0,0,.18)}
+.c2-items{display:grid;grid-template-rows:1fr;transition:grid-template-rows .65s cubic-bezier(.4,0,.2,1),opacity .45s}
+.c2-items>div{overflow:hidden;min-height:0}
+.c2-go .c2-items{grid-template-rows:0fr;opacity:0}
+.c2-ptitle{text-align:center;font-size:14px;color:#c9ced8;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+.c2-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:12px 10px}
+.c2-it{position:relative;display:flex;flex-direction:column;flex:1 1 104px;max-width:160px;min-width:0;background:none;border:0;padding:0;color:inherit;text-align:left;font:inherit;cursor:default}
+.c2-it .c2t{flex:none;width:100%;height:auto;aspect-ratio:4/3;transition:transform .2s,filter .2s}
+.c2-it:hover .c2t{transform:translateY(-3px);filter:brightness(1.12)}
+.c2-it b{margin-top:6px;font-size:12px;font-weight:700;color:#eef0f4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c2-it span{font-size:11.5px;color:#9ba3b2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c2-it em{position:absolute;right:6px;top:6px;padding:2px 7px;border-radius:5px;background:rgba(0,0,0,.6);font:700 11px/1.4 var(--ff-h);font-style:normal;color:#ffe7a3;opacity:0;transition:opacity .2s}
+.c2-it:hover em{opacity:1}
+.c2-rare{cursor:pointer}
+.c2-rare b{color:#f3cf6e;white-space:normal}
+.c2-cc{display:flex;align-items:center;gap:14px;padding-right:76px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);min-height:54px;transition:margin .65s,padding .65s,border-color .45s}
+.c2-go .c2-cc{margin-top:0;padding-top:0;border-top-color:transparent}
+.c2-cc .switch{margin:0}
+.c2-cc .cc-spin{flex:1;justify-content:center}
+.c2-cc .cc-note{margin:0}
+.c2-cc .cc-btns{margin:0 0 0 auto}
+.c2-note{font-size:12.5px;color:var(--txt3)}
+.c2-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:48px;padding:0 26px;border:0;border-radius:3px;cursor:pointer;font:700 15px/1 var(--ff-h);text-transform:uppercase;letter-spacing:.04em;color:#10130f;background:linear-gradient(180deg,#f7d774,#e3a923);box-shadow:0 6px 18px rgba(227,169,35,.25);transition:filter .15s,transform .15s}
+.c2-btn small{font-size:13px;padding-left:10px;border-left:1px solid rgba(0,0,0,.25);opacity:.85}
+.c2-btn:hover{filter:brightness(1.08)}
+.c2-btn:active{transform:translateY(1px)}
+.c2-btn:disabled{opacity:.5;cursor:default}
+.c2-btn svg{width:18px;height:18px}
+.c2-ghost{color:#e6e9ef;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.c2-green{color:#fff;background:linear-gradient(180deg,#4fb35e,#2f8a3f);box-shadow:0 6px 18px rgba(47,138,63,.35)}
+/* окно подтверждения — зелёная плашка, как в CS2 */
+.modal.m-c2ok{width:min(620px,94vw);padding:0;overflow:hidden;border-radius:6px;background:linear-gradient(135deg,#2c5a33,#1f4426 60%,#183620);border:1px solid rgba(140,220,150,.25);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.m-c2ok .m-close{display:none}
+.c2ok{display:flex;align-items:center;gap:6px;padding:26px 26px 22px 10px}
+.c2ok-art{flex:0 0 190px;margin:-10px 0}
+.c2ok-art .case-art{width:100%}
+.c2ok-tx h3{font-size:21px;color:#fff}
+.c2ok-tx p{margin:8px 0 0;font-size:13.5px;color:#cfe3d2;line-height:1.45}
+.c2ok-sum b{color:#fff}
+.c2ok-btns{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.c2ok-btns .c2-btn{height:42px;padding:0 22px;font-size:13.5px}
+/* список редких предметов */
+.modal.m-c2rare{width:min(760px,94vw)}
+.c2rare h2{font-size:22px;color:#f3cf6e;text-align:center}
+.c2rare p{margin:6px 0 16px;text-align:center;color:var(--txt3);font-size:13.5px}
+.c2rare-l{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.c2rare-i{display:flex;flex-direction:column;align-items:center;padding:12px 10px;border-radius:10px;background:radial-gradient(circle at 50% 35%,rgba(242,182,50,.18),rgba(255,255,255,.03) 70%);box-shadow:inset 0 -3px 0 var(--rc)}
+.c2rare-i img{width:100%;height:96px;object-fit:contain}
+.c2rare-i b{margin-top:6px;font-size:12.5px}
+.c2rare-i span{font-size:11.5px;color:var(--txt3);text-align:center}
+.c2rare-i em{margin-top:6px;font:700 13px var(--ff-h);font-style:normal;color:#ffe7a3}
+/* CS2 CASE на ПК — во весь экран: без ленты LIVE слева и подвала, остаётся только шапка */
+body.pg-c2{--lw:0px;padding-left:0}
+body.pg-c2 .live,body.pg-c2 #footer{display:none}
+body.pg-c2 #app{padding-bottom:0}
