@@ -2864,12 +2864,14 @@ function c2Mount() {
     action.play(); action.paused = true;
     const setFrame = f => { action.time = f / C2D.FPS; mixer.update(0); dustFrame(f); dirty = true; };
     setFrame(1);
-    // размер: видео object-fit:cover, камера повторяет ту же обрезку
+    // размер: видео object-fit:cover. Экран шире 16:9 — видео прижато к верху (object-position: top), режется только низ
+    // (он под панелью скинов); камера показывает ту же часть кадра (setViewOffset). Уже 16:9 — режутся бока по центру.
     const resize = () => {
       const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return;
-      renderer.setSize(w, h, false); cam.aspect = w / h;
-      const a = w / h, v169 = 2 * Math.atan(Math.tan(H_FOV / 2) / (16 / 9));
-      cam.fov = THREE.MathUtils.radToDeg(a >= 16 / 9 ? 2 * Math.atan(Math.tan(H_FOV / 2) / a) : v169);
+      renderer.setSize(w, h, false);
+      cam.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(H_FOV / 2) / (16 / 9))); // вертикальный угол всего кадра 16:9
+      if (w / h > 16 / 9) { const fh = w * 9 / 16; cam.aspect = 16 / 9; cam.setViewOffset(w, fh, 0, 0, w, h); }
+      else { cam.aspect = w / h; cam.clearViewOffset(); }
       cam.updateProjectionMatrix(); dirty = true;
     };
     const ro = new ResizeObserver(resize); ro.observe(host); resize();
