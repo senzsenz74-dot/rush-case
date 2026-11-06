@@ -5052,10 +5052,13 @@ body.pg-contracts .dos{max-width:1120px}
 .c2-ghost{color:#e6e9ef;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
 .c2-green{color:#fff;background:linear-gradient(180deg,#4fb35e,#2f8a3f);box-shadow:0 6px 18px rgba(47,138,63,.35)}
 /* окно подтверждения — зелёная плашка, как в CS2 */
-.modal.m-c2ok{width:min(620px,94vw);padding:0;overflow:hidden;border-radius:6px;background:linear-gradient(135deg,#2c5a33,#1f4426 60%,#183620);border:1px solid rgba(140,220,150,.25);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.modal.m-c2ok{width:min(560px,calc(94vw - 140px));margin-left:140px;padding:0;overflow:visible!important;max-height:none;border-radius:4px;background:radial-gradient(ellipse at 80% 0%,rgba(255,255,255,.07),transparent 55%),repeating-radial-gradient(ellipse at 70% 120%,transparent 0 18px,rgba(255,255,255,.025) 18px 19px),linear-gradient(135deg,rgba(52,110,60,.84),rgba(36,82,44,.8) 55%,rgba(27,62,34,.78));backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:1px solid rgba(140,220,150,.22);box-shadow:0 30px 80px rgba(0,0,0,.6)}
 .m-c2ok .m-close{display:none}
-.c2ok{display:flex;align-items:center;gap:6px;padding:26px 26px 22px 10px}
-.c2ok-art{flex:0 0 190px;margin:-10px 0}
+/* затемнение за окном — светлее, страница видна как в CS2 */
+.modal-ov:has(.m-c2ok){background:rgba(0,0,0,.42);backdrop-filter:none;-webkit-backdrop-filter:none}
+.c2ok{position:relative;display:flex;align-items:center;min-height:170px;padding:26px 26px 22px 150px}
+/* кейс наполовину выступает за левый край плашки, как в CS2 */
+.c2ok-art{position:absolute;left:-150px;top:50%;width:290px;transform:translateY(-52%);pointer-events:none;filter:drop-shadow(0 18px 24px rgba(0,0,0,.55))}
 .c2ok-art .case-art{width:100%}
 .c2ok-tx h3{font-size:21px;color:#fff}
 .c2ok-tx p{margin:8px 0 0;font-size:13.5px;color:#cfe3d2;line-height:1.45}
