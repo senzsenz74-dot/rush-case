@@ -741,6 +741,17 @@ const CASES = [
     ],
   },
   {
+    // «CS2 CASE» — заготовка под кейс с 3D-сценой открытия (модель и видео-фон из Blender подключим позже); пока виден только админу (adm)
+    id: 'cs2', name: 'CS2 CASE', price: 100, tag: 'Новый', tagIc: 'star', rtp: 0.8, adm: true,
+    sub: 'Тестовый кейс: простое наполнение для примера',
+    th: { a: '#f3c14f' }, img: 'assets/case-rush.webp',
+    exact: [
+      ['P250 | Cyber Shell', 'BS', 0.25], ['MAC-10 | Pipe Down', 'WW', 0.2], ['P2000 | Acid Etched', 'BS', 0.18],
+      ['Glock-18 | Candy Apple', 'FT', 0.14], ['M4A1-S | Fizzy POP', 'FT', 0.1], ['AK-47 | Crossfade', 'FT', 0.07],
+      ['AWP | Duality', 'FT', 0.04], ['USP-S | Cortex', 'MW', 0.015], ['AK-47 | Head Shot', 'BS', 0.004], ['★ Navaja Knife | Marble Fade', 'FN', 0.0003],
+    ],
+  },
+  {
     id: 'rushb', name: 'RUSH B', price: 249, tag: 'Мемный', tagIc: 'bolt', rtp: 0.8,
     sub: 'GO GO GO!!! 45 граффити-скинов в красно-оранжевом стиле от 25 ₽ до 85 тыс., ~23% открытий окупаются. Джекпоты — Karambit | Slaughter, Autotronic и Crimson Web',
     th: { a: '#ea580c' }, img: 'assets/case-rushb.webp',
@@ -1746,7 +1757,7 @@ function fakeDropAt(sec) {
   // контракт: результат от ×0,25 до ×4 к сумме дела (чаще около ×1)
   if (k < .26) { const sk = pk(LIVE_CON); return { n: sk.name, t: 'con', x: .25 + 3.75 * R() ** 2.5, u, ts }; }
   // кейс: только встроенные кейсы и их базовые шансы (без настроек админки) — чтобы у всех совпадало
-  const base = CASES.filter(c => !c.custom).slice().sort((x, y) => x.id < y.id ? -1 : 1), ws = base.map(x => 1 / Math.sqrt(x.price)), tw = ws.reduce((x, y) => x + y, 0);
+  const base = CASES.filter(c => !c.custom && !c.adm).slice().sort((x, y) => x.id < y.id ? -1 : 1), ws = base.map(x => 1 / Math.sqrt(x.price)), tw = ws.reduce((x, y) => x + y, 0);
   let r = R() * tw, c = base[0];
   for (let i = 0; i < base.length; i++) { r -= ws[i]; if (r <= 0) { c = base[i]; break; } }
   const key = R() < .08 ? 'fw' : 'ch'; // иногда показываем дроп пожирнее
@@ -2023,6 +2034,7 @@ const casePrice = (c, v) => c.rc ? `${RC_IMG}${rc(v)} R-COIN` : money(v);
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
+  { id: 'bmw5dfjvu', wm: 'NEW', t: 'CS2 CASE', sub: '', ic: 'star', a: '#f3c14f', ids: ['cs2'] },
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
   { id: 'guns', wm: 'GUNS', t: 'Оружейные кейсы', sub: 'Кейс одного оружия — все его скины, от ширпа до легенд', ic: 'trophy', a: '#22d3ee', ids: ['awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps'] },
@@ -2049,10 +2061,12 @@ const caseBlockId = c => {
 const caseOrd = c => c.ord != null ? c.ord : DEF_ORD[c.id] != null ? DEF_ORD[c.id] : 1000 + c.price / 1e7;
 const isNewCase = c => c.isNew != null ? !!c.isNew : NEW_CASES.includes(c.id);
 const isHitCase = c => c.hit != null ? !!c.hit : HOME_POP.includes(c.id);
-const blockCases = b => CASES.filter(c => caseBlockId(c) === b.id).sort((x, y) => caseOrd(x) - caseOrd(y));
+// кейс с adm: true (заготовка) видит только админ
+const caseSeen = c => !c.adm || !!(st.user && st.user.admin);
+const blockCases = b => CASES.filter(c => caseSeen(c) && caseBlockId(c) === b.id).sort((x, y) => caseOrd(x) - caseOrd(y));
 const listIdx = (L, c) => { const i = L.indexOf(c.id); return i < 0 ? -1 : i; };
-const homeHits = () => CASES.filter(c => isHitCase(c) && !c.rc).sort((x, y) => (listIdx(HOME_POP, x) - listIdx(HOME_POP, y)) || caseOrd(x) - caseOrd(y));
-const homeNew = () => CASES.filter(c => isNewCase(c) && !c.rc).sort((x, y) => (listIdx(NEW_CASES, x) - listIdx(NEW_CASES, y)) || x.price - y.price);
+const homeHits = () => CASES.filter(c => caseSeen(c) && isHitCase(c) && !c.rc).sort((x, y) => (listIdx(HOME_POP, x) - listIdx(HOME_POP, y)) || caseOrd(x) - caseOrd(y));
+const homeNew = () => CASES.filter(c => caseSeen(c) && isNewCase(c) && !c.rc).sort((x, y) => (listIdx(NEW_CASES, x) - listIdx(NEW_CASES, y)) || x.price - y.price);
 /* правки кейсов из админ-панели: таблица site_cfg — 'case:<id>' (поля кейса) и 'blocks' (список разделов) */
 let caseCfg = {};
 const CASE_DEF = {}; // исходный кейс из кода — для сброса и сравнения
@@ -2437,7 +2451,7 @@ const rcard = (s, win) => `<div class="rcard r-${s.r}${win ? ' is-win' : ''}"><i
 function pageCase(id) {
   if (id === 'build') { setTimeout(() => { location.hash = '#/build'; }); return ''; }
   if (/^b-/.test(id || '') && !caseById(id)) { setTimeout(() => { location.hash = st.user ? '#/profile' : '#/build'; }); return ''; }
-  const c = caseById(id); if (!c) return page404();
+  const c = caseById(id); if (!c || !caseSeen(c)) return page404();
   const ghost = Array.from({ length: 12 }, () => { const s = roll(c.items, 'fw'); return `<div class="gcard r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><div class="gc-w">${esc(s.w)}</div><div class="gc-f">${esc(s.f)}</div></div>`; }).join('');
   const embers = Array.from({ length: 44 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 7)}s;--x:${rand(-60, 60)}px;--s:${rand(.5, 1.3)}"></i>`).join('');
   // своя рамка рулетки: у кейса (c.frame) или у всего раздела «В гостях у бабушки»
@@ -3878,7 +3892,7 @@ function drawPf() {
     body.innerHTML = `<div class="pf-rc" id="rcoins">
       <div class="rc-head"><img class="rc-ic big" src="assets/rcoin.webp" alt="" aria-hidden="true"><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах</small></div></div>
       <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый. А ещё <em>5% от пополнения</em> и <em>0,5% от ставки</em> при проигрыше в апгрейде.</p>
-        <div class="rc-ex">${CASES.filter(c => !c.rc).sort((a, b) => a.price - b.price).map(c => `<span>${esc(c.name)} <i>+${rc(Math.round(c.price * RCOIN_RATE(c) * 100 + 1e-6) / 100)}</i></span>`).join('')}</div></div>
+        <div class="rc-ex">${CASES.filter(c => !c.rc && !c.adm).sort((a, b) => a.price - b.price).map(c => `<span>${esc(c.name)} <i>+${rc(Math.round(c.price * RCOIN_RATE(c) * 100 + 1e-6) / 100)}</i></span>`).join('')}</div></div>
       <div class="rc-log"><b>История</b>${(st.rlog || []).length ? (st.rlog || []).slice(0, 30).map(x => `<div><span>${esc(x.note)}</span><small>${dstr(x.ts)}</small><i class="${x.v < 0 ? 'neg' : ''}">${x.v < 0 ? '−' + rc(-x.v) : '+' + rc(x.v)}</i></div>`).join('') : '<p class="muted">Откройте кейс — здесь появятся начисления.</p>'}</div>
     </div>`;
   } else {
