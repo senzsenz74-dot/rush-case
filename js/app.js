@@ -2533,7 +2533,7 @@ function mountCase(id) {
   Snd.warm(['lock', 'tick']);
   setTimeout(frameSmoke, 50);
   const c = caseById(id); if (!c) return;
-  if (c.ui === 'cs2' && $('.c2p')) c2Mount(); // 3D-сцена CS2 CASE
+  if (c.ui === 'cs2' && $('.c2p')) { c2Mount(); c2LiveBtn(); } // 3D-сцена CS2 CASE и кнопка «Скрыть LIVE»
   if (c.snd) Snd.preloadSet(c.snd);
   spinning = false;
   ccIdle(c);
@@ -2914,13 +2914,21 @@ function c2Mount() {
     S.play(C2D.DROP); // кейс падает
   }).catch(fail);
 }
+/* кнопка «Скрыть LIVE» на странице CS2 CASE: лента слева прячется, сцена шире; выбор помнится в браузере */
+function c2LiveBtn() {
+  const b = $('#c2Live'); if (!b) return;
+  let off = false; try { off = localStorage.getItem('rc.c2nolive') === '1'; } catch (e) { /* */ }
+  const set = () => { document.body.classList.toggle('c2-nolive', off); b.innerHTML = `${ic.eye}${off ? 'Показать LIVE' : 'Скрыть LIVE'}`; };
+  b.onclick = () => { off = !off; try { localStorage.setItem('rc.c2nolive', off ? '1' : '0'); } catch (e) { /* */ } set(); };
+  set();
+}
 function pageCaseCs2(c) {
   const its = c2Sorted(c), reg = its.filter(s => s.r !== 'rare'), rare = its.filter(s => s.r === 'rare');
   return `<section class="case-page c2p" style="--ca:${c.th.a}"><i class="c2-bg" aria-hidden="true"></i>
     <div class="c2-scene">
       <div class="c2-stage" id="c2Stage" aria-hidden="true"><video muted loop playsinline preload="auto"></video><canvas></canvas></div>
       <i class="c2-load" aria-hidden="true"></i>
-      <a href="#/cases" class="back c2-back">${ic.left}Все кейсы</a>
+      <div class="c2-tl"><a href="#/cases" class="back">${ic.left}Все кейсы</a><button class="back c2-livebtn" id="c2Live"></button></div>
       <div class="c2-hd"><h1>Открыть кейс</h1><p>Открыть <b>${esc(c.name)}</b></p><small><i>i</i>Каждое открытие — один предмет из списка ниже</small></div>
       <div class="c2-rl" id="rl">
         <div class="c2-case">${caseArt(c, 'big')}</div>
@@ -8780,6 +8788,7 @@ function route() {
   document.body.classList.toggle('pg-build', key === 'build');
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
   document.body.classList.toggle('pg-c2', !!$('.c2p')); // CS2 CASE на ПК — во весь экран, без подвала
+  if (!$('.c2p')) document.body.classList.remove('c2-nolive'); // «Скрыть LIVE» действует только на странице CS2 CASE
   document.body.classList.toggle('pg-tower', key === 'tower'); // «Башня» — свой фон (assets/bg-tower.webp) // «Собери сам» — свой фон (assets/bg-build.webp)
   const navKey = key === '' || key === 'case' || key === 'build' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));

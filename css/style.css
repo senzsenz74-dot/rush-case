@@ -5098,3 +5098,9 @@ body.pg-c2 #app{padding-bottom:0}
 .c2-load{position:absolute;left:50%;top:43%;z-index:3;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:3px solid rgba(255,255,255,.14);border-top-color:#f3c14f;animation:c2spin .8s linear infinite;transition:opacity .3s}
 .c2-ready .c2-load{opacity:0;visibility:hidden;animation:none}
 @keyframes c2spin{to{transform:rotate(360deg)}}
+/* CS2 CASE: кнопки слева сверху («Все кейсы», «Скрыть LIVE») и скрытая лента LIVE */
+.c2-tl{position:absolute;left:28px;top:20px;z-index:8;display:flex;gap:10px}
+.c2-livebtn{cursor:pointer;font:inherit}
+.c2-livebtn svg{width:16px;height:16px}
+body.pg-c2.c2-nolive{--lw:0px;padding-left:0}
+body.pg-c2.c2-nolive .live{display:none}
