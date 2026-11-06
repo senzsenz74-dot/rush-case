@@ -4981,6 +4981,7 @@ body.pg-contracts .dos{max-width:1120px}
 .c2-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 45%,rgba(0,0,0,.6))}
 .c2-back{position:absolute;left:28px;top:20px;z-index:8}
 .c2-hd{position:absolute;left:0;right:0;top:16px;z-index:7;text-align:center;pointer-events:none;transition:opacity .4s}
+.c2-dim .c2-hd{opacity:0} /* во время прокрутки и выигрыша заголовок убирается */
 .c2-hd h1{font-size:28px;font-weight:700;letter-spacing:.01em;color:#eef1f6;text-shadow:0 2px 12px rgba(0,0,0,.6)}
 .c2-hd p{margin:2px 0 0;font-size:16px;color:#c7ccd6}
 .c2-hd p b{color:#fff}
