@@ -8777,7 +8777,7 @@ function route() {
   document.body.classList.toggle('pg-crash', key === 'crash');
   document.body.classList.toggle('pg-build', key === 'build');
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
-  document.body.classList.toggle('pg-c2', !!$('.c2p')); // CS2 CASE на ПК — во весь экран, без ленты LIVE и подвала
+  document.body.classList.toggle('pg-c2', !!$('.c2p')); // CS2 CASE на ПК — во весь экран, без подвала
   document.body.classList.toggle('pg-tower', key === 'tower'); // «Башня» — свой фон (assets/bg-tower.webp) // «Собери сам» — свой фон (assets/bg-build.webp)
   const navKey = key === '' || key === 'case' || key === 'build' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
