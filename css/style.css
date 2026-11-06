@@ -4996,18 +4996,18 @@ body.pg-contracts .dos{max-width:1120px}
 /* лента: снаружи лупы — размыта и темнее, в лупе — крупно и чётко */
 .c2-spin{position:absolute;inset:0;pointer-events:none}
 .c2-spin:empty{display:none}
-.c2-band{position:absolute;left:0;right:0;top:var(--cy);height:150px;margin-top:-75px;overflow:hidden}
+.c2-band{position:absolute;left:0;right:0;top:var(--cy);height:196px;margin-top:-98px;overflow:hidden}
 .c2-band .track{display:flex;gap:6px;height:100%;will-change:transform}
 .c2-out{filter:blur(2.5px) brightness(.5) saturate(.8);opacity:0;transition:opacity .45s}
 .c2-rl.spinning .c2-out{opacity:1}
-.c2-lens{position:absolute;inset:0;clip-path:circle(0 at 50% var(--cy));transition:clip-path .6s cubic-bezier(.2,.9,.25,1.05);background:radial-gradient(circle at 50% var(--cy),rgba(255,255,255,.07),rgba(0,0,0,.2) 230px)}
-.c2-rl.spinning .c2-lens{clip-path:circle(min(230px,19vw,27vh) at 50% var(--cy))}
+.c2-lens{position:absolute;inset:0;clip-path:circle(0 at 50% var(--cy));transition:clip-path .6s cubic-bezier(.2,.9,.25,1.05);background:radial-gradient(circle at 50% var(--cy),rgba(255,255,255,.07),rgba(0,0,0,.2) 290px)}
+.c2-rl.spinning .c2-lens{clip-path:circle(min(290px,23vw,33vh) at 50% var(--cy))}
 .c2-rl.c2-close .c2-lens{clip-path:circle(0 at 50% var(--cy));transition-duration:.3s}
 .c2-lens-in{position:absolute;inset:0;transform:scale(1.32);transform-origin:50% var(--cy)}
-.c2-ring{position:absolute;left:50%;top:var(--cy);width:min(460px,38vw,54vh);aspect-ratio:1;transform:translate(-50%,-50%) scale(0);border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 0 0 9px rgba(0,0,0,.35),0 0 60px 10px rgba(0,0,0,.55),inset 0 0 40px rgba(0,0,0,.55);transition:transform .6s cubic-bezier(.2,.9,.25,1.05)}
+.c2-ring{position:absolute;left:50%;top:var(--cy);width:min(580px,46vw,66vh);aspect-ratio:1;transform:translate(-50%,-50%) scale(0);border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 0 0 9px rgba(0,0,0,.35),0 0 60px 10px rgba(0,0,0,.55),inset 0 0 40px rgba(0,0,0,.55);transition:transform .6s cubic-bezier(.2,.9,.25,1.05)}
 .c2-rl.spinning .c2-ring{transform:translate(-50%,-50%) scale(1)}
 .c2-rl.c2-close .c2-ring{transform:translate(-50%,-50%) scale(0);transition-duration:.3s}
-.c2-mark{position:absolute;left:50%;top:var(--cy);width:3px;height:206px;transform:translate(-50%,-50%);background:linear-gradient(180deg,#f7d774,#e3a923);box-shadow:0 0 10px rgba(240,190,60,.8);border-radius:2px;opacity:0;transition:opacity .3s .35s}
+.c2-mark{position:absolute;left:50%;top:var(--cy);width:3px;height:268px;transform:translate(-50%,-50%);background:linear-gradient(180deg,#f7d774,#e3a923);box-shadow:0 0 10px rgba(240,190,60,.8);border-radius:2px;opacity:0;transition:opacity .3s .35s}
 .c2-rl.spinning .c2-mark{opacity:1}
 .c2-rl.c2-close .c2-mark{opacity:0;transition-delay:0s}
 .c2-spin.done .c2-lens .c2t:not(.is-win){filter:brightness(.45) grayscale(.5);transition:filter .4s}
@@ -5018,7 +5018,8 @@ body.pg-contracts .dos{max-width:1120px}
 .c2t{position:relative;flex:0 0 190px;height:150px;display:grid;place-items:center;border-radius:2px;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#6d737e 0%,#4a4f59 55%,#353941 100%);box-shadow:inset 0 -5px 0 var(--rc,#888)}
 .c2t img{width:86%;height:78%;object-fit:contain;filter:drop-shadow(0 6px 8px rgba(0,0,0,.45));margin-bottom:6px}
 /* в ленте рулетки — скины крупнее, почти на всю плитку */
-.c2-band .c2t img{width:100%;height:100%;margin:0;transform:scale(1.12) translateY(-3%)}
+.c2-band .c2t{flex:0 0 250px;height:196px}
+.c2-band .c2t img{width:100%;height:100%;margin:0;transform:scale(1.06) translateY(-3%)}
 .c2-band .c2t-q{width:52%}
 .c2t-gold{--rc:#e4ae39;background:radial-gradient(circle at 50% 45%,#f6dc8a 0%,#d9a83c 45%,#9c6b16 100%)}
 .c2t-q{display:grid;place-items:center;width:46%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffe9a8,#d7a031 60%,#9b6a12);box-shadow:0 0 0 4px rgba(255,236,170,.55),0 0 0 7px rgba(120,80,10,.35),0 8px 18px rgba(0,0,0,.35);font:800 34px/1 var(--ff-h);color:#fff;text-shadow:0 2px 3px rgba(110,70,0,.6);font-style:normal;margin-bottom:6px}
