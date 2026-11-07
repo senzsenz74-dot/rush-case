@@ -1231,7 +1231,7 @@ const Snd = {
     this.tone(2100, .02, 'square', .05, 0, 900);
     this.tone(160, .045, 'sine', .22, 0, 70);
   },
-  click() { this.noise(.03, .3, 0, 2600, 1.2); this.tone(420, .06, 'triangle', .1, 0, 260); },
+  click() { if (document.body.classList.contains('pg-c2')) return; this.noise(.03, .3, 0, 2600, 1.2); this.tone(420, .06, 'triangle', .1, 0, 260); },
   coin() { this.tone(1320, .09, 'square', .045); this.tone(1980, .22, 'square', .045, .08); this.tone(2640, .25, 'sine', .04, .08); },
   /* отщёлкивание замка кейса: два металлических щелчка + удар защёлки + скрип крышки */
   /* звук замка — ваш файл, переработанный (assets/sounds/lock.wav); декодируем заранее, чтобы не было задержки */
@@ -1610,7 +1610,7 @@ function closeMenu() { const n = $('#nav'); if (n) n.classList.remove('open'); c
 document.addEventListener('click', e => { if (!e.target.closest('#nav') && !e.target.closest('#burger') && !e.target.closest('.ubox')) closeMenu(); });
 
 let shownBal = null;
-const toggleSound = () => { st.sound = !st.sound; save(); if (st.sound) Snd.click(); renderUser(); };
+const toggleSound = () => { st.sound = !st.sound; save(); if (st.sound) Snd.click(); renderUser(); c2Wind(!!$('.c2p')); };
 function renderUser() {
   setTimeout(() => { if (typeof supAdmBadge === 'function' && st.user && st.user.admin) supAdmBadge(); });
   const ua = $('#userArea'); if (!ua) return;
@@ -2533,7 +2533,7 @@ function mountCase(id) {
   Snd.warm(['lock', 'tick']);
   setTimeout(frameSmoke, 50);
   const c = caseById(id); if (!c) return;
-  if (c.ui === 'cs2' && $('.c2p')) { c2Mount(); c2LiveBtn(); Snd.preloadSet({ a: C2S.full, b: C2S.drop }); } // 3D-сцена CS2 CASE, кнопка «Скрыть LIVE», звуки
+  if (c.ui === 'cs2' && $('.c2p')) { c2Mount(); c2LiveBtn(); Snd.preloadSet({ a: C2S.lock, b: C2S.tick, c: C2S.full, d: C2S.drop, e: C2S.fall, f: C2BTN, g: C2BTN_OK }); } // 3D-сцена CS2 CASE, кнопка «Скрыть LIVE», звуки
   if (c.snd) Snd.preloadSet(c.snd);
   spinning = false;
   ccIdle(c);
@@ -2769,6 +2769,9 @@ function itemTilt(root) {
    «Открыть» → окно подтверждения → рулетка в круглой «лупе» → обычный экран выигрыша (showReveal) */
 const c2On = c => c.ui === 'cs2' && !!$('.c2p');
 const c2Sorted = c => c.items.slice().sort((a, b) => RAR[a.r].o - RAR[b.r].o || a.p - b.p);
+// в панели под кейсом «Тайные» (красные) собраны в одну плашку, как редкий предмет: без картинок и цен, при наведении — только
+// количество; в рулетке видны
+const c2Secret = n => n ? `<div class="c2-it c2-secret"><div class="c2t c2t-red"><i class="c2t-q">?</i></div><em>${n} ${plural(n, 'предмет', 'предмета', 'предметов')}</em><b>ЗАСЕКРЕЧЕНО</b><span>Тайное</span></div>` : '';
 const c2Tile = (s, cls = '') => s.r === 'rare'
   ? `<div class="c2t c2t-gold ${cls}"><i class="c2t-q">?</i></div>`
   : `<div class="c2t r-${s.r} ${cls}"><img src="${imgUrl(s, 'm')}" alt="" draggable="false" loading="lazy"></div>`;
@@ -2777,7 +2780,7 @@ const c2Tile = (s, cls = '') => s.r === 'rare'
    только там, где пол на солнце — floor_lit.glb; тени стен — occluders.glb), пыль удара (dust.json).
    анимация одна, по кадрам (30 к/с): падение 1–75, покой 75, открытие ключом 101–168.
    пока всё не загрузилось — на сцене только значок загрузки; не загрузилось за 30 с — картинка кейса как раньше */
-const C2D = { dir: 'assets/cs2case/', v: 3, FPS: 30, DROP: [1, 75], OPEN: [101, 168], REST: 75 };
+const C2D = { dir: 'assets/cs2case/', v: 3, FPS: 30, DROP: [1, 75], OPEN: [101, 168], REST: 75, LID: 136 }; // LID — кадр, где крышка резко распахивается (135–140)
 let c2s = null; // текущая 3D-сцена страницы
 const c2Lib = () => C2D.lib || (C2D.lib = Promise.all([
   import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/loaders/RGBELoader.js'),
@@ -2923,7 +2926,7 @@ function c2Mount() {
     video.play().catch(() => {});
     root.classList.add('c2-ready', 'c2-3d');
     requestAnimationFrame(tick);
-    S.play(C2D.DROP); // кейс падает
+    S.play(C2D.DROP); c2FallSnd(); // кейс падает
   }).catch(fail);
 }
 /* кнопка «Скрыть LIVE» на странице CS2 CASE: лента слева прячется, сцена шире; выбор помнится в браузере */
@@ -2951,7 +2954,7 @@ function pageCaseCs2(c) {
     <div class="c2-panel">
       <div class="c2-items"><div>
       <div class="c2-ptitle">Откройте и получите один из следующих предметов</div>
-      <div class="c2-grid">${reg.map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<em>${money(s.p)}</em><b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${rare.length ? `<button class="c2-it c2-rare" id="c2Rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет</b><span>ножи и перчатки</span></button>` : ''}</div></div></div>
+      <div class="c2-grid">${reg.filter(s => s.r !== 'covert').map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${c2Secret(reg.filter(s => s.r === 'covert').length)}${rare.length ? `<div class="c2-it c2-rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет</b><span>ножи и перчатки</span></div>` : ''}</div></div></div>
       <div class="c2-cc" id="cc"></div>
     </div>
   </section>`;
@@ -2960,7 +2963,7 @@ function cs2Idle(c) {
   const cc = $('#cc'); if (!cc) return;
   caseN = 1;
   const p = $('.c2p');
-  if (p && p.classList.contains('c2-go') && c2s && c2s.ready) { c2s.rest(); c2s.play(C2D.DROP); } // открыли — новый кейс падает
+  if (p && p.classList.contains('c2-go') && c2s && c2s.ready) { c2s.rest(); c2s.play(C2D.DROP); c2FallSnd(); } // открыли — новый кейс падает
   if (p) p.classList.remove('c2-go', 'c2-dim'); // ряд предметов снова виден
   let main;
   if (c.disabled) main = `<button class="c2-btn" disabled>Кейс временно закрыт</button>`;
@@ -2973,14 +2976,25 @@ function cs2Idle(c) {
   $('#fastChk').onchange = e => { st.fast = e.target.checked; save(); };
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
   $('#demoBtn').onclick = () => openCase(c, true);
-  const rb = $('#c2Rare'); if (rb) rb.onclick = () => c2RareList(c);
 }
 /* золотая плитка: какие редкие предметы могут выпасть */
-function c2RareList(c) {
-  const rare = c2Sorted(c).filter(s => s.r === 'rare').reverse();
-  modal(`<div class="c2rare"><h2>★ Редкий особый предмет ★</h2><p>Один из этих предметов может выпасть вместо обычного скина</p>
-    <div class="c2rare-l">${rare.map(s => `<div class="c2rare-i r-rare"><img src="${imgUrl(s, 'm')}" alt=""><b>${esc(s.w)}</b><span>${esc(s.f)}</span><em>${money(s.p)}</em></div>`).join('')}</div></div>`, 'm-c2rare');
-}
+/* звук кнопок CS2 CASE — щелчок шариковой ручки (файл владельца pressing-a-button-on-a-ballpoint-pen.mp3: один щелчок 0,09 с,
+   тише, assets/cs2case/snd/btn.wav) на любую кнопку страницы и окна «Открыть»; обычный щелчок сайта здесь выключен */
+const C2BTN = 'assets/cs2case/snd/btn.wav?v=1', C2BTN_OK = 'assets/cs2case/snd/btn-ok.wav?v=1'; // btn-ok — затвор (shutter-button-sound владельца) для «Открыть» и «Отмена» в окне
+const c2Ui = {
+  click() { Snd.playCtl(C2BTN, .5).then(t => { if (!t) Snd.preloadSet({ b: C2BTN }); }); },
+  open() {},
+  ok() { Snd.playCtl(C2BTN_OK, .5).then(t => { if (!t) Snd.preloadSet({ o: C2BTN_OK }); }); },
+  go() { this.ok(); },
+  cancel() { this.ok(); },
+};
+// любая кнопка или ссылка на странице CS2 CASE (кроме окна подтверждения — у него свои звуки)
+document.addEventListener('click', e => {
+  if (!document.body.classList.contains('pg-c2')) return;
+  const b = e.target.closest('button, a, [role="button"], .c2-btn');
+  if (!b || b.disabled || b.closest('.m-c2ok')) return;
+  c2Ui.click();
+}, true);
 /* окно подтверждения, как в CS2 */
 function cs2Confirm(c, go) {
   const m = modal(`<div class="c2ok"><div class="c2ok-art">${caseArt(c)}</div><div class="c2ok-tx">
@@ -2989,16 +3003,58 @@ function cs2Confirm(c, go) {
       <p class="c2ok-sum">Спишется <b>${money(c.price)}</b> · на балансе ${money(st.balance)}</p>
       <div class="c2ok-btns"><button class="c2-btn c2-green" id="c2Go">Открыть</button><button class="c2-btn c2-ghost" id="c2No">Отмена</button></div>
     </div></div>`, 'm-c2ok');
-  Snd.click && Snd.click();
-  $('#c2No', m).onclick = closeModal;
-  $('#c2Go', m).onclick = () => { closeModal(); go(); };
+  c2Ui.open();
+  $('#c2No', m).onclick = () => { c2Ui.cancel(); closeModal(); };
+  $('#c2Go', m).onclick = () => { c2Ui.go(); closeModal(); go(); };
   setTimeout(() => { const b = $('#c2Go', m); if (b) b.focus(); }, 60);
 }
 /* рулетка в «лупе»: лента идёт через всю сцену (размыта и затемнена), в круге по центру — она же крупно и чётко */
 /* звуки CS2 CASE (файлы владельца): полный трек открытия и звук обычного дропа; тихо
-   трек делится на два куска: замок и хлопок крышки (1,3–2,15 с трека) — через 1 с после начала анимации открытия (просьба владельца);
-   рулетка (2,15–7,0 с трека, после хлопка) — ровно с появлением ленты; дорогой дроп — хвост трека с 7,6 с */
-const C2S = { full: 'assets/cs2case/snd/open-full.mp3?v=1', drop: 'assets/cs2case/snd/drop.mp3?v=1', vol: .35, lockDelay: 1, lockOff: 1.3, lockEnd: 2.15, rollOff: 2.15, rollEnd: 7.0, richOff: 7.6, dropOff: .15 };
+   «Открытие+замок» (open-lock.mp3, 1,5 с) — через 30 мс после начала анимации открытия; щелчок рулетки (tick.wav — один щелчок,
+   вырезан из «Рулетка.mp3» владельца, 4,994–5,11 с) звучит каждый раз, когда стык карточек проходит под чертой; лента 8 с;
+   дорогой дроп — хвост полного трека с 7,6 с */
+const C2S = { lock: 'assets/cs2case/snd/open-lock.mp3?v=1', tick: 'assets/cs2case/snd/tick.wav?v=1', full: 'assets/cs2case/snd/open-full.mp3?v=1', drop: 'assets/cs2case/snd/drop.mp3?v=1', wind: 'assets/cs2case/snd/wind.mp3?v=1', windVol: .07, fall: 'assets/cs2case/snd/fall.wav?v=1', fallDelay: .19, vol: .35, tickVol: .6, lockDelay: .03, rollLen: 8.45, richOff: 7.6, dropOff: .15 };
+/* ветер на фоне страницы CS2 CASE (файл владельца wind-through-the-leaves.mp3 → wind.mp3: 77 с середины, конец плавно
+   склеен с началом — круг без шва); тихо, с плавным входом; браузер даёт звук только после первого нажатия на странице */
+const c2W = { src: null, g: null, wait: false, tries: 0, quiet: false };
+// пока крутится рулетка, ветер выключен (просьба владельца): плавно гасим и потом плавно возвращаем
+function c2WindQuiet(on) {
+  c2W.quiet = on;
+  if (!c2W.src) return;
+  const a = Snd.ctx, t = a.currentTime, g = c2W.g.gain;
+  g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(on ? 0 : C2S.windVol, t + (on ? .5 : 1.8));
+}
+async function c2Wind(on) {
+  const want = on && st.sound;
+  if (!want) {
+    if (c2W.src) { const a = Snd.ctx, t = a.currentTime, g = c2W.g; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + .8); c2W.src.stop(t + .85); c2W.src = null; }
+    return;
+  }
+  if (c2W.src) return;
+  const a = Snd.a; if (!a) return;
+  if (a.state !== 'running') {
+    if (!c2W.wait) { c2W.wait = true; const go = () => { document.removeEventListener('pointerdown', go, true); c2W.wait = false; a.resume().then(() => c2Wind(!!$('.c2p'))); }; document.addEventListener('pointerdown', go, true); }
+    return;
+  }
+  let b = Snd.bufs[C2S.wind];
+  if (!b) { Snd.preloadSet({ w: C2S.wind }); if (c2W.tries++ < 30) setTimeout(() => c2Wind(!!$('.c2p')), 500); return; }
+  if (b instanceof ArrayBuffer) { try { b = Snd.bufs[C2S.wind] = await a.decodeAudioData(b); } catch (e) { return; } }
+  if (c2W.src || !$('.c2p') || !st.sound) return;
+  const src = a.createBufferSource(), g = a.createGain();
+  src.buffer = b; src.loop = true; src.loopStart = .06; src.loopEnd = b.duration - .06;
+  g.gain.value = 0; if (!c2W.quiet) g.gain.linearRampToValueAtTime(C2S.windVol, a.currentTime + 2.5);
+  src.connect(g); g.connect(a.destination); src.start(0, .06 + Math.random() * (b.duration - 2));
+  c2W.src = src; c2W.g = g; c2W.tries = 0;
+}
+/* звук падения кейса (файл владельца, fall.wav, 1,2 с; главный удар на 0,28 с) — удар совпадает с касанием пола
+   (кадр 15 анимации DROP = 0,47 с), поэтому звук стартует через 0,19 с после начала падения */
+function c2FallSnd() { setTimeout(() => Snd.playCtl(C2S.fall, C2S.vol), C2S.fallDelay * 1000); }
+/* сцена получения особого дропа — В ПЛАНАХ (владелец, 07.11): если выпал засекреченный (Тайное) или редкий предмет, рулетка
+   в какой-то момент прерывается и проигрывается своя сцена. Пока заглушка: ничего не делает, рулетка идёт как обычно.
+   В панели под кейсом эти предметы поэтому скрыты: «ЗАСЕКРЕЧЕНО» и «★ Редкий предмет» — только количество, без картинок,
+   цен и списка по нажатию. */
+const c2Special = w => w && (w.r === 'covert' || w.r === 'rare');
+async function c2Cutscene(w) { /* сюда — сцена получения дропа w */ }
 async function cs2Spin(c, wins, given, demo) {
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
@@ -3012,33 +3068,32 @@ async function cs2Spin(c, wins, given, demo) {
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   const alive = () => my === spinId && document.body.contains(rl);
   // 1) замок открывается: 3D-кейс — анимация ключом из Blender; без 3D — картинка вздрагивает
-  // звук замка и хлопка крышки — через 1 с после начала анимации; рулетка — с появлением ленты; в быстром режиме — только финал
+  // «Открытие+замок» — через 30 мс после начала анимации; рулетка — с появлением ленты; в быстром режиме — только финал
   let track = null;
   if (st.fast) Snd.lock();
-  else setTimeout(async () => {
-    if (!alive()) return;
-    const lockSnd = await Snd.playCtl(C2S.full, C2S.vol, C2S.lockOff);
-    if (lockSnd) setTimeout(() => lockSnd.stop(.12), (C2S.lockEnd - C2S.lockOff) * 1000); else Snd.lock();
-  }, C2S.lockDelay * 1000);
-  if (c2s && c2s.ready) await c2s.play(C2D.OPEN, st.fast ? 2 : 1);
+  else setTimeout(async () => { if (alive() && !(await Snd.playCtl(C2S.lock, C2S.vol))) Snd.lock(); }, C2S.lockDelay * 1000);
+  // лента появляется, как только крышка резко распахнулась (кадр LID), анимация доигрывает под размытием
+  if (c2s && c2s.ready) { const sp = st.fast ? 2 : 1; c2s.play(C2D.OPEN, sp); await sleep((C2D.LID - C2D.OPEN[0]) / C2D.FPS / sp * 1000); }
   else { rl.classList.add('unlocking'); await sleep(st.fast ? 450 : 850); rl.classList.remove('unlocking'); }
   if (!alive()) return track && track.stop(.2);
   // 2) фон размывается, кейс уходит, раскрывается лупа
-  $('.c2p').classList.add('c2-dim'); rl.classList.add('spinning');
-  await sleep(st.fast ? 250 : 550);
-  if (!alive()) return track && track.stop(.2);
+  $('.c2p').classList.add('c2-dim'); rl.classList.add('spinning'); c2WindQuiet(true);
+  await sleep(st.fast ? 120 : 220);
+  if (!alive()) { c2WindQuiet(false); return track && track.stop(.2); }
   const tracks = $$('.track', box), band = $('.c2-out', box), win = $('.is-win', tracks[0]);
   const cw = win.offsetWidth, step = cw + (parseFloat(getComputedStyle(tracks[0]).gap) || 0), center = band.clientWidth / 2;
   const base = win.offsetLeft + cw / 2 - center, target = -(base + (Math.random() - .5) * cw * .8);
   const set = (tr, px) => tracks.forEach(t => { t.style.transition = tr; t.style.transform = `translate3d(${px}px,0,0)`; });
   set('none', 0); void tracks[0].offsetWidth;
   // звук рулетки стартует вместе с лентой; лента останавливается к концу этого куска (5 с)
-  if (!st.fast) track = await Snd.playCtl(C2S.full, C2S.vol, C2S.rollOff);
-  const dur = st.fast ? 3000 : track ? (C2S.rollEnd - C2S.rollOff) * 1000 - 450 : 8500;
+  const dur = st.fast ? 3000 : C2S.rollLen * 1000 - 450;
   set(`transform ${dur}ms cubic-bezier(.08,.6,.08,1)`, target);
   let raf = 0, last = null;
   const pos = () => new DOMMatrixReadOnly(getComputedStyle(tracks[0]).transform).m41;
-  const loop = () => { const idx = Math.floor((-pos() + center) / step); if (last !== null && idx !== last && !track) Snd.tickCase(); /* щелчки уже есть в треке */ last = idx; raf = requestAnimationFrame(loop); };
+  // щелчок — когда середина промежутка между карточками проходит под чертой
+  const gapHalf = (step - cw) / 2;
+  const tick = () => Snd.playCtl(C2S.tick, C2S.tickVol).then(t => { if (!t) Snd.tickCase(); });
+  const loop = () => { const idx = Math.floor((-pos() + center + gapHalf) / step); if (last !== null && idx !== last) tick(); last = idx; raf = requestAnimationFrame(loop); };
   raf = requestAnimationFrame(loop);
   await new Promise(res => {
     let done = false;
@@ -3048,19 +3103,21 @@ async function cs2Spin(c, wins, given, demo) {
     $('#skipBtn').onclick = () => { if (done) return; clearTimeout(t); const p = pos(); set('none', p); void tracks[0].offsetWidth; set('transform .4s cubic-bezier(.2,.8,.3,1)', target); t = setTimeout(fin, 430); };
   });
   cancelAnimationFrame(raf);
-  if (!alive()) return track && track.stop(.2);
+  if (!alive()) { c2WindQuiet(false); return track && track.stop(.2); }
   // 3) доводка к центру предмета, предмет подсвечивается
   set('transform .5s cubic-bezier(.3,1.3,.5,1)', -base);
   await sleep(520);
+  // засекреченный (красный) или редкий дроп — здесь встанет отдельная сцена получения (в планах)
+  if (c2Special(w)) { await c2Cutscene(w); if (!alive()) { c2WindQuiet(false); return track && track.stop(.2); } }
   // финальный звук: дороже кейса — финал полного трека (с 7,6 с); дешевле — свой звук дропа (начало чуть обрезано)
   const rich = w.p > c.price;
   if (track) track.stop(.15);
   if (!rich) Snd.playCtl(C2S.drop, C2S.vol, C2S.dropOff); else Snd.playCtl(C2S.full, C2S.vol, C2S.richOff);
   box.classList.add('done');
   await sleep(650);
-  if (!alive()) return track && track.stop(.2);
+  if (!alive()) { c2WindQuiet(false); return track && track.stop(.2); }
   // 4) лупа схлопывается — экран выигрыша
-  rl.classList.add('c2-close');
+  rl.classList.add('c2-close'); c2WindQuiet(false);
   await sleep(320);
   if (!alive()) return track && track.stop(.2);
   showReveal(c, wins, given, demo);
@@ -8817,6 +8874,7 @@ function route() {
   document.body.classList.toggle('pg-build', key === 'build');
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
   document.body.classList.toggle('pg-c2', !!$('.c2p')); // CS2 CASE на ПК — во весь экран, без подвала
+  c2Wind(!!$('.c2p')); // ветер на фоне — только на странице CS2 CASE
   if (!$('.c2p')) document.body.classList.remove('c2-nolive'); // «Скрыть LIVE» действует только на странице CS2 CASE
   document.body.classList.toggle('pg-tower', key === 'tower'); // «Башня» — свой фон (assets/bg-tower.webp) // «Собери сам» — свой фон (assets/bg-build.webp)
   const navKey = key === '' || key === 'case' || key === 'build' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
