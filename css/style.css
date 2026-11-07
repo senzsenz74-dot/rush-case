@@ -4974,6 +4974,7 @@ body.pg-contracts .dos{max-width:1120px}
 /* ---------- cs2 case ---------- */
 /* CS2 CASE — открытие как в игре CS2 (только ПК): сцена с кейсом, снизу полупрозрачная панель предметов, рулетка в «лупе» */
 @property --cy{syntax:"<percentage>";inherits:true;initial-value:50%}
+@property --lr{syntax:"<length>";inherits:true;initial-value:0px}
 .c2p{position:relative;isolation:isolate;height:calc(100vh - var(--c2h,78px));min-height:620px;overflow:hidden}
 .c2-scene{--cy:43%;position:absolute;inset:0;z-index:1;overflow:hidden;transition:--cy .7s cubic-bezier(.4,0,.2,1)}
 .c2-go .c2-scene{--cy:50%}
@@ -4987,7 +4988,9 @@ body.pg-contracts .dos{max-width:1120px}
 .c2-hd p b{color:#fff}
 .c2-hd small{display:inline-flex;align-items:center;gap:7px;margin-top:4px;font-size:13px;color:#9aa2b1}
 .c2-hd small i{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#d7dbe3;color:#111;font:700 11px/1 serif;font-style:normal}
-.c2-rl{position:absolute;inset:0}
+.c2-rl{position:absolute;inset:0;--lr:0px;transition:--lr .6s cubic-bezier(.2,.9,.25,1.05)}
+.c2-rl.spinning{--lr:min(235px,19vw,28vh)}
+.c2-rl.c2-close{--lr:0px;transition-duration:.3s;transition-timing-function:ease-in}
 .c2-case{position:absolute;left:50%;top:var(--cy);height:min(48%,390px);aspect-ratio:1.18;transform:translate(-50%,-50%);transition:transform .6s cubic-bezier(.5,0,.2,1),opacity .5s,filter .5s}
 .c2-case .case-art{width:100%;height:100%}
 .c2-case .ca-img{filter:drop-shadow(0 30px 40px rgba(0,0,0,.65));animation:c2float 5s ease-in-out infinite}
@@ -4999,15 +5002,26 @@ body.pg-contracts .dos{max-width:1120px}
 .c2-spin:empty{display:none}
 .c2-band{position:absolute;left:0;right:0;top:var(--cy);height:196px;margin-top:-98px;overflow:hidden}
 .c2-band .track{display:flex;gap:6px;height:100%;will-change:transform}
-.c2-out{filter:blur(2.5px) brightness(.5) saturate(.8);opacity:0;transition:opacity .45s}
+.c2-out{filter:blur(7px) brightness(.42) saturate(.75);opacity:0;transition:opacity .45s}
 .c2-rl.spinning .c2-out{opacity:1}
-.c2-lens{position:absolute;inset:0;clip-path:circle(0 at 50% var(--cy));transition:clip-path .6s cubic-bezier(.2,.9,.25,1.05);background:radial-gradient(circle at 50% var(--cy),rgba(255,255,255,.07),rgba(0,0,0,.2) 235px)}
-.c2-rl.spinning .c2-lens{clip-path:circle(min(235px,19vw,28vh) at 50% var(--cy))}
-.c2-rl.c2-close .c2-lens{clip-path:circle(0 at 50% var(--cy));transition-duration:.3s}
+.c2-lens{position:absolute;inset:0;clip-path:circle(var(--lr) at 50% var(--cy));background:radial-gradient(circle at 50% var(--cy),rgba(255,255,255,.05),rgba(255,255,255,.015) calc(var(--lr) * .75),rgba(255,255,255,.07) var(--lr))}
+/* край линзы преломляет сильнее: кольцо той же ленты с большим увеличением, плавно проявляется у кромки */
+.c2-lens-edge{background:none;-webkit-mask:radial-gradient(circle at 50% var(--cy),transparent calc(var(--lr) - 34px),#000 calc(var(--lr) - 6px));mask:radial-gradient(circle at 50% var(--cy),transparent calc(var(--lr) - 34px),#000 calc(var(--lr) - 6px))}
+.c2-lens-edge .c2-lens-in{transform:scale(1.45)}
+.c2-lens-edge .c2-band{filter:blur(1.4px) saturate(1.15)} /* у кромки стекло мылит и чуть ярче — без этого видны двойные края карточек */
+
+
 .c2-lens-in{position:absolute;inset:0;transform:scale(1.32);transform-origin:50% var(--cy)}
-.c2-ring{position:absolute;left:50%;top:var(--cy);width:min(470px,38vw,56vh);aspect-ratio:1;transform:translate(-50%,-50%) scale(0);border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 0 0 9px rgba(0,0,0,.35),0 0 60px 10px rgba(0,0,0,.55),inset 0 0 40px rgba(0,0,0,.55);transition:transform .6s cubic-bezier(.2,.9,.25,1.05)}
-.c2-rl.spinning .c2-ring{transform:translate(-50%,-50%) scale(1)}
-.c2-rl.c2-close .c2-ring{transform:translate(-50%,-50%) scale(0);transition-duration:.3s}
+.c2-ring{position:absolute;left:50%;top:var(--cy);width:calc(var(--lr) * 2);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;background:radial-gradient(circle,transparent 68%,rgba(255,255,255,.03) 86%,rgba(255,255,255,.1) 100%);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.32),inset 0 0 0 7px rgba(255,255,255,.035),inset 0 0 28px 5px rgba(255,255,255,.09),inset 5px 0 14px -5px rgba(255,95,95,.26),inset -5px 0 14px -5px rgba(95,175,255,.26),0 0 0 1px rgba(255,255,255,.07),0 0 34px rgba(255,255,255,.05)}
+.c2-ring::before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse 40% 24% at 33% 19%,rgba(255,255,255,.2),rgba(255,255,255,.05) 55%,transparent 72%),radial-gradient(ellipse 22% 9% at 68% 86%,rgba(255,255,255,.07),transparent 70%);mix-blend-mode:screen}
+.c2-ring::after{content:"";position:absolute;inset:6px;border-radius:50%;border:2px solid transparent;border-top-color:rgba(255,255,255,.5);border-left-color:rgba(255,255,255,.18);transform:rotate(-14deg);filter:blur(.6px)}
+
+/* вокруг лупы всё сильно размыто и притушено (туман с вырезом по лупе); под лупой фон чётче — как у настоящей линзы */
+.c2-fog{position:absolute;inset:0;background:rgba(6,7,10,.3);-webkit-backdrop-filter:blur(18px) saturate(.8);backdrop-filter:blur(18px) saturate(.8);-webkit-mask:radial-gradient(circle at 50% var(--cy),transparent calc(var(--lr) - .5px),#000 calc(var(--lr) + .5px));mask:radial-gradient(circle at 50% var(--cy),transparent calc(var(--lr) - .5px),#000 calc(var(--lr) + .5px));opacity:0;transition:opacity .5s}
+.c2-rl.spinning .c2-fog{opacity:1}
+.c2-rl.c2-close .c2-fog{opacity:0;transition-duration:.3s}
+.c2p:has(.c2-rl.spinning:not(.c2-close)) .c2-stage{filter:blur(2.5px)}
+.c2p:has(.c2-rl.spinning:not(.c2-close)) .c2-stage::after{opacity:.45}
 .c2-mark{position:absolute;left:50%;top:var(--cy);width:3px;height:268px;transform:translate(-50%,-50%);background:linear-gradient(180deg,#f7d774,#e3a923);box-shadow:0 0 10px rgba(240,190,60,.8);border-radius:2px;opacity:0;transition:opacity .3s .35s}
 .c2-rl.spinning .c2-mark{opacity:1}
 .c2-rl.c2-close .c2-mark{opacity:0;transition-delay:0s}
@@ -5020,6 +5034,7 @@ body.pg-contracts .dos{max-width:1120px}
 .c2t img{width:86%;height:78%;object-fit:contain;filter:drop-shadow(0 6px 8px rgba(0,0,0,.45));margin-bottom:6px}
 /* в ленте рулетки — скины крупнее, почти на всю плитку */
 .c2-band .c2t{flex:0 0 250px;height:196px}
+.c2-band .c2t:not(.c2t-badge){background:radial-gradient(ellipse at 50% 42%,color-mix(in srgb,var(--rc,#888) 58%,#000) 0%,color-mix(in srgb,var(--rc,#888) 32%,#000) 55%,color-mix(in srgb,var(--rc,#888) 16%,#000) 100%)}
 .c2-band .c2t img{width:86%;height:82%;margin:0 0 6px}
 /* значки вместо скрытых предметов: золотой «?» в лаврах — редкий (нож), красный «ЗАСЕКРЕЧЕНО» — Тайное */
 .c2t-gold{--rc:#e4ae39;background:radial-gradient(ellipse at 50% 42%,#8a6a2c 0%,#4f3b17 55%,#2a1f0c 100%)}

@@ -3197,8 +3197,10 @@ async function cs2Spin(c, wins, given, demo) {
   const my = ++spinId, rl = $('#rl'), box = $('#strips');
   $('.c2p').classList.add('c2-go'); // ряд предметов плавно убирается, лупа — по центру экрана
   const cards = Array.from({ length: STRIP_LEN }, (_, i) => c2Tile(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT ? 'is-win' : '')).join('');
-  box.innerHTML = `<div class="c2-band c2-out"><div class="track">${cards}</div></div>
+  // туман вокруг лупы → лента снаружи (размыта) → лупа (крупно) → край лупы (ещё крупнее — преломление) → стекло и черта
+  box.innerHTML = `<i class="c2-fog" aria-hidden="true"></i><div class="c2-band c2-out"><div class="track">${cards}</div></div>
     <div class="c2-lens"><div class="c2-lens-in"><div class="c2-band"><div class="track">${cards}</div></div></div></div>
+    <div class="c2-lens c2-lens-edge" aria-hidden="true"><div class="c2-lens-in"><div class="c2-band"><div class="track">${cards}</div></div></div></div>
     <i class="c2-ring" aria-hidden="true"></i><i class="c2-mark" aria-hidden="true"></i>`;
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   const alive = () => my === spinId && document.body.contains(rl);
