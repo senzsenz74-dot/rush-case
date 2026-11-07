@@ -743,6 +743,7 @@ const CASES = [
   {
     // «CS2 CASE» — заготовка под кейс с 3D-сценой открытия (модель и видео-фон из Blender подключим позже); пока виден только админу (adm)
     id: 'cs2', name: 'CS2 CASE', price: 100, tag: 'Новый', tagIc: 'star', rtp: 0.8, adm: true, ui: 'cs2', // ui: 'cs2' — открытие как в CS2 (только на ПК)
+    pity: true, // гарант 75/150 (PITY, supabase/cs2_pity.sql); шансы подобраны так, чтобы с гарантом окупаемость осталась rtp
     sub: 'Тестовый кейс: простое наполнение для примера',
     th: { a: '#f3c14f' }, img: 'assets/case-cs2.webp', // рендер 3D-модели (assets/cs2case/case.glb)
     exact: [
@@ -918,6 +919,26 @@ const CASES = [
       '★ Штык-нож M9 | Зуб тигра', '★ Нож-бабочка | Зуб тигра'],
   },
 ];
+/* гарант кейсов с pity: true (CS2 CASE; сервер — supabase/cs2_pity.sql, там те же числа): 75-е открытие подряд без
+   «Засекреченного» (covert) и «Редкого предмета» (rare) с шансом 50% приносит Засекреченный, 150-е — точно приносит особый
+   предмет (50% Засекреченный, 50% Редкий); выпал любой из них — счётчик с нуля. Счётчик игрока — st.pity[id кейса] (с сервера) */
+const PITY = { mid: 75, midCh: .5, max: 150, maxRare: .5 };
+// средний выигрыш за открытие с гарантом: ценность «цикла» до особого предмета / средняя длина цикла (ch — шансы, ps — цены, rs — редкости)
+function pityEv(ch, ps, rs) {
+  let pC = 0, vC = 0, pR = 0, vR = 0, e0 = 0;
+  ch.forEach((x, i) => { e0 += x * ps[i]; if (rs[i] === 'covert') { pC += x; vC += x * ps[i]; } else if (rs[i] === 'rare') { pR += x; vR += x * ps[i]; } });
+  if (!pC && !pR) return e0;
+  const mC = pC ? vC / pC : vR / pR; const mR = pR ? vR / pR : mC; // средняя цена Засекреченного / Редкого (нет группы — как на сервере, берётся другая)
+  const pS = pC + pR, mAny = PITY.maxRare * mR + (1 - PITY.maxRare) * mC;
+  let alive = 1, ev = 0, len = 0;
+  for (let k = 1; k <= PITY.max; k++) {
+    len += alive;
+    if (k === PITY.max) { ev += alive * mAny; break; }
+    if (k === PITY.mid) { ev += alive * (PITY.midCh * mC + (1 - PITY.midCh) * e0); alive *= (1 - PITY.midCh) * (1 - pS); continue; }
+    ev += alive * e0; alive *= 1 - pS;
+  }
+  return ev / len;
+}
 /* состав кейсов: сет из ~18 предметов под цену кейса, из тематики кейса + агенты/ножи/перчатки с market.csgo.com */
 {
   const hsh = t => { let h = 2166136261; for (const ch of t) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
@@ -998,7 +1019,9 @@ const CASES = [
       // цены меняются (синхронизация с Lis-Skins) — таблицу наклоняем (шанс × p^t), чтобы окупаемость осталась c.rtp
       const ps = c.items.map(n => SK[n].p), base = c.items.map(n => c.exactCh[n]);
       const tilt = t => { const w = base.map((b, i) => b * ps[i] ** t), s = w.reduce((a, b) => a + b, 0); return w.map(x => x / s); };
-      const ev = t => tilt(t).reduce((a, w, i) => a + w * ps[i], 0);
+      // у кейса с гарантом считаем окупаемость вместе с гарантом — иначе он поднял бы её с 80% до ~97%
+      const rs = c.items.map(n => c.exactR[n] || SK[n].r);
+      const ev = c.pity ? t => pityEv(tilt(t), ps, rs) : t => tilt(t).reduce((a, w, i) => a + w * ps[i], 0);
       let a = -3, b = 3; for (let i = 0; i < 60; i++) { const m = (a + b) / 2; if (ev(m) < c.price * c.rtp) a = m; else b = m; }
       tilt((a + b) / 2).forEach((w, i) => { c.exactCh[c.items[i]] = w; });
       return;
@@ -1078,7 +1101,7 @@ function rankIcon(r, i) {
 
 /* ---------- state ---------- */
 const KEY = 'rushcase.v1';
-const freshProfile = () => ({ balance: 0, rcoin: 0, rlog: [], inv: [], bc: [], stats: { opened: 0, spent: 0, upg: 0, upgWin: 0, con: 0, best: null, dep: 0 }, daily: 0, promos: [], depBonus: 0, socials: [], trade: '' });
+const freshProfile = () => ({ balance: 0, rcoin: 0, rlog: [], inv: [], bc: [], stats: { opened: 0, spent: 0, upg: 0, upgWin: 0, con: 0, best: null, dep: 0 }, daily: 0, promos: [], depBonus: 0, socials: [], trade: '', pity: {} });
 const DEF = () => ({ user: null, ...freshProfile(), sound: true, fast: false, upgFast: false, accounts: {} });
 let st;
 try {
@@ -1089,7 +1112,7 @@ try {
 /* ---------- база Supabase: аккаунты, профиль, общие ставки ---------- */
 const SB_URL = 'https://gkeexoyrxnsarosymdyp.supabase.co', SB_KEY = 'sb_publishable_oczOEZFsdpzmwq8FB4Of_Q_A_JSZ3zt'; // публичный ключ — ему место в коде
 const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
-const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'bc', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade', 'umults'];
+const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'bc', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade', 'umults', 'pity'];
 let sbSaveT = 0;
 // профиль пишется в базу с задержкой (пачкой), локально — сразу
 async function sbPush() {
@@ -2976,12 +2999,113 @@ function cs2Idle(c) {
   else if (!st.user) main = `<button class="c2-btn" data-act="login">Войти и открыть</button>`;
   else if (st.balance >= c.price) main = `<button class="c2-btn" id="openBtn">Открыть кейс<small>${money(c.price)}</small></button>`;
   else main = `<button class="c2-btn" data-act="deposit" data-need="${c.price - st.balance}">Пополнить на ${money(c.price - st.balance)}</button>`;
+  // вместо «Демо» — «Правила» (просьба владельца, 08.11); слева — шкала гаранта
   cc.innerHTML = `<label class="switch"><input type="checkbox" id="fastChk"${st.fast ? ' checked' : ''}><i></i>Быстрое открытие</label>
-    ${!st.user ? '<span class="c2-note">В демо выигрыш не сохраняется</span>' : ''}<span style="flex:1"></span>
-    <button class="c2-btn c2-ghost" id="demoBtn">${ic.eye}Демо</button>${main}`;
+    ${c.pity ? c2PityHtml(c) : ''}<span style="flex:1"></span>
+    <button class="c2-btn c2-ghost" id="c2Rules">${C2_IC_RULES}Правила</button>${main}`;
   $('#fastChk').onchange = e => { st.fast = e.target.checked; save(); };
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
-  $('#demoBtn').onclick = () => openCase(c, true);
+  $('#c2Rules').onclick = () => cs2Rules(c);
+  const pw = $('.c2-pity', cc); if (pw) pw.onclick = () => cs2Rules(c, 'pity');
+}
+/* шкала гаранта, как полоски прогресса в CS2: «До гаранта N», отметки 75 (шанс 50%) и 150 (точно); счётчик — с сервера
+   (st.pity), обновляется, когда лента остановилась (cs2Idle) — раньше нельзя, иначе обнуление выдало бы особый предмет */
+const C2_IC_RULES = sv('<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 12h6M10 15.5h6M10 19h3.5"/>');
+const c2PityN = c => Math.max(0, Math.min(PITY.max - 1, Math.floor(+((st.user && st.pity && st.pity[c.id]) || 0))));
+function c2PityHtml(c) {
+  const n = c2PityN(c), left = PITY.max - n, mid = PITY.mid / PITY.max * 100;
+  return `<button class="c2-pity" type="button" title="Как работает гарант — в правилах кейса">
+    <span class="c2-pity-hd"><span>До гаранта</span><b>${left}</b></span>
+    <span class="c2-pity-bar"><i style="width:${(n / PITY.max * 100).toFixed(2)}%"></i><em class="c2-pity-m${n >= PITY.mid ? ' past' : ''}" style="left:${mid}%"></em><em class="c2-pity-m end"></em></span>
+    <span class="c2-pity-ft"><span class="${n >= PITY.mid ? 'past' : ''}" style="left:${mid}%">${PITY.mid} · ${Math.round(PITY.midCh * 100)}%</span><span class="end">${PITY.max} · точно</span></span>
+  </button>`;
+}
+/* окно «Правила» в стиле меню CS2: шапка, разделы слева, пункты справа, внизу — кнопка. Это пользовательское соглашение кейса:
+   об открытии, особых категориях («Засекречено», «Редкий предмет»), сценах получения (выбираются случайно) и гаранте.
+   ВАЖНО (владелец): ни слова о том, какие предметы лежат за карточками этих категорий, — ни названий, ни видов, ни цен, ни количества */
+const C2R_ED = '08.11.2026';
+function cs2Rules(c, at, back) {
+  const pt = c.pity, n = c2PityN(c), left = PITY.max - n;
+  const SEC = [
+    { id: 'gen', t: 'Общие положения', p: [
+      `Эти правила определяют порядок открытия кейса «${esc(c.name)}» (далее — Кейс) на сайте RUSH CASE и являются частью пользовательского соглашения сайта.`,
+      'Нажимая «Открыть» в окне подтверждения, вы подтверждаете, что ознакомились с правилами и принимаете их.',
+      `Сайт может обновлять правила. Новая редакция действует с момента публикации в этом окне; дата редакции указана вверху. Открытия, сделанные раньше, проводятся по редакции, действовавшей на момент открытия.`,
+    ] },
+    { id: 'open', t: 'Открытие кейса', p: [
+      'Стоимость открытия указана на кнопке «Открыть кейс» и списывается с баланса после подтверждения в окне «Открыть».',
+      'Одно открытие приносит ровно один предмет. Он сразу зачисляется в ваш инвентарь.',
+      'Выпавший предмет определяется на сервере сайта в момент открытия — ещё до начала анимации. Анимация кейса, лента, звуки, кнопка «Пропустить» и режим «Быстрое открытие» на результат не влияют.',
+      'Подтверждённое открытие отменить нельзя.',
+    ] },
+    { id: 'cat', t: 'Особые категории', p: [
+      'Часть предметов Кейса относится к особым категориям: «Засекречено» и «Редкий предмет». В списке под Кейсом и на ленте они показаны закрытыми карточками со значком категории.',
+      'Что именно скрыто за карточкой, становится известно только после остановки ленты.',
+    ], x: `<div class="c2r-cats"><div class="c2r-cat r"><img src="${C2BADGE.covert}" alt=""><b>Засекречено</b></div><div class="c2r-cat g"><img src="${C2BADGE.rare}" alt=""><b>Редкий предмет</b></div></div>` },
+    { id: 'scene', t: 'Сцены получения', p: [
+      'Получение предмета категории «Засекречено» или «Редкий предмет» может сопровождаться особой сценой.',
+      'Сцена выбирается случайным образом из набора сцен. Выбор и показ сцены не влияют на выпавший предмет — он уже определён в момент открытия (п. 2.3).',
+      'Предмет зачисляется в инвентарь в момент открытия — независимо от того, была ли сцена показана полностью.',
+    ] },
+    ...(pt ? [{ id: 'pity', t: 'Гарант выпадения', p: [
+      'Для Кейса действует гарант. Сайт считает ваши открытия Кейса подряд, в которых не выпал предмет категории «Засекречено» или «Редкий предмет».',
+      `${PITY.mid}-е такое открытие подряд с вероятностью ${Math.round(PITY.midCh * 100)}% приносит предмет категории «Засекречено».`,
+      `${PITY.max}-е такое открытие подряд гарантированно приносит предмет особой категории: с вероятностью ${Math.round((1 - PITY.maxRare) * 100)}% — «Засекречено», с вероятностью ${Math.round(PITY.maxRare * 100)}% — «Редкий предмет».`,
+      'Если предмет особой категории выпал раньше — обычным образом или по гаранту, — счётчик обнуляется, и отсчёт начинается заново.',
+      'Счётчик ведётся отдельно для каждого аккаунта и для каждого кейса, хранится на сервере и не сбрасывается при выходе из аккаунта, смене браузера или устройства.',
+      'Гарант нельзя купить, передать другому игроку или перенести на другой кейс.',
+    ], x: `<div class="c2r-tl"><div class="c2r-tl-bar"><i style="width:${(n / PITY.max * 100).toFixed(2)}%"></i></div>
+        <span class="c2r-tl-p z" style="left:0"><b>0</b><small>старт</small></span>
+        <span class="c2r-tl-p r" style="left:${PITY.mid / PITY.max * 100}%"><b>${PITY.mid}</b><small>шанс ${Math.round(PITY.midCh * 100)}% · «Засекречено»</small></span>
+        <span class="c2r-tl-p g" style="left:100%"><b>${PITY.max}</b><small>гарантированно</small></span></div>
+      <p class="c2r-me">${st.user ? `Ваш счётчик: <b>${n}</b> из ${PITY.max} · до гаранта <b>${left}</b>` : 'Войдите в аккаунт — счётчик появится после первого открытия'}</p>` },
+    { id: 'meter', t: 'Шкала «До гаранта»', p: [
+      `Шкала внизу страницы Кейса показывает, сколько открытий осталось до гарантированного предмета особой категории. Отметка «${PITY.mid}» — открытие с шансом ${Math.round(PITY.midCh * 100)}%, отметка «${PITY.max}» — гарантированное.`,
+      'Шкала обновляется после остановки ленты.',
+      'Если показания на экране расходятся с данными сервера, действуют данные сервера.',
+    ] }] : []),
+    { id: 'end', t: 'Заключительные положения', p: [
+      'Предметы, полученные из Кейса, можно продать или вывести на общих условиях сайта.',
+      'При техническом сбое, ошибке зачисления или злоупотреблении открытия проверяются по данным сервера; решение принимается по этим данным.',
+      'Вопросы об открытиях — в поддержку сайта: кнопка чата в правом нижнем углу.',
+    ] },
+  ];
+  const sum = [
+    [`<i class="c2r-one">1</i>`, 'Одно открытие — один предмет', 'Результат определяется на сервере в момент открытия'],
+    ...(pt ? [
+      [`<img src="${C2BADGE.covert}" alt="">`, `${PITY.mid}-е открытие подряд`, `Шанс ${Math.round(PITY.midCh * 100)}% на «Засекречено»`, 'r'],
+      [`<img src="${C2BADGE.rare}" alt="">`, `${PITY.max}-е открытие подряд`, 'Предмет особой категории гарантирован', 'g'],
+    ] : []),
+  ];
+  const m = modal(`<div class="c2r">
+    <header class="c2r-hd">
+      <div class="c2r-ttl"><small>RUSH CASE · ${esc(c.name)}</small><h3>Правила кейса</h3></div>
+      <span class="c2r-ed">Пользовательское соглашение · редакция от ${C2R_ED}</span>
+      <button class="c2r-x" type="button" aria-label="Закрыть">${ic.close}</button>
+    </header>
+    <div class="c2r-body">
+      <nav class="c2r-nav">${SEC.map((s, i) => `<button type="button" data-s="${s.id}"><i>${i + 1}</i>${s.t}</button>`).join('')}</nav>
+      <div class="c2r-tx">
+        <div class="c2r-sum">${sum.map(([a, h, p, k]) => `<div class="c2r-sc ${k || ''}"><span class="c2r-sc-i">${a}</span><span><b>${h}</b><small>${p}</small></span></div>`).join('')}</div>
+        ${SEC.map((s, i) => `<section data-s="${s.id}"><h4><i>${i + 1}</i>${s.t}</h4>${s.p.map((p, j) => `<p><b>${i + 1}.${j + 1}</b><span>${p}</span></p>`).join('')}${s.x || ''}</section>`).join('')}
+      </div>
+    </div>
+    <footer class="c2r-ft"><span>Открывая кейс, вы принимаете эти правила</span><button class="c2-btn c2-green" type="button" id="c2rOk">${back ? 'Назад' : 'Понятно'}</button></footer>
+  </div>`, 'm-c2r');
+  const tx = $('.c2r-tx', m), navs = $$('.c2r-nav button', m), secs = $$('section', tx);
+  const spy = () => { // подсветка раздела, который сейчас читают
+    const top = tx.getBoundingClientRect().top + 40; let cur = secs[0];
+    secs.forEach(s => { if (s.getBoundingClientRect().top <= top) cur = s; });
+    if (tx.scrollTop + tx.clientHeight >= tx.scrollHeight - 4) cur = secs[secs.length - 1];
+    navs.forEach(b => b.classList.toggle('on', b.dataset.s === cur.dataset.s));
+  };
+  const goTo = (id, smooth) => { const s = secs.find(x => x.dataset.s === id); if (s) tx.scrollTo({ top: s.offsetTop - 14, behavior: smooth ? 'smooth' : 'auto' }); };
+  navs.forEach(b => { b.onclick = () => { navs.forEach(x => x.classList.toggle('on', x === b)); goTo(b.dataset.s, true); }; });
+  tx.addEventListener('scroll', spy, { passive: true });
+  const done = () => { closeModal(); if (back) setTimeout(back, 230); };
+  $('.c2r-x', m).onclick = closeModal;
+  $('#c2rOk', m).onclick = done;
+  requestAnimationFrame(() => { if (at) goTo(at); spy(); });
 }
 /* золотая плитка: какие редкие предметы могут выпасть */
 /* звук кнопок CS2 CASE — щелчок шариковой ручки (файл владельца pressing-a-button-on-a-ballpoint-pen.mp3: один щелчок 0,09 с,
@@ -3007,9 +3131,11 @@ function cs2Confirm(c, go) {
       <h3>Открыть ${esc(c.name)}</h3>
       <p>Вы получите один предмет из кейса ${esc(c.name)} — он сразу попадёт в ваш инвентарь.</p>
       <p class="c2ok-sum">Спишется <b>${money(c.price)}</b> · на балансе ${money(st.balance)}</p>
+      <p class="c2ok-rules">Открывая кейс, вы принимаете <button type="button" id="c2okRules">правила кейса</button></p>
       <div class="c2ok-btns"><button class="c2-btn c2-green" id="c2Go">Открыть</button><button class="c2-btn c2-ghost" id="c2No">Отмена</button></div>
     </div></div>`, 'm-c2ok');
   c2Ui.open();
+  $('#c2okRules', m).onclick = () => { c2Ui.click(); cs2Rules(c, null, () => cs2Confirm(c, go)); }; // «Назад» в правилах вернёт это окно
   $('#c2No', m).onclick = () => { c2Ui.cancel(); closeModal(); };
   $('#c2Go', m).onclick = () => { c2Ui.go(); closeModal(); go(); };
   setTimeout(() => { const b = $('#c2Go', m); if (b) b.focus(); }, 60);
@@ -5476,7 +5602,7 @@ const admTabs = () => admOwner() ? ADM_TABS : ADM_TABS.filter(([k]) => admMe.per
 /* каталог цен и составы встроенных кейсов → на сервер (выпадение считает сервер по этим данным); грузим, если на сайте что-то поменялось */
 async function admSync(force) {
   const cat = Object.keys(SK).map(k => [k, Math.round(SK[k].p * 100) / 100, SK[k].c || 'skin']).filter(x => x[1] > 0);
-  const cases = CASES.filter(c => !c.custom).map(c => ({ id: c.id, price: c.price, rc: !!c.rc, rate: c.rc ? 0 : RCOIN_RATE(c), maxn: c.farm ? c.farm.maxN : 7, sell_below: c.farm ? c.farm.sellBelow : null, items: c.items.map(x => ({ n: x.name, ch: x.ch0 != null ? x.ch0 : x.ch })) }));
+  const cases = CASES.filter(c => !c.custom).map(c => ({ id: c.id, price: c.price, rc: !!c.rc, rate: c.rc ? 0 : RCOIN_RATE(c), maxn: c.farm ? c.farm.maxN : 7, sell_below: c.farm ? c.farm.sellBelow : null, items: c.items.map(x => ({ n: x.name, ch: x.ch0 != null ? x.ch0 : x.ch, ...(c.pity && (x.r === 'covert' || x.r === 'rare') ? { g: x.r } : {}) })) })); // g — группа для гаранта (supabase/cs2_pity.sql)
   const str = JSON.stringify(cases) + cat.length + cat.reduce((a, x) => a + x[1], 0).toFixed(2);
   let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
   const ver = (h >>> 0).toString(36);
