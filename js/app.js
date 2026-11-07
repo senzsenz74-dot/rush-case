@@ -3121,8 +3121,13 @@ document.addEventListener('click', e => {
   c2Ui.click();
 }, true);
 /* окно подтверждения, как в CS2 */
+// фильтр для линий на зелёной плашке: бесшовная плитка шума равномерно едет влево и гнёт линии волнами (без разгонов), размытие убирает чёткие края
+const C2OK_FX = `<svg class="c2ok-fx" aria-hidden="true" focusable="false"><filter id="c2okWave" filterUnits="userSpaceOnUse" x="-20" y="-20" width="1320" height="420">
+  <feTurbulence type="fractalNoise" baseFrequency="0.004 0.007" numOctaves="1" seed="7" stitchTiles="stitch" x="0" y="0" width="600" height="320" result="n"/>
+  <feTile in="n" result="t"/><feOffset in="t" dx="0" result="o"><animate attributeName="dx" from="0" to="-600" dur="40s" repeatCount="indefinite"/></feOffset>
+  <feDisplacementMap in="SourceGraphic" in2="o" scale="18" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation="0.9"/></filter></svg>`;
 function cs2Confirm(c, go) {
-  const m = modal(`<div class="c2ok"><div class="c2ok-art">${caseArt(c)}</div><div class="c2ok-tx">
+  const m = modal(`${C2OK_FX}<div class="c2ok"><div class="c2ok-art">${caseArt(c)}</div><div class="c2ok-tx">
       <h3>Открыть ${esc(c.name)}</h3>
       <p>Вы получите один предмет из кейса ${esc(c.name)} — он сразу попадёт в ваш инвентарь.</p>
       <p class="c2ok-sum">Спишется <b>${money(c.price)}</b> · на балансе ${money(st.balance)}</p>
