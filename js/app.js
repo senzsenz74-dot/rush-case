@@ -2863,14 +2863,27 @@ function c2Mount() {
     action.play(); action.paused = true;
     const setFrame = f => { action.time = f / C2D.FPS; mixer.update(0); dustFrame(f); dirty = true; };
     setFrame(1);
-    // размер: видео object-fit:cover. Экран шире 16:9 — видео прижато к верху (object-position: top), режется только низ
-    // (он под панелью скинов); камера показывает ту же часть кадра (setViewOffset). Уже 16:9 — режутся бока по центру.
+    // где низ кейса в полном кадре 16:9 (0 — верх, 1 — низ): кейс в покое (кадр 75) через камеру CAM_MAIN
+    const caseBot = (() => {
+      setFrame(C2D.REST); gl.scene.updateMatrixWorld(true);
+      camNode.getWorldPosition(cam.position); camNode.getWorldQuaternion(cam.quaternion);
+      cam.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(H_FOV / 2) / (16 / 9))); cam.aspect = 16 / 9; cam.clearViewOffset(); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+      const box = new THREE.Box3(); gl.scene.getObjectByName('CASE_ROOT').traverse(o => { if (o.isMesh && o.name !== 'KEY') box.expandByObject(o); });
+      let y = -1; for (let i = 0; i < 8; i++) { const v = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(cam); y = Math.max(y, (1 - v.y) / 2); }
+      setFrame(1); return Math.min(1, y);
+    })();
+    // размер: видео object-fit:cover. Экран шире 16:9 — видео выше экрана: кадр сдвигаем так, чтобы низ кейса стоял над
+    // панелью скинов (но без пустых полос); камера показывает ту же часть кадра (setViewOffset). Уже 16:9 — режутся бока.
+    const panel = $('.c2-panel', root);
     const resize = () => {
       const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return;
+      if (panel && !root.classList.contains('c2-go')) S.ph = panel.offsetHeight; // высота панели в покое (при открытии кадр не двигаем)
       renderer.setSize(w, h, false);
       cam.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(H_FOV / 2) / (16 / 9))); // вертикальный угол всего кадра 16:9
-      if (w / h > 16 / 9) { const fh = w * 9 / 16; cam.aspect = 16 / 9; cam.setViewOffset(w, fh, 0, 0, w, h); }
-      else { cam.aspect = w / h; cam.clearViewOffset(); }
+      if (w / h > 16 / 9) {
+        const fh = w * 9 / 16, oy = Math.max(0, Math.min(fh - h, caseBot * fh - (h - (S.ph || 0) - 14)));
+        cam.aspect = 16 / 9; cam.setViewOffset(w, fh, 0, oy, w, h); video.style.objectPosition = `50% ${-oy}px`;
+      } else { cam.aspect = w / h; cam.clearViewOffset(); video.style.objectPosition = '50% 50%'; }
       cam.updateProjectionMatrix(); dirty = true;
     };
     const ro = new ResizeObserver(resize); ro.observe(host); resize();
