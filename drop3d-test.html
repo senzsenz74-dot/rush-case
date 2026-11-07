@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Проба: цех + 3D-оружие — RUSH CASE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Unbounded:wght@800;900&family=Barlow+Semi+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* пробная страница: фон «Старый завод» (видео) + 3D-оружие, крутится мышкой. На сайте не связана с меню. */
+  :root{--rc:#eb4b4b}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#07080a;color:#f2f3f5;font-family:Manrope,system-ui,sans-serif;overflow:hidden}
+  .bg{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  #c{position:fixed;inset:0;width:100%;height:100%;z-index:1;display:block;cursor:grab;touch-action:none}
+  #c.drag{cursor:grabbing}
+  .hd{position:fixed;left:50%;top:5vh;transform:translateX(-50%);z-index:2;display:flex;flex-direction:column;width:fit-content;max-width:calc(100% - 32px);pointer-events:none}
+  .hd-row{display:flex;align-items:center;gap:22px}
+  .hd h2{margin:0;font:600 clamp(22px,2.4vw,38px)/1.1 Manrope,sans-serif;text-shadow:0 2px 12px rgba(0,0,0,.55);display:flex;align-items:center;gap:0 14px;flex-wrap:wrap}
+  .hd h2 i{width:2px;height:.95em;background:rgba(255,255,255,.75)}
+  .hd p{margin:6px 0 0;font:500 clamp(13px,1.15vw,18px)/1.2 Manrope,sans-serif;color:rgba(235,238,243,.85);text-shadow:0 1px 3px rgba(0,0,0,.8),0 1px 10px rgba(0,0,0,.6)}
+  .hd .line{height:4px;margin-top:16px;border-radius:3px;background:var(--rc);box-shadow:0 0 18px color-mix(in srgb,var(--rc) 55%,transparent)}
+  .logo{flex:none;width:58px;height:58px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+  .logo svg{display:block;width:100%;height:100%;overflow:visible}
+  .logo text{font:900 22px Unbounded,sans-serif;fill:#fff}
+  .hint{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:2;padding:7px 14px;border-radius:3px;font:600 12px/1 'Barlow Semi Condensed',Manrope,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:rgba(235,238,243,.8);background:rgba(12,14,18,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);pointer-events:none;transition:opacity .6s}
+  /* нижняя стеклянная полоса — как на экране дропа CS2 CASE (для примера, кнопки ничего не делают) */
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:center;gap:22px;padding:7px max(28px,calc((100% - 1500px) / 2));background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02) 30%,rgba(10,12,16,.28));backdrop-filter:blur(7px) saturate(140%);-webkit-backdrop-filter:blur(7px) saturate(140%);border-top:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 -20px 40px rgba(0,0,0,.25)}
+  .price{display:flex;flex-direction:column;padding:3px 14px 4px;border-radius:3px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+  .price small{font:600 10px/1.2 'Barlow Semi Condensed',Manrope,sans-serif;text-transform:uppercase;letter-spacing:.12em;color:rgba(230,233,239,.6)}
+  .price b{font:600 22px/1.1 'Barlow Semi Condensed',Manrope,sans-serif;color:#f2f3f5;letter-spacing:.01em}
+  .acts{display:flex;gap:6px;margin-right:auto}
+  .ic{--hc:#f2f3f5;position:relative;display:flex;padding:0;border:0;background:none;color:#e9ecf1;cursor:pointer;font:600 11px/1 Manrope,sans-serif;text-transform:uppercase;letter-spacing:.06em}
+  .ic svg{box-sizing:content-box;width:18px;height:18px;padding:8px;border-radius:3px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);transition:background .15s,color .15s}
+  .ic:hover svg{background:var(--hc);color:#14171c;box-shadow:0 0 16px color-mix(in srgb,var(--hc) 45%,transparent)}
+  .ic span{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translate(-50%,4px);padding:5px 9px;border-radius:3px;white-space:nowrap;font-size:10.5px;color:var(--hc);background:rgba(12,14,18,.72);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s}
+  .ic:hover span{opacity:1;transform:translate(-50%,0)}
+  .ic.sell{--hc:#8ef0a6}.ic.upg{--hc:#b48cff}.ic.again{--hc:#f7d774}
+  .close{padding:6px;border:0;background:none;color:#f2f3f5;cursor:pointer;font:800 15px/1 Unbounded,sans-serif;text-transform:uppercase;letter-spacing:.06em}
+  .close:hover{color:#ffe7a3}
+  .load{position:fixed;left:50%;top:50%;z-index:3;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:3px solid rgba(255,255,255,.14);border-top-color:#f3c14f;animation:sp .8s linear infinite;transition:opacity .3s}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .ready .load{opacity:0}
+  .err{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;padding:12px 18px;background:rgba(0,0,0,.7);border-radius:4px;display:none}
+</style>
+</head>
+<body>
+<video class="bg" src="assets/cs2case/drop-factory.mp4?v=1" poster="assets/cs2case/drop-factory.webp?v=1" muted loop playsinline autoplay preload="auto"></video>
+<canvas id="c" aria-label="3D-модель AK-47 | Asiimov — крутится мышкой"></canvas>
+<div class="hd">
+  <div class="hd-row">
+    <i class="logo" aria-hidden="true"><svg viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".55" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient></defs>
+      <path d="M32 3 42 13 45.5 20.5 52.5 23.5 61 32 32 61 3 32Z" fill="var(--rc)"/><path d="M32 3 42 13 45.5 20.5 52.5 23.5 61 32 32 61 3 32Z" fill="url(#g)"/>
+      <path d="M32 4.4 3 32 32 59.6" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1.2"/><path d="M42 13 45.5 20.5 52.5 23.5" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="1.1"/>
+      <path d="M45.5 20.5 41 26 43.5 31 38.5 37.5 40.5 43 35.5 49.5M41 26 36.5 23.5M43.5 31 49 33.5M40.5 43 45 45" fill="none" stroke="rgba(8,10,16,.8)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="32" y="33" text-anchor="middle" dominant-baseline="central">R</text></svg></i>
+    <div><h2>AK-47<i></i>Asiimov</h2><p>Тайное · Немного поношенное</p></div>
+  </div>
+  <i class="line" aria-hidden="true"></i>
+</div>
+<div class="hint" id="hint">Зажмите и крутите мышкой</div>
+<div class="bar">
+  <div class="price"><small>Стоимость</small><b>8 195,61 ₽</b></div>
+  <div class="acts">
+    <button class="ic sell" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.1 0-2.1-.5-2.6-1.5M12 6.5V8M12 16v1.5"/></svg><span>Продать</span></button>
+    <button class="ic upg" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16V8M8.5 11.5L12 8l3.5 3.5"/></svg><span>В апгрейд</span></button>
+    <button class="ic again" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>Открыть ещё</span></button>
+  </div>
+  <button class="close" type="button">Закрыть</button>
+</div>
+<i class="load" aria-hidden="true"></i>
+<div class="err" id="err">3D не загрузилось</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.AgXToneMapping;
+renderer.toneMappingExposure = 1.15;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 50);
+camera.position.set(0, 0, 3.2);
+
+// отражения: нейтральная «комната», чуть тёплая подсветка от окон цеха
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+const sun = new THREE.DirectionalLight(0xffe2b8, 2.6); sun.position.set(-3, 3.2, 2); scene.add(sun); // лучи из окон слева сверху
+const fill = new THREE.DirectionalLight(0x9fb4d8, 0.6); fill.position.set(3, 0.5, 2.5); scene.add(fill); // холодный цех справа
+const rim = new THREE.DirectionalLight(0xffffff, 1.4); rim.position.set(1.5, 2, -3); scene.add(rim); // контур сзади
+scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+
+const pivot = new THREE.Group(); scene.add(pivot);
+let model = null;
+
+function fit() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  // оружие занимает ~78% ширины на ПК, почти всю ширину на узком экране
+  if (model) {
+    const vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z, vw = vh * camera.aspect;
+    const s = Math.min(vw * (w < 700 ? 0.95 : 0.78), vh * 1.25) / model.userData.len;
+    pivot.scale.setScalar(s);
+    pivot.position.y = -vh * 0.03;
+  }
+}
+addEventListener('resize', fit);
+
+new GLTFLoader().load('assets/cs2case/ak47-asiimov.glb?v=1', g => {
+  model = g.scene;
+  model.traverse(o => { if (o.isMesh) { o.frustumCulled = false; if (o.material) o.material.envMapIntensity = 1; } });
+  const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  model.position.sub(c); // по центру
+  // длина оружия — по самой длинной оси; разворачиваем боком к камере, ствол влево
+  const axis = size.x >= size.y && size.x >= size.z ? 'x' : size.z >= size.y ? 'z' : 'y';
+  model.userData.len = size[axis];
+  const holder = new THREE.Group(); holder.add(model);
+  if (axis === 'z') holder.rotation.y = -Math.PI / 2; else if (axis === 'x') holder.rotation.y = Math.PI;
+  pivot.add(holder);
+  document.body.classList.add('ready');
+  fit();
+}, undefined, e => { console.error(e); document.getElementById('err').style.display = 'block'; document.body.classList.add('ready'); });
+
+// вращение мышкой (и пальцем): по горизонтали — вокруг вертикали, по вертикали — наклон с ограничением; мягкая инерция
+let yaw = 0, pitch = 0, vy = 0, vp = 0, drag = false, lx = 0, ly = 0, lt = 0;
+const hint = document.getElementById('hint');
+canvas.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; ly = e.clientY; lt = performance.now(); vy = vp = 0; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); hint.style.opacity = 0; });
+canvas.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - lx, dy = e.clientY - ly, now = performance.now(), dt = Math.max(1, now - lt);
+  yaw += dx * 0.008; pitch = THREE.MathUtils.clamp(pitch + dy * 0.006, -0.9, 0.9);
+  vy = dx * 0.008 / dt * 16; vp = dy * 0.006 / dt * 16;
+  lx = e.clientX; ly = e.clientY; lt = now;
+});
+const up = () => { drag = false; canvas.classList.remove('drag'); };
+canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+
+let last = performance.now();
+renderer.setAnimationLoop(now => {
+  const k = Math.min(3, (now - last) / 16.67); last = now;
+  if (!drag) { yaw += vy * k; pitch = THREE.MathUtils.clamp(pitch + vp * k, -0.9, 0.9); vy *= Math.pow(0.92, k); vp *= Math.pow(0.92, k); }
+  pivot.rotation.set(pitch, yaw, 0, 'YXZ');
+  renderer.render(scene, camera);
+});
+fit();
+</script>
+</body>
+</html>
