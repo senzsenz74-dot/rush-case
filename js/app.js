@@ -2966,6 +2966,7 @@ function pageCaseCs2(c) {
   return `<section class="case-page c2p" style="--ca:${c.th.a}"><i class="c2-bg" aria-hidden="true"></i>
     <div class="c2-scene">
       <div class="c2-stage" id="c2Stage" aria-hidden="true"><video muted loop playsinline preload="auto"></video><canvas></canvas></div>
+      <div class="c2-fbg" aria-hidden="true"><video muted loop playsinline preload="none"></video></div>
       <i class="c2-load" aria-hidden="true"></i>
       <div class="c2-tl"><a href="#/cases" class="back">${ic.left}Все кейсы</a></div>
       <div class="c2-hd"><h1>Открыть кейс</h1><p>Открыть <b>${esc(c.name)}</b></p><small><i>i</i>Каждое открытие — один предмет из списка ниже</small></div>
@@ -2989,6 +2990,7 @@ function cs2Idle(c) {
   const p = $('.c2p');
   if (p && p.classList.contains('c2-go') && c2s && c2s.ready) { c2s.rest(); c2s.play(C2D.DROP); c2FallSnd(); } // открыли — новый кейс падает
   if (p) p.classList.remove('c2-go', 'c2-dim'); // ряд предметов снова виден
+  c2Fact(false);
   let main;
   if (c.disabled) main = `<button class="c2-btn" disabled>Кейс временно закрыт</button>`;
   else if (!st.user) main = `<button class="c2-btn" data-act="login">Войти и открыть</button>`;
@@ -3179,6 +3181,31 @@ function c2FallSnd() { setTimeout(() => Snd.playCtl(C2S.fall, C2S.vol), C2S.fall
    В панели под кейсом эти предметы поэтому скрыты: «ЗАСЕКРЕЧЕНО» и «★ Редкий предмет» — только количество, без картинок,
    цен и списка по нажатию. */
 const c2Special = w => w && (w.r === 'covert' || w.r === 'rare');
+// фон «Старый завод» под обычным дропом (не нож и не «Засекречено»), только на ПК (решение владельца, 08.11).
+// Видео склеено «туда-обратно» (вперёд + назад, 6 с), поэтому крутится по кругу без скачка.
+const C2F = { mp4: 'assets/cs2case/drop-factory.mp4?v=1', poster: 'assets/cs2case/drop-factory.webp?v=1' };
+const c2FactOn = w => !c2Special(w) && matchMedia('(min-width:1024px) and (hover:hover)').matches;
+const c2X = () => !!$('.c2p.c2-fact'); // экран дропа «как осмотр в CS2» — пока только на фоне завода
+const C2WEAR = { 'Factory New': 'Прямо с завода', 'Minimal Wear': 'Немного поношенное', 'Field-Tested': 'После полевых испытаний', 'Well-Worn': 'Поношенное', 'Battle-Scarred': 'Закалённое в боях' };
+function c2XReveal(s, g) { // название сверху + черта цвета редкости, оружие крупно по центру; цена и кнопки — в стеклянной панели (ccDone)
+  const m = / \(([^)]+)\)$/.exec(s.name), wear = m ? C2WEAR[m[1]] || m[1] : '', skin = m ? s.f.replace(/ \([^)]+\)$/, '') : s.f;
+  $('#reveal').innerHTML = `<div class="c2x rv-card r-${s.r}" ${g ? `data-id="${g.id}"` : ''}>
+    <div class="c2x-top"><div class="c2x-hd"><i class="c2x-logo" aria-hidden="true"></i><div><h2>${esc(s.w)}<i></i>${esc(skin)}</h2><p>${RAR[s.r].n}${wear ? ' · ' + wear : ''}</p></div></div>
+    <i class="c2x-line" aria-hidden="true"></i></div>
+    <div class="c2x-img"><img src="${imgUrl(s, 'l')}" alt=""></div>
+  </div>`;
+}
+function c2XBar(price, acts) { // нижняя стеклянная полоса: цена слева, кнопки-значки, «Закрыть» справа
+  return `<div class="c2x-bar"><div class="c2x-price"><small>Стоимость</small><b>${money(price)}</b></div>
+    <div class="c2x-acts">${acts.map(([id, icon, t, extra]) => `<button class="c2x-ic" ${id}${extra || ''}>${icon}<span>${t}</span></button>`).join('')}</div>
+    <button class="c2x-close" id="backBtn">Закрыть</button></div>`;
+}
+function c2Fact(on) { // on: 'load' — заранее подгрузить, true — показать, false — убрать
+  const p = $('.c2p'), v = $('.c2-fbg video'); if (!p || !v) return;
+  if (on && !v.getAttribute('src')) { v.poster = C2F.poster; v.preload = 'auto'; v.src = C2F.mp4; }
+  if (on === true) { p.classList.add('c2-fact'); v.currentTime = 0; const pr = v.play(); if (pr) pr.catch(() => {}); }
+  if (!on) { p.classList.remove('c2-fact'); v.pause(); }
+}
 async function c2Cutscene(w) { /* сюда — сцена получения дропа w */ }
 /* звуки CS2 CASE должны успеть скачаться до открытия: иначе playCtl молча подставляет стандартные звуки сайта
    («старый» замок и щелчки) — так было в Chrome владельца при открытии сразу после загрузки страницы */
@@ -3193,6 +3220,7 @@ async function cs2Spin(c, wins, given, demo) {
   if (st.sound) await c2Need(C2_FAST ? 1500 : 2500);
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
+  const fact = c2FactOn(w); if (fact) c2Fact('load'); // фон завода грузится, пока крутится лента
   spinning = true;
   const my = ++spinId, rl = $('#rl'), box = $('#strips');
   $('.c2p').classList.add('c2-go'); // ряд предметов плавно убирается, лупа — по центру экрана
@@ -3254,7 +3282,7 @@ async function cs2Spin(c, wins, given, demo) {
   await sleep(650);
   if (!alive()) { c2WindQuiet(false); return track && track.stop(.2); }
   // 4) лупа схлопывается — экран выигрыша
-  rl.classList.add('c2-close'); c2WindQuiet(false);
+  rl.classList.add('c2-close'); c2WindQuiet(false); if (fact) c2Fact(true);
   await sleep(320);
   if (!alive()) return track && track.stop(.2);
   showReveal(c, wins, given, demo);
@@ -3278,6 +3306,7 @@ function showReveal(c, wins, given, demo) {
       <div class="rv-price">${money(s.p)}</div>
       ${!demo && !one && given[i].st === 'own' ? `<button class="btn btn-sm btn-dark" data-sellone="${given[i].id}">Продать</button>` : ''}
     </div>`).join('')}</div>`;
+  if (one && c2X()) c2XReveal(wins[0], given[0]);
   $('#rl').classList.add('revealed');
   itemTilt($('#reveal'));
   if (!demo && !c.rc) wins.filter((s, i) => !s.cash && given[i].st !== 'autosold').forEach(s => liveMine({ n: s.name, c: c.id }));
@@ -3287,6 +3316,15 @@ function ccDone(c, wins, given, demo) {
   const cc = $('#cc');
   const again = () => { resetRoulette(); ccIdle(c); }; // назад к этому кейсу — можно выбрать другой x
   const back = () => { resetRoulette(); ccIdle(c); };
+  const x = wins.length === 1 && c2X();
+  if (demo && x) {
+    cc.innerHTML = c2XBar(wins[0].p, [
+      st.user ? ['id="realBtn"', ic.box, 'Открыть за ' + casePrice(c, c.price)] : ['data-act="login"', ic.login, 'Войти и открыть'],
+      ['id="againBtn"', ic.eye, 'Ещё демо']]);
+    const rb = $('#realBtn'); if (rb) rb.onclick = () => openCase(c, false);
+    $('#againBtn').onclick = () => openCase(c, true); $('#backBtn').onclick = back;
+    return;
+  }
   if (demo) {
     cc.innerHTML = `<div class="cc-note">Это было <b>демо-открытие</b> — предмет не сохранён.</div>
       <div class="cc-btns">${st.user ? `<button class="btn btn-primary btn-xl btn-cham" id="realBtn">${c.bcid ? (myBc().some(x => x.id === c.bcid) ? 'Открыть кейс' : 'Купить такой же') : 'Открыть за ' + casePrice(c, c.price * caseN)}</button>` : `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`}<button class="btn btn-xl btn-cham btn-gline" id="againBtn">Ещё демо</button></div>`;
@@ -3296,7 +3334,10 @@ function ccDone(c, wins, given, demo) {
     const sum = () => live().reduce((a, g) => a + SK[g.n].p, 0);
     const draw = () => {
       const left = live().length;
-      cc.innerHTML = `<div class="cc-btns">
+      if (x) cc.innerHTML = c2XBar(wins[0].p, [
+        ...(left ? [['id="sellAll"', ic.coin, 'Продать'], ['id="toUpg"', ic.up, 'В апгрейд']] : []),
+        ['id="againBtn"', ic.box, 'Открыть ещё']]);
+      else cc.innerHTML = `<div class="cc-btns">
           <button class="btn btn-primary btn-xl btn-cham" id="againBtn">${ic.box}${c.bcid ? 'Ещё такой кейс' : 'Открыть ещё'}</button>
           ${left ? `<button class="btn btn-xl btn-cham btn-upg" id="toUpg"><span class="tu-sh"></span>${ic.up}<span class="tu-t">В апгрейд<small>шанс умножить дроп до x10</small></span></button>` : ''}
           ${left ? `<button class="btn btn-xl btn-cham btn-gline" id="sellAll">${ic.coin}Продать${wins.length > 1 ? ' всё' : ''} за ${money(sum())}</button>` : ''}

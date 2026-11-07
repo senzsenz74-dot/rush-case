@@ -5197,6 +5197,47 @@ body.pg-c2 #app{padding-bottom:0}
 .c2-dim .c2-stage::after{opacity:1}
 /* пока крутится рулетка — фон сильно размыт (чуть увеличен, чтобы размытые края не просвечивали) */
 .c2-dim .c2-stage{filter:blur(14px);transform:scale(1.06)}
+/* фон «Старый завод» под обычным дропом (только ПК; видео подгружает c2Fact) — поверх 3D-сцены, под карточкой */
+.c2-fbg{position:absolute;inset:0;z-index:0;opacity:0;pointer-events:none;transition:opacity .6s ease;background:#07080a}
+.c2-fbg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.c2p.c2-fact .c2-fbg{opacity:1}
+.c2p.c2-fact .c2-rl .rl-reveal{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none} /* тёмная подложка экрана выигрыша не закрывает завод */
+.c2p.c2-fact .c2-spin,.c2p.c2-fact .c2-rl .c2-case{opacity:0!important} /* остатки ленты и размытый кейс не видны */
+.c2p.c2-fact .c2-rl .rl-reveal{align-items:stretch;padding:0}
+/* экран дропа «как осмотр в CS2» (c2XReveal) */
+.c2x.rv-card{animation:none;isolation:auto}
+.c2x{position:relative;width:100%;display:flex;flex-direction:column;align-items:center;text-align:left;padding:5vh 40px 120px}
+.c2x-top{display:flex;flex-direction:column;width:fit-content;max-width:100%} /* черта — ровно по ширине заголовка */
+.c2x-hd{display:flex;align-items:center;gap:22px}
+.c2x-logo{flex:none;width:58px;height:58px;transform:rotate(45deg) scale(.82);border-radius:6px;background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.04)),var(--rc);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 6px 18px rgba(0,0,0,.45);position:relative}
+.c2x-logo::after{content:"R";position:absolute;inset:0;display:grid;place-items:center;transform:rotate(-45deg);font:900 26px/1 var(--ff-h);color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.5)}
+.c2x-hd h2{margin:0;font:600 clamp(24px,2.4vw,38px)/1.1 var(--ff);color:#f2f3f5;text-shadow:0 2px 12px rgba(0,0,0,.55);display:flex;align-items:center;flex-wrap:wrap;gap:0 14px}
+.c2x-hd h2 i{width:2px;height:.95em;background:rgba(255,255,255,.75)}
+.c2x-hd p{margin:6px 0 0;font:500 clamp(14px,1.15vw,18px)/1.2 var(--ff);color:rgba(235,238,243,.82);text-shadow:0 1px 3px rgba(0,0,0,.8),0 1px 10px rgba(0,0,0,.6)}
+.c2x-line{display:block;width:100%;height:4px;margin-top:16px;border-radius:3px;background:var(--rc);box-shadow:0 0 18px color-mix(in srgb,var(--rc) 55%,transparent)}
+.c2x-img{flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0}
+.c2x-img img{width:min(980px,68vw);max-height:58vh;object-fit:contain;filter:drop-shadow(0 28px 30px rgba(0,0,0,.6))}
+/* нижняя стеклянная полоса: цена, кнопки-значки, «Закрыть» */
+.c2-cc:has(.c2x-bar){padding-right:76px}
+.c2x-bar{display:flex;align-items:center;gap:22px;width:100%;padding:0}
+.c2p.c2-fact .c2-panel{padding-top:5px;padding-bottom:5px}
+.c2p.c2-fact .c2-cc{min-height:0}
+.c2x-price{display:flex;flex-direction:column;padding:3px 14px 4px;border-radius:3px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.c2x-price small{font:600 10px/1.2 'Barlow Semi Condensed',var(--ff);text-transform:uppercase;letter-spacing:.12em;color:rgba(230,233,239,.6)}
+.c2x-price b{font:600 22px/1.1 'Barlow Semi Condensed',var(--ff);color:#f2f3f5;letter-spacing:.01em}
+.c2x-acts{display:flex;gap:10px;margin:0 auto}
+.c2x-ic{--hc:#f2f3f5;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:70px;padding:0;border:0;background:none;color:#e9ecf1;cursor:pointer;font:600 11px/1 var(--ff);text-transform:uppercase;letter-spacing:.06em}
+.c2x-ic svg{box-sizing:content-box;width:18px;height:18px;padding:8px;border-radius:3px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);transition:background .15s,color .15s}
+.c2x-ic:hover svg{background:var(--hc);color:#14171c;box-shadow:0 0 16px color-mix(in srgb,var(--hc) 45%,transparent)}
+.c2x-ic:hover span{opacity:1;color:var(--hc)}
+#sellAll.c2x-ic{--hc:#8ef0a6} /* продать — светло-зелёная */
+#toUpg.c2x-ic{--hc:#b48cff} /* в апгрейд — фиолетовая */
+#againBtn.c2x-ic,#realBtn.c2x-ic{--hc:#f7d774} /* открыть ещё — жёлтая */
+.c2x-ic span{opacity:.8;font-size:10px;transition:color .15s}
+.c2x-ic:disabled{opacity:.5;cursor:default}
+.c2x-close{padding:6px;border:0;background:none;color:#f2f3f5;cursor:pointer;font:800 15px/1 var(--ff-h);text-transform:uppercase;letter-spacing:.06em}
+.c2x-close:hover{color:#ffe7a3}
+@media (max-width:1023px),(hover:none){.c2-fbg{display:none}}
 .c2-load{position:absolute;left:50%;top:43%;z-index:3;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:3px solid rgba(255,255,255,.14);border-top-color:#f3c14f;animation:c2spin .8s linear infinite;transition:opacity .3s}
 .c2-ready .c2-load{opacity:0;visibility:hidden;animation:none}
 @keyframes c2spin{to{transform:rotate(360deg)}}
