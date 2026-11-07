@@ -3064,7 +3064,7 @@ async function c2Need(ms = 2500) {
   while (urls.some(u => !Snd.bufs[u]) && performance.now() - t < ms) await sleep(50);
 }
 async function cs2Spin(c, wins, given, demo) {
-  if (st.sound && !st.fast) await c2Need();
+  if (st.sound) await c2Need(st.fast ? 1500 : 2500);
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
   spinning = true;
@@ -3077,10 +3077,10 @@ async function cs2Spin(c, wins, given, demo) {
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   const alive = () => my === spinId && document.body.contains(rl);
   // 1) замок открывается: 3D-кейс — анимация ключом из Blender; без 3D — картинка вздрагивает
-  // «Открытие+замок» — через 30 мс после начала анимации; рулетка — с появлением ленты; в быстром режиме — только финал
+  // «Открытие+замок» — через 30 мс после начала анимации, и в быстром режиме тоже (раньше там играл стандартный замок сайта —
+  // «старый звук открытия» в Chrome владельца, у него включено «Быстрое открытие»); рулетка — с появлением ленты
   let track = null;
-  if (st.fast) Snd.lock();
-  else setTimeout(async () => { if (alive() && !(await Snd.playCtl(C2S.lock, C2S.vol))) Snd.lock(); }, C2S.lockDelay * 1000);
+  setTimeout(async () => { if (alive() && !(await Snd.playCtl(C2S.lock, C2S.vol))) Snd.lock(); }, C2S.lockDelay * 1000);
   // лента появляется, как только крышка резко распахнулась (кадр LID), анимация доигрывает под размытием
   if (c2s && c2s.ready) { const sp = st.fast ? 2 : 1; c2s.play(C2D.OPEN, sp); await sleep((C2D.LID - C2D.OPEN[0]) / C2D.FPS / sp * 1000); }
   else { rl.classList.add('unlocking'); await sleep(st.fast ? 450 : 850); rl.classList.remove('unlocking'); }
