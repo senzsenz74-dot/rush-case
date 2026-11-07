@@ -1543,7 +1543,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3046};
+const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
 // картинки из админки (хранилище Supabase) весят 2–3 МБ: для уже загруженных — лёгкие копии в assets/cc (900 px и 440 px для витрины);
 // новые загрузки админка сама сжимает в *.opt.webp + *.opt-s.webp (admImgPack). Неизвестная картинка — как есть.
@@ -2777,7 +2777,7 @@ const c2Tile = (s, cls = '') => s.r === 'rare'
    только там, где пол на солнце — floor_lit.glb; тени стен — occluders.glb), пыль удара (dust.json).
    анимация одна, по кадрам (30 к/с): падение 1–75, покой 75, открытие ключом 101–168.
    пока всё не загрузилось — на сцене только значок загрузки; не загрузилось за 30 с — картинка кейса как раньше */
-const C2D = { dir: 'assets/cs2case/', v: 1, FPS: 30, DROP: [1, 75], OPEN: [101, 168], REST: 75 };
+const C2D = { dir: 'assets/cs2case/', v: 2, FPS: 30, DROP: [1, 75], OPEN: [101, 168], REST: 75 };
 let c2s = null; // текущая 3D-сцена страницы
 const c2Lib = () => C2D.lib || (C2D.lib = Promise.all([
   import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/loaders/RGBELoader.js'),
@@ -2796,7 +2796,7 @@ function c2Mount() {
   c2Lib().then(async ([THREE, { GLTFLoader }, { RGBELoader }]) => {
     if (!S.alive) return;
     const url = f => C2D.dir + f + '?v=' + C2D.v;
-    const P = { sun: 9, env: .08, shadow: .55, dust: 3, fill: .3 }; // подогнано в пробе под рендер Blender
+    const P = { sun: 9, env: .2, shadow: .55, dust: 3, fill: .3 }; // подогнано в пробе под рендер Blender (07.11: день)
     const BL = (x, y, z) => new THREE.Vector3(x, z, -y); // Blender (Z вверх) → three (Y вверх)
     const FLOOR_Y = -4.064, CASE_POS = BL(7.098, 52.9, -4.064);
     const H_FOV = 2 * Math.atan(18 / 25); // камера Blender: матрица 36 мм, объектив 25 мм (по ширине)
@@ -2808,8 +2808,8 @@ function c2Mount() {
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(43.6, 16 / 9, .05, 200);
     // солнце — направление луча из Blender
-    const sunDir = BL(-0.3849, -0.7231, -0.5736).normalize();
-    const sun = new THREE.DirectionalLight(new THREE.Color().setRGB(1, .62, .32, THREE.LinearSRGBColorSpace), P.sun);
+    const sunDir = BL(-0.2204, -0.4145, -0.8829).normalize(); // 07.11 день: SUN X 28°, Z 152°
+    const sun = new THREE.DirectionalLight(new THREE.Color().setRGB(1, .96, .9, THREE.LinearSRGBColorSpace), P.sun);
     sun.position.copy(CASE_POS).addScaledVector(sunDir, -14); sun.target.position.copy(CASE_POS); sun.castShadow = true;
     Object.assign(sun.shadow.camera, { left: -1.6, right: 1.6, top: 1.6, bottom: -1.6, near: .5, far: 20 });
     sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = .015; sun.shadow.radius = 4;
@@ -2822,10 +2822,9 @@ function c2Mount() {
     let floorReady = false, occl = null;
     load('floor_lit.glb').then(g => { let geo; g.scene.traverse(o => { if (o.isMesh) { o.updateWorldMatrix(true, false); geo = o.geometry.clone().applyMatrix4(o.matrixWorld); } }); if (geo) { floor.geometry.dispose(); floor.geometry = geo; floorReady = true; scene.add(floor); dirty = true; } }).catch(() => {});
     load('occluders.glb').then(g => { occl = g.scene; occl.traverse(o => { if (o.isMesh) { o.material = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }); o.castShadow = true; } }); scene.add(occl); dirty = true; }).catch(() => {});
-    // небо для отражений (тёплый оттенок как в Blender) — грузится в фоне, кейс показываем не дожидаясь
+    // небо для отражений (Poly Haven qwantani_noon, без тёплого оттенка) — грузится в фоне, кейс показываем не дожидаясь
     new RGBELoader().setDataType(THREE.FloatType).load(url('sky.hdr'), tex => {
       if (!S.alive) return tex.dispose();
-      const d = tex.image.data; for (let i = 0; i < d.length; i += 4) { d[i + 1] *= .9; d[i + 2] *= .78; }
       tex.needsUpdate = true; tex.mapping = THREE.EquirectangularReflectionMapping;
       scene.environment = tex; scene.environmentRotation.set(0, Math.PI, 0); scene.environmentIntensity = P.env; dirty = true;
     });
