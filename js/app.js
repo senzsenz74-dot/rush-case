@@ -748,7 +748,9 @@ const CASES = [
     exact: [
       ['P250 | Cyber Shell', 'BS', 0.25], ['MAC-10 | Pipe Down', 'WW', 0.2], ['P2000 | Acid Etched', 'BS', 0.18],
       ['Glock-18 | Candy Apple', 'FT', 0.14], ['M4A1-S | Fizzy POP', 'FT', 0.1], ['AK-47 | Crossfade', 'FT', 0.07],
-      ['AWP | Duality', 'FT', 0.04], ['USP-S | Cortex', 'MW', 0.015], ['AK-47 | Head Shot', 'BS', 0.004], ['★ Navaja Knife | Marble Fade', 'FN', 0.0003],
+      ['AWP | Duality', 'FT', 0.04], ['USP-S | Cortex', 'MW', 0.015], ['AK-47 | Head Shot', 'BS', 0.004],
+      ['Desert Eagle | Printstream', 'BS', 0.004], ['USP-S | Printstream', 'BS', 0.004], // красные за «ЗАСЕКРЕЧЕНО» — каждый ~1 из 250
+      ['★ Navaja Knife | Marble Fade', 'FN', 0.0003],
       ['★ Gut Knife | Tiger Tooth', 'FN', 0.0003], ['★ Shadow Daggers | Marble Fade', 'FN', 0.0003], // ножи за золотым «?» — каждый ~1 из 3 300
     ],
   },
