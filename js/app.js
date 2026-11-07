@@ -3055,7 +3055,16 @@ function c2FallSnd() { setTimeout(() => Snd.playCtl(C2S.fall, C2S.vol), C2S.fall
    цен и списка по нажатию. */
 const c2Special = w => w && (w.r === 'covert' || w.r === 'rare');
 async function c2Cutscene(w) { /* сюда — сцена получения дропа w */ }
+/* звуки CS2 CASE должны успеть скачаться до открытия: иначе playCtl молча подставляет стандартные звуки сайта
+   («старый» замок и щелчки) — так было в Chrome владельца при открытии сразу после загрузки страницы */
+async function c2Need(ms = 2500) {
+  const urls = [C2S.lock, C2S.tick];
+  Snd.preloadSet({ a: C2S.lock, b: C2S.tick, c: C2S.full, d: C2S.drop });
+  const t = performance.now();
+  while (urls.some(u => !Snd.bufs[u]) && performance.now() - t < ms) await sleep(50);
+}
 async function cs2Spin(c, wins, given, demo) {
+  if (st.sound && !st.fast) await c2Need();
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
   spinning = true;
