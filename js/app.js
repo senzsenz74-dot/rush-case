@@ -2777,7 +2777,7 @@ const c2Tile = (s, cls = '') => s.r === 'rare'
    только там, где пол на солнце — floor_lit.glb; тени стен — occluders.glb), пыль удара (dust.json).
    анимация одна, по кадрам (30 к/с): падение 1–75, покой 75, открытие ключом 101–168.
    пока всё не загрузилось — на сцене только значок загрузки; не загрузилось за 30 с — картинка кейса как раньше */
-const C2D = { dir: 'assets/cs2case/', v: 2, FPS: 30, DROP: [1, 75], OPEN: [101, 168], REST: 75 };
+const C2D = { dir: 'assets/cs2case/', v: 3, FPS: 30, DROP: [1, 75], OPEN: [101, 168], REST: 75 };
 let c2s = null; // текущая 3D-сцена страницы
 const c2Lib = () => C2D.lib || (C2D.lib = Promise.all([
   import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/loaders/RGBELoader.js'),
