@@ -749,6 +749,7 @@ const CASES = [
       ['P250 | Cyber Shell', 'BS', 0.25], ['MAC-10 | Pipe Down', 'WW', 0.2], ['P2000 | Acid Etched', 'BS', 0.18],
       ['Glock-18 | Candy Apple', 'FT', 0.14], ['M4A1-S | Fizzy POP', 'FT', 0.1], ['AK-47 | Crossfade', 'FT', 0.07],
       ['AWP | Duality', 'FT', 0.04], ['USP-S | Cortex', 'MW', 0.015], ['AK-47 | Head Shot', 'BS', 0.004], ['★ Navaja Knife | Marble Fade', 'FN', 0.0003],
+      ['★ Gut Knife | Tiger Tooth', 'FN', 0.0003], ['★ Shadow Daggers | Marble Fade', 'FN', 0.0003], // ножи за золотым «?» — каждый ~1 из 3 300
     ],
   },
   {
@@ -2770,10 +2771,13 @@ function itemTilt(root) {
 const c2On = c => c.ui === 'cs2' && !!$('.c2p');
 const c2Sorted = c => c.items.slice().sort((a, b) => RAR[a.r].o - RAR[b.r].o || a.p - b.p);
 // в панели под кейсом «Тайные» (красные) собраны в одну плашку, как редкий предмет: без картинок и цен, при наведении — только
-// количество; в рулетке видны
-const c2Secret = n => n ? `<div class="c2-it c2-secret"><div class="c2t c2t-red"><i class="c2t-q">?</i></div><em>${n} ${plural(n, 'предмет', 'предмета', 'предметов')}</em><b>ЗАСЕКРЕЧЕНО</b><span>Тайное</span></div>` : '';
-const c2Tile = (s, cls = '') => s.r === 'rare'
-  ? `<div class="c2t c2t-gold ${cls}"><i class="c2t-q">?</i></div>`
+// количество. И в рулетке они не видны (просьба владельца, 08.11): редкий (нож) — золотой значок «?» в лаврах (rare.webp),
+// Тайное — красный значок «ЗАСЕКРЕЧЕНО» (secret.webp); какой именно предмет выпал, видно только после остановки ленты
+// (позже — в особой сцене c2Cutscene, пока — на обычном экране выигрыша)
+const C2BADGE = { rare: 'assets/cs2case/rare.webp?v=1', covert: 'assets/cs2case/secret.webp?v=1' };
+const c2Badge = (r, cls = '') => `<div class="c2t c2t-badge ${r === 'rare' ? 'c2t-gold' : 'c2t-red'} ${cls}"><img src="${C2BADGE[r]}" alt="" draggable="false"></div>`;
+const c2Secret = n => n ? `<div class="c2-it c2-secret">${c2Badge('covert')}<em>${n} ${plural(n, 'предмет', 'предмета', 'предметов')}</em><b>ЗАСЕКРЕЧЕНО</b><span>Тайное</span></div>` : '';
+const c2Tile = (s, cls = '') => C2BADGE[s.r] ? c2Badge(s.r, cls)
   : `<div class="c2t r-${s.r} ${cls}"><img src="${imgUrl(s, 'm')}" alt="" draggable="false" loading="lazy"></div>`;
 /* ---------- CS2 CASE: 3D-сцена — видео-фон Mirage + 3D-кейс из Blender (файлы в assets/cs2case/) ----------
    по пробе blender/export/probe (ветка blender): свет как в Blender, тень кейса на полу (пол-«ловец теней»
