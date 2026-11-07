@@ -2996,9 +2996,9 @@ function cs2Confirm(c, go) {
 }
 /* рулетка в «лупе»: лента идёт через всю сцену (размыта и затемнена), в круге по центру — она же крупно и чётко */
 /* звуки CS2 CASE (файлы владельца): полный трек открытия и звук обычного дропа; тихо
-   трек делится на два куска под анимацию: замок и защёлки (с 0,6 с трека) — вместе с ключом (щелчок замка 1,38 с трека = замок
-   отскакивает на 0,77 с анимации); рулетка (2,0–7,0 с трека) — ровно с появлением ленты; дорогой дроп — хвост трека с 7,6 с */
-const C2S = { full: 'assets/cs2case/snd/open-full.mp3?v=1', drop: 'assets/cs2case/snd/drop.mp3?v=1', vol: .35, lockOff: .6, lockEnd: 2.05, rollOff: 2.0, rollEnd: 7.0, richOff: 7.6, dropOff: .15 };
+   трек делится на два куска: замок и хлопок крышки (1,3–2,15 с трека) — через 1 с после начала анимации открытия (просьба владельца);
+   рулетка (2,15–7,0 с трека, после хлопка) — ровно с появлением ленты; дорогой дроп — хвост трека с 7,6 с */
+const C2S = { full: 'assets/cs2case/snd/open-full.mp3?v=1', drop: 'assets/cs2case/snd/drop.mp3?v=1', vol: .35, lockDelay: 1, lockOff: 1.3, lockEnd: 2.15, rollOff: 2.15, rollEnd: 7.0, richOff: 7.6, dropOff: .15 };
 async function cs2Spin(c, wins, given, demo) {
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
@@ -3012,10 +3012,14 @@ async function cs2Spin(c, wins, given, demo) {
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   const alive = () => my === spinId && document.body.contains(rl);
   // 1) замок открывается: 3D-кейс — анимация ключом из Blender; без 3D — картинка вздрагивает
-  // звук замка и защёлок — вместе с ключом; рулетка — позже, с появлением ленты; в быстром режиме — только финал
+  // звук замка и хлопка крышки — через 1 с после начала анимации; рулетка — с появлением ленты; в быстром режиме — только финал
   let track = null;
-  const lockSnd = st.fast ? null : await Snd.playCtl(C2S.full, C2S.vol, C2S.lockOff);
-  if (lockSnd) setTimeout(() => lockSnd.stop(.2), (C2S.lockEnd - C2S.lockOff) * 1000); else Snd.lock();
+  if (st.fast) Snd.lock();
+  else setTimeout(async () => {
+    if (!alive()) return;
+    const lockSnd = await Snd.playCtl(C2S.full, C2S.vol, C2S.lockOff);
+    if (lockSnd) setTimeout(() => lockSnd.stop(.12), (C2S.lockEnd - C2S.lockOff) * 1000); else Snd.lock();
+  }, C2S.lockDelay * 1000);
   if (c2s && c2s.ready) await c2s.play(C2D.OPEN, st.fast ? 2 : 1);
   else { rl.classList.add('unlocking'); await sleep(st.fast ? 450 : 850); rl.classList.remove('unlocking'); }
   if (!alive()) return track && track.stop(.2);
