@@ -2533,7 +2533,7 @@ function mountCase(id) {
   Snd.warm(['lock', 'tick']);
   setTimeout(frameSmoke, 50);
   const c = caseById(id); if (!c) return;
-  if (c.ui === 'cs2' && $('.c2p')) { c2Mount(); c2LiveBtn(); Snd.preloadSet({ a: C2S.full, b: C2S.drop }); } // 3D-сцена CS2 CASE, кнопка «Скрыть LIVE», звуки
+  if (c.ui === 'cs2' && $('.c2p')) { c2Mount(); c2LiveBtn(); Snd.preloadSet({ a: C2S.roll, b: C2S.full, c: C2S.drop }); } // 3D-сцена CS2 CASE, кнопка «Скрыть LIVE», звуки
   if (c.snd) Snd.preloadSet(c.snd);
   spinning = false;
   ccIdle(c);
@@ -2996,7 +2996,8 @@ function cs2Confirm(c, go) {
 }
 /* рулетка в «лупе»: лента идёт через всю сцену (размыта и затемнена), в круге по центру — она же крупно и чётко */
 /* звуки CS2 CASE (файлы владельца): полный трек открытия и звук обычного дропа; тихо */
-const C2S = { full: 'assets/cs2case/snd/open-full.mp3?v=1', drop: 'assets/cs2case/snd/drop.mp3?v=1', vol: .35, win: 7.6, dropOff: .15 };
+// открытие и рулетка — кусок 1–7 с этого же трека (open-roll.mp3: замок сразу, без тихой первой секунды); дорогой дроп — хвост полного трека с 7,6 с
+const C2S = { roll: 'assets/cs2case/snd/open-roll.mp3?v=1', full: 'assets/cs2case/snd/open-full.mp3?v=1', drop: 'assets/cs2case/snd/drop.mp3?v=1', vol: .35, win: 6, richOff: 7.6, dropOff: .15 };
 async function cs2Spin(c, wins, given, demo) {
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
@@ -3010,8 +3011,8 @@ async function cs2Spin(c, wins, given, demo) {
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   const alive = () => my === spinId && document.body.contains(rl);
   // 1) замок открывается: 3D-кейс — анимация ключом из Blender; без 3D — картинка вздрагивает
-  // звук: один трек — замок и крышка 0–1,9 с, рулетка до 7,6 с, дальше дорогой дроп; в быстром режиме — только финал
-  const t0 = performance.now(), track = st.fast ? null : await Snd.playCtl(C2S.full, C2S.vol);
+  // звук: замок и крышка 0–0,9 с, рулетка до 6 с (open-roll.mp3); в быстром режиме — только финал
+  const t0 = performance.now(), track = st.fast ? null : await Snd.playCtl(C2S.roll, C2S.vol);
   if (!track) Snd.lock();
   if (c2s && c2s.ready) await c2s.play(C2D.OPEN, st.fast ? 2 : 1);
   else { rl.classList.add('unlocking'); await sleep(st.fast ? 450 : 850); rl.classList.remove('unlocking'); }
@@ -3025,7 +3026,7 @@ async function cs2Spin(c, wins, given, demo) {
   const base = win.offsetLeft + cw / 2 - center, target = -(base + (Math.random() - .5) * cw * .8);
   const set = (tr, px) => tracks.forEach(t => { t.style.transition = tr; t.style.transform = `translate3d(${px}px,0,0)`; });
   set('none', 0); void tracks[0].offsetWidth;
-  // со звуком лента останавливается к 7,6 с трека (там начинается звук дропа)
+  // со звуком лента останавливается к концу трека рулетки (6 с)
   const dur = st.fast ? 3000 : track ? Math.max(2500, C2S.win * 1000 - (performance.now() - t0) - 450) : 8500;
   set(`transform ${dur}ms cubic-bezier(.08,.6,.08,1)`, target);
   let raf = 0, last = null;
@@ -3044,10 +3045,10 @@ async function cs2Spin(c, wins, given, demo) {
   // 3) доводка к центру предмета, предмет подсвечивается
   set('transform .5s cubic-bezier(.3,1.3,.5,1)', -base);
   await sleep(520);
-  // финальный звук: дороже кейса — финал трека (с 7,6 с); дешевле — свой звук дропа (начало чуть обрезано)
-  const rich = w.p > c.price, el = (performance.now() - t0) / 1000;
-  if (track && (!rich || el < C2S.win - .3)) track.stop(.15);
-  if (!rich) Snd.playCtl(C2S.drop, C2S.vol, C2S.dropOff); else if (!track || el < C2S.win - .3) Snd.playCtl(C2S.full, C2S.vol, C2S.win);
+  // финальный звук: дороже кейса — финал полного трека (с 7,6 с); дешевле — свой звук дропа (начало чуть обрезано)
+  const rich = w.p > c.price;
+  if (track) track.stop(.15);
+  if (!rich) Snd.playCtl(C2S.drop, C2S.vol, C2S.dropOff); else Snd.playCtl(C2S.full, C2S.vol, C2S.richOff);
   box.classList.add('done');
   await sleep(650);
   if (!alive()) return track && track.stop(.2);
