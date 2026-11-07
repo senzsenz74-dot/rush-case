@@ -742,14 +742,16 @@ const CASES = [
   },
   {
     // «CS2 CASE» — заготовка под кейс с 3D-сценой открытия (модель и видео-фон из Blender подключим позже); пока виден только админу (adm)
-    id: 'cs2', name: 'CS2 CASE', price: 100, tag: 'Новый', tagIc: 'star', rtp: 0.8, adm: true, ui: 'cs2', // ui: 'cs2' — открытие как в CS2 (только на ПК)
+    id: 'cs2', name: 'CS2 CASE', price: 219, tag: 'Новый', tagIc: 'star', rtp: 0.8, adm: true, ui: 'cs2', // ui: 'cs2' — открытие как в CS2 (только на ПК)
     pity: true, // гарант 75/150 (PITY, supabase/cs2_pity.sql); шансы подобраны так, чтобы с гарантом окупаемость осталась rtp
     sub: 'Тестовый кейс: простое наполнение для примера',
     th: { a: '#f3c14f' }, img: 'assets/case-cs2.webp', // рендер 3D-модели (assets/cs2case/case.glb)
     exact: [
-      ['P250 | Cyber Shell', 'BS', 0.25], ['MAC-10 | Pipe Down', 'WW', 0.2], ['P2000 | Acid Etched', 'BS', 0.18],
-      ['Glock-18 | Candy Apple', 'FT', 0.14], ['M4A1-S | Fizzy POP', 'FT', 0.1], ['AK-47 | Crossfade', 'FT', 0.07],
-      ['AWP | Duality', 'FT', 0.04], ['USP-S | Cortex', 'MW', 0.015], ['AK-47 | Head Shot', 'BS', 0.004],
+      // обычные (08.11, владелец): кейс 219 ₽, самый дешёвый дроп от 120 ₽ — 3 синих, 3 фиолетовых, 2 розовых
+      ['AK-47 | Uncharted', 'FN', 0.25], ['USP-S | Lead Conduit', 'MW', 0.2], ['AWP | Worm God', 'FT', 0.18],
+      ['Desert Eagle | Sputnik', 'MW', 0.14], ['Glock-18 | Moonrise', 'FN', 0.1], ['M4A4 | Griffin', 'FT', 0.07],
+      ['AK-47 | Phantom Disruptor', 'FT', 0.04], ['M4A1-S | Nightmare', 'FT', 0.015],
+      ['AK-47 | Head Shot', 'BS', 0.004],
       ['Desert Eagle | Printstream', 'BS', 0.004], ['USP-S | Printstream', 'BS', 0.004], // красные за «ЗАСЕКРЕЧЕНО» — каждый ~1 из 250
       ['★ Navaja Knife | Marble Fade', 'FN', 0.0003],
       ['★ Gut Knife | Tiger Tooth', 'FN', 0.0003], ['★ Shadow Daggers | Marble Fade', 'FN', 0.0003], // ножи за золотым «?» — каждый ~1 из 3 300
@@ -2559,7 +2561,7 @@ function mountCase(id) {
   Snd.warm(['lock', 'tick']);
   setTimeout(frameSmoke, 50);
   const c = caseById(id); if (!c) return;
-  if (c.ui === 'cs2' && $('.c2p')) { c2Mount(); c2LiveBtn(); Snd.preloadSet({ a: C2S.lock, b: C2S.tick, c: C2S.full, d: C2S.drop, e: C2S.fall, f: C2BTN, g: C2BTN_OK }); } // 3D-сцена CS2 CASE, кнопка «Скрыть LIVE», звуки
+  if (c.ui === 'cs2' && $('.c2p')) { c2Mount(); Snd.preloadSet({ a: C2S.lock, b: C2S.tick, c: C2S.full, d: C2S.drop, e: C2S.fall, f: C2BTN, g: C2BTN_OK }); } // 3D-сцена CS2 CASE, кнопка «Скрыть LIVE», звуки
   if (c.snd) Snd.preloadSet(c.snd);
   spinning = false;
   ccIdle(c);
@@ -2959,20 +2961,13 @@ function c2Mount() {
   }).catch(fail);
 }
 /* кнопка «Скрыть LIVE» на странице CS2 CASE: лента слева прячется, сцена шире; выбор помнится в браузере */
-function c2LiveBtn() {
-  const b = $('#c2Live'); if (!b) return;
-  let off = false; try { off = localStorage.getItem('rc.c2nolive') === '1'; } catch (e) { /* */ }
-  const set = () => { document.body.classList.toggle('c2-nolive', off); b.innerHTML = `${ic.eye}${off ? 'Показать LIVE' : 'Скрыть LIVE'}`; };
-  b.onclick = () => { off = !off; try { localStorage.setItem('rc.c2nolive', off ? '1' : '0'); } catch (e) { /* */ } set(); };
-  set();
-}
 function pageCaseCs2(c) {
   const its = c2Sorted(c), reg = its.filter(s => s.r !== 'rare'), rare = its.filter(s => s.r === 'rare');
   return `<section class="case-page c2p" style="--ca:${c.th.a}"><i class="c2-bg" aria-hidden="true"></i>
     <div class="c2-scene">
       <div class="c2-stage" id="c2Stage" aria-hidden="true"><video muted loop playsinline preload="auto"></video><canvas></canvas></div>
       <i class="c2-load" aria-hidden="true"></i>
-      <div class="c2-tl"><a href="#/cases" class="back">${ic.left}Все кейсы</a><button class="back c2-livebtn" id="c2Live"></button></div>
+      <div class="c2-tl"><a href="#/cases" class="back">${ic.left}Все кейсы</a></div>
       <div class="c2-hd"><h1>Открыть кейс</h1><p>Открыть <b>${esc(c.name)}</b></p><small><i>i</i>Каждое открытие — один предмет из списка ниже</small></div>
       <div class="c2-rl" id="rl">
         <div class="c2-case">${caseArt(c, 'big')}</div>
@@ -2999,25 +2994,23 @@ function cs2Idle(c) {
   else if (!st.user) main = `<button class="c2-btn" data-act="login">Войти и открыть</button>`;
   else if (st.balance >= c.price) main = `<button class="c2-btn" id="openBtn">Открыть кейс<small>${money(c.price)}</small></button>`;
   else main = `<button class="c2-btn" data-act="deposit" data-need="${c.price - st.balance}">Пополнить на ${money(c.price - st.balance)}</button>`;
-  // вместо «Демо» — «Правила» (просьба владельца, 08.11); слева — шкала гаранта
-  cc.innerHTML = `<label class="switch"><input type="checkbox" id="fastChk"${st.fast ? ' checked' : ''}><i></i>Быстрое открытие</label>
-    ${c.pity ? c2PityHtml(c) : ''}<span style="flex:1"></span>
+  // вместо «Демо» — «Правила» (просьба владельца, 08.11); слева — шкала гаранта; «Быстрого открытия» здесь нет (владелец, 08.11)
+  cc.innerHTML = `${c.pity ? c2PityHtml(c) : ''}<span style="flex:1"></span>
     <button class="c2-btn c2-ghost" id="c2Rules">${C2_IC_RULES}Правила</button>${main}`;
-  $('#fastChk').onchange = e => { st.fast = e.target.checked; save(); };
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
   $('#c2Rules').onclick = () => cs2Rules(c);
   const pw = $('.c2-pity', cc); if (pw) pw.onclick = () => cs2Rules(c, 'pity');
 }
-/* шкала гаранта, как полоски прогресса в CS2: «До гаранта N», отметки 75 (шанс 50%) и 150 (точно); счётчик — с сервера
+/* шкала гаранта одной строкой (как полоски прогресса в CS2): «ГАРАНТ ▕███│░░▏ N» — N открытий до гаранта, черты 75 (шанс 50%) и 150 (точно); счётчик — с сервера
    (st.pity), обновляется, когда лента остановилась (cs2Idle) — раньше нельзя, иначе обнуление выдало бы особый предмет */
 const C2_IC_RULES = sv('<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 12h6M10 15.5h6M10 19h3.5"/>');
 const c2PityN = c => Math.max(0, Math.min(PITY.max - 1, Math.floor(+((st.user && st.pity && st.pity[c.id]) || 0))));
 function c2PityHtml(c) {
-  const n = c2PityN(c), left = PITY.max - n, mid = PITY.mid / PITY.max * 100;
-  return `<button class="c2-pity" type="button" title="Как работает гарант — в правилах кейса">
-    <span class="c2-pity-hd"><span>До гаранта</span><b>${left}</b></span>
-    <span class="c2-pity-bar"><i style="width:${(n / PITY.max * 100).toFixed(2)}%"></i><em class="c2-pity-m${n >= PITY.mid ? ' past' : ''}" style="left:${mid}%"></em><em class="c2-pity-m end"></em></span>
-    <span class="c2-pity-ft"><span class="${n >= PITY.mid ? 'past' : ''}" style="left:${mid}%">${PITY.mid} · ${Math.round(PITY.midCh * 100)}%</span><span class="end">${PITY.max} · точно</span></span>
+  const n = c2PityN(c), left = PITY.max - n;
+  return `<button class="c2-pity" type="button" title="Гарант: осталось ${left} ${plural(left, 'открытие', 'открытия', 'открытий')}. ${PITY.mid}-е открытие подряд — шанс ${Math.round(PITY.midCh * 100)}% на «Засекречено», ${PITY.max}-е — особый предмет точно. Подробнее — в правилах">
+    <span class="c2-pity-l">Гарант</span>
+    <span class="c2-pity-bar"><i style="width:${(n / PITY.max * 100).toFixed(2)}%"></i><em class="c2-pity-m${n >= PITY.mid ? ' past' : ''}" style="left:${PITY.mid / PITY.max * 100}%"></em><em class="c2-pity-m end"></em></span>
+    <b>${left}</b>
   </button>`;
 }
 /* окно «Правила» в стиле меню CS2: шапка, разделы слева, пункты справа, внизу — кнопка. Это пользовательское соглашение кейса:
@@ -3035,7 +3028,7 @@ function cs2Rules(c, at, back) {
     { id: 'open', t: 'Открытие кейса', p: [
       'Стоимость открытия указана на кнопке «Открыть кейс» и списывается с баланса после подтверждения в окне «Открыть».',
       'Одно открытие приносит ровно один предмет. Он сразу зачисляется в ваш инвентарь.',
-      'Выпавший предмет определяется на сервере сайта в момент открытия — ещё до начала анимации. Анимация кейса, лента, звуки, кнопка «Пропустить» и режим «Быстрое открытие» на результат не влияют.',
+      'Выпавший предмет определяется на сервере сайта в момент открытия — ещё до начала анимации. Анимация кейса, лента, звуки и кнопка «Пропустить» на результат не влияют.',
       'Подтверждённое открытие отменить нельзя.',
     ] },
     { id: 'cat', t: 'Особые категории', p: [
@@ -3059,8 +3052,8 @@ function cs2Rules(c, at, back) {
         <span class="c2r-tl-p r" style="left:${PITY.mid / PITY.max * 100}%"><b>${PITY.mid}</b><small>шанс ${Math.round(PITY.midCh * 100)}% · «Засекречено»</small></span>
         <span class="c2r-tl-p g" style="left:100%"><b>${PITY.max}</b><small>гарантированно</small></span></div>
       <p class="c2r-me">${st.user ? `Ваш счётчик: <b>${n}</b> из ${PITY.max} · до гаранта <b>${left}</b>` : 'Войдите в аккаунт — счётчик появится после первого открытия'}</p>` },
-    { id: 'meter', t: 'Шкала «До гаранта»', p: [
-      `Шкала внизу страницы Кейса показывает, сколько открытий осталось до гарантированного предмета особой категории. Отметка «${PITY.mid}» — открытие с шансом ${Math.round(PITY.midCh * 100)}%, отметка «${PITY.max}» — гарантированное.`,
+    { id: 'meter', t: 'Шкала «Гарант»', p: [
+      `Шкала «Гарант» внизу страницы Кейса показывает, сколько открытий осталось до гарантированного предмета особой категории (число справа). Красная черта на шкале — ${PITY.mid}-е открытие (шанс ${Math.round(PITY.midCh * 100)}%), золотая черта в конце — ${PITY.max}-е (гарантированно).`,
       'Шкала обновляется после остановки ленты.',
       'Если показания на экране расходятся с данными сервера, действуют данные сервера.',
     ] }] : []),
@@ -3195,8 +3188,9 @@ async function c2Need(ms = 2500) {
   const t = performance.now();
   while (urls.some(u => !Snd.bufs[u]) && performance.now() - t < ms) await sleep(50);
 }
+const C2_FAST = false; // в CS2-кейсах быстрого открытия нет (просьба владельца, 08.11) — st.fast здесь не действует
 async function cs2Spin(c, wins, given, demo) {
-  if (st.sound) await c2Need(st.fast ? 1500 : 2500);
+  if (st.sound) await c2Need(C2_FAST ? 1500 : 2500);
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
   spinning = true;
@@ -3214,12 +3208,12 @@ async function cs2Spin(c, wins, given, demo) {
   let track = null;
   setTimeout(async () => { if (alive() && !(await Snd.playCtl(C2S.lock, C2S.vol))) Snd.lock(); }, C2S.lockDelay * 1000);
   // лента появляется, как только крышка резко распахнулась (кадр LID), анимация доигрывает под размытием
-  if (c2s && c2s.ready) { const sp = st.fast ? 2 : 1; c2s.play(C2D.OPEN, sp); await sleep((C2D.LID - C2D.OPEN[0]) / C2D.FPS / sp * 1000); }
-  else { rl.classList.add('unlocking'); await sleep(st.fast ? 450 : 850); rl.classList.remove('unlocking'); }
+  if (c2s && c2s.ready) { const sp = C2_FAST ? 2 : 1; c2s.play(C2D.OPEN, sp); await sleep((C2D.LID - C2D.OPEN[0]) / C2D.FPS / sp * 1000); }
+  else { rl.classList.add('unlocking'); await sleep(C2_FAST ? 450 : 850); rl.classList.remove('unlocking'); }
   if (!alive()) return track && track.stop(.2);
   // 2) фон размывается, кейс уходит, раскрывается лупа
   $('.c2p').classList.add('c2-dim'); rl.classList.add('spinning'); c2WindQuiet(true);
-  await sleep(st.fast ? 120 : 220);
+  await sleep(C2_FAST ? 120 : 220);
   if (!alive()) { c2WindQuiet(false); return track && track.stop(.2); }
   const tracks = $$('.track', box), band = $('.c2-out', box), win = $('.is-win', tracks[0]);
   const cw = win.offsetWidth, step = cw + (parseFloat(getComputedStyle(tracks[0]).gap) || 0), center = band.clientWidth / 2;
@@ -3227,7 +3221,7 @@ async function cs2Spin(c, wins, given, demo) {
   const set = (tr, px) => tracks.forEach(t => { t.style.transition = tr; t.style.transform = `translate3d(${px}px,0,0)`; });
   set('none', 0); void tracks[0].offsetWidth;
   // звук рулетки стартует вместе с лентой; лента останавливается к концу этого куска (5 с)
-  const dur = st.fast ? 3000 : C2S.rollLen * 1000 - 450;
+  const dur = C2_FAST ? 3000 : C2S.rollLen * 1000 - 450;
   set(`transform ${dur}ms cubic-bezier(.08,.6,.08,1)`, target);
   let raf = 0, last = null;
   const pos = () => new DOMMatrixReadOnly(getComputedStyle(tracks[0]).transform).m41;
