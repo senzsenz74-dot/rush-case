@@ -1267,11 +1267,11 @@ const Snd = {
   /* персональные звуки кейса: грузятся при заходе на его страницу; ключ буфера — url */
   preloadSet(set) { Object.values(set || {}).forEach(u => { if (!this.bufs[u]) this.preload(u, u, true); }); },
   /* как play, но возвращает управление: stop(fadeSec) — плавно остановить */
-  async playCtl(name, vol = 1) {
+  async playCtl(name, vol = 1, off = 0) { // off — с какой секунды играть (обрезка начала)
     if (!st.sound) return null; const a = this.a; if (!a) return null;
     let b = this.bufs[name]; if (!b) { this.warm([name]); return null; }
     if (b instanceof ArrayBuffer) { try { b = this.bufs[name] = await a.decodeAudioData(b); } catch (e) { return null; } }
-    const src = a.createBufferSource(), g = a.createGain(); src.buffer = b; g.gain.value = vol; src.connect(g); g.connect(a.destination); src.start();
+    const src = a.createBufferSource(), g = a.createGain(); src.buffer = b; g.gain.value = vol; src.connect(g); g.connect(a.destination); src.start(0, off);
     return { stop(fade = .25) { const t = a.currentTime; try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + fade); src.stop(t + fade + .02); } catch (e) {} } };
   },
   /* щелчок ленты кейса — звук с записи (assets/sounds/tick.wav), лёгкий разброс высоты */
@@ -2533,7 +2533,7 @@ function mountCase(id) {
   Snd.warm(['lock', 'tick']);
   setTimeout(frameSmoke, 50);
   const c = caseById(id); if (!c) return;
-  if (c.ui === 'cs2' && $('.c2p')) { c2Mount(); c2LiveBtn(); } // 3D-сцена CS2 CASE и кнопка «Скрыть LIVE»
+  if (c.ui === 'cs2' && $('.c2p')) { c2Mount(); c2LiveBtn(); Snd.preloadSet({ a: C2S.full, b: C2S.drop }); } // 3D-сцена CS2 CASE, кнопка «Скрыть LIVE», звуки
   if (c.snd) Snd.preloadSet(c.snd);
   spinning = false;
   ccIdle(c);
@@ -2982,6 +2982,8 @@ function cs2Confirm(c, go) {
   setTimeout(() => { const b = $('#c2Go', m); if (b) b.focus(); }, 60);
 }
 /* рулетка в «лупе»: лента идёт через всю сцену (размыта и затемнена), в круге по центру — она же крупно и чётко */
+/* звуки CS2 CASE (файлы владельца): полный трек открытия и звук обычного дропа; тихо */
+const C2S = { full: 'assets/cs2case/snd/open-full.mp3?v=1', drop: 'assets/cs2case/snd/drop.mp3?v=1', vol: .35, win: 7.6, dropOff: .15 };
 async function cs2Spin(c, wins, given, demo) {
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
@@ -2995,24 +2997,27 @@ async function cs2Spin(c, wins, given, demo) {
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   const alive = () => my === spinId && document.body.contains(rl);
   // 1) замок открывается: 3D-кейс — анимация ключом из Blender; без 3D — картинка вздрагивает
-  Snd.lock();
+  // звук: один трек — замок и крышка 0–1,9 с, рулетка до 7,6 с, дальше дорогой дроп; в быстром режиме — только финал
+  const t0 = performance.now(), track = st.fast ? null : await Snd.playCtl(C2S.full, C2S.vol);
+  if (!track) Snd.lock();
   if (c2s && c2s.ready) await c2s.play(C2D.OPEN, st.fast ? 2 : 1);
   else { rl.classList.add('unlocking'); await sleep(st.fast ? 450 : 850); rl.classList.remove('unlocking'); }
-  if (!alive()) return;
+  if (!alive()) return track && track.stop(.2);
   // 2) фон размывается, кейс уходит, раскрывается лупа
   $('.c2p').classList.add('c2-dim'); rl.classList.add('spinning');
   await sleep(st.fast ? 250 : 550);
-  if (!alive()) return;
+  if (!alive()) return track && track.stop(.2);
   const tracks = $$('.track', box), band = $('.c2-out', box), win = $('.is-win', tracks[0]);
   const cw = win.offsetWidth, step = cw + (parseFloat(getComputedStyle(tracks[0]).gap) || 0), center = band.clientWidth / 2;
   const base = win.offsetLeft + cw / 2 - center, target = -(base + (Math.random() - .5) * cw * .8);
   const set = (tr, px) => tracks.forEach(t => { t.style.transition = tr; t.style.transform = `translate3d(${px}px,0,0)`; });
   set('none', 0); void tracks[0].offsetWidth;
-  const dur = st.fast ? 3000 : 8500;
+  // со звуком лента останавливается к 7,6 с трека (там начинается звук дропа)
+  const dur = st.fast ? 3000 : track ? Math.max(2500, C2S.win * 1000 - (performance.now() - t0) - 450) : 8500;
   set(`transform ${dur}ms cubic-bezier(.08,.6,.08,1)`, target);
   let raf = 0, last = null;
   const pos = () => new DOMMatrixReadOnly(getComputedStyle(tracks[0]).transform).m41;
-  const loop = () => { const idx = Math.floor((-pos() + center) / step); if (last !== null && idx !== last) Snd.tickCase(); last = idx; raf = requestAnimationFrame(loop); };
+  const loop = () => { const idx = Math.floor((-pos() + center) / step); if (last !== null && idx !== last && !track) Snd.tickCase(); /* щелчки уже есть в треке */ last = idx; raf = requestAnimationFrame(loop); };
   raf = requestAnimationFrame(loop);
   await new Promise(res => {
     let done = false;
@@ -3022,24 +3027,28 @@ async function cs2Spin(c, wins, given, demo) {
     $('#skipBtn').onclick = () => { if (done) return; clearTimeout(t); const p = pos(); set('none', p); void tracks[0].offsetWidth; set('transform .4s cubic-bezier(.2,.8,.3,1)', target); t = setTimeout(fin, 430); };
   });
   cancelAnimationFrame(raf);
-  if (!alive()) return;
+  if (!alive()) return track && track.stop(.2);
   // 3) доводка к центру предмета, предмет подсвечивается
   set('transform .5s cubic-bezier(.3,1.3,.5,1)', -base);
   await sleep(520);
+  // финальный звук: дороже кейса — финал трека (с 7,6 с); дешевле — свой звук дропа (начало чуть обрезано)
+  const rich = w.p > c.price, el = (performance.now() - t0) / 1000;
+  if (track && (!rich || el < C2S.win - .3)) track.stop(.15);
+  if (!rich) Snd.playCtl(C2S.drop, C2S.vol, C2S.dropOff); else if (!track || el < C2S.win - .3) Snd.playCtl(C2S.full, C2S.vol, C2S.win);
   box.classList.add('done');
   await sleep(650);
-  if (!alive()) return;
+  if (!alive()) return track && track.stop(.2);
   // 4) лупа схлопывается — экран выигрыша
   rl.classList.add('c2-close');
   await sleep(320);
-  if (!alive()) return;
+  if (!alive()) return track && track.stop(.2);
   showReveal(c, wins, given, demo);
   spinning = false;
 }
 function showReveal(c, wins, given, demo) {
   const best = wins.reduce((a, s) => s.p > a.p ? s : a, wins[0]);
   const tier = best.r === 'rare' || best.p >= c.price * 8 ? 'jackpot' : best.p > c.price ? 'profit' : 'cheap';
-  if (c.snd) Snd.play(best.p >= c.price ? c.snd.win : c.snd.lose, .55); else Snd[tier]();
+  if (c.ui === 'cs2' && $('.c2p')) { /* у CS2 CASE свои звуки — в cs2Spin */ } else if (c.snd) Snd.play(best.p >= c.price ? c.snd.win : c.snd.lose, .55); else Snd[tier]();
   if (tier === 'jackpot') { burst(110); setTimeout(() => burst(70), 700); }
   const one = wins.length === 1, lots = wins.length > MANY_N;
   if (lots) { const ord = wins.map((s, i) => i).sort((a, b) => wins[b].p - wins[a].p); wins = ord.map(i => wins[i]); given = ord.map(i => given[i]); }
