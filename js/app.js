@@ -2997,7 +2997,7 @@ function cs2Confirm(c, go) {
 /* рулетка в «лупе»: лента идёт через всю сцену (размыта и затемнена), в круге по центру — она же крупно и чётко */
 /* звуки CS2 CASE (файлы владельца): полный трек открытия и звук обычного дропа; тихо */
 // открытие и рулетка — кусок 1–7 с этого же трека (open-roll.mp3: замок сразу, без тихой первой секунды); дорогой дроп — хвост полного трека с 7,6 с
-const C2S = { roll: 'assets/cs2case/snd/open-roll.mp3?v=1', full: 'assets/cs2case/snd/open-full.mp3?v=1', drop: 'assets/cs2case/snd/drop.mp3?v=1', vol: .35, win: 6, richOff: 7.6, dropOff: .15 };
+const C2S = { roll: 'assets/cs2case/snd/open-roll.mp3?v=2', full: 'assets/cs2case/snd/open-full.mp3?v=1', drop: 'assets/cs2case/snd/drop.mp3?v=1', vol: .35, win: 6, richOff: 7.6, dropOff: .15 };
 async function cs2Spin(c, wins, given, demo) {
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
