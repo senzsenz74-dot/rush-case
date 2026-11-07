@@ -3187,17 +3187,23 @@ const C2F = { mp4: 'assets/cs2case/drop-factory.mp4?v=1', poster: 'assets/cs2cas
 const c2FactOn = w => !c2Special(w) && matchMedia('(min-width:1024px) and (hover:hover)').matches;
 const c2X = () => !!$('.c2p.c2-fact'); // экран дропа «как осмотр в CS2» — пока только на фоне завода
 const C2WEAR = { 'Factory New': 'Прямо с завода', 'Minimal Wear': 'Немного поношенное', 'Field-Tested': 'После полевых испытаний', 'Well-Worn': 'Поношенное', 'Battle-Scarred': 'Закалённое в боях' };
+const C2LOGO = `<svg viewBox="0 0 64 64"><defs><linearGradient id="c2xg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".55" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient></defs>
+  <path class="c2x-lg-b" d="M32 3 42 13 45.5 20.5 52.5 23.5 61 32 32 61 3 32Z"/><path d="M32 3 42 13 45.5 20.5 52.5 23.5 61 32 32 61 3 32Z" fill="url(#c2xg)"/>
+  <path class="c2x-lg-e" d="M32 4.4 3 32 32 59.6"/><path class="c2x-lg-c" d="M42 13 45.5 20.5 52.5 23.5"/>
+  <path class="c2x-lg-k" d="M45.5 20.5 41 26 43.5 31 38.5 37.5 40.5 43 35.5 49.5M41 26 36.5 23.5M43.5 31 49 33.5M40.5 43 45 45"/>
+  <text x="32" y="33" text-anchor="middle" dominant-baseline="central">R</text></svg>`;
 function c2XReveal(s, g) { // название сверху + черта цвета редкости, оружие крупно по центру; цена и кнопки — в стеклянной панели (ccDone)
   const m = / \(([^)]+)\)$/.exec(s.name), wear = m ? C2WEAR[m[1]] || m[1] : '', skin = m ? s.f.replace(/ \([^)]+\)$/, '') : s.f;
   $('#reveal').innerHTML = `<div class="c2x rv-card r-${s.r}" ${g ? `data-id="${g.id}"` : ''}>
-    <div class="c2x-top"><div class="c2x-hd"><i class="c2x-logo" aria-hidden="true"></i><div><h2>${esc(s.w)}<i></i>${esc(skin)}</h2><p>${RAR[s.r].n}${wear ? ' · ' + wear : ''}</p></div></div>
+    <div class="c2x-top"><div class="c2x-hd"><i class="c2x-logo" aria-hidden="true">${C2LOGO}</i><div><h2>${esc(s.w)}<i></i>${esc(skin)}</h2><p>${RAR[s.r].n}${wear ? ' · ' + wear : ''}</p></div></div>
     <i class="c2x-line" aria-hidden="true"></i></div>
     <div class="c2x-img"><img src="${imgUrl(s, 'l')}" alt=""></div>
   </div>`;
 }
-function c2XBar(price, acts) { // нижняя стеклянная полоса: цена слева, кнопки-значки, «Закрыть» справа
+function c2XBar(price, acts) { // нижняя стеклянная полоса: цена и кнопки-значки слева, «Все кейсы» и «Закрыть» справа
   return `<div class="c2x-bar"><div class="c2x-price"><small>Стоимость</small><b>${money(price)}</b></div>
     <div class="c2x-acts">${acts.map(([id, icon, t, extra]) => `<button class="c2x-ic" ${id}${extra || ''}>${icon}<span>${t}</span></button>`).join('')}</div>
+    <a class="c2x-ic c2x-all" href="#/cases">${ic.left}<span>Все кейсы</span></a>
     <button class="c2x-close" id="backBtn">Закрыть</button></div>`;
 }
 function c2Fact(on) { // on: 'load' — заранее подгрузить, true — показать, false — убрать
