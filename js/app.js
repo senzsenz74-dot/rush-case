@@ -3200,10 +3200,9 @@ function c2XReveal(s, g) { // название сверху + черта цве�
     <div class="c2x-img"><img src="${imgUrl(s, 'l')}" alt=""></div>
   </div>`;
 }
-function c2XBar(price, acts) { // нижняя стеклянная полоса: цена и кнопки-значки слева, «Все кейсы» и «Закрыть» справа
+function c2XBar(price, acts) { // нижняя стеклянная полоса: цена и кнопки-значки слева (подпись — над кнопкой при наведении), «Закрыть» справа
   return `<div class="c2x-bar"><div class="c2x-price"><small>Стоимость</small><b>${money(price)}</b></div>
     <div class="c2x-acts">${acts.map(([id, icon, t, extra]) => `<button class="c2x-ic" ${id}${extra || ''}>${icon}<span>${t}</span></button>`).join('')}</div>
-    <a class="c2x-ic c2x-all" href="#/cases">${ic.left}<span>Все кейсы</span></a>
     <button class="c2x-close" id="backBtn">Закрыть</button></div>`;
 }
 function c2Fact(on) { // on: 'load' — заранее подгрузить, true — показать, false — убрать

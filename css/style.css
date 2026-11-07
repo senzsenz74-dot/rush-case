@@ -5230,17 +5230,16 @@ body.pg-c2 #app{padding-bottom:0}
 .c2x-price{display:flex;flex-direction:column;padding:3px 14px 4px;border-radius:3px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
 .c2x-price small{font:600 10px/1.2 'Barlow Semi Condensed',var(--ff);text-transform:uppercase;letter-spacing:.12em;color:rgba(230,233,239,.6)}
 .c2x-price b{font:600 22px/1.1 'Barlow Semi Condensed',var(--ff);color:#f2f3f5;letter-spacing:.01em}
-.c2x-acts{display:flex;gap:10px;margin-right:auto}
-.c2x-ic{--hc:#f2f3f5;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:70px;padding:0;border:0;background:none;color:#e9ecf1;cursor:pointer;font:600 11px/1 var(--ff);text-transform:uppercase;letter-spacing:.06em}
+.c2x-acts{display:flex;gap:6px;margin-right:auto}
+.c2x-ic{--hc:#f2f3f5;position:relative;display:flex;padding:0;border:0;background:none;color:#e9ecf1;cursor:pointer;font:600 11px/1 var(--ff);text-transform:uppercase;letter-spacing:.06em}
 .c2x-ic svg{box-sizing:content-box;width:18px;height:18px;padding:8px;border-radius:3px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);transition:background .15s,color .15s}
 .c2x-ic:hover svg{background:var(--hc);color:#14171c;box-shadow:0 0 16px color-mix(in srgb,var(--hc) 45%,transparent)}
-.c2x-ic:hover span{opacity:1;color:var(--hc)}
+.c2x-ic:hover span{opacity:1;transform:translate(-50%,0)}
 #sellAll.c2x-ic{--hc:#8ef0a6} /* продать — светло-зелёная */
 #toUpg.c2x-ic{--hc:#b48cff} /* в апгрейд — фиолетовая */
 #againBtn.c2x-ic,#realBtn.c2x-ic{--hc:#f7d774} /* открыть ещё — жёлтая */
-.c2x-ic span{opacity:.8;font-size:10px;transition:color .15s}
+.c2x-ic span{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translate(-50%,4px);padding:5px 9px;border-radius:3px;white-space:nowrap;font-size:10.5px;color:var(--hc);background:rgba(12,14,18,.72);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s} /* подпись — над кнопкой, только при наведении */
 .c2x-ic:disabled{opacity:.5;cursor:default}
-.c2x-all.c2x-ic{--hc:#ff5a5a;text-decoration:none} /* «Все кейсы» — красная при наведении */
 .c2p.c2-fact .c2-tl{opacity:0;pointer-events:none} /* кнопка сверху не нужна — она внизу */
 .c2x-close{padding:6px;border:0;background:none;color:#f2f3f5;cursor:pointer;font:800 15px/1 var(--ff-h);text-transform:uppercase;letter-spacing:.06em}
 .c2x-close:hover{color:#ffe7a3}
