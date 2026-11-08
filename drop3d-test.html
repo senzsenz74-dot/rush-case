@@ -40,6 +40,7 @@
   .ic.sell{--hc:#8ef0a6}.ic.upg{--hc:#b48cff}.ic.again{--hc:#f7d774}
   .close{padding:6px;border:0;background:none;color:#f2f3f5;cursor:pointer;font:800 15px/1 Unbounded,sans-serif;text-transform:uppercase;letter-spacing:.06em}
   .close:hover{color:#ffe7a3}
+  .pick{position:fixed;left:16px;top:16px;z-index:4;padding:8px 10px;border-radius:4px;border:1px solid rgba(255,255,255,.18);background:rgba(12,14,18,.75);color:#e9ecf1;font:600 13px Manrope,sans-serif;backdrop-filter:blur(6px)} /* переключатель предметов — для проверки */
   .load{position:fixed;left:50%;top:50%;z-index:3;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:3px solid rgba(255,255,255,.14);border-top-color:#f3c14f;animation:sp .8s linear infinite;transition:opacity .3s}
   @keyframes sp{to{transform:rotate(360deg)}}
   .ready .load{opacity:0}
@@ -60,6 +61,7 @@
   </div>
   <i class="line" aria-hidden="true"></i>
 </div>
+<select class="pick" id="pick" aria-label="Предмет"><option value="?">AK-47 | Asiimov</option><option value="?m=ak47-uncharted&t=AK-47%20%7C%20Uncharted&r=%D0%90%D1%80%D0%BC%D0%B5%D0%B9%D1%81%D0%BA%D0%BE%D0%B5&c=4b69ff">AK-47 | Uncharted</option><option value="?m=usp-lead-conduit&t=USP-S%20%7C%20Lead%20Conduit&r=%D0%90%D1%80%D0%BC%D0%B5%D0%B9%D1%81%D0%BA%D0%BE%D0%B5&c=4b69ff">USP-S | Lead Conduit</option><option value="?m=awp-worm-god&t=AWP%20%7C%20Worm%20God&r=%D0%90%D1%80%D0%BC%D0%B5%D0%B9%D1%81%D0%BA%D0%BE%D0%B5&c=4b69ff">AWP | Worm God</option><option value="?m=deagle-sputnik&t=Desert%20Eagle%20%7C%20Sputnik&r=%D0%97%D0%B0%D0%BF%D1%80%D0%B5%D1%89%D1%91%D0%BD%D0%BD%D0%BE%D0%B5&c=8847ff">Desert Eagle | Sputnik</option><option value="?m=glock-moonrise&t=Glock-18%20%7C%20Moonrise&r=%D0%97%D0%B0%D0%BF%D1%80%D0%B5%D1%89%D1%91%D0%BD%D0%BD%D0%BE%D0%B5&c=8847ff">Glock-18 | Moonrise</option><option value="?m=m4a4-griffin&t=M4A4%20%7C%20Griffin&r=%D0%97%D0%B0%D0%BF%D1%80%D0%B5%D1%89%D1%91%D0%BD%D0%BD%D0%BE%D0%B5&c=8847ff">M4A4 | Griffin</option><option value="?m=ak47-phantom-disruptor&t=AK-47%20%7C%20Phantom%20Disruptor&r=%D0%97%D0%B0%D1%81%D0%B5%D0%BA%D1%80%D0%B5%D1%87%D0%B5%D0%BD%D0%BD%D0%BE%D0%B5&c=d32ce6">AK-47 | Phantom Disruptor</option><option value="?m=m4a1s-nightmare&t=M4A1-S%20%7C%20Nightmare&r=%D0%97%D0%B0%D1%81%D0%B5%D0%BA%D1%80%D0%B5%D1%87%D0%B5%D0%BD%D0%BD%D0%BE%D0%B5&c=d32ce6">M4A1-S | Nightmare</option><option value="?m=ak47-head-shot&t=AK-47%20%7C%20Head%20Shot&r=%D0%A2%D0%B0%D0%B9%D0%BD%D0%BE%D0%B5&c=eb4b4b">AK-47 | Head Shot</option><option value="?m=deagle-printstream&t=Desert%20Eagle%20%7C%20Printstream&r=%D0%A2%D0%B0%D0%B9%D0%BD%D0%BE%D0%B5&c=eb4b4b">Desert Eagle | Printstream</option><option value="?m=usp-printstream&t=USP-S%20%7C%20Printstream&r=%D0%A2%D0%B0%D0%B9%D0%BD%D0%BE%D0%B5&c=eb4b4b">USP-S | Printstream</option><option value="?m=navaja-marble-fade&t=%E2%98%85%20Navaja%20Knife%20%7C%20Marble%20Fade&r=%E2%98%85%20%D0%A0%D0%B5%D0%B4%D0%BA%D0%B8%D0%B9&c=e4ae39">★ Navaja Knife | Marble Fade</option><option value="?m=gut-tiger-tooth&t=%E2%98%85%20Gut%20Knife%20%7C%20Tiger%20Tooth&r=%E2%98%85%20%D0%A0%D0%B5%D0%B4%D0%BA%D0%B8%D0%B9&c=e4ae39">★ Gut Knife | Tiger Tooth</option><option value="?m=daggers-marble-fade&t=%E2%98%85%20Shadow%20Daggers%20%7C%20Marble%20Fade&r=%E2%98%85%20%D0%A0%D0%B5%D0%B4%D0%BA%D0%B8%D0%B9&c=e4ae39">★ Shadow Daggers | Marble Fade</option></select>
 <div class="hint" id="hint">Зажмите и крутите мышкой</div>
 <div class="bar">
   <div class="price"><small>Стоимость</small><b>8 195,61 ₽</b></div>
@@ -84,8 +86,8 @@ const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true 
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.AgXToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMapping = new URLSearchParams(location.search).get('tm') === 'agx' ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping; // ACES — контрастнее, тёмные скины не «выцветают»
+renderer.toneMappingExposure = 1.0;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 50);
@@ -111,23 +113,39 @@ function fit() {
   // оружие занимает ~78% ширины на ПК, почти всю ширину на узком экране
   if (model) {
     const vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z, vw = vh * camera.aspect;
-    const s = Math.min(vw * (w < 700 ? 0.95 : 0.78), vh * 1.25) / model.userData.len;
+    // размер по настоящей длине модели: AK-47 (~0,96) — 78% ширины, пистолеты и ножи — пропорционально меньше (корень, чтобы не были крошечными)
+    const rel = Math.min(1.12, Math.pow(model.userData.len / 0.96, 0.55));
+    const s = model.userData.knife ? Math.min(vh * 0.58, vw * 0.8) / model.userData.len  // нож стоит: по высоте экрана, чуть меньше
+      : Math.min(vw * (w < 700 ? 0.95 : 0.78) * rel, vh * 1.25 * rel) / model.userData.len;
     pivot.scale.setScalar(s);
     pivot.position.y = -vh * 0.03;
   }
 }
 addEventListener('resize', fit);
 
-new GLTFLoader().load('assets/cs2case/ak47-asiimov.glb?v=1', g => {
+// ?m=<id> — любая модель из assets/cs2case/3d (для проверки), без параметра — AK-47 | Asiimov
+{ const pk = document.getElementById('pick'), cur = new URLSearchParams(location.search).get('m') || ''; [...pk.options].forEach(o => { if ((new URLSearchParams(o.value.slice(1)).get('m') || '') === cur) o.selected = true; }); pk.onchange = () => { location.search = pk.value; }; }
+const Q = new URLSearchParams(location.search), MID = (Q.get('m') || '').replace(/[^a-z0-9-]/g, '');
+if (MID) { const t = Q.get('t') || MID; const [w, sk] = t.split(' | '); document.querySelector('.hd h2').innerHTML = (w || t).replace(/[<>&]/g, '') + (sk ? '<i></i>' + sk.replace(/[<>&]/g, '') : ''); document.querySelector('.hd p').textContent = Q.get('r') || ''; if (Q.get('c')) document.documentElement.style.setProperty('--rc', '#' + Q.get('c').replace(/[^0-9a-f]/gi, '')); }
+new GLTFLoader().load(MID ? 'assets/cs2case/3d/' + MID + '.glb?v=' + Date.now() : 'assets/cs2case/ak47-asiimov.glb?v=1', g => {
   model = g.scene;
   model.traverse(o => { if (o.isMesh) { o.frustumCulled = false; if (o.material) o.material.envMapIntensity = 1; } });
   const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
   model.position.sub(c); // по центру
   // длина оружия — по самой длинной оси; разворачиваем боком к камере, ствол влево
-  const axis = size.x >= size.y && size.x >= size.z ? 'x' : size.z >= size.y ? 'z' : 'y';
-  model.userData.len = size[axis];
+  // длинная ось — по горизонтали экрана, самая тонкая — на камеру (видим бок); flip — развернуть другой стороной (ствол/клинок влево)
+  const ax = ['x', 'y', 'z'].sort((p, q) => size[q] - size[p]), E = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
+  const m4 = new THREE.Matrix4().makeBasis(E[ax[0]], E[ax[1]], E[ax[2]]).transpose();
+  if (m4.determinant() < 0) m4.premultiply(new THREE.Matrix4().makeScale(1, 1, -1));
+  model.userData.len = size[ax[0]];
   const holder = new THREE.Group(); holder.add(model);
-  if (axis === 'z') holder.rotation.y = -Math.PI / 2; else if (axis === 'x') holder.rotation.y = Math.PI;
+  holder.quaternion.setFromRotationMatrix(m4);
+  const flip = Q.get('flip') != null ? Q.get('flip') === '1' : !['m4a4-griffin'].includes(MID);
+  if (flip) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
+  // ножи — вертикально, клинком вверх (k=1 или id ножа)
+  const KNIFE = Q.get('k') === '1' || /^(navaja|gut|daggers|karambit|bayonet|butterfly)-/.test(MID); model.userData.knife = KNIFE;
+  if (KNIFE) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Q.get('kd') === '1' ? Math.PI / 2 : -Math.PI / 2));
+  const up = Q.get('up') === '1'; if (up) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI));
   pivot.add(holder);
   document.body.classList.add('ready');
   fit();

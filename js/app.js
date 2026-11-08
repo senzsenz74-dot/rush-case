@@ -3189,7 +3189,7 @@ const c2Special = w => w && (w.r === 'covert' || w.r === 'rare');
 // фон «Старый завод» под обычным дропом (не нож и не «Засекречено»), только на ПК (решение владельца, 08.11).
 // Видео склеено «туда-обратно» (вперёд + назад, 6 с), поэтому крутится по кругу без скачка.
 const C2F = { mp4: 'assets/cs2case/drop-factory.mp4?v=1', poster: 'assets/cs2case/drop-factory.webp?v=1' };
-const c2FactOn = w => !c2Special(w) && matchMedia('(min-width:1024px) and (hover:hover)').matches;
+const c2FactOn = () => matchMedia('(min-width:1024px) and (hover:hover)').matches; // 09.11: и ножи, и «Засекречено» — тоже цех + 3D (их сцены — позже)
 const c2X = () => !!$('.c2p.c2-fact'); // экран дропа «как осмотр в CS2» — пока только на фоне завода
 const C2WEAR = { 'Factory New': 'Прямо с завода', 'Minimal Wear': 'Немного поношенное', 'Field-Tested': 'После полевых испытаний', 'Well-Worn': 'Поношенное', 'Battle-Scarred': 'Закалённое в боях' };
 const C2LOGO = `<svg viewBox="0 0 64 64"><defs><linearGradient id="c2xg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".55" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient></defs>
@@ -3204,6 +3204,82 @@ function c2XReveal(s, g) { // название сверху + черта цве�
     <i class="c2x-line" aria-hidden="true"></i></div>
     <div class="c2x-img"><img src="${imgUrl(s, 'l')}" alt=""></div>
   </div>`;
+  c2X3D($('#reveal .c2x-img'), s);
+}
+// 3D-модели предметов CS2 CASE (assets/cs2case/3d, собраны из файлов игры — инструменты вне репозитория, см. ЖУРНАЛ 09.11).
+// Ключ — название без износа. Пока модель грузится (или нет WebGL) — видна обычная картинка.
+const C2_3D = {
+  'AK-47 | Uncharted': 'ak47-uncharted', 'USP-S | Lead Conduit': 'usp-lead-conduit', 'AWP | Worm God': 'awp-worm-god',
+  'Desert Eagle | Sputnik': 'deagle-sputnik', 'Glock-18 | Moonrise': 'glock-moonrise', 'M4A4 | Griffin': 'm4a4-griffin',
+  'AK-47 | Phantom Disruptor': 'ak47-phantom-disruptor', 'M4A1-S | Nightmare': 'm4a1s-nightmare', 'AK-47 | Head Shot': 'ak47-head-shot',
+  'Desert Eagle | Printstream': 'deagle-printstream', 'USP-S | Printstream': 'usp-printstream',
+  '★ Navaja Knife | Marble Fade': 'navaja-marble-fade', '★ Gut Knife | Tiger Tooth': 'gut-tiger-tooth', '★ Shadow Daggers | Marble Fade': 'daggers-marble-fade',
+};
+const C2_3D_V = 1;
+const C2_3D_NOFLIP = new Set(['m4a4-griffin']); // у этой модели «перед» смотрит в другую сторону — ствол и так слева
+const c2X3DId = s => s && C2_3D[s.name.replace(/ \([^)]+\)$/, '')];
+const C2_3D_CACHE = new Map(); // id → Promise(gltf): модель грузится заранее, пока крутится лента
+function c2X3DLoad(id) {
+  if (!C2_3D_CACHE.has(id)) C2_3D_CACHE.set(id, c2Lib().then(([THREE, { GLTFLoader }]) => new Promise((ok, bad) =>
+    new GLTFLoader().load('assets/cs2case/3d/' + id + '.glb?v=' + C2_3D_V, ok, undefined, bad))).catch(e => { C2_3D_CACHE.delete(id); throw e; }));
+  return C2_3D_CACHE.get(id);
+}
+function c2X3D(host, s) {
+  const id = host && c2X3DId(s); if (!id) return;
+  host.classList.add('c2x-wait3d'); // картинку не показываем — сразу 3D; если модель не придёт за 8 с — показываем картинку
+  const showImg = () => host.classList.remove('c2x-wait3d'); const tFail = setTimeout(showImg, 8000);
+  const knife = s.r === 'rare';
+  Promise.all([c2Lib(), import('three/addons/environments/RoomEnvironment.js')]).then(([[THREE, { GLTFLoader }], { RoomEnvironment }]) => {
+    if (!host.isConnected) return;
+    const canvas = document.createElement('canvas'); canvas.className = 'c2x-3d'; canvas.setAttribute('aria-label', '3D-модель — крутится мышкой');
+    let renderer; try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true }); } catch (e) { return showImg(); }
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+    const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(30, 1, 0.01, 50); camera.position.set(0, 0, 3.2);
+    const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.55;
+    const L = (c, i, x, y, z) => { const l = new THREE.DirectionalLight(c, i); l.position.set(x, y, z); scene.add(l); };
+    L(0xffe2b8, 2.6, -3, 3.2, 2); L(0x9fb4d8, 0.6, 3, 0.5, 2.5); L(0xffffff, 1.4, 1.5, 2, -3); scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+    const pivot = new THREE.Group(); scene.add(pivot);
+    let len = 1, alive = true, ro = null;
+    const kill = () => { alive = false; if (ro) ro.disconnect(); renderer.setAnimationLoop(null); renderer.dispose(); pm.dispose(); };
+    const fit = () => {
+      const r = host.getBoundingClientRect(), w = Math.max(1, r.width), h = Math.max(1, r.height);
+      renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+      const vh = 2 * Math.tan(THREE.MathUtils.degToRad(15)) * 3.2, vw = vh * camera.aspect;
+      const rel = Math.min(1.12, Math.pow(len / 0.96, 0.55)); // размер по настоящей длине: пистолеты меньше винтовок
+      pivot.scale.setScalar(knife ? Math.min(vh * 0.86, vw * 0.8) / len : Math.min(vw * 0.86 * rel, vh * 1.6 * rel) / len);
+    };
+    c2X3DLoad(id).then(g => {
+      if (!host.isConnected) return kill();
+      const m = g.scene.clone(true); m.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+      const box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3()); m.position.sub(box.getCenter(new THREE.Vector3()));
+      // длинная ось — по горизонтали, тонкая — к камере; ствол влево; нож — вертикально, клинком вверх
+      const ax = ['x', 'y', 'z'].sort((a, b) => size[b] - size[a]), E = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
+      const m4 = new THREE.Matrix4().makeBasis(E[ax[0]], E[ax[1]], E[ax[2]]).transpose();
+      if (m4.determinant() < 0) m4.premultiply(new THREE.Matrix4().makeScale(1, 1, -1));
+      const holder = new THREE.Group(); holder.add(m); holder.quaternion.setFromRotationMatrix(m4);
+      if (!C2_3D_NOFLIP.has(id)) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
+      if (knife) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2));
+      len = size[ax[0]]; pivot.add(holder);
+      host.appendChild(canvas); host.classList.add('c2x-has3d'); host.classList.remove('c2x-wait3d'); clearTimeout(tFail); fit();
+      ro = new ResizeObserver(fit); ro.observe(host);
+    }).catch(() => { kill(); showImg(); });
+    // крутится мышкой: по горизонтали — вокруг вертикали, по вертикали — наклон (с ограничением), мягкая инерция
+    let yaw = 0, pitch = 0, vy = 0, vp = 0, drag = false, lx = 0, ly = 0, lt = 0, last = performance.now();
+    canvas.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; ly = e.clientY; lt = performance.now(); vy = vp = 0; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); });
+    canvas.addEventListener('pointermove', e => {
+      if (!drag) return; const dx = e.clientX - lx, dy = e.clientY - ly, now = performance.now(), dt = Math.max(1, now - lt);
+      yaw += dx * 0.008; pitch = THREE.MathUtils.clamp(pitch + dy * 0.006, -0.9, 0.9); vy = dx * 0.008 / dt * 16; vp = dy * 0.006 / dt * 16; lx = e.clientX; ly = e.clientY; lt = now;
+    });
+    const up = () => { drag = false; canvas.classList.remove('drag'); };
+    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+    renderer.setAnimationLoop(now => {
+      if (!alive) return; if (!host.isConnected) return kill(); // экран закрыли — освобождаем видеокарту
+      const k = Math.min(3, (now - last) / 16.67); last = now;
+      if (!drag) { yaw += vy * k; pitch = THREE.MathUtils.clamp(pitch + vp * k, -0.9, 0.9); vy *= Math.pow(0.92, k); vp *= Math.pow(0.92, k); }
+      pivot.rotation.set(pitch, yaw, 0, 'YXZ'); renderer.render(scene, camera);
+    });
+  }).catch(showImg);
 }
 function c2XBar(price, acts) { // нижняя стеклянная полоса: цена и кнопки-значки слева (подпись — над кнопкой при наведении), «Закрыть» справа
   return `<div class="c2x-bar"><div class="c2x-price"><small>Стоимость</small><b>${money(price)}</b></div>
@@ -3230,7 +3306,7 @@ async function cs2Spin(c, wins, given, demo) {
   if (st.sound) await c2Need(C2_FAST ? 1500 : 2500);
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
-  const fact = c2FactOn(w); if (fact) c2Fact('load'); // фон завода грузится, пока крутится лента
+  const fact = c2FactOn(w); if (fact) { c2Fact('load'); const id3 = c2X3DId(w); if (id3) c2X3DLoad(id3).catch(() => {}); } // фон завода и 3D-модель грузятся, пока крутится лента
   spinning = true;
   const my = ++spinId, rl = $('#rl'), box = $('#strips');
   $('.c2p').classList.add('c2-go'); // ряд предметов плавно убирается, лупа — по центру экрана

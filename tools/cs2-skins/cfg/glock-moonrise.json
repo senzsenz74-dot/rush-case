@@ -1,0 +1,14 @@
+{
+ "id": "glock-moonrise",
+ "name": "Glock-18 | Moonrise",
+ "root": "C:/Users/Admin/tools/cs2x",
+ "model": "C:/Users/Admin/tools/cs2x/models/weapons/models/glock18/weapon_pist_glock18.gltf",
+ "ci_vmat": "C:\\Users\\Admin\\tools\\cs2x\\ci\\glock18\\weapons\\models\\glock18\\materials\\composite_inputs\\weapon_pist_glock_composite_inputs.vmat",
+ "paint_vmat": "C:\\Users\\Admin\\tools\\cs2x\\paints\\aa_glock_18_urban_moon_fever\\materials\\models\\weapons\\customization\\paints\\vmats\\aa_glock_18_urban_moon_fever.vmat",
+ "tmp": "C:/Users/Admin/tools/cs2x/tmp",
+ "out": "D:/Кейсы/.claude/worktrees/factory-drop-bg-769d7e/assets/cs2case/3d/glock-moonrise.glb",
+ "res": 2048,
+ "tune": {
+  "dv": 0.24
+ }
+}

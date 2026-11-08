@@ -5240,6 +5240,10 @@ body.pg-c2 #app{padding-bottom:0}
 .c2x-line{display:block;width:100%;height:4px;margin-top:16px;border-radius:3px;background:var(--rc);box-shadow:0 0 18px color-mix(in srgb,var(--rc) 55%,transparent)}
 .c2x-img{flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0}
 .c2x-img img{width:min(820px,56vw);max-height:48vh;object-fit:contain;filter:drop-shadow(0 28px 30px rgba(0,0,0,.6))}
+.c2x-img{position:relative}
+.c2x-3d{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none} /* 3D-модель вместо картинки (c2X3D) */
+.c2x-3d.drag{cursor:grabbing}
+.c2x-has3d img,.c2x-wait3d img{visibility:hidden} /* пока грузится 3D — картинку не показываем */
 /* нижняя стеклянная полоса: цена, кнопки-значки, «Закрыть» */
 .c2-cc:has(.c2x-bar){padding-right:76px}
 .c2x-bar{display:flex;align-items:center;gap:22px;width:100%;padding:0}

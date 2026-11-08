@@ -1,0 +1,14 @@
+{
+ "id": "deagle-sputnik",
+ "name": "Desert Eagle | Sputnik",
+ "root": "C:/Users/Admin/tools/cs2x",
+ "model": "C:/Users/Admin/tools/cs2x/models/weapons/models/deagle/weapon_pist_deagle.gltf",
+ "ci_vmat": "C:\\Users\\Admin\\tools\\cs2x\\ci\\deagle\\weapons\\models\\deagle\\materials\\composite_inputs\\weapon_pist_deagle_composite_inputs.vmat",
+ "paint_vmat": "C:\\Users\\Admin\\tools\\cs2x\\paints\\sp_spacerace_blue\\materials\\models\\weapons\\customization\\paints\\vmats\\sp_spacerace_blue.vmat",
+ "tmp": "C:/Users/Admin/tools/cs2x/tmp",
+ "out": "D:/Кейсы/.claude/worktrees/factory-drop-bg-769d7e/assets/cs2case/3d/deagle-sputnik.glb",
+ "res": 2048,
+ "tune": {
+  "k": 2
+ }
+}
