@@ -1081,13 +1081,27 @@ CASES.sort((a, b) => a.price - b.price);
 const caseById = id => CASES.find(c => c.id === id) || (id === 'build' ? buildCase() : /^b-/.test(id || '') ? bcCase(id.slice(2)) || undefined : undefined);
 
 /* ---------- ranks ---------- */
+// 18 званий как в CS:GO (09.11, владелец): растут от суммы открытых кейсов; иконки — assets/ranks/r1…r18.webp (из папки «Звания»).
+// cb — кэшбэк, который обещает текст (по группам, как было у 6 рангов); c — цвета группы для подписей.
 const RANKS = [
-  { n: 'Silver', min: 0, cb: 0, c: ['#eef2f7', '#6b7280'] },
-  { n: 'Gold Nova', min: 1000, cb: 1, c: ['#fde68a', '#b45309'] },
-  { n: 'Master Guardian', min: 5000, cb: 2, c: ['#bae6fd', '#0369a1'] },
+  { n: 'Silver I', min: 0, cb: 0, c: ['#eef2f7', '#6b7280'] },
+  { n: 'Silver II', min: 100, cb: 0, c: ['#eef2f7', '#6b7280'] },
+  { n: 'Silver III', min: 250, cb: 0, c: ['#eef2f7', '#6b7280'] },
+  { n: 'Silver IV', min: 400, cb: 0, c: ['#eef2f7', '#6b7280'] },
+  { n: 'Silver Elite', min: 600, cb: 0, c: ['#eef2f7', '#6b7280'] },
+  { n: 'Silver Elite Master', min: 800, cb: 0, c: ['#eef2f7', '#6b7280'] },
+  { n: 'Gold Nova I', min: 1000, cb: 1, c: ['#fde68a', '#b45309'] },
+  { n: 'Gold Nova II', min: 1800, cb: 1, c: ['#fde68a', '#b45309'] },
+  { n: 'Gold Nova III', min: 2800, cb: 1, c: ['#fde68a', '#b45309'] },
+  { n: 'Gold Nova Master', min: 3800, cb: 1, c: ['#fde68a', '#b45309'] },
+  { n: 'Master Guardian I', min: 5000, cb: 2, c: ['#bae6fd', '#0369a1'] },
+  { n: 'Master Guardian II', min: 8000, cb: 2, c: ['#bae6fd', '#0369a1'] },
+  { n: 'Master Guardian Elite', min: 11500, cb: 2, c: ['#bae6fd', '#0369a1'] },
+  { n: 'Distinguished Master Guardian', min: 15500, cb: 2, c: ['#bae6fd', '#0369a1'] },
   { n: 'Legendary Eagle', min: 20000, cb: 3, c: ['#ddd6fe', '#6d28d9'] },
-  { n: 'Supreme', min: 60000, cb: 4, c: ['#fbcfe8', '#be185d'] },
-  { n: 'Global Elite', min: 150000, cb: 5, c: ['#fff1c7', '#d97706'] },
+  { n: 'Legendary Eagle Master', min: 35000, cb: 3, c: ['#ddd6fe', '#6d28d9'] },
+  { n: 'Supreme Master First Class', min: 60000, cb: 4, c: ['#fbcfe8', '#be185d'] },
+  { n: 'The Global Elite', min: 150000, cb: 5, c: ['#fff1c7', '#d97706'] },
 ];
 function rankOf(spent) {
   let i = 0; RANKS.forEach((r, k) => { if (spent >= r.min) i = k; });
@@ -1095,11 +1109,7 @@ function rankOf(spent) {
   return { i, cur, next, pct: next ? clamp((spent - cur.min) / (next.min - cur.min) * 100, 0, 100) : 100, left: next ? next.min - spent : 0 };
 }
 const starPath = (cx, cy, r) => { let p = ''; for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * .45 : r; p += (k ? 'L' : 'M') + (cx + Math.cos(a) * rr).toFixed(1) + ' ' + (cy + Math.sin(a) * rr).toFixed(1); } return p + 'Z'; };
-function rankIcon(r, i) {
-  const n = i + 1, rows = n <= 3 ? [n] : [3, n - 3], ys = rows.length === 1 ? [32] : [27, 38];
-  const stars = rows.map((cnt, ri) => Array.from({ length: cnt }, (_, k) => starPath(32 + (k - (cnt - 1) / 2) * 10, ys[ri], 4.4)).join('')).join('');
-  return `<svg class="rank-ic" viewBox="0 0 64 64"><defs><linearGradient id="rk${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${r.c[0]}"/><stop offset="1" stop-color="${r.c[1]}"/></linearGradient></defs><path d="M32 3l25 14.5v29L32 61 7 46.5v-29z" fill="url(#rk${i})" stroke="rgba(255,255,255,.4)" stroke-width="1.5"/><path d="M32 11l18 10.4v21.2L32 53 14 42.6V21.4z" fill="rgba(10,8,20,.6)"/><path d="${stars}" fill="${r.c[0]}"/></svg>`;
-}
+function rankIcon(r, i) { return `<img class="rank-ic" src="assets/ranks/r${i + 1}.webp?v=1" alt="" title="${r.n}" loading="lazy" decoding="async">`; }
 
 /* ---------- state ---------- */
 const KEY = 'rushcase.v1';
@@ -3010,7 +3020,7 @@ const c2PityN = c => Math.max(0, Math.min(PITY.max - 1, Math.floor(+((st.user &&
 function c2PityHtml(c) {
   const n = c2PityN(c), left = PITY.max - n;
   return `<button class="c2-pity" type="button" title="Гарант: осталось ${left} ${plural(left, 'открытие', 'открытия', 'открытий')}. ${PITY.mid}-е открытие подряд — шанс ${Math.round(PITY.midCh * 100)}% на «Засекречено», ${PITY.max}-е — особый предмет точно. Подробнее — в правилах">
-    <span class="c2-pity-l">Гарант</span>
+    <img class="c2-pity-l" src="assets/cs2case/pity.svg?v=1" alt="Гарант" title="Гарант">
     <span class="c2-pity-bar"><i style="width:${(n / PITY.max * 100).toFixed(2)}%"></i><em class="c2-pity-m${n >= PITY.mid ? ' past' : ''}" style="left:${PITY.mid / PITY.max * 100}%"></em><em class="c2-pity-m end"></em></span>
     <b>${left}</b>
   </button>`;

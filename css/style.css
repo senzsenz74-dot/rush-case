@@ -637,7 +637,7 @@ html{scroll-padding-top:calc(var(--lv) + var(--hd))}
 .rank.cur{border-color:rgba(245,199,107,.6);box-shadow:0 0 0 1px rgba(245,199,107,.5),0 24px 50px -24px rgba(245,199,107,.6)}
 .rank.cur::before{content:"Вы здесь";position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;padding:3px 9px;border-radius:6px;background:var(--g-gold);color:var(--ink);white-space:nowrap}
 .rank.locked{opacity:.5}
-.rank-ic{width:66px;height:66px;margin:0 auto 12px;filter:drop-shadow(0 8px 16px rgba(0,0,0,.5))}
+.rank-ic{display:block;width:120px;height:49px;object-fit:contain;margin:6px auto 14px;filter:drop-shadow(0 8px 16px rgba(0,0,0,.5))} /* звания CS:GO — широкие значки 32:13 */
 .rank h4{font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
 .rank small{display:block;color:var(--txt3);font-size:12px;font-weight:700;margin-top:6px}
 .rank .cb{display:inline-block;margin-top:10px;font-size:11.5px;font-weight:800;color:var(--gold);background:rgba(245,199,107,.1);padding:3px 9px;border-radius:7px}
@@ -2005,7 +2005,8 @@ img.rc-ic.big{filter:drop-shadow(0 3px 0 #6b4306) drop-shadow(0 6px 0 #3a2403) d
 .pfh-ava{position:relative;width:120px;height:120px;border-radius:30px;padding:3px;background:conic-gradient(from 210deg,var(--rk1),var(--rk2),#ffe9ab,var(--rk1));box-shadow:0 0 34px -6px color-mix(in srgb,var(--rk1) 70%,transparent)}
 .pfh-ava .ava{width:100%;height:100%;border-radius:27px;box-shadow:none;font-size:46px}
 .pfh-rk{position:absolute;right:-12px;bottom:-12px;width:46px;height:46px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.7))}
-.pfh-rk svg{width:100%;height:100%}
+.pfh-rk svg,.pfh-rk img{width:100%;height:100%;object-fit:contain;margin:0}
+.pfh-rk{width:64px;height:26px;right:-22px;bottom:-6px}
 /* имя и чипы */
 .pfh-info{min-width:0}
 .pfh-info h1{margin:0;font:900 clamp(26px,3vw,38px)/1.05 var(--ff-h);color:#fff;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -2013,12 +2014,14 @@ img.rc-ic.big{filter:drop-shadow(0 3px 0 #6b4306) drop-shadow(0 6px 0 #3a2403) d
 .pfh-chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;font:600 12px var(--ff-b,inherit);color:var(--txt2);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
 button.pfh-chip{cursor:pointer}button.pfh-chip:hover{color:var(--gold);border-color:rgba(243,193,79,.4)}
 .pfh-chip svg{width:13px;height:13px;opacity:.75}
+.pfh-chip img.rank-ic{width:34px;height:14px;margin:0;filter:none}
 /* прогресс ранга */
 .pfh-rank{margin-top:16px;max-width:560px;padding:12px 14px;border-radius:14px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.06)}
 .pfr-top{display:flex;align-items:center;gap:10px}
 .pfr-cur,.pfr-next{display:inline-flex;align-items:center;gap:7px;font:800 12px var(--ff-h);text-transform:uppercase;letter-spacing:.05em}
 .pfr-cur b{color:var(--rk1)}.pfr-next{margin-left:auto;color:var(--txt3)}.pfr-next b{color:var(--txt2)}
 .pfr-cur svg,.pfr-next svg{width:26px;height:26px}.pfr-next svg{opacity:.55;filter:grayscale(.4)}
+.pfr-cur img.rank-ic,.pfr-next img.rank-ic{width:52px;height:21px;margin:0}.pfr-next img.rank-ic{opacity:.55;filter:grayscale(.4)}
 .pfr-pct{font:800 12px var(--ff-h);color:#fff;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--rk1) 18%,transparent)}
 .pfr-bar{position:relative;height:8px;margin-top:10px;border-radius:8px;background:rgba(255,255,255,.07);overflow:hidden}
 .pfr-bar i{position:absolute;inset:0 auto 0 0;border-radius:8px;background:linear-gradient(90deg,var(--rk2),var(--rk1),#fff3cf);box-shadow:0 0 12px var(--rk1)}
@@ -5116,7 +5119,7 @@ body.pg-contracts .dos{max-width:1120px}
 /* ---------- CS2 CASE: шкала гаранта (как полоски прогресса в меню CS2) ---------- */
 .c2-pity{display:flex;align-items:center;gap:12px;height:34px;padding:0 14px;border:1px solid rgba(255,255,255,.1);border-radius:3px;background:rgba(0,0,0,.18);color:inherit;font:inherit;cursor:pointer;transition:border-color .2s,background .2s}
 .c2-pity:hover{border-color:rgba(243,193,79,.4);background:rgba(243,193,79,.06)}
-.c2-pity-l{font:700 10.5px/1 var(--ff-h);letter-spacing:.16em;text-transform:uppercase;color:#9ba3b2}
+.c2-pity-l{flex:none;width:24px;height:24px;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))} /* значок-череп вместо слова «Гарант» */
 .c2-pity b{min-width:30px;text-align:right;font:800 15px/1 var(--ff-h);color:#f3f4f6;font-variant-numeric:tabular-nums}
 .c2-pity-bar{position:relative;width:130px;height:5px;background:rgba(255,255,255,.08)}
 .c2-pity-bar i{position:absolute;left:0;top:0;bottom:0;max-width:100%;background:linear-gradient(90deg,rgba(228,174,57,.35),#e4ae39 75%,#f7d774);box-shadow:0 0 10px rgba(228,174,57,.4)}
