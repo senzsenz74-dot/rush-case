@@ -1148,7 +1148,7 @@ function sbApply(d) {
   setBalance(bal);
   const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin || 0);
 }
-const SRV_ERR = { 'bad name': 'Название — от 2 до 24 символов', 'build price changed': 'Цены скинов обновились — обновите страницу', 'too many cases': 'В инвентаре уже 50 неоткрытых кейсов — откройте их', 'case not found': 'Этот кейс уже открыт', 'bad build': 'В кейсе должно быть от 4 до 20 скинов', 'amount mismatch': 'Сумма оплаты не совпала — напишите в поддержку', 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'bad build': 'В кейсе должно быть от 3 до 20 скинов', 'build price changed': 'Цены обновились — проверьте цену кейса и откройте ещё раз', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
+const SRV_ERR = { 'weekly locked': 'Сначала откройте 20 кейсов от 50 ₽ за неделю', 'weekly taken': 'Награда этой недели уже получена', 'weekly item': 'Набор обновился — откройте его заново', 'weekly empty': 'Набор сейчас недоступен', 'bad name': 'Название — от 2 до 24 символов', 'build price changed': 'Цены скинов обновились — обновите страницу', 'too many cases': 'В инвентаре уже 50 неоткрытых кейсов — откройте их', 'case not found': 'Этот кейс уже открыт', 'bad build': 'В кейсе должно быть от 4 до 20 скинов', 'amount mismatch': 'Сумма оплаты не совпала — напишите в поддержку', 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'bad build': 'В кейсе должно быть от 3 до 20 скинов', 'build price changed': 'Цены обновились — проверьте цену кейса и откройте ещё раз', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
   'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку', 'withdraw limit': 'Лимит выводов на сегодня исчерпан — попробуйте завтра',
   'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка',
   'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
@@ -1232,6 +1232,12 @@ const sellItem = (id, silent) => sellItems([id], silent);
 /* ---------- sound (WebAudio, без файлов) ---------- */
 const Snd = {
   ctx: null, out: null, nbuf: null,
+  // еженедельный набор: свои синтезированные звуки интерфейса
+  wkOpen() { if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return; this.noise(.42, .07, 0, 760, .6); this.tone(330, .3, 'sine', .07, .03); this.tone(494, .34, 'sine', .07, .13); this.tone(659, .42, 'sine', .055, .24); },
+  wkHover() { this.noise(.018, .05, 0, 4200, 3); },
+  wkPick() { this.noise(.03, .15, 0, 2800, 2); this.tone(1180, .05, 'triangle', .06); this.tone(1570, .07, 'triangle', .045, .035); },
+  wkClaim() { this.noise(.1, .16, 0, 240, .8, 'lowpass'); [523, 659, 784, 1047].forEach((f, i) => { this.tone(f, .5 - i * .05, 'triangle', .075, .05 + i * .085); this.tone(f * 2, .26, 'sine', .022, .05 + i * .085); }); },
+  wkClose() { this.tone(494, .14, 'sine', .05, 0, 300); this.noise(.1, .04, 0, 600, .7); },
   get kk() { return document.querySelector('.upg') ? .4 : 1; }, // на странице апгрейда все звуки тише
   get a() {
     if (!this.ctx) {
@@ -1653,13 +1659,13 @@ function renderUser() {
   setTimeout(() => { if (typeof supAdmBadge === 'function' && st.user && st.user.admin) supAdmBadge(); });
   const ua = $('#userArea'); if (!ua) return;
   if (!st.user) {
-    ua.innerHTML = `<button class="icon-btn" id="sndBtn" title="Звук" aria-label="Звук">${st.sound ? ic.sound : ic.mute}</button>
+    ua.innerHTML = `${wkHeadBtn()}<button class="icon-btn" id="sndBtn" title="Звук" aria-label="Звук">${st.sound ? ic.sound : ic.mute}</button>
       <button class="btn btn-primary" data-act="login">${ic.login}<span>Войти</span></button>`;
     $('#sndBtn').onclick = toggleSound;
     shownBal = null; return;
   }
   // шапка: плашка баланса, на её уголке — бейдж бонусов (подарок и число), кнопка «+», аватарка с меню
-  ua.innerHTML = `<div class="wal wal-g">
+  ua.innerHTML = `${wkHeadBtn()}<div class="wal wal-g">
       <div class="wal-chip">
         <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><i class="cn cn-lg" aria-hidden="true">₽</i><b id="balance">${moneyN(st.balance)}</b></div>
         <a class="rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><span class="rc-gift">${ic.gift}</span><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
@@ -4267,11 +4273,69 @@ const dailyText = () => { const s = Math.ceil(dailyLeft() / 1000); return `${pad
 const SOCIALS = [{ k: 'tg', n: 'Telegram-канал', i: 'tg', c: '#2aabee', u: '' }, { k: 'vk', n: 'Группа ВКонтакте', i: 'vk', c: '#2787f5', u: '' }, { k: 'yt', n: 'YouTube-канал', i: 'yt', c: '#ff3b3b', u: '' }];
 const SOC_BONUS = 10;
 const bonusReady = () => (st.user && !dailyLeft() ? 1 : 0) + SOCIALS.filter(x => !(st.socials || []).includes(x.k)).length;
+/* ---------- еженедельный набор (supabase/weekly_drop.sql): каждую среду 4 скина на выбор, забрать один; нужно 20 кейсов за неделю ---------- */
+const WK_ART = '<img src="assets/cs2case/care_package.svg" alt="">';
+const wkLeft = ms => { const m = Math.max(0, Math.ceil(ms / 6e4)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60); return d ? d + ' д ' + h + ' ч' : h ? h + ' ч ' + (m % 60) + ' мин' : m + ' мин'; };
+const wkCases = n => n % 10 === 1 && n % 100 !== 11 ? 'кейс' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'кейса' : 'кейсов';
+var wkS = null, wkAutoBusy = false; // состояние набора для значка в шапке
+async function wkLoad() { if (!sb || !st.user || !st.user.sb) return null; const { data, error } = await sb.rpc('weekly_status'); if (error) return null; wkS = data; wkHeadDraw(); return data; }
+const wkIsReady = () => !!(st.user && wkS && !wkS.got && wkS.opened >= wkS.need);
+function wkHeadBtn() { return '<button class="wk-head' + (wkIsReady() ? ' ready' : '') + '" data-act="weekly" title="Еженедельный набор" aria-label="Еженедельный набор"><img src="assets/cs2case/care_package.svg" alt=""></button>'; }
+function wkHeadDraw() { const b = document.querySelector('.wk-head'); if (b) b.classList.toggle('ready', wkIsReady()); }
+// раз в неделю сам открывается на главной: после загрузки сайта, если игрок вошёл и ещё не забрал награду
+async function wkAuto(key) {
+  if (wkAutoBusy || !st.user || !st.user.sb) return; // состояние обновляем на каждой странице (лампочка), окно — только на главной
+  wkAutoBusy = true;
+  try {
+    const d = await wkLoad(); if (!d || d.got || key) return;
+    const k = 'rc.wk.seen.' + st.user.id; let seen = null;
+    try { seen = localStorage.getItem(k); } catch (e) { return; }
+    if (seen === String(d.next)) return;
+    for (let i = 0; i < 40 && document.getElementById('preloader'); i++) await sleep(250);
+    if (location.hash.replace(/^#\/?/, '').split('/')[0] || $('#modal-root .modal-ov') || $('.tut')) return;
+    try { localStorage.setItem(k, String(d.next)); } catch (e) { return; }
+    openWeekly(d);
+  } finally { wkAutoBusy = false; }
+}
+async function wkCardDraw() {
+  const d = await wkLoad(), p = $('#wkCardP'); if (!d || !p) return;
+  const wait = wkLeft(d.next - d.now);
+  p.textContent = d.got ? 'Награда получена. Новый набор через ' + wait : d.opened >= d.need ? 'Набор готов — выберите скин. Обновится через ' + wait : 'Открыто кейсов от 50 ₽: ' + d.opened + ' / ' + d.need + '. Обновится через ' + wait;
+  $('#wkCardL').innerHTML = d.offers.map(o => { const s = SK[o.n]; return s ? '<i class="wk-mini' + (d.got && d.got !== o.n ? ' off' : '') + '"><img src="' + imgUrl(s, 'm') + '" alt=""></i>' : ''; }).join('');
+}
+const wkItem = (o, pick, got) => { const s = SK[o.n]; if (!s) return ''; const on = got ? got === o.n : pick === o.n, m = / \(([^)]+)\)$/.exec(s.name), title = m ? s.name.slice(0, m.index) : s.name;
+  return '<button class="wk-it r-' + s.r + (on ? ' on' : '') + '" data-n="' + esc(o.n) + '"' + (got ? ' disabled' : '') + '><i class="wk-rb"></i>' + (got ? '' : '<em class="wk-new">Новое!</em>') + '<span class="wk-img"><img src="' + imgUrl(s, 'm') + '" alt=""></span><b class="wk-name">' + esc(title) + '</b><small class="wk-sm">' + (m ? esc(m[1]) + ' · ' : '') + money(o.p) + '</small><span class="wk-f"><span>' + (got === o.n ? 'Получено' : 'Бесплатно') + '</span><i title="' + esc(s.name + ' — ' + money(o.p)) + '">i</i></span></button>'; };
+async function openWeekly(pre) {
+  if (!st.user) return openAuth('reg');
+  const d = pre || await wkLoad(); if (!d) return toast('Набор сейчас недоступен — попробуйте позже', 'err');
+  let pick = null, busy = false, hov = '';
+  const box = modal('<div class="wk" id="wkBox"></div>', 'm-wk');
+  Snd.wkOpen();
+  const draw = () => {
+    const el = $('#wkBox'); if (!el) return;
+    const left = Math.max(0, d.need - d.opened), label = d.got ? 'Награда получена' : left ? 'Откройте ещё ' + left + ' ' + wkCases(left) : pick ? 'Получить награду' : 'Выберите награду';
+    el.innerHTML = '<div class="wk-l">' + d.offers.map(o => wkItem(o, pick, d.got)).join('') + '</div><div class="wk-r"><i class="wk-art">' + WK_ART + '</i><h2>Еженедельный набор</h2><p class="wk-sub">' + (d.got ? 'Награда получена' : 'Выберите <b>1</b> награду') + '</p><p class="wk-txt">Эту награду можно получить до следующего обновления еженедельных наград — в среду, через ' + wkLeft(d.next - d.now) + '.</p>' + (d.got ? '' : '<div class="wk-prog"><span>Открыто кейсов от 50 ₽</span><b>' + Math.min(d.opened, d.need) + ' / ' + d.need + '</b></div>') + '<button class="wk-go" ' + (d.got || left || !pick || busy ? 'disabled' : '') + '>' + label + '</button><button class="wk-x">Закрыть</button></div>';
+  };
+  draw();
+  box.addEventListener('pointerover', e => { const t = e.target.closest('.wk-it:not(:disabled),.wk-go:not(:disabled),.wk-x'), k = t ? t.dataset.n || t.className : ''; if (k && k !== hov) Snd.wkHover(); hov = k; });
+  box.addEventListener('click', async e => {
+    if (e.target.closest('.wk-x')) { Snd.wkClose(); return closeModal(); }
+    const it = e.target.closest('.wk-it');
+    if (it && !d.got && !busy) { pick = it.dataset.n; Snd.wkPick(); draw(); return; }
+    if (!e.target.closest('.wk-go') || !pick || d.got || busy || d.opened < d.need) return;
+    busy = true; draw();
+    const r = await srv('weekly_claim', { p_n: pick });
+    busy = false;
+    if (r) { d.got = pick; wkS = d; wkHeadDraw(); Snd.wkClaim(); toast('Еженедельный набор: <b>' + esc(pick) + '</b> в инвентаре'); wkCardDraw(); closeModal(); return; }
+    draw();
+  });
+}
 function pageBonus() {
   const rk = rankOf(st.stats.spent);
   const dw = DAILY.reduce((a, d) => a + d.w, 0);
   return `<section class="container bonus bn">
     <div class="page-head bn-head"><div><h1>Бонусы</h1><p>Бесплатный баланс каждый день, промокоды и награды за подписки.</p></div><div class="bn-ready" id="bnReady"></div></div>
+    <article class="wk-card" id="wkCard"><div class="wk-card-l" id="wkCardL">${'<i class="wk-mini lock"><img src="assets/cs2case/care_package.svg" alt=""></i>'.repeat(4)}</div><div class="wk-card-r"><i class="wk-art">${WK_ART}</i><h3>Еженедельный набор</h3><p id="wkCardP">Каждую среду 4 скина на выбор. Нужно открыть 20 кейсов от 50 ₽ за неделю</p><button class="wk-go" id="wkOpen">Открыть набор</button></div></article>
     <div class="bn-grid">
       <article class="bn-card bn-daily">
         <header class="bn-h"><span class="bn-ic gold">${ic.gift}</span><div><h3>Ежедневный бонус</h3><p>Раз в 24 часа — от 5 до 250 ₽ на баланс</p></div></header>
@@ -4307,6 +4371,7 @@ function pickDaily() { const t = DAILY.reduce((a, d) => a + d.w, 0); let r = Mat
 const coinCard = (d, win) => `<div class="coin-card r-${d.r}${win ? ' is-win' : ''}"><span class="coin">₽</span><b>${d.v} ₽</b></div>`;
 function mountBonus() {
   drawRef();
+  $('#wkOpen').onclick = () => openWeekly(); wkCardDraw();
   const btn = $('#dailyBtn');
   const ready = () => { const n = bonusReady(), e = $('#bnReady'); if (!e) return; e.innerHTML = n ? `<i></i>Доступно сейчас: <b>${n}</b>` : `${ic.check}Всё собрано — заходите завтра`; e.classList.toggle('all', !n); };
   const upd = () => {
@@ -4386,7 +4451,7 @@ function mountBonus() {
    ========================================================= */
 let pfTab = 'inv';
 const STATUS = { own: ['В инвентаре', 'st-ok'], sold: ['Продан', 'st-mute'], out: ['Выведен в Steam', 'st-ok'], pend: ['Выводится в Steam…', 'st-warn'], upg: ['Сгорел в апгрейде', 'st-bad'], con: ['Использован в контракте', 'st-mute'], bet: ['В ставке', 'st-warn'], jp: ['Поставлен в ставки', 'st-mute'], tower: ['Поставлен в башне', 'st-mute'] };
-const fromName = f => f === 'tower' ? 'Башня' : f === 'jackpot' ? 'Ставки' : f === 'upgrade' ? 'Апгрейд' : f === 'contract' ? 'Контракт' : (caseById(f) ? 'Кейс «' + caseById(f).name + '»' : f);
+const fromName = f => f === 'weekly' ? 'Еженедельный набор' : f === 'tower' ? 'Башня' : f === 'jackpot' ? 'Ставки' : f === 'upgrade' ? 'Апгрейд' : f === 'contract' ? 'Контракт' : (caseById(f) ? 'Кейс «' + caseById(f).name + '»' : f);
 function pageProfile() {
   if (!st.user) return `<section class="container"><div class="empty-big">${ic.user}<h2>Войдите в аккаунт</h2><p>Чтобы видеть инвентарь, историю дропов и статистику.</p><button class="btn btn-primary btn-lg" data-act="login">${ic.login}Войти</button></div></section>`;
   const u = st.user, rk = rankOf(st.stats.spent), best = st.stats.best && SK[st.stats.best];
@@ -9143,6 +9208,7 @@ function route() {
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   if (mount) mount(parts[1]);
   ioScan();
+  wkAuto(key); // еженедельный набор: раз в неделю сам появляется на главной
   tutAuto(key); // обучение новичков (кнопка «?» и первый заход)
   document.body.classList.toggle('pg-crash', key === 'crash');
   document.body.classList.toggle('pg-build', key === 'build');
@@ -9168,6 +9234,7 @@ document.addEventListener('click', e => {
   else if (act === 'admsup') { admTab = 'support'; try { localStorage.setItem('rc.admTab', 'support'); } catch (e2) { /* */ } if ($('#admBody')) admDraw(); }
   else if (act === 'register') openAuth('reg');
   else if (act === 'tut') tutOpen(a.dataset.tut);
+  else if (act === 'weekly') openWeekly();
   else if (act === 'deposit') openDeposit(+a.dataset.need || 0);
   else if (act === 'logout') logout();
   else if (act === 'copy') copyText(a.dataset.copy);
