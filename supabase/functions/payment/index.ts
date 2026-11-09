@@ -5,6 +5,7 @@
 //   POST /functions/v1/payment?action=create   (игрок)  {amount, method: 'sbp'|'card'|'intl'|'crypto', promo?} → {url}  — переход на оплату
 //   POST /functions/v1/payment?action=webhook  (касса)  уведомление → проверка подписи → pay_credit
 //   POST /functions/v1/payment?action=fk_hook  (FreeKassa, через pay.rush-case.online) уведомление → подпись → перепроверка заказа → pay_credit → YES
+//   POST /functions/v1/payment?action=prime_hook (Prime Payments) уведомление → подпись → перепроверка заказа → pay_credit → OK
 //   POST /functions/v1/payment?action=skins_create (игрок) {promo?} → {url} — пополнение скинами через SkinsMoney
 //   POST /functions/v1/payment?action=skins     (SkinsMoney) уведомление о депозите → подпись → pay_skins (supabase/skins_pay.sql)
 //   POST /functions/v1/payment?action=skinslink_create (игрок) {promo?} → {url} — пополнение скинами через Skinslink
@@ -37,6 +38,13 @@ type Note = { id: string; ext: string; amount: number; paid: boolean; skip?: boo
 type Provider = {
   createUrl: (p: Pay) => Promise<string>;                       // ссылка на страницу оплаты кассы
   parse: (req: Request, raw: string) => Promise<Note | null>;   // разобрать уведомление; null — подпись неверна
+};
+
+// Prime Payments: подпись — md5 полей, склеенных подряд; запросы к API v2 — формой
+const primeMd5 = (...a: string[]) => createHash('md5').update(a.join('')).digest('hex');
+const primeApi = async (f: Record<string, string>) => {
+  const r = await fetch('https://pay.primepayments.io/API/v2/', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(f) });
+  return { code: r.status, j: await r.json().catch(() => ({})) };
 };
 
 // ---------- адаптеры касс ----------
@@ -116,6 +124,31 @@ const PROVIDERS: Record<string, Provider> = {
       const o = (Array.isArray(j?.orders) ? j.orders : []).find((x: Record<string, unknown>) => String(x.merchant_order_id) === id);
       if (!r.ok || !o || +o.status !== 1 || String(o.currency) !== 'RUB') { console.log('freekassa not confirmed', r.status, JSON.stringify(o || j).slice(0, 300)); throw new Error('not confirmed'); }
       return { id, ext: String(o.fk_order_id ?? g('intid')), amount: +o.amount, paid: true, ok: () => new Response('YES', { status: 200 }) };
+    },
+  },
+  // Prime Payments (primepayments.io, документация: /doc/?page=api_v2 и /doc/?page=accept_callback). Секреты: PRIME_PROJECT (ID проекта), PRIME_SECRET1, PRIME_SECRET2.
+  // Основной кассой — PAY_PROVIDER=prime, PAY_METHODS=sbp,card,crypto. URL скрипта-обработчика в кабинете: …/functions/v1/payment?action=prime_hook.
+  // Комиссию в кабинете держать 100% на сайте: при доплате покупателя документация не говорит, какая сумма придёт, а pay_credit сверяет её с заказом.
+  // Зачисляем только после перепроверки заказа (getOrderInfo): pay_status 1, наш номер заказа; сумма — из их ответа.
+  prime: {
+    async createUrl(p) {
+      const action = 'initPayment', project = env('PRIME_PROJECT'), sum = String(Math.round(p.amount)), currency = 'RUB', innerID = p.id;
+      const email = `pay-${p.id.slice(0, 8)}@rush-case.online`; // поле обязательно, а почты игрока у нас нет
+      const payWay = p.method === 'sbp' ? '8' : p.method === 'crypto' ? '4' : '1';
+      const sign = primeMd5(env('PRIME_SECRET1'), action, project, sum, currency, innerID, email, payWay);
+      const { code, j } = await primeApi({ action, project, sum, currency, innerID, email, payWay, comment: 'Пополнение баланса RUSH CASE', sign });
+      if (j?.status !== 'OK' || !/^https:\/\//.test(String(j?.result))) { console.log('prime create failed', code, JSON.stringify(j).slice(0, 300)); throw new Error('prime create failed'); }
+      return String(j.result);
+    },
+    async parse(req, raw) {
+      const ct = req.headers.get('content-type') || '', multi = /multipart/i.test(ct), q = new URLSearchParams(multi ? '' : raw);
+      if (multi) (await new Response(raw, { headers: { 'content-type': ct } }).formData()).forEach((v, k) => q.set(k, String(v)));
+      const g = (k: string) => q.get(k) || '', id = g('innerID'), orderID = g('orderID'), project = env('PRIME_PROJECT');
+      const want = primeMd5(env('PRIME_SECRET2'), orderID, g('payWay'), id, g('sum'), g('webmaster_profit'));
+      if (g('action') !== 'order_payed' || g('project') !== project || g('currency') !== 'RUB' || !safeEq(g('sign').toLowerCase(), want) || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+      const action = 'getOrderInfo', { code, j } = await primeApi({ action, project, orderID, sign: primeMd5(env('PRIME_SECRET1'), action, project, orderID) }), o = j?.result;
+      if (j?.status !== 'OK' || !o || String(o.order_id) !== orderID || String(o.innerID) !== id || +o.pay_status !== 1) { console.log('prime not confirmed', code, JSON.stringify(j).slice(0, 300)); throw new Error('not confirmed'); }
+      return { id, ext: orderID, amount: +o.sum, paid: true, ok: () => new Response('OK', { status: 200 }) };
     },
   },
   // Enot (enot.io, документация: https://docs.enot.io/e/new). Секреты: PAY_PROVIDER=enot, ENOT_SHOP (id кассы), ENOT_KEY (секретный ключ),
@@ -363,7 +396,10 @@ Deno.serve(async (req) => {
   // уведомления FreeKassa принимаем и когда основной кассой выбрана другая: платёж мог начаться до переключения
   const fkOn = !!(env('FKC_SHOP_ID') && env('FKC_SECRET1') && env('FKC_SECRET2') && env('FKC_API_KEY'));
   if (action === 'fk_hook' && !fkOn) return new Response('disabled', { status: 503 });
-  const H = action === 'fk_hook' ? PROVIDERS.freekassa : P;
+  // то же для Prime Payments: уведомления работают независимо от основной кассы
+  const primeOn = !!(env('PRIME_PROJECT') && env('PRIME_SECRET1') && env('PRIME_SECRET2'));
+  if (action === 'prime_hook' && !primeOn) return new Response('disabled', { status: 503 });
+  const H = action === 'fk_hook' ? PROVIDERS.freekassa : action === 'prime_hook' ? PROVIDERS.prime : P;
   if (!H) return json({ error: 'payments disabled' }, 503);
 
   // 1) игрок создаёт платёж
@@ -382,7 +418,7 @@ Deno.serve(async (req) => {
   }
 
   // 2) уведомление кассы
-  if (action === 'webhook' || action === 'fk_hook') {
+  if (action === 'webhook' || action === 'fk_hook' || action === 'prime_hook') {
     const raw = await req.text();
     let n: Note | null;
     try { n = await H.parse(req, raw); } catch (_) { return json({ error: 'not confirmed yet' }, 409); } // касса не подтвердила оплату — пусть пришлёт уведомление ещё раз
