@@ -4,6 +4,7 @@
 //   POST /functions/v1/payment?action=status   (сайт)   → {live, methods} — подключена ли касса и какие способы показывать
 //   POST /functions/v1/payment?action=create   (игрок)  {amount, method: 'sbp'|'card'|'intl'|'crypto', promo?} → {url}  — переход на оплату
 //   POST /functions/v1/payment?action=webhook  (касса)  уведомление → проверка подписи → pay_credit
+//   POST /functions/v1/payment?action=fk_hook  (FreeKassa, через pay.rush-case.online) уведомление → подпись → перепроверка заказа → pay_credit → YES
 //   POST /functions/v1/payment?action=skins_create (игрок) {promo?} → {url} — пополнение скинами через SkinsMoney
 //   POST /functions/v1/payment?action=skins     (SkinsMoney) уведомление о депозите → подпись → pay_skins (supabase/skins_pay.sql)
 //   POST /functions/v1/payment?action=skinslink_create (игрок) {promo?} → {url} — пополнение скинами через Skinslink
@@ -90,6 +91,31 @@ const PROVIDERS: Record<string, Provider> = {
       const pay = info?.payment;
       if (!r.ok || !pay || String(pay.merchant_id) !== id || ![1, 2].includes(+pay.status)) { console.log('1plat not confirmed', r.status, JSON.stringify(info).slice(0, 300)); throw new Error('not confirmed'); }
       return { id, ext: String(j.guid), amount: +pay.amount, paid: true, ok };
+    },
+  },
+  // FreeKassa (документация: https://docs.freekassa.net), магазин rush-case.online. Секреты: PAY_PROVIDER=freekassa, FKC_SHOP_ID, FKC_SECRET1, FKC_SECRET2, FKC_API_KEY.
+  // Имена FK_* заняты функцией маркета rush-market: там другой магазин (rush-case.site), ключи не смешивать.
+  // URL оповещения в кабинете: https://pay.rush-case.online/fk.php?x=1 (POST) — Netlify передаёт его сюда, ?action=fk_hook.
+  // Зачисляем только после перепроверки заказа в API FreeKassa: статус 1, наш номер заказа, рубли; сумма — из их ответа (pay_credit сверит её с заказом).
+  freekassa: {
+    async createUrl(p) {
+      const m = env('FKC_SHOP_ID'), oa = String(Math.round(p.amount));
+      const s = createHash('md5').update(`${m}:${oa}:${env('FKC_SECRET1')}:RUB:${p.id}`).digest('hex');
+      return 'https://pay.fk.money/?' + new URLSearchParams({ m, oa, currency: 'RUB', o: p.id, s, lang: 'ru' });
+    },
+    async parse(req, raw) {
+      const q = new URLSearchParams(new URL(req.url).search), ct = req.headers.get('content-type') || '';
+      if (raw && /form/i.test(ct)) (await new Response(raw, { headers: { 'content-type': ct } }).formData()).forEach((v, k) => q.set(k, String(v)));
+      const g = (k: string) => q.get(k) || '', id = g('MERCHANT_ORDER_ID');
+      const want = createHash('md5').update(`${g('MERCHANT_ID')}:${g('AMOUNT')}:${env('FKC_SECRET2')}:${id}`).digest('hex');
+      if (g('MERCHANT_ID') !== env('FKC_SHOP_ID') || !safeEq(g('SIGN').toLowerCase(), want) || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+      const body: Record<string, string | number> = { shopId: +env('FKC_SHOP_ID'), nonce: Date.now(), paymentId: id };
+      const signature = createHmac('sha256', env('FKC_API_KEY')).update(Object.keys(body).sort().map(k => body[k]).join('|')).digest('hex');
+      const r = await fetch('https://api.fk.life/v1/orders', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ ...body, signature }) });
+      const j = await r.json().catch(() => ({}));
+      const o = (Array.isArray(j?.orders) ? j.orders : []).find((x: Record<string, unknown>) => String(x.merchant_order_id) === id);
+      if (!r.ok || !o || +o.status !== 1 || String(o.currency) !== 'RUB') { console.log('freekassa not confirmed', r.status, JSON.stringify(o || j).slice(0, 300)); throw new Error('not confirmed'); }
+      return { id, ext: String(o.fk_order_id ?? g('intid')), amount: +o.amount, paid: true, ok: () => new Response('YES', { status: 200 }) };
     },
   },
   // Enot (enot.io, документация: https://docs.enot.io/e/new). Секреты: PAY_PROVIDER=enot, ENOT_SHOP (id кассы), ENOT_KEY (секретный ключ),
@@ -334,7 +360,11 @@ Deno.serve(async (req) => {
   if (action === 'skins') return smOn() ? skinsIpn(req, admin) : new Response('disabled', { status: 503 });
   if (action === 'skinslink_create') return slOn() ? slCreate(req, admin) : json({ error: 'skinslink disabled' }, 503);
   if (action === 'skinslink') return slOn() ? slWebhook(req, admin) : new Response('disabled', { status: 503 });
-  if (!P) return json({ error: 'payments disabled' }, 503);
+  // уведомления FreeKassa принимаем и когда основной кассой выбрана другая: платёж мог начаться до переключения
+  const fkOn = !!(env('FKC_SHOP_ID') && env('FKC_SECRET1') && env('FKC_SECRET2') && env('FKC_API_KEY'));
+  if (action === 'fk_hook' && !fkOn) return new Response('disabled', { status: 503 });
+  const H = action === 'fk_hook' ? PROVIDERS.freekassa : P;
+  if (!H) return json({ error: 'payments disabled' }, 503);
 
   // 1) игрок создаёт платёж
   if (action === 'create') {
@@ -352,10 +382,10 @@ Deno.serve(async (req) => {
   }
 
   // 2) уведомление кассы
-  if (action === 'webhook') {
+  if (action === 'webhook' || action === 'fk_hook') {
     const raw = await req.text();
     let n: Note | null;
-    try { n = await P.parse(req, raw); } catch (_) { return json({ error: 'not confirmed yet' }, 409); } // касса не подтвердила оплату — пусть пришлёт уведомление ещё раз
+    try { n = await H.parse(req, raw); } catch (_) { return json({ error: 'not confirmed yet' }, 409); } // касса не подтвердила оплату — пусть пришлёт уведомление ещё раз
     if (!n) return json({ error: 'bad signature' }, 403);
     let rawJson: unknown = raw; try { rawJson = JSON.parse(raw); } catch (_) { /* форма */ }
     if (n.skip) return n.ok({ ok: true });
