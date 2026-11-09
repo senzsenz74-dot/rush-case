@@ -1759,7 +1759,7 @@ function renderFooter() {
     <div class="ft-col"><h4>Поддержка</h4><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a><a href="https://t.me/rushcasse" target="_blank" rel="noopener">Telegram-канал</a>
       <div class="pay"><span>СБП</span><span>МИР</span><span>VISA</span><span>MC</span></div></div>
   </div>
-  <div class="container ft-bottom"><span class="age">18+</span><p>© ${new Date().getFullYear()} RUSH CASE. Сайт не аффилирован с Valve Corporation. Counter-Strike 2 и Steam — товарные знаки Valve Corporation. Все изображения предметов принадлежат их правообладателям.<br><span class="ft-req"><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></p></div>`;
+  <div class="container ft-bottom"><span class="age">18+</span><p>© ${new Date().getFullYear()} RUSH CASE. ${LEGAL.name}, ИНН ${LEGAL.inn}, ОГРНИП ${LEGAL.ogrnip}. Сайт не аффилирован с Valve Corporation. Counter-Strike 2 и Steam — товарные знаки Valve Corporation. Все изображения предметов принадлежат их правообладателям.<br><span class="ft-req"><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></p></div>`;
 }
 
 /* ---------- live feed ---------- */
@@ -4692,8 +4692,8 @@ function mountFaq() {
    ДОКУМЕНТЫ: соглашение, конфиденциальность, оплата и возврат, реквизиты; подтверждение 18+
    Тексты — рабочие шаблоны, перед запуском их стоит показать юристу.
    ========================================================= */
-const LEGAL = { name: 'Администрация сайта RUSH CASE', short: 'Администрация RUSH CASE', mail: 'rushcasesupport@gmail.com', site: 'RUSH CASE', date: '28.10.2026' };
-const legalReq = () => `<div class="lg-req"><b>${LEGAL.name}</b><span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></div>`;
+const LEGAL = { name: 'ИП Сенин Роман Сергеевич', short: 'ИП Сенин Р. С.', inn: '540362051527', ogrnip: '326547600108321', mail: 'rushcasesupport@gmail.com', site: 'RUSH CASE', date: '09.11.2026' };
+const legalReq = () => `<div class="lg-req"><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}, ОГРНИП ${LEGAL.ogrnip}</span><span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></div>`;
 const LEGAL_DOCS = {
   terms: { t: 'Пользовательское соглашение', body: () => `
     <h3>1. Общие положения</h3>
