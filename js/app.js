@@ -254,6 +254,7 @@ const CASES = [
   },
   {
     id: 'premium', name: 'Premium', price: 4500, tag: 'Премиум', tagIc: 'crown', rtp: .85,
+    pity: true, // гарант, как у BLAST (особый кейс, владелец 11.11); «Засекреченные» и ножи здесь и так ~32% — окупаемость не меняется
     sub: 'Дорогой дроп от 600 ₽: тайные скины, ножи и перчатки',
     th: { a: '#e8b04a' }, img: 'assets/case-premium.webp', win: .25,
     show: ['AWP | История о драконе', '★ Нож-бабочка | Волны', 'AK-47 | Дикий лотос'],
@@ -940,6 +941,61 @@ function pityEv(ch, ps, rs) {
     ev += alive * e0; alive *= 1 - pS;
   }
   return ev / len;
+}
+/* кейсы из админки с гарантом, как у BLAST (владелец 11.11: гарант — у раздела CS2 CASE, особых и ивентовых кейсов).
+   Со старым составом гарант 75/150 разорил бы сайт (нож в сотни раз дороже кейса — окупаемость 117–420%), поэтому состав
+   пересобран по образцу BLAST, и кейс «окупает часто, но немного» (владелец 11.11): примерно каждое 3-е открытие (PS_WIN) —
+   предмет на 10–50% дороже кейса (win), остальные обычные — дешевле (lose), за «ЗАСЕКРЕЧЕНО» — дешёвые красные (cov),
+   за «★ Редкий предмет» — самые дешёвые ножи и перчатки (rare; [имя, вес] — у Karambit вес 0,03: он есть, но выпадает редко).
+   Шансы lose подбираются (цена^t) так, чтобы окупаемость вместе с гарантом была 80%.
+   Состав берётся отсюда, а не из custom_cases: admSync отправляет такие кейсы в cases_srv (сервер берёт их раньше custom_cases)
+   с метками g — так гарант работает на сервере (supabase/cs2_pity.sql). Название, цена, картинка, раздел — по-прежнему из админки.
+   Цены скинов меняются: если «win» станет дешевле кейса (или цену кейса поменяют), его надо заменить. */
+const PS_WIN = 1 / 3, PS_C = .002, PS_K = .0002; // доля открытий «чуть дороже кейса»; базовые шансы особых (почти всё — по гаранту)
+const PITY_SETS = {
+  poproshayka: { lose: ['MP5-SD | Gold Leaf (Battle-Scarred)', 'P2000 | Red Wing (Field-Tested)', 'Sawed-Off | Crimson Batik (Minimal Wear)', 'Tec-9 | Red Quartz (Field-Tested)', 'R8 Revolver | Crimson Web (Field-Tested)'],
+    win: ['P250 | Vino Primo (Battle-Scarred)', 'Desert Eagle | Firebreathing (Battle-Scarred)', 'UMP-45 | Warm Blooded (Factory New)'],
+    cov: ['AK-47 | Aphrodite (Well-Worn)'], rare: ['★ Hydra Gloves | Mangrove (Battle-Scarred)', '★ Shadow Daggers | Rust Coat (Battle-Scarred)'] },
+  zhaba: { lose: ['P250 | Bullfrog (Field-Tested)', 'Zeus x27 | Swamp DDPAT (Field-Tested)', 'MAC-10 | Acid Hex (Field-Tested)', 'StatTrak™ SCAR-20 | Jungle Slipstream (Field-Tested)', 'StatTrak™ MP9 | Deadly Poison (Battle-Scarred)'],
+    win: ['Galil AR | Galigator (Field-Tested)', 'AWP | Гадюка (Закалённое в боях)', 'StatTrak™ MAC-10 | Lapis Gator (Field-Tested)'],
+    cov: ['AK-47 | Aphrodite (Well-Worn)', 'StatTrak™ AK-47 | Head Shot (Battle-Scarred)'], rare: ['★ Hydra Gloves | Mangrove (Battle-Scarred)', '★ Driver Gloves | Racing Green (Field-Tested)'] },
+  1133444: { lose: ['G3SG1 | Green Apple (Field-Tested)', 'MP9 | Апельсиновая корка (Поношенное)', 'Glock-18 | Coral Bloom (Field-Tested)', 'R8 Revolver | Banana Cannon (Battle-Scarred)', 'USP-S | Black Lotus (Battle-Scarred)'],
+    win: ['SG 553 | Berry Gel Coat (Well-Worn)', 'AUG | Spalted Wood (Minimal Wear)', 'Nova | Wood Fired (Minimal Wear)'],
+    cov: ['AK-47 | Aphrodite (Well-Worn)', 'StatTrak™ AK-47 | Head Shot (Battle-Scarred)'], rare: ['★ Hand Wraps | Arboreal (Battle-Scarred)', '★ Driver Gloves | Racing Green (Field-Tested)'] },
+  bababorya: { lose: ['Dual Berettas | Rose Nacre (Battle-Scarred)', 'Tec-9 | Red Quartz (Field-Tested)', 'Dual Berettas | Flora Carnivora (Well-Worn)', 'MAC-10 | Pipe Down (Field-Tested)', 'MP9 | Ruby Poison Dart (Field-Tested)'],
+    win: ['SG 553 | Berry Gel Coat (Minimal Wear)', 'CZ75-Auto | Red Astor (Minimal Wear)', 'SCAR-20 | Wild Berry (Factory New)'],
+    cov: ['AK-47 | Aphrodite (Well-Worn)', 'M4A4 | В живом цвете (После полевых испытаний)'], rare: ['★ Hydra Gloves | Mangrove (Battle-Scarred)', '★ Driver Gloves | Racing Green (Field-Tested)'] },
+  tnir: { lose: ['P90 | Пиксельный камуфляж «Пустыня» (После полевых испытаний)', 'MAG-7 | Popdog (Battle-Scarred)', 'P250 | Cyber Shell (Battle-Scarred)', 'Galil AR | Rocket Pop (Well-Worn)', 'M4A1-S | Fizzy POP (Field-Tested)'],
+    win: ['M4A1-S | Glitched Paint (Well-Worn)', 'StatTrak™ Galil AR | Rocket Pop (Field-Tested)', 'MP7 | Neon Ply (Battle-Scarred)'],
+    cov: ['StatTrak™ M4A4 | Temukau (Battle-Scarred)', 'Glock-18 | Неонуар (Закалённое в боях)', 'USP-S | Printstream (Battle-Scarred)'],
+    rare: ['★ Shadow Daggers | Bright Water (Minimal Wear)', '★ Тычковые ножи | Пиксельный камуфляж «Лес» (Закалённое в боях)'] },
+  dedaded: { lose: ['MAG-7 | Rust Coat (Minimal Wear)', 'Sawed-Off | Amber Fade (Field-Tested)', 'MP7 | Amberline (Field-Tested)', 'MAG-7 | Copper Coated (Field-Tested)', 'AUG | Amber Fade (Field-Tested)'],
+    win: ['StatTrak™ PP-Bizon | Fuel Rod (Well-Worn)', 'Desert Eagle | The Bronze (Minimal Wear)', 'StatTrak™ Desert Eagle | Bronze Deco (Battle-Scarred)'],
+    cov: ['AK-47 | Азимов (Закалённое в боях)', 'M4A4 | Full Throttle (Battle-Scarred)'], rare: ['★ Navaja Knife | Rust Coat (Battle-Scarred)', '★ Shadow Daggers | Rust Coat (Battle-Scarred)'] },
+  rolling: { lose: ['Charm | Pocket AWP', 'AWP | Safari Mesh (Field-Tested)', 'SG 553 | Safari Print (Factory New)', 'Tec-9 | Sandstorm (Field-Tested)', 'G3SG1 | Digital Mesh (Field-Tested)'],
+    win: ['StatTrak™ Galil AR | Sandstorm (Battle-Scarred)', 'StatTrak™ G3SG1 | Digital Mesh (Minimal Wear)', 'StatTrak™ Negev | Desert-Strike (Battle-Scarred)'],
+    cov: ['AK-47 | Aphrodite (Well-Worn)'], rare: ['★ Navaja Knife | Safari Mesh (Field-Tested)', ['★ StatTrak™ Karambit | Safari Mesh (Field-Tested)', .03]] },
+  game: { lose: ['MP9 | Dune Asp (Minimal Wear)', 'P250 | Sand Dune (Field-Tested)', 'AWP | Африканская сетка (Закалённое в боях)', 'Tec-9 | Sandstorm (Well-Worn)', 'G3SG1 | Digital Mesh (Well-Worn)'],
+    win: ['Desert Eagle | Urban DDPAT (Well-Worn)', 'Desert Eagle | Naga (Well-Worn)', 'Galil AR | Sandstorm (Battle-Scarred)'],
+    cov: ['AK-47 | Aphrodite (Battle-Scarred)'], rare: ['★ Kukri Knife | Safari Mesh (Field-Tested)', ['★ StatTrak™ Karambit | Safari Mesh (Field-Tested)', .03]] },
+};
+function pitySetApply(c, S) {
+  const nm = x => Array.isArray(x) ? x[0] : x, kk = x => Array.isArray(x) ? x[1] : 1, ok = x => !!SK[nm(x)];
+  const miss = [...S.lose, ...S.win, ...S.cov, ...S.rare].filter(x => !ok(x)).map(nm);
+  if (miss.length) console.warn('PITY_SETS ' + c.id + ': нет в каталоге —', miss.join('; '));
+  const lose = S.lose.filter(ok), win = S.win.filter(ok), cov = S.cov.filter(ok), rare = S.rare.filter(ok);
+  if (lose.length + win.length < 2) return;
+  c.rtp = .8; c.pity = true; c.srvSync = true; // srvSync — admSync отправит кейс в cases_srv
+  const sum = a => a.reduce((x, y) => x + y, 0), P = x => SK[nm(x)].p;
+  const sW = win.length ? PS_WIN : 0, sL = 1 - sW - cov.length * PS_C - sum(rare.map(x => PS_K * kk(x)));
+  const ww = win.map(x => P(x) ** -2), tw = sum(ww); // среди «чуть дороже кейса» — чем дешевле, тем чаще
+  const rows = [...lose, ...win, ...cov, ...rare], ps = rows.map(P), rs = rows.map(x => SK[nm(x)].r);
+  const all = t => { const w = lose.map(x => P(x) ** t), s = sum(w); return [...w.map(x => sL * x / s), ...ww.map(x => sW * x / tw), ...cov.map(() => PS_C), ...rare.map(x => PS_K * kk(x))]; };
+  let a = -8, b = 8; for (let i = 0; i < 80; i++) { const m = (a + b) / 2; if (pityEv(all(m), ps, rs) < c.price * c.rtp) a = m; else b = m; }
+  const ch = all((a + b) / 2), fwRaw = ch.map(x => Math.sqrt(x)), fs = sum(fwRaw);
+  c.items = rows.map((x, i) => ({ ...SK[nm(x)], ch: ch[i], fw: fwRaw[i] / fs })).sort((x, y) => y.p - x.p);
+  c.rareChance = c.items.filter(s => s.r === 'rare').reduce((x, s) => x + s.ch, 0);
+  c.show = c.items.slice(0, 3).map(s => s.name);
 }
 /* состав кейсов: сет из ~18 предметов под цену кейса, из тематики кейса + агенты/ножи/перчатки с market.csgo.com */
 {
@@ -1630,9 +1686,9 @@ const ava = (u, cls = '') => {
 
 /* ---------- header / footer ---------- */
 const NAV = [
-  { k: 'cases', h: '/', t: 'Кейсы', i: 'box' }, // отдельной главной нет — сайт открывается сразу на кейсах
+  { k: 'cases', h: '/cases', t: 'Кейсы', i: 'box' },
   { k: 'upgrade', h: '/upgrade', t: 'Апгрейд', i: 'up' },
-  { k: 'crash', h: '/crash', t: 'Краш', i: 'bomb', nw: 1 },
+  { k: 'crash', h: '/crash', t: 'Краш', i: 'bomb' },
   // { k: 'tower', h: '/tower', t: 'Башня', i: 'tower', nw: 1 }, // «Башня» отложена — в разработке (код ниже, страница скрыта)
   { k: 'contracts', h: '/contracts', t: 'Контракты', i: 'swap' },
   { k: 'jackpot', h: '/jackpot', t: 'Ставки', i: 'coins' },
@@ -1641,11 +1697,17 @@ const NAV = [
   { k: 'top', h: '/top', t: 'Топ игроков', i: 'trophy' },
 ];
 let online = randi(1180, 1460);
+// шапка на ПК (владелец 10.11): слева Апгрейд и Краш, посередине «Кейсы», справа Бонусы и Контракты.
+// Остальные разделы (nav-x: Ставки, Турниры, Топ игроков) — только в меню телефона
+const NAV_SIDES = [['upgrade', 'crash'], ['bonus', 'contracts']];
 function renderHeader() {
+  const navA = n => `<a href="#${n.h}" data-nav="${n.k}"${n.k === 'cases' ? ' class="nav-big"' : ''}>${ic[n.i]}<span>${n.t}</span>${n.nw ? '<i class="nav-new">NEW</i>' : ''}</a>`;
+  const navSide = i => NAV_SIDES[i].map(k => NAV.find(n => n.k === k)).filter(Boolean).map(navA).join('');
+  const navX = NAV.filter(n => n.k !== 'cases' && !NAV_SIDES.flat().includes(n.k)).map(navA).join('');
   $('#header').innerHTML = `<div class="container hd">
     <button class="burger" id="burger" aria-label="Меню">${ic.menu}</button>
     <a href="#/" class="logo" aria-label="RUSH CASE — на главную">${WORDMARK}</a>
-    <nav class="nav" id="nav">${NAV.map(n => `<a href="#${n.h}" data-nav="${n.k}">${ic[n.i]}<span>${n.t}</span>${n.nw ? '<i class="nav-new">NEW</i>' : ''}</a>`).join('')}</nav>
+    <nav class="nav" id="nav"><div class="nav-l">${navSide(0)}</div>${NAV.filter(n => n.k === 'cases').map(navA).join('')}<div class="nav-r">${navSide(1)}</div><div class="nav-x">${navX}</div></nav>
     <div class="hd-right"><div class="user-area" id="userArea"></div></div></div>`;
   $('#burger').onclick = e => { e.stopPropagation(); $('#nav').classList.toggle('open'); };
   renderUser();
@@ -1655,25 +1717,99 @@ document.addEventListener('click', e => { if (!e.target.closest('#nav') && !e.ta
 
 let shownBal = null;
 const toggleSound = () => { st.sound = !st.sound; save(); if (st.sound) Snd.click(); renderUser(); c2Wind(!!$('.c2p')); };
+// звание и полоска опыта в панели ленты: опыт — доля пути до следующего звания
+const luXpTitle = k => k.next ? `До звания ${k.next.n}: ${money(k.left)}` : 'Максимальное звание';
+function luRankDraw() {
+  const lr = $('.lu-rank'), xp = $('.lu-xp'); if (!lr || !st.user) return;
+  const k = rankOf(st.stats.spent);
+  if (lr.dataset.r !== String(k.i)) { lr.dataset.r = k.i; lr.innerHTML = `${rankIcon(k.cur, k.i)}<span>${k.cur.n}</span>`; }
+  if (xp) { xp.firstElementChild.style.width = k.pct + '%'; xp.title = luXpTitle(k); }
+}
+const UA_DESK = matchMedia('(min-width:1025px)');
+UA_DESK.addEventListener('change', () => renderUser());
+// плоский белый значок Steam (для кнопки входа в стекле)
+const STEAM_LOGO = '<svg class="steam-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.5 1.009 2.455-.397.957-1.497 1.41-2.454 1.012H7.54zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.663 0 3.015-1.35 3.015-3.015zm-5.273-.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.251-1.017 2.265-2.266 2.265-1.253 0-2.265-1.014-2.265-2.265z"/></svg>';
+/* ---------- живая фактура шапки и блока профиля (ПК): серые видео из CS2 — крестики premier_gain в шапке, карта linemap в профиле.
+   Светлое в видео становится бликом, тёмное — тенью, серое — прозрачным; рисуем на холсте поверх стекла, под текстом ---------- */
+// fit: 'tile' — полоса видео повторяется по ширине в родном размере (через раз зеркально, без стыков); 'cover' — обрезка по форме блока.
+// q — точность холста (1 = пиксель в пиксель); rate — скорость видео (0,3 — по просьбе владельца «плавнее»); soft — сглаживание, мс
+const TEX_FX = [
+  ['#header', 'assets/hd-plus', { fit: 'tile', q: 1, hp: 1, base: .015, up: 9, down: 0, rate: .3, soft: 170 }],
+  ['#liveUser .lu', 'assets/hd-map', { fit: 'cover', q: 1.5, base: .5, up: 2.2, down: 0, rate: .3, soft: 170 }],
+];
+function texFx(host, src, o) {
+  if (!host || host.querySelector(':scope > .tfx')) return;
+  const cv = document.createElement('canvas'); cv.className = 'tfx'; cv.setAttribute('aria-hidden', 'true'); host.prepend(cv);
+  const v = document.createElement('video'); v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
+  v.defaultPlaybackRate = v.playbackRate = o.rate;
+  v.innerHTML = `<source src="${src}.webm" type="video/webm"><source src="${src}.mp4" type="video/mp4">`;
+  const g = cv.getContext('2d'), tmp = document.createElement('canvas'), tg = tmp.getContext('2d', { willReadFrequently: true });
+  let last = -1, tgt = null, cur = null, im = null, W = 0, H = 0, prev = 0;
+  // кадр видео → цель: яркость минус «серое», под размер блока
+  const frame = () => {
+    const vw = v.videoWidth, vh = v.videoHeight; tg.clearRect(0, 0, W, H);
+    if (o.fit === 'tile') {
+      const tw = vw * o.q, th = vh * o.q, y = (H - th) / 2;
+      for (let x = 0, k = 0; x < W; x += tw, k++) {
+        if (k % 2) { tg.save(); tg.translate(x + tw, 0); tg.scale(-1, 1); tg.drawImage(v, 0, y, tw, th); tg.restore(); } else tg.drawImage(v, x, y, tw, th);
+      }
+    } else {
+      const a = W / H; let sw = vw, sh = vw / a; if (sh > vh) { sh = vh; sw = vh * a; }
+      tg.drawImage(v, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, W, H);
+    }
+    const s = tg.getImageData(0, 0, W, H).data;
+    for (let i = 0, j = 0; j < tgt.length; i += 4, j++) tgt[j] = (s[i] + s[i + 1] + s[i + 2]) / 765 - o.base;
+    if (o.hp) { // «серое» своё в каждом столбце: у видео фон слева тёмный, справа светлый — так крестики видны по всей ширине
+      for (let x = 0; x < W; x++) { let m = 0; for (let y = 0; y < H; y++) m += tgt[y * W + x]; m /= H; for (let y = 0; y < H; y++) tgt[y * W + x] -= m + o.base; }
+    }
+    if (!cur) cur = Float32Array.from(tgt);
+  };
+  const tick = now => {
+    if (!cv.isConnected) { v.pause(); v.innerHTML = ''; v.load(); return; } // блок перерисовали — старый холст больше не нужен
+    requestAnimationFrame(tick);
+    if (v.readyState < 2 || !host.offsetWidth || now - prev < 15) return; // не чаще 60 раз в секунду
+    const dt = prev ? Math.min(100, now - prev) : 16; prev = now;
+    const w = Math.max(1, Math.round(host.offsetWidth * o.q)), h = Math.max(1, Math.round(host.offsetHeight * o.q));
+    if (w !== W || h !== H) { W = cv.width = tmp.width = w; H = cv.height = tmp.height = h; tgt = new Float32Array(W * H); cur = null; im = g.createImageData(W, H); last = -1; }
+    if (v.currentTime !== last) { last = v.currentTime; frame(); }
+    // картинка плавно подтягивается к новому кадру видео — без рывков и вспышек
+    const k = 1 - Math.exp(-dt / o.soft), d = im.data;
+    for (let j = 0, i = 0; j < cur.length; j++, i += 4) {
+      const L = cur[j] += (tgt[j] - cur[j]) * k;
+      if (L > 0) { d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = L * o.up * 255; } else { d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = -L * o.down * 255; }
+    }
+    g.putImageData(im, 0, 0);
+  };
+  v.play().then(() => { v.playbackRate = o.rate; requestAnimationFrame(tick); }, () => cv.remove());
+}
+const hdFx = () => { if (UA_DESK.matches && !matchMedia('(prefers-reduced-motion: reduce)').matches) TEX_FX.forEach(([s, src, o]) => texFx($(s), src, o)); };
 function renderUser() {
   setTimeout(() => { if (typeof supAdmBadge === 'function' && st.user && st.user.admin) supAdmBadge(); });
-  const ua = $('#userArea'); if (!ua) return;
+  setTimeout(hdFx); // живая фактура шапки и блока профиля
+  // на компьютере профиль, звание и баланс живут в панели ленты, на телефоне — в шапке
+  const desk = UA_DESK.matches, ua = desk ? $('#liveUser') : $('#userArea'); if (!ua) return;
+  const other = desk ? $('#userArea') : $('#liveUser'); if (other) other.innerHTML = '';
+  const snd = `<button class="icon-btn" id="sndBtn" title="Звук" aria-label="Звук">${st.sound ? ic.sound : ic.mute}</button>`;
   if (!st.user) {
-    ua.innerHTML = `${wkHeadBtn()}<button class="icon-btn" id="sndBtn" title="Звук" aria-label="Звук">${st.sound ? ic.sound : ic.mute}</button>
-      <button class="btn btn-primary" data-act="login">${ic.login}<span>Войти</span></button>`;
+    if (desk) {
+      // гость на компьютере: в блоке профиля только «Войти через Steam» — открывает окно входа (галочки 18+ и правила, потом Steam)
+      ua.innerHTML = `<div class="lu lu-out"><button class="lu-steam" id="luSteam">${STEAM_LOGO}<span>Войти через Steam</span></button></div>`;
+      $('#luSteam').onclick = () => openAuth('login');
+      shownBal = null; return;
+    }
+    const login = `<button class="btn btn-primary" data-act="login">${ic.login}<span>Войти</span></button>`;
+    ua.innerHTML = `${wkHeadBtn()}${snd}${login}`;
     $('#sndBtn').onclick = toggleSound;
     shownBal = null; return;
   }
-  // шапка: плашка баланса, на её уголке — бейдж бонусов (подарок и число), кнопка «+», аватарка с меню
-  ua.innerHTML = `${wkHeadBtn()}<div class="wal wal-g">
+  // плашка баланса, на её уголке — бейдж бонусов (подарок и число), кнопка «+»
+  const wal = `<div class="wal wal-g">
       <div class="wal-chip">
-        <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><i class="cn cn-lg" aria-hidden="true">₽</i><b id="balance">${moneyN(st.balance)}</b></div>
-        <a class="rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><span class="rc-gift">${ic.gift}</span><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
+        <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><img class="bal-i" src="assets/icon-balance.svg" alt="" aria-hidden="true"><b id="balance">${moneyN(st.balance)}</b></div>
+        <a class="rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><span class="rc-gift"><img src="assets/icon-bonus.svg" alt="" aria-hidden="true"></span><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
       </div>
-      <button class="wal-dep" data-act="deposit" title="Пополнить баланс" aria-label="Пополнить баланс">${ic.plus}</button>
-    <div class="ubox">
-      <button class="ubtn" id="ubtn" aria-haspopup="true" aria-label="Меню профиля">${ava(st.user)}${ic.chev}</button>
-      <div class="umenu hidden" id="umenu">
+      <button class="wal-dep" data-act="deposit" title="Пополнить баланс" aria-label="Пополнить баланс">${ic.plus}</button>`;
+  const menu = `<div class="umenu hidden" id="umenu">
         <div class="um-h">${ava(st.user, 'xs')}<b>${esc(st.user.name)}${st.user.pid ? `<small>ID <span class="priv">${st.user.pid}</span></small>` : ''}</b></div>
         <a href="#/profile">${ic.user}Профиль и инвентарь</a>
         <a href="#/bonus">${ic.gift}Бонусы</a>
@@ -1681,9 +1817,23 @@ function renderUser() {
         <button data-act="streamer" class="um-stream${st.streamer ? ' on' : ''}">${st.streamer ? ic.eyeOff : ic.eye}Режим стримера: ${st.streamer ? 'вкл' : 'выкл'}</button>
         <button id="umSound">${st.sound ? ic.sound : ic.mute}Звук: ${st.sound ? 'вкл' : 'выкл'}</button>
         <button data-act="logout">${ic.logout}Выйти</button>
+      </div>`;
+  if (desk) {
+    const rk = rankOf(st.stats.spent);
+    ua.innerHTML = `<div class="lu">
+      <div class="lu-top">
+        <a class="lu-ava" href="#/profile" aria-label="Профиль">${ava(st.user)}</a>
+        <div class="lu-info"><a class="lu-name" href="#/profile">${esc(st.user.name)}</a><span class="lu-rank" data-r="${rk.i}">${rankIcon(rk.cur, rk.i)}<span>${rk.cur.n}</span></span><span class="lu-xp" title="${luXpTitle(rk)}"><i style="width:${rk.pct}%"></i></span></div>
+        <div class="ubox"><button class="ubtn" id="ubtn" aria-haspopup="true" aria-label="Меню профиля">${ic.chev}</button>${menu}</div>
       </div>
-    </div>
+      <div class="lu-wal">
+        <div class="lu-c bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><span class="lu-v"><img class="bal-i" src="assets/icon-balance.svg" alt="" aria-hidden="true"><b id="balance">${moneyN(st.balance)}</b></span></div>
+        <a class="lu-c rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><span class="lu-v"><span class="rc-gift"><img src="assets/icon-bonus.svg" alt="" aria-hidden="true"></span><b id="rcoin">${rc(st.rcoin || 0)}</b></span></a>
+      </div>
+      <div class="lu-acts">${wkHeadBtn()}<button class="lu-dep" data-act="deposit">${ic.plus}<span>Пополнить</span></button>${snd}</div>
     </div>`;
+    $('#sndBtn').onclick = toggleSound;
+  } else ua.innerHTML = `${wkHeadBtn()}${wal}<div class="ubox"><button class="ubtn" id="ubtn" aria-haspopup="true" aria-label="Меню профиля">${ava(st.user)}${ic.chev}</button>${menu}</div></div>`;
   $('#ubtn').onclick = e => { e.stopPropagation(); $('#umenu').classList.toggle('hidden'); };
   $('#umSound').onclick = toggleSound;
   $$('#umenu a').forEach(a => a.addEventListener('click', () => $('#umenu').classList.add('hidden')));
@@ -1770,17 +1920,21 @@ const LD_DOC = sv('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h
 // запись ленты: t — 'case' (по умолчанию), 'upg' — апгрейд, 'con' — контракт; x — во сколько раз дороже ставки
 const liveHtml = d => {
   const s = SK[d.n], c = d.t ? null : caseById(d.c);
+  const fFull = s.q ? s.f.replace(/\(\w+\)$/, `(${WEAR[s.q][1]})`) : s.f; // на компьютере износ словами, как в CS2
   const href = d.uid ? `#/u/${d.uid}` : d.t === 'crash' ? '#/crash' : d.t === 'tower' ? '#/tower' : d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
   const src = d.t === 'crash' ? `Краш x${(+d.x).toFixed(2)}` : d.t === 'tower' ? `Башня ×${(+d.x).toFixed(2)}` : d.t === 'upg' ? `Апгрейд ×${d.x.toFixed(d.x < 10 ? 1 : 0)}` : d.t === 'con' ? `Контракт ×${d.x.toFixed(1)}` : c ? 'Кейс «' + c.name + '»' : d.c;
   const tag = d.t === 'crash' ? `<span class="ld-t crash">${ic.bomb}</span>` : d.t === 'tower' ? `<span class="ld-t tower">${ic.tower}</span>` : d.t === 'upg' ? `<span class="ld-t upg">${ic.up}</span>` : d.t === 'con' ? `<span class="ld-t con">${LD_DOC}</span>` : '';
-  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${href}" title="${esc(s.name)}">${tag}<img src="${imgUrl(s, 'xs')}" alt="" loading="lazy" decoding="async"><span class="ld-f">${esc(s.f)}</span><span class="ld-w">${esc(s.w)}</span><span class="ld-u"><small>${esc(src)}</small>${esc(d.u)}</span></a>`;
+  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${href}" title="${esc(s.name)}"${d.uid && !d.mine ? ` data-uid="${esc(d.uid)}"` : ''}>${tag}<img src="${imgUrl(s, 'xs')}" alt="" loading="lazy" decoding="async"><span class="ld-f"><span class="ld-fs">${esc(s.f)}</span><span class="ld-fl">${esc(fFull)}</span></span><span class="ld-w">${esc(s.w)}</span><span class="ld-u">${ava({ name: d.u || '?', ava: d.mine && st.user ? st.user.ava : null }, 'xs')}<small>${esc(src)}</small><b>${esc(d.u)}</b></span></a>`;
 };
 const liveOk = d => liveFilter === 'all' || SK[d.n].p >= 1000;
-function renderLive() { $('#liveTrack').innerHTML = liveBuf.filter(liveOk).slice(0, 40).map(liveHtml).join(''); }
+const LIVE_HOVER = matchMedia('(hover: hover)').matches;
+let liveStale = false; // пока курсор над лентой, пришли новые дропы
+function renderLive() { liveStale = false; $('#liveTrack').innerHTML = liveBuf.filter(liveOk).slice(0, 40).map(liveHtml).join(''); }
 function pushLive(d) {
   liveBuf.unshift(d); if (liveBuf.length > 120) liveBuf.pop();
   if (!liveOk(d)) return;
   const tr = $('#liveTrack');
+  if (LIVE_HOVER && tr.matches(':hover')) { liveStale = true; return; } // пока курсор над лентой, строки стоят: видно профиль игрока
   tr.insertAdjacentHTML('afterbegin', liveHtml(d));
   tr.firstElementChild.classList.add('enter');
   while (tr.children.length > 40) tr.lastElementChild.remove();
@@ -1817,12 +1971,32 @@ function initLive() {
   for (let sec = now; sec > now - 400 && liveBuf.length < 60; sec--) { const d = fakeDropAt(sec); if (d) liveBuf.push(d); }
   liveSec = now;
   renderLive();
+  $('#liveTrack').addEventListener('mouseover', liveAvaLoad);
+  $('#liveTrack').addEventListener('mouseleave', () => { if (liveStale) renderLive(); });
   $$('[data-live]').forEach(b => b.onclick = () => { liveFilter = b.dataset.live; $$('[data-live]').forEach(x => x.classList.toggle('on', x === b)); renderLive(); });
   setInterval(() => { const now = Math.floor(liveNow() / 1000); if (now - liveSec > 30) liveSec = now - 30; while (liveSec < now) { liveSec++; const d = fakeDropAt(liveSec); if (d) pushLive(d); } }, 250);
   liveSync();
 }
+// аватарка автора дропа: при первом наведении берём из публичной карточки игрока и запоминаем
+const liveAvas = new Map();
+function liveAvaLoad(e) {
+  const el = e.target.closest && e.target.closest('.ld[data-uid]');
+  if (!el || el.dataset.avaDone || !sb) return;
+  el.dataset.avaDone = '1';
+  const uid = el.dataset.uid;
+  if (!liveAvas.has(uid)) liveAvas.set(uid, sb.rpc('player_card', { p_id: uid }).then(r => (r.data && r.data.ava) || null, () => null));
+  liveAvas.get(uid).then(src => { const box = src && $('.ld-u .ava', el); if (!box) return; const i = new Image(); i.alt = ''; i.src = src; box.replaceChildren(i); });
+}
+// ONLINE над лентой — сколько устройств на сайте прямо сейчас (Supabase Realtime Presence, без таблиц)
+function liveOnlineInit() {
+  if (!sb) return;
+  const ch = sb.channel('site-online', { config: { presence: { key: SID } } });
+  ch.on('presence', { event: 'sync' }, () => { const o = $('#liveOnline'); if (o) o.textContent = fmt(Object.keys(ch.presenceState()).length); })
+    .subscribe(s => { if (s === 'SUBSCRIBED') ch.track({}); });
+}
 // сверка часов с сервером + последние реальные дропы + подписка на новые
 async function liveSync() {
+  liveOnlineInit();
   if (!sb) return;
   try {
     const t0 = Date.now(), r = await fetch(SB_URL + '/rest/v1/live_drops?select=id&limit=1', { headers: { apikey: SB_KEY } }), d = Date.parse(r.headers.get('date'));
@@ -1913,7 +2087,7 @@ function initFx() {
   let last = performance.now();
   const frame = now => {
     requestAnimationFrame(frame);
-    if (document.hidden) { last = now; return; }
+    if (document.hidden || document.body.classList.contains('pg-home')) { last = now; return; } // на главной фон без эффектов — не рисуем
     const dt = Math.min(.05, (now - last) / 1000), t = now / 1000; last = now;
     mx += (tx - mx) * .05; my += (ty - my) * .05;
     ss += (scrollY - ss) * Math.min(1, dt * 7); // прокрутка — со сглаживанием
@@ -2074,7 +2248,9 @@ function pageHome() {
 }
 /* цена кейса: в R-COIN (бонусные) или в рублях */
 const RC_IMG = '<img class="rc-ic" src="assets/rcoin.webp" alt="" aria-hidden="true">';
-const casePrice = (c, v) => c.rc ? `${RC_IMG}${rc(v)} R-COIN` : money(v);
+/* цены кейсов — значком баланса из профиля вместо «₽» (владелец 11.11); бонусные кейсы — значком бонусов. Значок красится цветом текста (mask) */
+const prc = v => `<span class="prc">${moneyN(v)}<i class="prc-i" aria-hidden="true"></i></span>`;
+const casePrice = (c, v) => c.rc ? `<span class="prc prc-rc">${rc(v)}<i class="prc-i" aria-hidden="true"></i></span>` : prc(v);
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
@@ -2156,6 +2332,10 @@ async function loadCaseCfg() {
   const bn = data.find(r => r.k === 'banners'); // баннеры главной (нет — стандартный набор); копия в браузере — без мелькания при загрузке
   BANNERS = bn && Array.isArray(bn.v) ? bn.v : null;
   try { if (BANNERS) localStorage.setItem('rc.banners', JSON.stringify(BANNERS)); else localStorage.removeItem('rc.banners'); } catch (e) { /* */ }
+  const nw = data.find(r => r.k === 'news'), nwWas = JSON.stringify(NEWS); // новости главного экрана (вкладка «Новости» в админке)
+  NEWS = nw && Array.isArray(nw.v) ? nw.v : null;
+  try { if (NEWS) localStorage.setItem('rc.news', JSON.stringify(NEWS)); else localStorage.removeItem('rc.news'); } catch (e) { /* */ }
+  if (JSON.stringify(NEWS) !== nwWas && $('#nwCol')) { $('#nwCol').innerHTML = newsCol(); nwFeed(); }
   const tc = data.find(r => r.k === 'tower'); if (tc && tc.v) { if (+tc.v.rtp >= .3 && +tc.v.rtp <= .98) TOWER.rtp = +tc.v.rtp; TOWER.off = !!tc.v.off; if (Array.isArray(tc.v.top) && tc.v.top.length === 3) TOWER.top = tc.v.top.map(Number); if ($('#twTower') && !tw.game) drawTower(); }
   const sk = data.find(r => r.k === 'skins'); if (sk && sk.v && sk.v.hold != null) SK_HOLD = Math.max(0, +sk.v.hold || 0);
   const bc = data.find(r => r.k === 'build'); if (bc && bc.v) { if (+bc.v.rtp >= .3 && +bc.v.rtp <= .98) BUILD.rtp = +bc.v.rtp; BUILD.off = !!bc.v.off; if ($('#bdSet')) drawBuild(); }
@@ -2282,79 +2462,563 @@ function bonusMini() {
       <div class="hbm-a"><a class="bx-btn${got >= all ? ' ghost' : ''}" href="#/bonus">${got >= all ? 'Получено' : 'Подписаться'}</a></div></article>
   </div>`;
 }
+/* главный экран: отдельная страница (адрес #/); пока заглушка на месте будущей 3D-сцены */
+/* ---------- главный экран: колонка новостей слева, как в главном меню CS2 (за ней потом встанет 3D-сцена).
+   4 карточки: верхняя (видео или картинка), промо со светлой полосой, зелёная, «Новое и популярное» (листает кейсы сама).
+   Тексты и картинки — site_cfg 'news' (вкладка «Новости» в админке); нет — NEWS_DEF. Нажатие — скрытая страница #/news/<id> ---------- */
+const NEWS_DEF = [
+  { id: 'n1', kind: 'top', tag: 'Новость', note: 'сегодня', title: 'Заголовок первой новости', sub: 'Короткое описание: одна-две строки о главном.',
+    text: 'Здесь будет полный текст новости. Его можно поменять во вкладке «Новости» в админ-панели.', img: 'assets/news-1.webp', video: 'assets/news-1.webm', video2: 'assets/news-1.mp4', link: '', btn: '' },
+  { id: 'n2', kind: 'promo', kicker: 'Играть', title: 'Краш', sub: 'Успей забрать выигрыш до взрыва C4',
+    text: 'Ставка растёт вместе с множителем — забери выигрыш до взрыва. Здесь будет полный текст новости.', img: 'assets/bg-crash-page.webp', link: '#/crash', btn: 'Играть' },
+  { id: 'n3', kind: 'pass', title: 'Собери сам', sub: 'Собери свой кейс из любых скинов — цена и шансы считаются сразу.',
+    text: 'Выбери скины, задай шансы — сайт сам посчитает цену кейса. Здесь будет полный текст новости.', img: 'assets/case-build.webp', link: '#/build', btn: 'Собрать кейс' },
+  { id: 'feed', kind: 'feed', tag: 'Новое и популярное', more: 'Показать все…' },
+];
+let NEWS = null; try { NEWS = JSON.parse(localStorage.getItem('rc.news') || 'null'); } catch (e) { /* */ }
+const newsList = () => { const L = Array.isArray(NEWS) ? NEWS : []; return NEWS_DEF.map(d => ({ ...d, ...(L.find(x => x && x.id === d.id) || {}) })); };
+const vType = u => /\.mp4(\?|$)/i.test(u || '') ? 'video/mp4' : 'video/webm';
+// фон карточки: видео (с картинкой-заставкой, пока грузится) или картинка
+function newsMedia(x, cls = 'nw-bg') {
+  if (x.video) return `<video class="${cls}" autoplay muted loop playsinline preload="auto"${x.img ? ` poster="${esc(x.img)}"` : ''}><source src="${esc(x.video)}" type="${vType(x.video)}">${x.video2 ? `<source src="${esc(x.video2)}" type="${vType(x.video2)}">` : ''}</video>`;
+  return x.img ? `<img class="${cls}" src="${esc(x.img)}" alt="" decoding="async">` : '';
+}
+const NW_ARR = d => `<svg viewBox="0 0 10 12" aria-hidden="true"><path d="${d < 0 ? 'M9 1 2 6l7 5z' : 'M1 1l7 5-7 5z'}" fill="currentColor"/></svg>`;
+function newsCard(x) {
+  if (x.off) return '';
+  const href = `#/news/${x.id}`, sub = x.sub ? `<span class="nw-s">${esc(x.sub)}</span>` : '';
+  if (x.kind === 'top') return `<a class="nw-c nw-top" href="${href}">${newsMedia(x)}<span class="nw-hd"><b>${esc(x.tag || '')}</b>${x.note ? `<i>${esc(x.note)}</i>` : ''}</span><span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
+  if (x.kind === 'promo') return `<a class="nw-c nw-promo" href="${href}">${newsMedia(x)}<span class="nw-band">${x.kicker ? `<i class="nw-k">${esc(x.kicker)}</i>` : ''}<b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
+  if (x.kind === 'pass') return `<a class="nw-c nw-pass" href="${href}"><i class="nw-rays"></i>${newsMedia(x)}<span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
+  return `<div class="nw-c nw-feed"><span class="nw-hd"><b>${esc(x.tag || '')}</b><a href="#/cases">${esc(x.more || 'Показать все…')}</a></span>
+    <div class="nw-fs" id="nwFeed"></div><div class="nw-pg"><button data-d="-1" aria-label="Назад">${NW_ARR(-1)}</button><span id="nwDots"></span><button data-d="1" aria-label="Вперёд">${NW_ARR(1)}</button></div></div>`;
+}
+const newsCol = () => newsList().map(newsCard).join('');
+function pageMain() {
+  // справа от первой новости — значок «?»: при наведении (или нажатии) стеклянная подложка с реквизитами продавца (подвала на главной нет);
+  // в самом низу — мелкая приписка про Valve
+  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><img src="${MNA.dir}krot-logo.webp?v=${MNA.v}" alt="Режим КРОТ — RUSH CASE" decoding="async"><a class="mnk-go" href="#/krot">Играть</a></div>
+    <div class="mn-info"><button class="mn-q" id="mnQ" aria-label="Реквизиты продавца" aria-expanded="false"><i></i></button>
+      <div class="mn-req" role="tooltip"><small>Продавец</small><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}</span><span>ОГРНИП ${LEGAL.ogrnip}</span>
+        <span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span>
+        <nav><a href="#/terms">Пользовательское соглашение</a><a href="#/privacy">Политика конфиденциальности</a><a href="#/payment">Оплата и возврат</a></nav></div></div>
+    <p class="mn-legal"><span class="mn-18">18+</span> © ${new Date().getFullYear()} RUSH CASE. Сайт не связан с Valve Corporation и не одобрен ею. Counter-Strike 2 и Steam — товарные знаки Valve Corporation, изображения предметов принадлежат правообладателям. Все совпадения случайны.</p>
+  </section>`;
+}
+// «Новое и популярное»: до 5 кейсов (сначала новые, потом популярные), листаются сами раз в 5 с и стрелками
+let nwI = 0;
+const nwFeedCases = () => { const out = []; [...homeNew(), ...homeHits()].forEach(c => { if (c.img && !c.disabled && !out.includes(c) && out.length < 5) out.push(c); }); return out; };
+function nwFeed() {
+  const box = $('#nwFeed'), dots = $('#nwDots'); if (!box || !dots) return;
+  const L = nwFeedCases();
+  if (!L.length) { box.innerHTML = ''; dots.innerHTML = ''; return; }
+  nwI = ((nwI % L.length) + L.length) % L.length;
+  box.innerHTML = L.map((c, i) => `<a class="nw-fi${i === nwI ? ' on' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a}"><img src="${caseThumb(c)}" alt="" decoding="async"><span class="nw-fn">${esc(c.name)}</span><span class="nw-fp">${casePrice(c, c.price)}</span><i class="nw-info">i</i></a>`).join('');
+  dots.innerHTML = L.map((c, i) => `<i class="${i === nwI ? 'on' : ''}" data-i="${i}"></i>`).join('');
+  const show = i => { nwI = (i + L.length) % L.length; $$('.nw-fi', box).forEach((a, j) => a.classList.toggle('on', j === nwI)); $$('i', dots).forEach((d, j) => d.classList.toggle('on', j === nwI)); };
+  let t = every(() => show(nwI + 1), 5000);
+  const user = i => { show(i); clearInterval(t); t = every(() => show(nwI + 1), 5000); };
+  $$('.nw-pg [data-d]').forEach(b => b.onclick = () => user(nwI + +b.dataset.d));
+  $$('i', dots).forEach(d => d.onclick = () => user(+d.dataset.i));
+}
+const INVITE_SVG = '<svg viewBox="0 0 15 14" aria-hidden="true"><path d="M0.817197 5.34773H5.9052V0.0677261H9.2972V5.34773H14.3852V8.38773H9.2972V13.6677H5.9052V8.38773H0.817197V5.34773Z" fill="currentColor"/></svg>'; // «Оформление сайта/ИНВАЙТ.svg»
+const MNK_SND = 'assets/main/play.mp3?v=1'; // звук кнопки «Играть» в карточке КРОТ (cs2.mp3 владельца)
+function mountMain() {
+  nwFeed();
+  Snd.preloadSet({ k: MNK_SND }); const kgo = $('.mnk-go'); if (kgo) kgo.addEventListener('click', () => Snd.playCtl(MNK_SND, .9).then(t => { if (!t) Snd.file(MNK_SND, .9); })); // если звук ещё не скачался — обычным плеером (при выключенном звуке молчит)
+  mnLampsPos(); later(mnLampsPos, 700); if (!mnLampsPos.on) { mnLampsPos.on = 1; addEventListener('resize', mnLampsPos); $('#app').addEventListener('animationend', e => { if (e.target.id === 'app') mnLampsPos(); }); } // второй раз — после «въезда» страницы
+  later(() => (window.requestIdleCallback || (f => f()))(mnAgent, { timeout: 1200 }), 300); // 3D-агент — после показа страницы
+  // реквизиты: на ПК открываются наведением (CSS), на телефоне — нажатием; нажатие мимо закрывает
+  const box = $('.mn-info'), q = $('#mnQ'); if (!box || !q) return;
+  q.onclick = e => { e.stopPropagation(); const on = box.classList.toggle('open'); q.setAttribute('aria-expanded', on); };
+  if (!mountMain.off) document.addEventListener('click', mountMain.off = e => { const b = $('.mn-info'); if (b && !e.target.closest('.mn-info')) { b.classList.remove('open'); $('#mnQ').setAttribute('aria-expanded', 'false'); } });
+}
+/* ---------- главный экран: 3D-агент, как в меню CS2 (план — ПЛАН_3D_АГЕНТ.md) ----------
+   assets/main/agent.glb — «Профессионал» (tm_professional_varf2) из файлов игры: сетка, скелет модели и 7 клипов меню
+   (ui_anims/main_menu/t/t_main_menu_rifle02_*_awp_galil), картинки WebP. assets/main/awp-dragon-lore.glb — AWP | Dragon Lore,
+   висит на кости wpn (её двигают сами клипы). Первый показ во вкладке — выход (walkup), дальше idle по кругу и раз в 6–14 с
+   случайное движение. Зажал мышь на агенте — поворот, отпустил — плавно назад. Телефон / нет WebGL — картинка agent.webp. */
+const MNA = { v: 3, dir: 'assets/main/', s: null, seen: false, gl: null,
+  moves: [['weightshift', 3], ['lookaround', 3], ['lookback', 2], ['lookback02', 2], ['lookbatgun', 1]] };
+window.rcMNA = MNA; // для проверки из браузера
+const mnaStop = () => { if (MNA.s) { MNA.s.kill(); MNA.s = null; } };
+function mnaLoad() { // модели держим в памяти вкладки (без видеокарты): при возврате на главную не качаем заново
+  if (!MNA.gl) MNA.gl = c2Lib().then(([THREE, { GLTFLoader }]) => {
+    const ld = u => new Promise((ok, bad) => new GLTFLoader().load(MNA.dir + u + '?v=' + MNA.v, ok, undefined, bad));
+    return Promise.all([ld('agent.glb'), ld('awp-dragon-lore.glb')]);
+  }).catch(e => { MNA.gl = null; throw e; });
+  return MNA.gl;
+}
+// лампы на фоне главного (assets/bg-main.webp, 1920×1080): прожектор на хижине и подвесная лампа внутри.
+// Свечение и затемнение освещённого места поверх снимка; моргают стилями (переменная --f: 1 — горит, 0 — погасла)
+const MN_LAMPS = [['a', 1070, 497], ['b', 1350, 510]];
+const MN_INVITE = [505, 620]; // «плюс» «Пригласить друзей» прибит к стене на фоне (точка снимка 1920×1080), размер — вместе с фоном
+function mnLampsPos() {
+  const box = $('#mnLamps'), mn = box && box.parentElement; if (!box) return;
+  const W = document.documentElement.clientWidth, H = document.documentElement.clientHeight, s = Math.max(W / 1920, H / 1080);
+  const ox = (W - 1920 * s) / 2, oy = (H - 1080 * s) / 2, r = mn.getBoundingClientRect();
+  box.style.setProperty('--s', s.toFixed(4));
+  MN_LAMPS.forEach(([k, x, y]) => { const el = $('.mnl-' + k, box); if (el) el.style.transform = `translate(${(ox + x * s - r.left).toFixed(1)}px,${(oy + y * s - r.top).toFixed(1)}px)`; });
+  const iv = $('#mnInvite'); if (iv) { Object.assign(iv.style, { left: (ox + MN_INVITE[0] * s - r.left).toFixed(1) + 'px', top: (oy + MN_INVITE[1] * s - r.top).toFixed(1) + 'px', bottom: 'auto' }); iv.style.setProperty('--ts', (46 * s).toFixed(1) + 'px');
+    const nw = $('#nwCol'); if (nw) { const minX = nw.getBoundingClientRect().right - r.left + 20 + iv.offsetWidth / 2; if (parseFloat(iv.style.left) < minX) iv.style.left = minX.toFixed(1) + 'px'; } } // на узком по ширине экране (5:4) точка фона уходит под новости — тогда встаёт сразу за ними
+}
+// ветер с листьями CS2 (assets/main/leaves.webp — 8 сухих листьев из materials/particle/leaf/leafdead): порыв раз в 15–25 с,
+// между порывами — редкие падающие листья. Листья кувыркаются, ложатся на землю, следующий порыв их поднимает; полежав ~12 с, тают
+function mnaWind(THREE, scene, camera, tex) {
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const V = 8, CAP = 18, geo = new THREE.PlaneGeometry(1, 1), meshes = [], trash = [geo, tex];
+  for (let v = 0; v < V; v++) {
+    const t = tex.clone(); t.repeat.set(0.25, 0.5); t.offset.set((v % 4) * 0.25, v < 4 ? 0.5 : 0); t.needsUpdate = true;
+    const mat = new THREE.MeshStandardMaterial({ map: t, color: new THREE.Color(1.4, 1.25, 1.1), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8, metalness: 0 });
+    const mesh = new THREE.InstancedMesh(geo, mat, CAP); mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.castShadow = true; mesh.frustumCulled = false;
+    mesh.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: t, alphaTest: 0.5 });
+    scene.add(mesh); meshes.push(mesh); trash.push(t, mat, mesh.customDepthMaterial);
+  }
+  const m4 = new THREE.Matrix4(), sc = new THREE.Vector3(), qs = new THREE.Quaternion(), tmp = new THREE.Vector3(), wind = new THREE.Vector3();
+  const UP = new THREE.Vector3(0, 1, 0), flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2), eu = new THREE.Euler();
+  const L = []; for (let i = 0; i < V * CAP; i++) L.push({ on: 0, v: i % V, k: (i / V) | 0, p: new THREE.Vector3(), u: new THREE.Vector3(), q: new THREE.Quaternion(), ax: new THREE.Vector3(1, 0, 0), w: 0, s: 0, ph: 0, rest: 0, fade: 1 });
+  m4.makeScale(0, 0, 0); meshes.forEach(m => { for (let i = 0; i < CAP; i++) m.setMatrixAt(i, m4); m.instanceMatrix.needsUpdate = true; });
+  // пыль у земли — видна только в порыв
+  const DN = 90, dpos = new Float32Array(DN * 3), dgeo = new THREE.BufferGeometry();
+  const dc = document.createElement('canvas'); dc.width = dc.height = 32; const dx = dc.getContext('2d'), dg = dx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  dg.addColorStop(0, 'rgba(255,255,255,.9)'); dg.addColorStop(1, 'rgba(255,255,255,0)'); dx.fillStyle = dg; dx.fillRect(0, 0, 32, 32);
+  const dtex = new THREE.CanvasTexture(dc), dmat = new THREE.PointsMaterial({ map: dtex, color: 0xb8a68a, size: 0.045, transparent: true, opacity: 0, depthWrite: false });
+  const dust = new THREE.Points(dgeo, dmat); dust.frustumCulled = false; scene.add(dust); trash.push(dgeo, dmat, dtex);
+  let t = 0, gustAt = 3 + Math.random() * 2, gustLen = 5, gustPow = 3, acc = 0, lastE = 0;
+  const halfW = z => (camera.position.z - z) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
+  for (let i = 0; i < DN; i++) { const z = -2 + Math.random() * 3.6; dpos.set([(Math.random() * 2 - 1) * halfW(z), Math.pow(Math.random(), 2) * 0.7, z], i * 3); }
+  dgeo.setAttribute('position', new THREE.BufferAttribute(dpos, 3));
+  const gust = () => { // 0…1 — сила порыва сейчас
+    if (t < gustAt) return 0; const g = t - gustAt;
+    if (g > gustLen) { gustAt = t + 15 + Math.random() * 10; gustLen = 4 + Math.random() * 2.5; gustPow = 2.4 + Math.random() * 1.3; return 0; }
+    const x = Math.min(1, g / 1.2) * Math.min(1, (gustLen - g) / 2); return x * x * (3 - 2 * x);
+  };
+  const spawn = side => {
+    const l = L.find(x => !x.on); if (!l) return;
+    const z = -1.6 + Math.random() * 3.8; l.on = 1; l.rest = 0; l.fade = 1; l.s = 0.1 + Math.random() * 0.07; l.ph = Math.random() * 6.3; l.w = 2 + Math.random() * 5;
+    if (side) l.p.set(-halfW(z) - 0.15, Math.random() < 0.65 ? 0.02 + Math.random() * 0.5 : 0.6 + Math.random() * 1.8, z);
+    else l.p.set((Math.random() * 2 - 1) * halfW(z) * 0.9, 2.6 + Math.random() * 0.3, z);
+    l.u.copy(wind).multiplyScalar(0.6); l.ax.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+    l.q.setFromEuler(eu.set(Math.random() * 6.3, Math.random() * 6.3, Math.random() * 6.3));
+  };
+  return {
+    update(dt) {
+      t += dt; const e = gust(), W = 0.15 + e * gustPow; lastE = e;
+      wind.set(W * (1 + 0.25 * Math.sin(t * 1.7)), e * (0.25 + 0.35 * Math.sin(t * 2.3)), W * 0.18 * Math.sin(t * 0.9));
+      acc += dt * (0.25 + 22 * e); while (acc >= 1) { acc -= 1; spawn(e > 0.15); }
+      for (const l of L) {
+        if (!l.on) continue;
+        if (l.rest > 0) { // лежит на земле
+          l.rest += dt;
+          if (e > 0.45 && Math.random() < dt * 1.5) { l.rest = 0; l.u.set(wind.x * 0.5, 0.8 + Math.random() * 1.2, wind.z * 0.5); }
+          else if (l.rest > 12) { l.fade -= dt / 1.5; if (l.fade <= 0) l.on = 0; }
+        } else {
+          tmp.copy(wind).sub(l.u).multiplyScalar(1.6); tmp.y -= 1.0; // сопротивление воздуха + вес
+          l.ph += dt * (3 + l.w * 0.3); tmp.x += Math.sin(l.ph) * 0.9; tmp.z += Math.cos(l.ph * 0.8) * 0.9; tmp.y += Math.sin(l.ph * 1.3) * 0.7; // порхает
+          l.u.addScaledVector(tmp, dt); l.p.addScaledVector(l.u, dt);
+          l.q.multiply(qs.setFromAxisAngle(l.ax, l.w * dt * (0.5 + e)));
+          const rr = Math.hypot(l.p.x, l.p.z); if (rr < 0.38 && l.p.y < 1.95) { const k = 0.38 / Math.max(rr, 1e-3); l.p.x *= k; l.p.z *= k; } // сквозь агента не летят
+          if (l.p.y <= 0.006) {
+            l.p.y = 0.006;
+            if (e > 0.3 && Math.hypot(l.u.x, l.u.z) > 0.6) { l.u.y = Math.abs(l.u.y) * 0.3; l.u.x *= 0.96; l.u.z *= 0.96; } // катится по земле
+            else { l.rest = 1e-3; l.u.set(0, 0, 0); l.q.setFromAxisAngle(UP, Math.random() * 6.3).multiply(flat); }
+          }
+          if (l.p.x > halfW(l.p.z) + 0.4 || l.p.y > 4) l.on = 0;
+        }
+        m4.compose(l.p, l.q, sc.setScalar(l.on ? l.s * Math.max(0, l.fade) : 0)); meshes[l.v].setMatrixAt(l.k, m4);
+      }
+      meshes.forEach(m => { m.instanceMatrix.needsUpdate = true; });
+      dmat.opacity = 0.32 * e;
+      if (e > 0) { for (let i = 0; i < DN; i++) { const z = dpos[i * 3 + 2], hw = halfW(z); let x = dpos[i * 3] + wind.x * dt * (1 + (i % 5) * 0.12); if (x > hw + 0.2) x = -hw - 0.2; dpos[i * 3] = x; dpos[i * 3 + 1] = Math.max(0.01, dpos[i * 3 + 1] + Math.sin(t * 3 + i) * dt * 0.15); } dgeo.attributes.position.needsUpdate = true; }
+    },
+    stat: () => [L.filter(l => l.on).length, L.filter(l => l.rest > 0).length, +lastE.toFixed(2)], // для проверки
+    dispose() { meshes.forEach(m => scene.remove(m)); scene.remove(dust); trash.forEach(x => x.dispose()); },
+  };
+}
+function mnAgent() {
+  const host = $('#mnAgent'); if (!host) return;
+  mnaStop();
+  const pic = () => { // запасной вариант: снимок агента в той же позе
+    if (!host.isConnected) return; host.classList.add('mna-pic'); host.innerHTML = `<img src="${MNA.dir}agent.webp?v=${MNA.v}" alt="" decoding="async">`;
+    const im = $('img', host); im.onload = () => host.classList.add('on'); im.onerror = () => im.remove();
+  };
+  const hasGL = (() => { try { const g = document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl'); const x = g && g.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); return !!g; } catch (e) { return false; } })();
+  if (document.documentElement.classList.contains('phone') || !hasGL) return pic(); // без WebGL модели не качаем; узкое окно (до 1024 px) — агент спрятан стилями, отрисовка стоит
+  const S = MNA.s = { alive: true, kill: () => { S.alive = false; } };
+  Promise.all([c2Lib(), import('three/addons/environments/RoomEnvironment.js'), mnaLoad()]).then(([[THREE], { RoomEnvironment }, [ag, wp]]) => {
+    if (!S.alive || !host.isConnected) return;
+    const canvas = document.createElement('canvas');
+    let renderer; try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' }); } catch (e) { return pic(); }
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.8;
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(26, 1, 0.1, 40);
+    const pm = new THREE.PMREMGenerator(renderer); const envRT = pm.fromScene(new RoomEnvironment(), 0.04); scene.environment = envRT.texture; scene.environmentIntensity = 0.2;
+    // свет под фон (Ancient в сумерках): небо холодное, земля тёплая, сверху слева — лунный ключ с тенью, справа сзади — лампы хижины
+    scene.add(new THREE.HemisphereLight(0x7f95b8, 0x3a3226, 0.8));
+    const key = new THREE.DirectionalLight(0xc0d0f4, 1.3); key.position.set(-2.2, 4.2, 2.6); key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 4; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+    Object.assign(key.shadow.camera, { left: -1.4, right: 1.4, top: 2.4, bottom: -0.4, near: 0.5, far: 12 }); scene.add(key);
+    const RIM = 2.2, rim = new THREE.DirectionalLight(0xffb36b, RIM), lampB = $('.mnl-b'); rim.position.set(3, 2.2, -2.2); scene.add(rim);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.18); fill.position.set(0.5, 1.2, 4); scene.add(fill);
+    // тень на земле + мягкое пятно под ногами
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.ShadowMaterial({ opacity: 0.38 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+    const bc = document.createElement('canvas'); bc.width = bc.height = 128; const bx = bc.getContext('2d'); const gr = bx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(.55, 'rgba(0,0,0,.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); bx.fillStyle = gr; bx.fillRect(0, 0, 128, 128);
+    const blobTex = new THREE.CanvasTexture(bc);
+    const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.002; scene.add(blob);
+    let wind = null;
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) new THREE.TextureLoader().load(MNA.dir + 'leaves.webp?v=' + MNA.v, tx => { if (S.alive) wind = mnaWind(THREE, scene, camera, tx); else tx.dispose(); });
+    // агент + AWP в кости wpn (сетка AWP в осях glTF, кость — в осях игры: поворачиваем обратно)
+    const pivot = new THREE.Group(); scene.add(pivot);
+    const agent = ag.scene; pivot.add(agent);
+    agent.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+    const wpn = agent.getObjectByName('wpn'), gun = wp.scene;
+    gun.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1));
+    gun.position.set(-5.29, 0.19, -8.99).multiplyScalar(0.0254); // корневая кость AWP «weapon» (из модели игры) совпадает с wpn, а не начало сетки
+    gun.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+    if (wpn) wpn.add(gun);
+    let yaw = -0.32, vYaw = 0, drag = false, lx = 0, dirty = false;
+    try { const v = parseFloat(localStorage.getItem('rc.agentYaw')); if (isFinite(v)) yaw = v; } catch (e) { /* */ }
+    const saveYaw = () => { dirty = false; try { localStorage.setItem('rc.agentYaw', yaw.toFixed(3)); } catch (e) { /* */ } };
+    // анимации: idle по кругу, раз в 6–14 с — случайное движение (не одно и то же дважды), переходы 0,35–0,5 с
+    const mixer = new THREE.AnimationMixer(agent), A = {};
+    ag.animations.forEach(c => { A[c.name] = mixer.clipAction(c); });
+    const idle = A.idle; idle.setLoop(THREE.LoopRepeat, Infinity);
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let cur = idle, lastMove = '', nextAt = 0, t = 0;
+    const plan = () => { nextAt = t + 6 + Math.random() * 8; };
+    const to = (act, d) => { act.reset().setEffectiveWeight(1).play(); cur.crossFadeTo(act, d, false); cur = act; };
+    const pickMove = () => {
+      const L = MNA.moves.filter(([n]) => n !== lastMove && A[n]); let r = Math.random() * L.reduce((s, [, w]) => s + w, 0);
+      const m = L.find(([, w]) => (r -= w) < 0) || L[0]; lastMove = m[0];
+      const a = A[m[0]]; a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; to(a, 0.35 + Math.random() * 0.15);
+    };
+    mixer.addEventListener('finished', e => { if (e.action === A.walkup) MNA.seen = true; if (e.action !== idle && e.action === cur) { to(idle, 0.45); plan(); } });
+    const kref = new THREE.Vector3(), pelvis = agent.getObjectByName('pelvis');
+    idle.play(); mixer.update(0); scene.updateMatrixWorld(true); if (pelvis) pivot.worldToLocal(pelvis.getWorldPosition(kref)); idle.stop();
+    if (!MNA.seen && !calm && A.walkup) { const w = A.walkup; w.setLoop(THREE.LoopOnce, 1); w.clampWhenFinished = true; w.play(); cur = w; nextAt = Infinity; }
+    else { idle.play(); plan(); }
+    if (calm || !A.walkup) MNA.seen = true; // выход засчитываем, только когда он доигран (страница могла перерисоваться посреди него)
+    // камера как в меню CS2: узкий угол, чуть снизу, ноги у низа; агент ~ 76% высоты
+    const hit = document.createElement('div'); hit.className = 'mna-hit'; hit.setAttribute('aria-label', 'Агент — поверните мышкой');
+    const nw = $('#nwCol'), mn = host.parentElement;
+    // карточка КРОТ идёт за агентом (выход, переминание), но не за поворотом мышью: сдвиг таза от позы покоя, повёрнутый вместе с агентом
+    const kr = $('#mnKrot'), kv = new THREE.Vector3(), YA = new THREE.Vector3(0, 1, 0), kg = { w: 1, h: 1, l: 0, b: 0 }; let kLast = '';
+    const kp = (x, z) => { kv.set(x, 0.1, z).project(camera); return [(kv.x + 1) / 2 * kg.w, (1 - kv.y) / 2 * kg.h]; };
+    const placeCard = () => {
+      if (!kr) return; let dx = 0, dz = 0;
+      if (pelvis) { pelvis.getWorldPosition(kv); pivot.worldToLocal(kv).sub(kref); kv.y = 0; kv.applyAxisAngle(YA, yaw); dx = kv.x; dz = kv.z; }
+      const [xa, ya] = kp(dx - 0.25, dz), [xb] = kp(dx + 0.25, dz);
+      const st = (kg.l + (xa + xb) / 2).toFixed(1) + '|' + (kg.b - ya).toFixed(1) + '|' + (xb - xa).toFixed(1); if (st === kLast) return; kLast = st;
+      const [L, B, W] = st.split('|'); Object.assign(kr.style, { left: L + 'px', bottom: B + 'px', width: W + 'px' });
+    };
+    const fit = () => {
+      if (nw && mn) host.style.left = Math.max(0, nw.getBoundingClientRect().right - mn.getBoundingClientRect().left) + 'px';
+      const r = host.getBoundingClientRect(), w = Math.max(1, r.width), h = Math.max(1, r.height);
+      renderer.setSize(w, h, false); camera.aspect = w / h;
+      const top = 2.42, bot = -0.3, half = (top - bot) / 2, d = half / Math.tan(THREE.MathUtils.degToRad(13));
+      camera.position.set(0, 0.95, d); camera.lookAt(0, bot + half, 0); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+      // область для мыши — по силуэту агента (в покое), новости и LIVE нажимаются как раньше
+      const pr = (x, y) => { const v = new THREE.Vector3(x, y, 0).project(camera); return [(v.x + 1) / 2 * w, (1 - v.y) / 2 * h]; };
+      const [x0, y0] = pr(-0.55, 2.0), [x1, y1] = pr(0.55, 0);
+      Object.assign(hit.style, { left: x0 + 'px', top: y0 + 'px', width: (x1 - x0) + 'px', height: (y1 - y0) + 'px' });
+      if (mn) { const mr = mn.getBoundingClientRect(); Object.assign(kg, { w, h, l: r.left - mr.left, b: mr.bottom - r.top }); kLast = ''; placeCard(); }
+    };
+    hit.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; vYaw = 0; hit.setPointerCapture(e.pointerId); hit.classList.add('drag'); });
+    hit.addEventListener('pointermove', e => { if (!drag) return; vYaw = (e.clientX - lx) * 0.01; yaw += vYaw; lx = e.clientX; });
+    const up = () => { if (drag) dirty = true; drag = false; hit.classList.remove('drag'); };
+    hit.addEventListener('pointerup', up); hit.addEventListener('pointercancel', up);
+    host.append(canvas, hit); fit();
+    const ro = new ResizeObserver(fit); ro.observe(host); ro.observe(document.documentElement);
+    let last = performance.now(); S.frames = 0;
+    const loop = now => {
+      if (!S.alive) return; if (!host.isConnected) return S.kill(); // ушли с главной — освобождаем видеокарту
+      if (!host.offsetWidth) { last = now; return; } // спрятан (узкое окно) — не рисуем
+      const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now; t += dt; S.frames++; // метка кадра бывает чуть раньше запуска: без max(0) разовое движение «кончается» сразу
+      if (!calm && cur === idle && t >= nextAt) pickMove();
+      if (!drag) { yaw += vYaw; vYaw *= 0.86; yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw)); if (dirty && Math.abs(vYaw) < 4e-4) saveYaw(); } // отпустил — чуть докручивается по инерции и остаётся
+      if (wind) wind.update(dt);
+      if (lampB) { const fl = parseFloat(getComputedStyle(lampB).getPropertyValue('--f')); rim.intensity = RIM * (0.25 + 0.75 * (isNaN(fl) ? 1 : fl)); }
+      pivot.rotation.y = yaw; mixer.update(dt); renderer.render(scene, camera); placeCard();
+    };
+    const vis = () => { if (!S.alive) return; if (document.hidden) renderer.setAnimationLoop(null); else { last = performance.now(); renderer.setAnimationLoop(loop); } };
+    document.addEventListener('visibilitychange', vis); vis();
+    requestAnimationFrame(() => host.classList.add('on'));
+    S.cur = () => cur.getClip().name; S.card = () => kLast; S.wind = () => wind; S.yaw = () => yaw; S.renderer = renderer;
+    S.kill = () => {
+      S.alive = false; renderer.setAnimationLoop(null); ro.disconnect(); document.removeEventListener('visibilitychange', vis);
+      mixer.stopAllAction(); mixer.uncacheRoot(agent); if (wpn) wpn.remove(gun); pivot.remove(agent);
+      const done = new Set();
+      [agent, gun, ground, blob].forEach(r => r.traverse(o => {
+        if (o.geometry && !done.has(o.geometry)) { done.add(o.geometry); o.geometry.dispose(); }
+        [].concat(o.material || []).forEach(m => { if (done.has(m)) return; done.add(m); Object.values(m).forEach(v => { if (v && v.isTexture) v.dispose(); }); m.dispose(); });
+      }));
+      if (wind) wind.dispose(); blobTex.dispose(); envRT.dispose(); pm.dispose(); renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); hit.remove();
+    };
+  }).catch(() => { if (S.alive) pic(); });
+}
+// «Пригласить друзей» (плюс слева от агента на главной) — пока заглушка. ПЛАН (владелец 11.11): отдельная страница со статистикой
+// по рефералам — кто зашёл по ссылке, сколько потратил, сколько получил пригласивший (сейчас реф-блок только на «Бонусах», drawRef)
+function pageInvite() {
+  return `<section class="krp"><div class="krp-box ivp"><span class="ivp-plus">${INVITE_SVG}</span><h1 class="krp-h">Пригласить друзей</h1><p class="ivp-soon">Скоро</p>
+    <p class="krp-t">Здесь будет статистика по приглашённым друзьям: кто зашёл по вашей ссылке, сколько потратил и сколько получили вы.</p><a class="krp-go" href="#/">На главную</a></div></section>`;
+}
+// режим КРОТ — пока заглушка (кнопка «Играть» в карточке у ног агента на главной)
+function pageKrot() {
+  return `<section class="krp"><div class="krp-box"><img class="krp-logo" src="${MNA.dir}krot-logo.webp?v=${MNA.v}" alt="Режим КРОТ — RUSH CASE">
+    <h1 class="krp-h">Режим «Крот»</h1><p class="krp-t">Новый режим скоро появится. Следите за новостями на главной.</p><a class="krp-go" href="#/">На главную</a></div></section>`;
+}
+// скрытая страница «Новости» (в меню её нет): все новости по порядку, #/news/<id> — сразу к нужной
+function pageNews() {
+  const L = newsList().filter(x => !x.off && x.kind !== 'feed');
+  return `<section class="container nwp"><h1 class="nwp-h">Новости</h1>${L.map(x => `<article class="nwp-it nwp-${x.kind}" id="nw-${esc(x.id)}">
+    <div class="nwp-m">${newsMedia(x, 'nwp-bg')}</div>
+    <div class="nwp-b">${x.kicker || x.tag ? `<i class="nwp-k">${esc(x.kicker || x.tag)}</i>` : ''}<h2>${esc(x.title || '')}</h2>
+      ${x.sub ? `<p class="nwp-s">${esc(x.sub)}</p>` : ''}${x.text ? `<p class="nwp-t">${esc(x.text).replace(/\n/g, '<br>')}</p>` : ''}
+      ${x.link ? `<a class="btn btn-primary" href="${esc(x.link)}"${/^https?:/.test(x.link) ? ' target="_blank" rel="noopener"' : ''}>${esc(x.btn || 'Перейти')}</a>` : ''}</div></article>`).join('')}</section>`;
+}
+function mountNews(id) {
+  const el = id && document.getElementById('nw-' + id); if (!el) return;
+  later(() => { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('hl'); }, 80);
+}
+
+/* ---------- страница «Кейсы» (владелец 11.11, по его примерам) ----------
+   Сверху вниз: «Новые кейсы» (первым BLAST, не больше двух рядов), «Авторские кейсы» (пока кейсы про игроков; кнопка «Создать свой кейс» —
+   функция будет позже), «Особые кейсы» на своём фоне (BLAST, «Собери сам», «Всё или ничего»: большие карточки с джекпотом, при наведении
+   справа выезжает кейс), дальше остальные разделы. Над блоками строка вкладок (не уезжает при прокрутке), поиск, цена, «По балансу».
+   Плитка: серая картинка, под ней тёмная полоса с названием и ценой (цена — числом и значком баланса). */
+const IX_NEW_MAX = 10;                       // «Новые кейсы» — не больше двух рядов
+const IX_SPEC_CASES = ['cs2'];               // особые кейсы (кроме раздела «Всё или ничего»); они же первыми в «Новых»
+const IX_SPEC_BLOCK = 'allin', IX_AUTH_BLOCK = 'pro';
+const IX_RC = { common: '#b0c3d9', uncommon: '#5e98d9', milspec: '#4b69ff', restricted: '#8847ff', classified: '#d32ce6', covert: '#eb4b4b', rare: '#e4ae39' };
+const ixTab = b => String(b.t || '').replace(/\s+кейс(ы|ов)$/i, '') || b.t; // «Оружейные кейсы» → «Оружейные»
+const IX_PRICE = [['all', 'Все'], ['0-100', `до ${prc(100)}`], ['100-500', `${prc(100)} – ${prc(500)}`], ['500-1e9', `от ${prc(500)}`]];
+const ixQ = (c, extra = '') => esc((c.name + ' ' + (c.items || []).map(s => s.name).join(' ') + extra).toLowerCase());
+// риск кейса — шанс, что выпадет предмет не дешевле самого кейса
+const ixRisk = c => {
+  const ok = (c.items || []).reduce((a, s) => a + (s.p >= c.price ? s.ch : 0), 0);
+  return [ok < .2 ? 'High' : ok < .4 ? 'Medium' : 'Low', ok < .2 ? '#e5484d' : ok < .4 ? '#c026d3' : '#2fbf71', Math.round(ok * 100)];
+};
+function ixTile(c, i, o = {}) {
+  const tag = c.disabled ? '<i class="ix-tag ix-off">Закончился</i>' : isNewCase(c) ? '<i class="ix-tag ix-new">New</i>' : isHitCase(c) ? '<i class="ix-tag ix-hit">Hot</i>' : '';
+  const rk = o.risk && c.items && c.items.length ? ixRisk(c) : null;
+  return `<a class="ix${c.disabled ? ' ix-closed' : ''}${rk ? ' ix-rk' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a};--i:${i}${rk ? `;--rk:${rk[1]}` : ''}" data-price="${c.price}"${c.rc ? ' data-rc="1"' : ''} data-q="${ixQ(c)}"><span class="ix-c">
+    <span class="ix-img">${caseArt(c)}<i class="ix-fx" aria-hidden="true"></i>${tag}${c2Old(c) ? c2OldTag() : ''}${rk ? `<i class="ix-risk" title="Риск: шанс окупить кейс — ${rk[2]}%">${rk[0]}</i>` : ''}</span>
+    <span class="ix-info"><b class="ix-name">${esc(c.name)}</b><span class="ix-price">${casePrice(c, c.price)}</span></span></span></a>`;
+}
+const ixShort = s => String(s.name || '').replace(/ \([^)]+\)$/, '');
+const ixBase = s => ixShort(s).replace('StatTrak™ ', '');            // без износа и StatTrak
+const ixType = s => ixBase(s).split(' | ')[0].trim();                   // вид предмета: «★ Karambit», «AWP»
+const ixKnife = t => /^★/.test(t) && !/gloves|wraps|перчат|обмотк/i.test(t);
+// джекпоты особых карточек — разные (владелец 11.11): если такой вид предмета уже был на соседней карточке,
+// берём следующий дорогой предмет этого кейса (не дешевле 20% самого дорогого) и подписываем «Можно выбить»
+function ixPicks(list) {
+  const usedT = new Set(), usedB = new Set(), out = new Map();
+  list.forEach(c => {
+    if (c === 'build') return;
+    const its = (c.items || []).slice().sort((a, b) => b.p - a.p), top = its[0]; if (!top) return;
+    const lo = Math.max(c.price * 2, top.p * .02); // запасной порог: дороже кейса хотя бы вдвое
+    const s = its.find(x => !usedT.has(ixType(x)) && x.p >= top.p * .2) || its.find(x => !usedB.has(ixBase(x)) && x.p >= top.p * .2)
+      || its.find(x => !usedT.has(ixType(x)) && x.p >= lo) || its.find(x => !usedB.has(ixBase(x)) && x.p >= lo) || top;
+    usedT.add(ixType(s)); usedB.add(ixBase(s)); out.set(c, [s, s === top]);
+  });
+  return { out, usedT };
+}
+// «Собери сам»: веер, как карты в руке — по краям самые дорогие AWP и AK-47, между ними три разных ножа (по возможности не те, что на соседних карточках)
+function ixBuildFan(usedT) {
+  const best = {};
+  ITEMS.forEach(s => { if (!buildOk(s)) return; const t = ixType(s); if (!best[t] || s.p > best[t].p) best[t] = s; });
+  const kn = Object.keys(best).filter(ixKnife).map(t => best[t]).sort((a, b) => b.p - a.p);
+  const k = [...kn.filter(s => !usedT.has(ixType(s))), ...kn.filter(s => usedT.has(ixType(s)))].slice(0, 3);
+  return [best.AWP, k[1], k[0], k[2], best['AK-47']].filter(Boolean);
+}
+// карточка особого кейса: джекпот крупно; при наведении он уезжает влево, а на его место въезжает кейс того же размера
+function ixSpecCard(c, sp, big, i, pick) {
+  const [s, top] = pick || [(c.items || [])[0], true]; if (!s) return '';
+  return `<a class="ixs${big ? ' big' : ''}${c.disabled ? ' ix-closed' : ''}" href="#/case/${c.id}" style="--sp:${sp};--jc:${IX_RC[s.r] || '#e4ae39'};--i:${i}" data-price="${c.price}" data-q="${ixQ(c)}">
+    <span class="ixs-hd"><img class="ixs-ic" src="${caseThumb(c)}" alt="" decoding="async">${esc(c.name)}</span>
+    <span class="ixs-jp"><img src="${imgUrl(s, 'l')}" alt="${esc(ixShort(s))}" loading="lazy" decoding="async"></span>
+    <span class="ixs-case"><img src="${caseThumb(c)}" alt="Кейс «${esc(c.name)}»" loading="lazy" decoding="async"></span>
+    <span class="ixs-ft"><span class="ixs-price">${casePrice(c, c.price)}</span><span class="ixs-win"><small>${top ? 'Джекпот' : 'Можно выбить'}</small><b>${esc(ixShort(s))}</b><em>${prc(s.p)}</em></span></span>
+    ${c.disabled ? '<i class="ix-tag ix-off">Закончился</i>' : isNewCase(c) ? '<i class="ixs-new">Новое!</i>' : ''}${c2Old(c) ? c2OldTag() : ''}</a>`;
+}
+function ixSpecBuild(sp, big, i, usedT) {
+  const fan = ixBuildFan(usedT), best = fan.reduce((m, s) => !m || s.p > m.p ? s : m, null), n = fan.length;
+  return `<a class="ixs ixs-build${big ? ' big' : ''}" href="#/build" style="--sp:${sp};--jc:#ec4899;--i:${i}" data-price="${BUILD.minPrice}" data-q="собери сам свой кейс конструктор build">
+    <span class="ixs-hd"><img class="ixs-ic" src="assets/case-build-s.webp" alt="" decoding="async">Собери сам</span>
+    <span class="ixs-jp ixs-fan">${fan.map((s, k) => `<img src="${imgUrl(s, 'l')}" alt="${esc(ixShort(s))}" style="--a:${((k - (n - 1) / 2) * 28).toFixed(0)}deg" loading="lazy" decoding="async">`).join('')}</span>
+    <span class="ixs-case"><img src="assets/case-build-s.webp" alt="Кейс «Собери сам»" loading="lazy" decoding="async"></span>
+    <span class="ixs-ft"><span class="ixs-price">от ${prc(BUILD.minPrice)}</span><span class="ixs-win"><small>Любой скин</small><b>${best ? esc(ixShort(best)) : 'на выбор'}</b>${best ? `<em>до ${prc(best.p)}</em>` : ''}</span></span>
+    <i class="ixs-new">Новый режим</i>${c2OldTag()}</a>`;
+}
+// раскладка особых: первый ряд — три большие, дальше ряды по 2–4 на всю ширину (сетка из 12 колонок)
+function ixSpecGrid(list) {
+  const n = list.length, first = Math.min(3, n), rest = n - first, rows = Math.ceil(rest / 4), out = [], P = ixPicks(list);
+  let k = 0;
+  for (; k < first; k++) out.push([list[k], 12 / first, true]);
+  for (let r = 0; r < rows; r++) {
+    const size = Math.floor(rest / rows) + (r < rest % rows ? 1 : 0);
+    for (let j = 0; j < size; j++, k++) out.push([list[k], 12 / size, false]);
+  }
+  return out.map(([c, sp, big], i) => c === 'build' ? ixSpecBuild(sp, big, i, P.usedT) : ixSpecCard(c, sp, big, i, P.out.get(c))).join('');
+}
+const ixSec = (id, t, body, o = {}) => `<section class="ix-sec${o.cls ? ' ' + o.cls : ''}" id="ix-${esc(id)}" data-grp="${esc(id)}">${o.pre || ''}
+    <header class="ix-sh"><h2>${t}</h2>${o.side || ''}</header>${body}</section>`;
+// что в каком блоке
+function ixPlan() {
+  const seen = c => c && caseSeen(c), byId = id => CASES.find(c => c.id === id);
+  const specOwn = IX_SPEC_CASES.map(byId).filter(seen);
+  const blk = id => CASE_BLOCKS.find(b => b.id === id);
+  const fresh = [...specOwn, ...homeNew().filter(c => !specOwn.includes(c))].slice(0, IX_NEW_MAX);
+  const auth = blk(IX_AUTH_BLOCK) ? blockCases(blk(IX_AUTH_BLOCK)) : [];
+  const spec = [...specOwn.slice(0, 1), 'build', ...specOwn.slice(1), ...(blk(IX_SPEC_BLOCK) ? blockCases(blk(IX_SPEC_BLOCK)) : [])];
+  const rest = CASE_BLOCKS.filter(b => b.id !== IX_AUTH_BLOCK && b.id !== IX_SPEC_BLOCK)
+    .map(b => [b, blockCases(b).filter(c => !IX_SPEC_CASES.includes(c.id))]).filter(([, L]) => L.length);
+  return { fresh, auth, spec, rest };
+}
 function pageCases() {
-  return `<section class="container cases-wide tr">
-    <div class="tr-hero">${heroHtml()}</div>
-    <aside class="tr-side">${bonusMini()}</aside>
-  </section>
-  <section class="container cases-wide">
-    <div class="filterbar">
-      <div class="search"><input class="inp" id="caseQ" placeholder="Поиск кейса или скина" autocomplete="off">${ic.search}</div>
-      <div class="chips" id="chips"><button class="chip on" data-f="all">Все</button><button class="chip" data-f="0-100">до 100 ₽</button><button class="chip" data-f="100-500">100–500 ₽</button><button class="chip" data-f="500-1e9">500+ ₽</button></div>
-      <div class="secs" id="secChips">${CASE_BLOCKS.filter(b => b.id !== 'pop' && blockCases(b).length).map(b => `<button class="chip sec-chip" data-sec="${b.id}" style="--bc:${b.a}"><span class="sec-ic">${b.rc ? RC_IMG : ic[b.ic] || ''}</span>${esc(b.t)}</button>`).join('')}
-        <div class="sec-more" id="secMore" hidden><button class="chip" id="secMoreBtn" aria-haspopup="true">Ещё<b id="secMoreN"></b><i class="sec-car">▾</i></button><div class="sec-pop" id="secPop" hidden></div></div></div>
-      <label class="switch"><input type="checkbox" id="availChk"><i></i>Доступные</label>
+  const P = ixPlan(), tabs = [], secs = [];
+  if (P.fresh.length) { tabs.push(['new', 'Новые']); secs.push(ixSec('new', 'Новые кейсы', `<div class="ix-grid">${P.fresh.map((c, i) => ixTile(c, i)).join('')}</div>`)); }
+  tabs.push(['auth', 'Авторские']);
+  secs.push(ixSec('auth', 'Авторские кейсы', P.auth.length ? `<div class="ix-grid">${P.auth.map((c, i) => ixTile(c, i, { risk: true })).join('')}</div>` : '<p class="ix-soon">Скоро здесь появятся кейсы, которые соберут сами игроки.</p>',
+    { side: '<button class="ix-create" id="ixCreate" type="button">Создать свой кейс</button>' }));
+  tabs.push(['spec', 'Особые']);
+  // фон блока — видео из CS2 (background_movie_op10: золотое знамя), просьба владельца 11.11; пока грузится — первый кадр
+  const spBg = '<video class="ix-spv" muted loop playsinline preload="metadata" poster="assets/bg-special.webp" aria-hidden="true"><source src="assets/bg-special.webm" type="video/webm"><source src="assets/bg-special.mp4" type="video/mp4"></video>';
+  secs.push(ixSec('spec', 'Особые кейсы', `<div class="ixs-grid">${ixSpecGrid(P.spec)}</div>`, { cls: 'ix-spec', pre: spBg, side: '<i class="ix-flag">Special</i>' }));
+  P.rest.forEach(([b, L]) => { tabs.push([b.id, ixTab(b)]); secs.push(ixSec(b.id, esc(b.t), `<div class="ix-grid">${L.map((c, i) => ixTile(c, i)).join('')}</div>`)); });
+  return `<section class="ixp">
+    <div class="ix-bar" id="ixBar">
+      <div class="ix-tw" id="ixTw"><button class="ix-arr l" type="button" data-d="-1" aria-label="Разделы левее">${NW_ARR(-1)}</button>
+        <nav class="ix-tabs" id="ixTabs" aria-label="Разделы кейсов">${tabs.map(([id, t], i) => `<button class="ix-t${i ? '' : ' on'}" type="button" data-sec="${esc(id)}">${esc(t)}</button>`).join('')}<i class="ix-ind" id="ixInd" aria-hidden="true"></i></nav>
+        <button class="ix-arr r" type="button" data-d="1" aria-label="Разделы правее">${NW_ARR(1)}</button></div>
+      <div class="ix-tools">
+        <label class="ix-search">${ic.search}<input id="caseQ" type="search" placeholder="Поиск кейса или скина" autocomplete="off" spellcheck="false"></label>
+        <div class="ix-dd" id="ixPrice"><button class="ix-ddb" type="button" aria-haspopup="true" aria-expanded="false"><span>Цена</span><b id="ixPriceV">Все</b><i class="ix-car" aria-hidden="true"></i></button>
+          <div class="ix-ddm" hidden>${IX_PRICE.map(([f, t]) => `<button type="button" data-f="${f}"${f === 'all' ? ' class="on"' : ''}>${t}</button>`).join('')}</div></div>
+        ${st.user ? '<label class="ix-chk" title="Только кейсы, на которые хватает баланса"><input type="checkbox" id="availChk"><i aria-hidden="true"></i>По балансу</label>' : ''}
+      </div>
     </div>
-    <div class="cs-blocks">${CASE_BLOCKS.map(b => caseBlock(b, true)).join('')}</div>
-    <div class="empty hidden" id="casesEmpty">${ic.search}Ничего не найдено — попробуйте другой фильтр</div>
+    <div class="ix-secs">${secs.join('')}</div>
+    <div class="ix-empty hidden" id="casesEmpty">${ic.search}<b>Ничего не найдено</b><span>Попробуйте другой фильтр</span></div>
   </section>`;
 }
 function mountCases() {
-  heroSlider(); mountHomeBonus();
-  let f = 'all';
-  const secSel = new Set(); // выбранные разделы; пусто — все
+  const root = $('.ixp'); if (!root) return;
+  const bar = $('#ixBar'), nav = $('#ixTabs'), tw = $('#ixTw'), ind = $('#ixInd'), tabs = $$('.ix-t', nav), secs = $$('.ix-sec', root);
+  const cards = () => $$('.ix, .ixs', root);
+  const calm = matchMedia('(prefers-reduced-motion:reduce)').matches;
+  let f = 'all', curSec = null, lock = 0;
+  // голубая полоска под открытой вкладкой
+  const setInd = () => { const b = tabs.find(t => t.dataset.sec === curSec && !t.hidden); if (!b) { ind.style.opacity = 0; return; } ind.style.opacity = 1; ind.style.width = b.offsetWidth + 'px'; ind.style.transform = `translateX(${b.offsetLeft}px)`; };
+  // вкладки не влезли — края строки растворяются, по бокам стрелки, колесо мыши листает вбок
+  const edges = () => { const m = nav.scrollWidth - nav.clientWidth, l = nav.scrollLeft > 2, r = nav.scrollLeft < m - 2; [nav, tw].forEach(e => { e.classList.toggle('fl', l); e.classList.toggle('fr', r); }); };
+  const mark = id => {
+    if (id === curSec) return; curSec = id;
+    tabs.forEach(t => t.classList.toggle('on', t.dataset.sec === id)); setInd();
+    const b = tabs.find(t => t.dataset.sec === id); if (!b) return;
+    const l = b.offsetLeft - nav.scrollLeft, r = l + b.offsetWidth;
+    if (l < 40 || r > nav.clientWidth - 40) nav.scrollTo({ left: b.offsetLeft - (nav.clientWidth - b.offsetWidth) / 2, behavior: calm ? 'auto' : 'smooth' });
+  };
+  // какой блок сейчас под строкой вкладок
+  const spy = () => {
+    if (Date.now() < lock) return;
+    const line = bar.getBoundingClientRect().bottom + 80, vis = secs.filter(s => !s.classList.contains('hidden'));
+    let id = vis.length ? vis[0].dataset.grp : null;
+    vis.forEach(s => { if (s.getBoundingClientRect().top <= line) id = s.dataset.grp; });
+    const last = vis[vis.length - 1];
+    if (last && innerHeight + scrollY >= document.documentElement.scrollHeight - 2 && last.getBoundingClientRect().top < innerHeight) id = last.dataset.grp; // долистали до низа
+    mark(id);
+  };
+  let rq = 0;
+  const onScroll = () => {
+    if (!root.isConnected) { removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); return; }
+    if (!rq) rq = requestAnimationFrame(() => { rq = 0; spy(); setInd(); edges(); });
+  };
+  addEventListener('scroll', onScroll, { passive: true }); addEventListener('resize', onScroll);
+  nav.addEventListener('scroll', edges, { passive: true });
+  nav.addEventListener('wheel', e => { if (nav.scrollWidth <= nav.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; e.preventDefault(); nav.scrollLeft += e.deltaY; }, { passive: false });
+  $$('.ix-arr', tw).forEach(b => b.onclick = () => nav.scrollBy({ left: +b.dataset.d * nav.clientWidth * .7, behavior: calm ? 'auto' : 'smooth' }));
+  tabs.forEach(t => t.onclick = () => {
+    const s = document.getElementById('ix-' + t.dataset.sec); if (!s) return;
+    mark(t.dataset.sec); lock = Date.now() + 1000; setTimeout(onScroll, 1050);
+    s.classList.add('ix-in');
+    const y = s.getBoundingClientRect().top + scrollY - (parseFloat(getComputedStyle(bar).top) || 0) - bar.offsetHeight - 14;
+    scrollTo({ top: Math.max(0, y), behavior: calm ? 'auto' : 'smooth' });
+  });
+  // «Создать свой кейс» — функция будет позже (решение владельца 11.11)
+  const cr = $('#ixCreate'); if (cr) cr.onclick = () => toast('Создание своих кейсов скоро появится');
+  // фильтры: поиск, цена, «По балансу»; пустые блоки и их вкладки прячутся
+  const q = $('#caseQ'), sr = q.closest('.ix-search');
   const apply = () => {
-    const q = $('#caseQ').value.trim().toLowerCase(), avail = $('#availChk').checked;
+    const t = q.value.trim().toLowerCase(), av = $('#availChk'), avail = !!(av && av.checked);
+    const [a, b] = f === 'all' ? [0, Infinity] : f.split('-').map(Number);
     let shown = 0;
-    $$('.cases-grp .case-card').forEach(card => {
-      const p = +card.dataset.price; let ok = true;
-      if (secSel.size && !secSel.has(card.closest('.cases-grp').dataset.grp)) ok = false;
-      if (f !== 'all') { const [a, b] = f.split('-').map(Number); ok = p >= a && p < b; }
-      if (q && !card.dataset.q.includes(q)) ok = false;
-      if (avail && (!st.user || p > st.balance)) ok = false;
-      card.classList.toggle('hidden', !ok); if (ok) shown++;
+    cards().forEach(el => {
+      const p = +el.dataset.price;
+      const ok = p >= a && p < b && (!t || el.dataset.q.includes(t)) && (!avail || p <= (el.dataset.rc ? st.rcoin || 0 : st.balance));
+      el.classList.toggle('hidden', !ok); if (ok) shown++;
+    });
+    secs.forEach(s => {
+      const n = $$('.ix:not(.hidden), .ixs:not(.hidden)', s).length, keep = !n && s.dataset.grp === 'auth' && !$('.ix', s) && !t && f === 'all' && !avail; // пустые «Авторские» с надписью «Скоро» видны без фильтров
+      s.classList.toggle('hidden', !n && !keep); const tb = tabs.find(x => x.dataset.sec === s.dataset.grp); if (tb) tb.hidden = !n && !keep;
     });
     $('#casesEmpty').classList.toggle('hidden', shown > 0);
-    // заголовок группы прячем, если в ней ничего не осталось
-    $$('.cases-grp').forEach(g => { const any = $$('.case-card:not(.hidden)', g).length > 0; const bl = g.closest('.cs-block'); if (bl) bl.classList.toggle('hidden', !any); });
+    curSec = null; spy(); setInd(); edges();
   };
-  $('#caseQ').oninput = apply; $('#availChk').onchange = apply;
-  // «Все» — сброс цены и разделов
-  $$('#chips .chip').forEach(b => b.onclick = () => { f = b.dataset.f; if (f === 'all') secSel.clear(); $$('#chips .chip').forEach(x => x.classList.toggle('on', x === b)); secPaint(); apply(); });
-  // разделы: нажатие оставляет выбранные (можно несколько); не влезшие в строку — в список «Ещё»
-  const row = $('#secChips'), more = $('#secMore'), pop = $('#secPop');
-  if (!row) return;
-  const chips = $$('.sec-chip', row);
-  const secPaint = () => {
-    chips.forEach(c => c.classList.toggle('on', secSel.has(c.dataset.sec)));
-    $$('[data-sec]', pop).forEach(c => c.classList.toggle('on', secSel.has(c.dataset.sec)));
-    const hid = chips.filter(c => c.hidden && secSel.has(c.dataset.sec)).length;
-    $('#secMoreBtn').classList.toggle('on', hid > 0); $('#secMoreN').textContent = hid ? ` · ${hid}` : '';
-  };
-  const toggle = id => { if (secSel.has(id)) secSel.delete(id); else secSel.add(id); secPaint(); apply(); };
-  const fit = () => {
-    if (!row.isConnected) return;
-    chips.forEach(c => { c.hidden = false; }); more.hidden = true;
-    const W = row.clientWidth, GAP = 6, ws = chips.map(c => c.offsetWidth);
-    let total = ws.reduce((a, w) => a + w + GAP, -GAP);
-    if (total > W) {
-      more.hidden = false;
-      const mw = more.offsetWidth + GAP;
-      for (let i = chips.length - 1; i >= 0 && total + mw > W; i--) { chips[i].hidden = true; total -= ws[i] + GAP; }
-    }
-    pop.innerHTML = chips.filter(c => c.hidden).map(c => `<button class="sec-it" data-sec="${c.dataset.sec}" style="--bc:${c.style.getPropertyValue('--bc')}">${c.innerHTML}<i class="sec-ok">✓</i></button>`).join('');
-    $$('[data-sec]', pop).forEach(b => b.onclick = e => { e.stopPropagation(); toggle(b.dataset.sec); });
-    secPaint();
-  };
-  chips.forEach(c => c.onclick = () => toggle(c.dataset.sec));
-  $('#secMoreBtn').onclick = e => { e.stopPropagation(); pop.hidden = !pop.hidden; };
-  if (!mountCases.docClick) document.addEventListener('click', mountCases.docClick = e => { const p = $('#secPop'); if (p && !p.hidden && !e.target.closest('#secMore')) p.hidden = true; });
-  if (window.ResizeObserver) { const ro = new ResizeObserver(() => { if (!row.isConnected) return ro.disconnect(); fit(); }); ro.observe(row); }
-  fit();
-  // пришли со страницы кейса кнопкой «Все кейсы» — прокручиваем к его карточке и подсвечиваем
+  q.oninput = () => { sr.classList.toggle('has', !!q.value); apply(); };
+  const avc = $('#availChk'); if (avc) avc.onchange = apply;
+  // список «Цена»
+  const dd = $('#ixPrice'), ddb = $('.ix-ddb', dd), ddm = $('.ix-ddm', dd);
+  const ddSet = o => { dd.classList.toggle('open', o); ddm.hidden = !o; ddb.setAttribute('aria-expanded', o); };
+  ddb.onclick = e => { e.stopPropagation(); ddSet(ddm.hidden); };
+  $$('button', ddm).forEach(b => b.onclick = e => {
+    e.stopPropagation(); f = b.dataset.f;
+    $$('button', ddm).forEach(x => x.classList.toggle('on', x === b));
+    $('#ixPriceV').innerHTML = b.innerHTML; dd.classList.toggle('set', f !== 'all'); ddSet(false); apply();
+  });
+  if (!mountCases.docClick) document.addEventListener('click', mountCases.docClick = e => {
+    const d = $('#ixPrice'); if (!d || e.target.closest('#ixPrice')) return;
+    d.classList.remove('open'); const m = $('.ix-ddm', d); if (m) m.hidden = true; const b = $('.ix-ddb', d); if (b) b.setAttribute('aria-expanded', 'false');
+  });
+  // плитка наклоняется за мышью, блик там, где курсор (только мышь, без «меньше движения»)
+  if (!calm && matchMedia('(hover:hover) and (pointer:fine)').matches) {
+    let raf = 0, tgt = null, ev = null;
+    const clear = t => ['--rx', '--ry', '--px', '--py'].forEach(p => t.style.removeProperty(p));
+    const paint = () => {
+      raf = 0; if (!tgt || !ev) return;
+      const r = tgt.getBoundingClientRect(), x = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), y = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
+      const s = tgt.style;
+      s.setProperty('--mx', (x * 100).toFixed(1) + '%'); s.setProperty('--my', (y * 100).toFixed(1) + '%');
+      s.setProperty('--ry', ((x - .5) * 12).toFixed(2) + 'deg'); s.setProperty('--rx', ((.5 - y) * 8).toFixed(2) + 'deg');
+      s.setProperty('--px', ((x - .5) * 8).toFixed(1) + 'px'); s.setProperty('--py', ((y - .5) * 6).toFixed(1) + 'px');
+    };
+    root.addEventListener('pointermove', e => {
+      const t = e.target.closest('.ix-c');
+      if (t !== tgt) { if (tgt) clear(tgt); tgt = t; }
+      ev = e; if (tgt && !raf) raf = requestAnimationFrame(paint);
+    });
+    root.addEventListener('pointerleave', () => { if (tgt) clear(tgt); tgt = null; });
+  }
+  // видео-фон особых кейсов играет, только когда блок на экране; при «меньше движения» — неподвижный первый кадр
+  const spv = $('.ix-spv', root);
+  if (spv && !calm && 'IntersectionObserver' in window) {
+    const vo = new IntersectionObserver(es => es.forEach(e => { if (!root.isConnected) return vo.disconnect(); if (e.isIntersecting) { const p = spv.play(); if (p) p.catch(() => {}); } else spv.pause(); }));
+    vo.observe(spv);
+  }
+  // блоки проявляются, когда до них долистали: плитки по очереди
+  if (!calm && 'IntersectionObserver' in window) {
+    root.classList.add('ix-anim');
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('ix-in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -6% 0px' });
+    secs.forEach(s => io.observe(s));
+  }
+  // пришли со страницы кейса кнопкой «Все кейсы» — прокручиваем к его плитке (в обычном разделе, не в «Новых») и подсвечиваем
   let back = null; try { back = sessionStorage.getItem('rc.backTo'); sessionStorage.removeItem('rc.backTo'); } catch (e) { /* */ }
-  const card = back && $(`.case-card[href="#/case/${CSS.escape(back)}"]`);
-  if (card) setTimeout(() => { card.scrollIntoView({ block: 'center', behavior: 'instant' }); card.classList.add('cc-flash'); }, 60);
+  const sel = back && `[href="#/case/${CSS.escape(back)}"]`, all = sel ? $$(`.ix${sel}, .ixs${sel}`, root) : [];
+  const card = all.find(a => !a.closest('#ix-new')) || all[0];
+  if (card) { const s = card.closest('.ix-sec'); if (s) s.classList.add('ix-in'); setTimeout(() => { card.scrollIntoView({ block: 'center', behavior: 'instant' }); card.classList.add('ix-flash'); }, 60); }
+  requestAnimationFrame(() => { spy(); setInd(); edges(); });
 }
 
 /* =========================================================
@@ -2496,7 +3160,7 @@ function pageCase(id) {
   if (id === 'build') { setTimeout(() => { location.hash = '#/build'; }); return ''; }
   if (/^b-/.test(id || '') && !caseById(id)) { setTimeout(() => { location.hash = st.user ? '#/profile' : '#/build'; }); return ''; }
   const c = caseById(id); if (!c || !caseSeen(c)) return page404();
-  if (c.ui === 'cs2' && window.innerWidth >= 900) return pageCaseCs2(c); // вид как в CS2 — только на компьютере
+  if (c2Like(c) && window.innerWidth >= 900) return pageCaseCs2(c); // вид как в CS2 (BLAST) — у всех кейсов, кроме «старых»; только на компьютере
   const ghost = Array.from({ length: 12 }, () => { const s = roll(c.items, 'fw'); return `<div class="gcard r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><div class="gc-w">${esc(s.w)}</div><div class="gc-f">${esc(s.f)}</div></div>`; }).join('');
   const embers = Array.from({ length: 44 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 7)}s;--x:${rand(-60, 60)}px;--s:${rand(.5, 1.3)}"></i>`).join('');
   // своя рамка рулетки: у кейса (c.frame) или у всего раздела «В гостях у бабушки»
@@ -2577,11 +3241,12 @@ function mountCase(id) {
   Snd.warm(['lock', 'tick']);
   setTimeout(frameSmoke, 50);
   const c = caseById(id); if (!c) return;
-  if (c.ui === 'cs2' && $('.c2p')) { c2Mount(); Snd.preloadSet({ a: C2S.lock, b: C2S.tick, c: C2S.full, d: C2S.drop, e: C2S.fall, f: C2BTN, g: C2BTN_OK }); } // 3D-сцена CS2 CASE, кнопка «Скрыть LIVE», звуки
+  if (c2On(c)) { c2Mount(c); c2GridWheel(); Snd.preloadSet({ a: C2S.lock, b: C2S.tick, c: C2S.full, d: C2S.drop, e: C2S.fall, f: C2BTN, g: C2BTN_OK }); } // 3D-сцена CS2 CASE, кнопка «Скрыть LIVE», звуки
   if (c.snd) Snd.preloadSet(c.snd);
   spinning = false;
   ccIdle(c);
   if (rlRO) rlRO.disconnect();
+  if (!$('#rl')) return; // страницы кейса нет (например, кейс только для админа — у гостя «Страница не найдена»)
   rlRO = new ResizeObserver(drawFrame); rlRO.observe($('#rl'));
   drawFrame();
 }
@@ -2607,7 +3272,7 @@ function ccIdle(c) {
   if (c.disabled) main = `<button class="btn btn-primary btn-xl btn-cham" disabled>${ic.lock || ic.shield}Кейс временно закрыт</button>`;
   else if (!st.user) main = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`;
   else if (c.rc) main = (st.rcoin || 0) >= cost ? `<button class="btn btn-primary btn-xl btn-cham btn-rc" id="openBtn">Открыть за ${casePrice(c, cost)}</button>` : `<a class="btn btn-primary btn-xl btn-cham btn-rc" href="#/profile">Не хватает ${casePrice(c, cost - (st.rcoin || 0))}</a>`;
-  else if (st.balance >= cost) main = `<button class="btn btn-primary btn-xl btn-cham" id="openBtn">${ic.coins}Открыть за ${money(cost)}</button>`;
+  else if (st.balance >= cost) main = `<button class="btn btn-primary btn-xl btn-cham" id="openBtn">Открыть за ${prc(cost)}</button>`;
   else main = `<button class="btn btn-primary btn-xl btn-cham" data-act="deposit" data-need="${cost - st.balance}">${ic.wallet}Пополнить на ${money(cost - st.balance)}</button>`;
   cc.innerHTML = `<div class="mult" role="group" aria-label="Количество кейсов">${counts.map(n => `<button class="${n === caseN ? 'on' : ''}" data-n="${n}">x${n}</button>`).join('')}</div>
     <div class="cc-btns">${main}${c.rc ? '' : `<button class="btn btn-xl btn-cham btn-gline" id="demoBtn">${ic.eye}Демо</button>`}</div>
@@ -2628,7 +3293,7 @@ function bcIdle(c) {
   cc.innerHTML = have
     ? `<div class="cc-btns"><button class="btn btn-primary btn-xl btn-cham" id="openBtn">${ic.box}Открыть кейс</button><button class="btn btn-xl btn-cham btn-gline" id="demoBtn">${ic.eye}Демо</button></div>
       <label class="switch"><input type="checkbox" id="fastChk"${st.fast ? ' checked' : ''}><i></i>Быстрое открытие</label>
-      <div class="cc-note">Кейс уже оплачен (${money(c.price)}) и лежит в вашем инвентаре.</div>`
+      <div class="cc-note">Кейс уже оплачен (${prc(c.price)}) и лежит в вашем инвентаре.</div>`
     : `<div class="cc-btns"><button class="btn btn-primary btn-xl btn-cham" id="bcAgain"${BUILD.off ? ' disabled' : ''}>${ic.coins}Купить такой же за ${money(now.price)}</button><a class="btn btn-xl btn-cham btn-gline" href="#/build">Собрать новый</a></div>
       <div class="cc-note">Этот кейс уже открыт.</div>`;
   const fc = $('#fastChk'); if (fc) fc.onchange = e => { st.fast = e.target.checked; save(); };
@@ -2811,7 +3476,18 @@ function itemTilt(root) {
 /* ---------- CS2 CASE: открытие как в игре CS2 (только на ПК, ширина от 900px) ----------
    сверху сцена с кейсом (позже — 3D), снизу полупрозрачная панель предметов (ножи — золотой плиткой «?»),
    «Открыть» → окно подтверждения → рулетка в круглой «лупе» → обычный экран выигрыша (showReveal) */
-const c2On = c => c.ui === 'cs2' && !!$('.c2p');
+/* страница кейса в стиле BLAST — у всех кейсов (владелец 11.11), кроме «старых»: им механика BLAST не подходит — бонусные за R-COIN,
+   фарм (по 20–100 штук), купленные «Собери сам», только ножи или перчатки (всё ушло бы в одну золотую плитку), БАБА ЧАЙ (своя рамка,
+   звуки, живая цена золота). У «старых» — прежняя страница; на странице «Кейсы» админ видит у них метку «старый» */
+const c2Old = c => !!(c.rc || c.farm || c.bcid || c.build || c.liveGold || c.frame || c.snd) || (c.items || []).filter(s => s.r !== 'covert' && s.r !== 'rare').length < 2;
+const c2Like = c => c.ui === 'cs2' || !c2Old(c);
+const c2OldTag = () => st.user && st.user.admin ? '<i class="ix-old" title="Страница кейса ещё старая (не в стиле BLAST)">старый</i>' : '';
+const c2On = c => c2Like(c) && !!$('.c2p');
+// ряд предметов с прокруткой (c2-many): колесо мыши крутит его вбок
+function c2GridWheel() {
+  const g = $('.c2-grid.c2-many'); if (!g) return;
+  g.addEventListener('wheel', e => { if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; g.scrollLeft += e.deltaY; e.preventDefault(); }, { passive: false });
+}
 const c2Sorted = c => c.items.slice().sort((a, b) => RAR[a.r].o - RAR[b.r].o || a.p - b.p);
 // в панели под кейсом «Тайные» (красные) собраны в одну плашку, как редкий предмет: без картинок и цен, при наведении — только
 // количество. И в рулетке они не видны (просьба владельца, 08.11): редкий (нож) — золотой значок «?» в лаврах (rare.webp),
@@ -2832,11 +3508,18 @@ let c2s = null; // текущая 3D-сцена страницы
 const c2Lib = () => C2D.lib || (C2D.lib = Promise.all([
   import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/loaders/RGBELoader.js'),
 ]).catch(e => { C2D.lib = null; throw e; }));
-function c2Mount() {
+function c2Mount(c) {
   const root = $('.c2p'), host = $('#c2Stage'); if (!root || !host) return;
   if (c2s) c2s.kill();
   const S = c2s = { alive: true, ready: false, kill: () => { S.alive = false; } };
   const video = $('video', host), canvas = $('canvas', host);
+  if (c && c.ui !== 'cs2') { // 3D-модели кейса пока нет: тот же видео-фон Mirage, что у BLAST, а вместо 3D — картинка кейса (.c2-case)
+    root.classList.add('c2-ready', 'c2-pic'); // S.ready не ставим: падение/открытие ключом — только у 3D, здесь картинка вздрагивает
+    video.addEventListener('canplay', () => { if (!S.alive || !host.isConnected) return; root.classList.add('c2-vid'); video.play().catch(() => {}); }, { once: true });
+    video.src = C2D.dir + 'bg.mp4?v=' + C2D.v; video.load();
+    S.kill = () => { S.alive = false; try { video.pause(); video.removeAttribute('src'); video.load(); } catch (e) { /* */ } };
+    return;
+  }
   const fail = () => { if (!S.alive || S.ready) return; S.kill(); root.classList.add('c2-ready', 'c2-no3d'); };
   const timer = setTimeout(fail, 30000);
   const vReady = new Promise(res => {
@@ -2979,12 +3662,13 @@ function c2Mount() {
 /* кнопка «Скрыть LIVE» на странице CS2 CASE: лента слева прячется, сцена шире; выбор помнится в браузере */
 function pageCaseCs2(c) {
   const its = c2Sorted(c), reg = its.filter(s => s.r !== 'rare'), rare = its.filter(s => s.r === 'rare');
+  // плиток больше 11 — один ряд с прокруткой вбок, чтобы панель не наезжала на кейс (владелец 11.11)
+  const many = reg.filter(s => s.r !== 'covert').length + (reg.some(s => s.r === 'covert') ? 1 : 0) + (rare.length ? 1 : 0) > 11;
   return `<section class="case-page c2p" style="--ca:${c.th.a}"><i class="c2-bg" aria-hidden="true"></i>
     <div class="c2-scene">
       <div class="c2-stage" id="c2Stage" aria-hidden="true"><video muted loop playsinline preload="auto"></video><canvas></canvas></div>
       <div class="c2-fbg" aria-hidden="true"><video muted loop playsinline preload="none"></video></div>
       <i class="c2-load" aria-hidden="true"></i>
-      <div class="c2-tl"><a href="#/cases" class="back">${ic.left}Все кейсы</a></div>
       <div class="c2-hd"><h1>Открыть кейс</h1><p>Открыть <b>${esc(c.name)}</b></p><small><i>i</i>Каждое открытие — один предмет из списка ниже</small></div>
       <div class="c2-rl" id="rl">
         <div class="c2-case">${caseArt(c, 'big')}</div>
@@ -2995,7 +3679,7 @@ function pageCaseCs2(c) {
     <div class="c2-panel">
       <div class="c2-items"><div>
       <div class="c2-ptitle">Откройте и получите один из следующих предметов</div>
-      <div class="c2-grid">${reg.filter(s => s.r !== 'covert').map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${c2Secret(reg.filter(s => s.r === 'covert').length)}${rare.length ? `<div class="c2-it c2-rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет</b><span>ножи и перчатки</span></div>` : ''}</div></div></div>
+      <div class="c2-grid${many ? ' c2-many' : ''}">${reg.filter(s => s.r !== 'covert').map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${c2Secret(reg.filter(s => s.r === 'covert').length)}${rare.length ? `<div class="c2-it c2-rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет</b><span>ножи и перчатки</span></div>` : ''}</div></div></div>
       <div class="c2-cc" id="cc"></div>
     </div>
   </section>`;
@@ -3010,13 +3694,14 @@ function cs2Idle(c) {
   let main;
   if (c.disabled) main = `<button class="c2-btn" disabled>Кейс временно закрыт</button>`;
   else if (!st.user) main = `<button class="c2-btn" data-act="login">Войти и открыть</button>`;
-  else if (st.balance >= c.price) main = `<button class="c2-btn" id="openBtn">Открыть кейс<small>${money(c.price)}</small></button>`;
+  else if (st.balance >= c.price) main = `<button class="c2-btn" id="openBtn">Открыть кейс<small>${prc(c.price)}</small></button>`;
   else main = `<button class="c2-btn" data-act="deposit" data-need="${c.price - st.balance}">Пополнить на ${money(c.price - st.balance)}</button>`;
   // вместо «Демо» — «Правила» (просьба владельца, 08.11); слева — шкала гаранта; «Быстрого открытия» здесь нет (владелец, 08.11)
   cc.innerHTML = `${c.pity ? c2PityHtml(c) : ''}<span style="flex:1"></span>
-    <button class="c2-btn c2-ghost" id="c2Rules">${C2_IC_RULES}Правила</button>${main}`;
+    <a class="c2-btn c2-ghost" id="c2Back" href="#/cases">${ic.left}Все кейсы</a><button class="c2-btn c2-ghost" id="c2Rules">${C2_IC_RULES}Правила</button>${main}`; // «Все кейсы» — внизу рядом с «Правилами» (владелец 11.11)
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
   $('#c2Rules').onclick = () => cs2Rules(c);
+  $('#c2Back').onclick = () => { try { sessionStorage.setItem('rc.backTo', c.id); } catch (e) { /* */ } }; // витрина прокрутит к этому кейсу
   const pw = $('.c2-pity', cc); if (pw) pw.onclick = () => cs2Rules(c, 'pity');
 }
 /* шкала гаранта одной строкой (как полоски прогресса в CS2): «ГАРАНТ ▕███│░░▏ N» — N открытий до гаранта, черты 75 (шанс 50%) и 150 (точно); счётчик — с сервера
@@ -3146,7 +3831,7 @@ function cs2Confirm(c, go) {
   const m = modal(`${C2OK_FX}<div class="c2ok"><div class="c2ok-art">${caseArt(c)}</div><div class="c2ok-tx">
       <h3>Открыть ${esc(c.name)}</h3>
       <p>Вы получите один предмет из кейса ${esc(c.name)} — он сразу попадёт в ваш инвентарь.</p>
-      <p class="c2ok-sum">Спишется <b>${money(c.price)}</b> · на балансе ${money(st.balance)}</p>
+      <p class="c2ok-sum">Спишется <b>${prc(c.price)}</b> · на балансе ${prc(st.balance)}</p>
       <p class="c2ok-rules">Открывая кейс, вы принимаете <button type="button" id="c2okRules">правила кейса</button></p>
       <div class="c2ok-btns"><button class="c2-btn c2-green" id="c2Go">Открыть</button><button class="c2-btn c2-ghost" id="c2No">Отмена</button></div>
     </div></div>`, 'm-c2ok');
@@ -3298,7 +3983,7 @@ function c2X3D(host, s) {
   }).catch(showImg);
 }
 function c2XBar(price, acts) { // нижняя стеклянная полоса: цена и кнопки-значки слева (подпись — над кнопкой при наведении), «Закрыть» справа
-  return `<div class="c2x-bar"><div class="c2x-price"><small>Стоимость</small><b>${money(price)}</b></div>
+  return `<div class="c2x-bar"><div class="c2x-price"><small>Стоимость</small><b>${prc(price)}</b></div>
     <div class="c2x-acts">${acts.map(([id, icon, t, extra]) => `<button class="c2x-ic" ${id}${extra || ''}>${icon}<span>${t}</span></button>`).join('')}</div>
     <button class="c2x-close" id="backBtn">Закрыть</button></div>`;
 }
@@ -3391,9 +4076,10 @@ async function cs2Spin(c, wins, given, demo) {
   spinning = false;
 }
 function showReveal(c, wins, given, demo) {
+  luRankDraw();
   const best = wins.reduce((a, s) => s.p > a.p ? s : a, wins[0]);
   const tier = best.r === 'rare' || best.p >= c.price * 8 ? 'jackpot' : best.p > c.price ? 'profit' : 'cheap';
-  if (c.ui === 'cs2' && $('.c2p')) { /* у CS2 CASE свои звуки — в cs2Spin */ } else if (c.snd) Snd.play(best.p >= c.price ? c.snd.win : c.snd.lose, .55); else Snd[tier]();
+  if (c2On(c)) { /* у страниц в стиле CS2 свои звуки — в cs2Spin */ } else if (c.snd) Snd.play(best.p >= c.price ? c.snd.win : c.snd.lose, .55); else Snd[tier]();
   if (tier === 'jackpot') { burst(110); setTimeout(() => burst(70), 700); }
   const one = wins.length === 1, lots = wins.length > MANY_N;
   if (lots) { const ord = wins.map((s, i) => i).sort((a, b) => wins[b].p - wins[a].p); wins = ord.map(i => wins[i]); given = ord.map(i => given[i]); }
@@ -3698,7 +4384,7 @@ function drawUpg() {
   const invSum = list.reduce((t, x) => t + SK[x.n].p, 0);
   $('#upgInv').innerHTML = list.length ? `${ic.box}В инвентаре ${list.length} ${plural(list.length, 'предмет', 'предмета', 'предметов')} на <b>${money(invSum)}</b>` : '';
   src.innerHTML = list.length ? list.map(x => mcard(SK[x.n], `data-inv="${x.id}"`)).join('')
-    : `<div class="empty">${ic.box}${st.user ? 'Инвентарь пуст. Откройте кейс или добавьте баланс кнопкой «С баланса».' : 'Войдите, чтобы увидеть свой инвентарь.'}<a class="btn btn-primary btn-sm" href="#/">К кейсам</a></div>`;
+    : `<div class="empty">${ic.box}${st.user ? 'Инвентарь пуст. Откройте кейс или добавьте баланс кнопкой «С баланса».' : 'Войдите, чтобы увидеть свой инвентарь.'}<a class="btn btn-primary btn-sm" href="#/cases">К кейсам</a></div>`;
   $$('[data-inv]', src).forEach(el => {
     const id = el.dataset.inv;
     if (upg.sel.includes(id)) el.classList.add('sel');
@@ -4291,17 +4977,27 @@ async function wkAuto(key) {
     const k = 'rc.wk.seen.' + st.user.id; let seen = null;
     try { seen = localStorage.getItem(k); } catch (e) { return; }
     if (seen === String(d.next)) return;
-    for (let i = 0; i < 40 && document.getElementById('preloader'); i++) await sleep(250);
+    for (let i = 0; i < 40 && document.getElementById('intro'); i++) await sleep(250); // ждём конца заставки
     if (location.hash.replace(/^#\/?/, '').split('/')[0] || $('#modal-root .modal-ov') || $('.tut')) return;
     try { localStorage.setItem(k, String(d.next)); } catch (e) { return; }
     openWeekly(d);
   } finally { wkAutoBusy = false; }
 }
 async function wkCardDraw() {
-  const d = await wkLoad(), p = $('#wkCardP'); if (!d || !p) return;
-  const wait = wkLeft(d.next - d.now);
-  p.textContent = d.got ? 'Награда получена. Новый набор через ' + wait : d.opened >= d.need ? 'Набор готов — выберите скин. Обновится через ' + wait : 'Открыто кейсов от 50 ₽: ' + d.opened + ' / ' + d.need + '. Обновится через ' + wait;
-  $('#wkCardL').innerHTML = d.offers.map(o => { const s = SK[o.n]; return s ? '<i class="wk-mini' + (d.got && d.got !== o.n ? ' off' : '') + '"><img src="' + imgUrl(s, 'm') + '" alt=""></i>' : ''; }).join('');
+  const L = $('#wkCardL'); if (!L) return;
+  const go = $('#wkOpen'), rib = $('#wkRib'), p = $('#wkCardP'), pr = $('#wkProg');
+  const ribT = t => { rib.innerHTML = WK_ART + t; };
+  if (!st.user) { go.textContent = 'Войти и участвовать'; go.disabled = false; go.onclick = () => openAuth('login'); return; }
+  const d = await wkLoad(); if (!d || !$('#wkCardL')) return;
+  const wait = wkLeft(d.next - d.now), ready = !d.got && d.opened >= d.need, open = ready || d.got;
+  // пока набор закрыт — четыре «?», открыт — сами скины (выбранный подсвечен)
+  L.innerHTML = d.offers.map(o => { const k = SK[o.n]; return open && k ? '<i class="bw-c r-' + k.r + (d.got && d.got !== o.n ? ' off' : '') + (d.got === o.n ? ' on' : '') + '"><img src="' + imgUrl(k, 'm') + '" alt=""></i>' : '<i class="bw-c"><b>?</b></i>'; }).join('');
+  ribT(d.got ? 'Награда получена' : ready ? 'Набор готов' : 'Разблокируй награды');
+  p.textContent = d.got ? 'Новый набор через ' + wait + '.' : ready ? 'Выберите 1 скин из 4 — он сразу попадёт в инвентарь. Набор обновится через ' + wait + '.' : 'Откройте кейсы от 50 ₽: ' + d.opened + ' из ' + d.need + ' за неделю. Набор обновится через ' + wait + '.';
+  pr.innerHTML = d.got || ready ? '' : '<i style="width:' + Math.min(100, d.opened / d.need * 100).toFixed(1) + '%"></i>';
+  go.disabled = !!d.got;
+  go.textContent = d.got ? 'Награда получена' : ready ? 'Выбрать награду' : 'Открыть кейсы';
+  go.onclick = () => d.got ? null : ready ? openWeekly(d) : (location.hash = '#/cases');
 }
 const wkItem = (o, pick, got) => { const s = SK[o.n]; if (!s) return ''; const on = got ? got === o.n : pick === o.n, m = / \(([^)]+)\)$/.exec(s.name), title = m ? s.name.slice(0, m.index) : s.name;
   return '<button class="wk-it r-' + s.r + (on ? ' on' : '') + '" data-n="' + esc(o.n) + '"' + (got ? ' disabled' : '') + '><i class="wk-rb"></i>' + (got ? '' : '<em class="wk-new">Новое!</em>') + '<span class="wk-img"><img src="' + imgUrl(s, 'm') + '" alt=""></span><b class="wk-name">' + esc(title) + '</b><small class="wk-sm">' + (m ? esc(m[1]) + ' · ' : '') + money(o.p) + '</small><span class="wk-f"><span>' + (got === o.n ? 'Получено' : 'Бесплатно') + '</span><i title="' + esc(s.name + ' — ' + money(o.p)) + '">i</i></span></button>'; };
@@ -4330,99 +5026,115 @@ async function openWeekly(pre) {
     draw();
   });
 }
+/* ---------- страница «Бонусы» (владелец 11.11, по его образцу): сверху розыгрыши, дальше «Награды» — еженедельный набор
+   и пояснения к нему, бонус за подписки, ниже ежедневный бонус, промокод и «Пригласи друга» (ранги со страницы убраны) ---------- */
+/* розыгрыши: каждый час / день / неделю + розыгрыши стримеров (на карточке их аватарка и ник). Участвует каждый, кто пополнил
+   баланс от суммы за время розыгрыша (выбор владельца). Стример запускает свой розыгрыш сам — вкладка в админке (будет).
+   ПОКА ТОЛЬКО ВИД: сервера розыгрышей ещё нет (следующий шаг — supabase/giveaways.sql: розыгрыши, участники по пополнениям,
+   выбор победителя по таймеру, приз в инвентарь). Поэтому блок с примером виден только в локальной копии (localhost),
+   на боевом сайте его нет, пока не готов сервер. */
+const GA_ON = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+const gaSk = (b, q) => { const v = Object.values(SK).filter(s => s.name.startsWith(b + ' (')); return v.find(x => x.q === q) || v[0] || null; }; // скин по названию и износу
+const gaEnd = k => { // конец текущего розыгрыша: час — до начала следующего часа, день — до полуночи, неделя — до понедельника
+  const d = new Date();
+  if (k === 'hour') d.setMinutes(60, 0, 0);
+  else { d.setHours(24, 0, 0, 0); if (k === 'week') d.setDate(d.getDate() + (8 - d.getDay()) % 7); }
+  return +d;
+};
+let GA_DEMO = null; // пример (ники стримеров вымышленные) — заменится данными сервера
+const gaList = () => GA_DEMO || (GA_DEMO = [
+  { k: 'hour', t: 'Каждый час', s: gaSk('MP7 | Nemesis', 'FN'), min: 600, n: 187, end: gaEnd('hour') },
+  { k: 'day', t: 'Каждый день', s: gaSk('★ Flip Knife | Slaughter', 'MW'), min: 2000, n: 3621, end: gaEnd('day') },
+  { k: 'week', t: 'Каждую неделю', s: gaSk('★ Skeleton Knife | Doppler', 'FN'), min: 5000, n: 3536, end: gaEnd('week') },
+  { k: 'str', t: 'Розыгрыш стримера', by: { name: 'NightOwl' }, s: gaSk('StatTrak™ AWP | Redline', 'FT'), min: 1000, n: 412, end: Date.now() + 47 * 6e4 },
+  { k: 'str', t: 'Розыгрыш стримера', by: { name: 'ShadowFox' }, s: gaSk('StatTrak™ AK-47 | Asiimov', 'FT'), min: 500, n: 958, end: Date.now() + 130 * 6e4 },
+].filter(g => g.s));
+const GA_IC_INFO = sv('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.6v.4"/>');
+function gaCard(g, i) {
+  const s = g.s;
+  return `<article class="ga ga-${g.k}">
+    <div class="ga-top">
+      <h3>${esc(g.t)}</h3>
+      ${g.by ? `<div class="ga-by">${ava(g.by, 'ga-ava')}<span><small>Розыгрыш от</small><b>${esc(g.by.name)}</b></span></div>` : ''}
+      <div class="ga-it"><b>${esc(s.w)}</b><span>${esc(s.f)}</span><em>${prc(s.p)}</em></div>
+      <img class="ga-img" src="${imgUrl(s, 'l')}" alt="${esc(s.name)}" loading="lazy" decoding="async">
+      <div class="ga-tm" data-i="${i}">${['дней', 'час.', 'мин.', 'сек.'].map(u => `<span><b>00</b><small>${u}</small></span>`).join('')}</div>
+      <span class="ga-n" title="Участников">${ic.users}${fmt(g.n)}</span>
+    </div>
+    <div class="ga-ft"><button class="ga-go" type="button" data-act="deposit">Пополнить</button><span class="ga-min"><small>При пополнении от:</small>${prc(g.min)}</span></div>
+    <button class="ga-win" type="button" data-i="${i}">Последние победители</button>
+  </article>`;
+}
+function gaMount() {
+  const L = gaList();
+  const tick = () => {
+    $$('.ga-tm').forEach(t => {
+      const g = L[+t.dataset.i]; if (!g) return;
+      if (g.end <= Date.now()) g.end = g.k === 'str' ? Date.now() + 60 * 6e4 : gaEnd(g.k); // в примере розыгрыш начинается заново
+      const s = Math.max(0, Math.floor((g.end - Date.now()) / 1000)), v = [Math.floor(s / 86400), Math.floor(s % 86400 / 3600), Math.floor(s % 3600 / 60), s % 60];
+      $$('b', t).forEach((b, k) => { const x = k ? String(v[k]).padStart(2, '0') : String(v[k]); if (b.textContent !== x) b.textContent = x; });
+    });
+  };
+  tick(); every(tick, 1000);
+  // окна «Правила» и «Последние победители» — в новом стиле (как «Правила» BLAST): стекло, прямые углы, цветная черта сверху
+  const GA_GL = { hour: '#7c5cff', day: '#d64bd8', week: '#ff4d4d', str: '#46c8ff' };
+  const GA_RULES = [
+    'В розыгрыше участвует каждый, кто за время розыгрыша пополнил баланс на сумму не меньше указанной на карточке. Нажимать ничего не нужно.',
+    'Одно участие на игрока в каждом розыгрыше, сколько бы раз он ни пополнял.',
+    'Когда таймер дойдёт до нуля, сервер случайно выберет победителя среди участников. Приз сразу попадёт в его инвентарь.',
+    'Розыгрыши стримеров проходят по тем же правилам. На их карточке — аватарка и ник стримера.',
+    'Сайт может менять призы и условия новых розыгрышей. Начатый розыгрыш проводится по тем условиям, с которыми он начался.',
+  ];
+  const r = $('#gaRules'); if (r) r.onclick = () => {
+    const m = modal(`<div class="ga-mod" style="--gl:#84d9fd"><header class="ga-mh"><small>Розыгрыши</small><h3>Правила розыгрышей</h3></header>
+      <ol class="ga-ol">${GA_RULES.map((t, k) => `<li><i>${k + 1}</i><span>${t}</span></li>`).join('')}</ol>
+      <footer class="ga-mf"><button class="bw-go ga-ok" type="button">Понятно</button></footer></div>`, 'm-ga');
+    $('.ga-ok', m).onclick = closeModal;
+  };
+  $$('.ga-win').forEach(b => b.onclick = () => {
+    const g = L[+b.dataset.i]; if (!g) return;
+    const W = ['Kirill_77', 'xDanya', 'Mr.Bean', 'ezwin', 'Tima'].map((n, k) => ({ n, ago: [12, 73, 140, 260, 410][k] * (g.k === 'week' ? 168 : g.k === 'day' ? 24 : 1) }));
+    const ago = m => m < 60 ? m + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : Math.round(m / 1440) + ' д назад';
+    modal(`<div class="ga-mod" style="--gl:${GA_GL[g.k] || '#84d9fd'}"><header class="ga-mh"><small>${esc(g.t)}${g.by ? ' · ' + esc(g.by.name) : ''}</small><h3>Последние победители</h3><span class="ga-mh-n">пример</span></header>
+      <div class="ga-wl">${W.map(w => `<div class="ga-w">${ava({ name: w.n })}<div class="ga-w-u"><b>${esc(w.n)}</b><span>${esc(g.s.w)} | ${esc(g.s.f)}</span></div><div class="ga-w-p"><em>${prc(g.s.p)}</em><small>${ago(w.ago)}</small></div></div>`).join('')}</div></div>`, 'm-ga');
+  });
+}
 function pageBonus() {
-  const rk = rankOf(st.stats.spent);
   const dw = DAILY.reduce((a, d) => a + d.w, 0);
-  return `<section class="container bonus bn">
-    <div class="page-head bn-head"><div><h1>Бонусы</h1><p>Бесплатный баланс каждый день, промокоды и награды за подписки.</p></div><div class="bn-ready" id="bnReady"></div></div>
-    <article class="wk-card" id="wkCard"><div class="wk-card-l" id="wkCardL">${'<i class="wk-mini lock"><img src="assets/cs2case/care_package.svg" alt=""></i>'.repeat(4)}</div><div class="wk-card-r"><i class="wk-art">${WK_ART}</i><h3>Еженедельный набор</h3><p id="wkCardP">Каждую среду 4 скина на выбор. Нужно открыть 20 кейсов от 50 ₽ за неделю</p><button class="wk-go" id="wkOpen">Открыть набор</button></div></article>
-    <div class="bn-grid">
-      <article class="bn-card bn-daily">
-        <header class="bn-h"><span class="bn-ic gold">${ic.gift}</span><div><h3>Ежедневный бонус</h3><p>Раз в 24 часа — от 5 до 250 ₽ на баланс</p></div></header>
-        <div class="daily-reel bn-reel"><div class="strip" id="dailyStrip"><div class="track">${Array.from({ length: 12 }, () => coinCard(pickDaily())).join('')}</div></div><div class="rl-marker"></div></div>
-        <div class="bn-act">
-          <button class="btn btn-primary btn-xl" id="dailyBtn">${ic.gift}<span>Крутить барабан</span></button>
-          <div class="bn-timer" id="dailyTimer"><div class="bn-tt"><span id="dailyLbl"></span><b id="dailyVal"></b></div><div class="bn-bar"><i id="dailyBar"></i></div></div>
-        </div>
-        <div class="bn-odds-h">Шансы</div>
-        <div class="bn-odds">${DAILY.map(d => `<div class="bn-odd r-${d.r}"><b>${d.v} ₽</b><span>${(d.w / dw * 100).toFixed(1).replace('.', ',')}%</span><i style="width:${Math.max(6, d.w / DAILY[0].w * 100)}%"></i></div>`).join('')}</div>
-        <div class="bn-facts"><div><span>Главный приз</span><b>250 ₽</b></div><div><span>В среднем</span><b>≈ ${money(Math.round(DAILY.reduce((t, d) => t + d.v * d.w, 0) / dw))}</b></div><div><span>Обновление</span><b>каждые 24 ч</b></div></div>
+  return `<section class="container bonus bn bo">
+    ${GA_ON ? `<div class="bo-sec">
+      <div class="bo-sh"><h2>Розыгрыши</h2><button class="bo-rules" id="gaRules" type="button">${GA_IC_INFO}Правила</button></div>
+      <div class="ga-grid">${gaList().map(gaCard).join('')}</div>
+    </div>` : ''}
+    <div class="bo-sec">
+      <div class="bo-sh"><h2>Награды</h2><div class="bn-ready" id="bnReady"></div></div>
+      <article class="bw" id="wkCard">
+        <i class="bw-crate" aria-hidden="true">${WK_ART}</i>
+        <div class="bw-cards" id="wkCardL">${'<i class="bw-c"><b>?</b></i>'.repeat(4)}</div>
+        <div class="bw-r"><h3>Еженедельный набор</h3><span class="bw-rib" id="wkRib">${WK_ART}Разблокируй награды</span>
+          <p id="wkCardP">Откройте 20 кейсов от 50 ₽ за неделю — и выберите 1 скин из 4. Набор обновляется каждую среду.</p>
+          <div class="bw-prog" id="wkProg"></div>
+          <button class="bw-go" id="wkOpen" type="button">Открыть кейсы</button></div>
       </article>
-      <div class="bn-side">
-        <article class="bn-card bn-promo">
-          <header class="bn-h"><span class="bn-ic">${ic.star}</span><div><h3>Промокод</h3><p>Бонус на баланс или к пополнению</p></div></header>
-          <div class="bn-ticket"><input id="promoInp" placeholder="ВВЕДИТЕ КОД" autocomplete="off" spellcheck="false" maxlength="24"><button class="btn btn-primary" id="promoBtn">Активировать</button></div>
-          <div class="bn-used" id="promoUsed"></div>
-          <p class="bn-note">Промокоды выдаём в Telegram, ВКонтакте и на стримах партнёров.</p>
-        </article>
-        <article class="bn-card bn-soc">
-          <header class="bn-h"><span class="bn-ic">${ic.send}</span><div><h3>Подписки</h3><p>+${SOC_BONUS} ₽ на баланс за каждую соцсеть</p></div></header>
-          <div class="bn-prog"><div><span id="socCnt"></span><b id="socSum"></b></div><div class="bn-bar"><i id="socBar"></i></div></div>
-          <div class="bn-socs" id="socList"></div>
-        </article>
+      <div class="bw-info">
+        <div><h4>Среда в 03:00</h4><p>Еженедельный набор появляется каждую среду в 03:00 по Москве — строго по расписанию.</p></div>
+        <div><h4>Что я получу</h4><p>Четыре скина на выбор — забираете один, он сразу попадает в инвентарь. Каждую неделю скины новые.</p></div>
+        <div><h4>Условия получения</h4><p>Откройте 20 кейсов от 50 ₽ за неделю — набор разблокируется, и можно выбрать награду.</p></div>
       </div>
     </div>
-    <article class="bn-card bn-ref" id="refCard"><header class="bn-h"><span class="bn-ic">${ic.users}</span><div><h3>Пригласи друга</h3><p>${refIntro(REF_DEF)}</p></div></header></article>
-    ${secTitle('Ранги')}
-    <div class="ranks">${RANKS.map((r, i) => `<div class="rank${i === rk.i && st.user ? ' cur' : ''}${i > rk.i ? ' locked' : ''}">${rankIcon(r, i)}<h4>${r.n}</h4><small>от ${money(r.min)} в кейсах</small><span class="cb">${r.cb ? 'Кэшбэк ' + r.cb + '%' : 'Старт'}</span></div>`).join('')}</div>
+    <div class="bo-sec">
+      <div class="bo-sh"><h2>Бонус за подписку</h2><div class="bo-prog"><span id="socCnt"></span><b id="socSum"></b><div class="bn-bar"><i id="socBar"></i></div></div></div>
+      <div class="bn-socs bo-socs" id="socList"></div>
+    </div>
   </section>`;
 }
 function pickDaily() { const t = DAILY.reduce((a, d) => a + d.w, 0); let r = Math.random() * t; for (const d of DAILY) { r -= d.w; if (r <= 0) return d; } return DAILY[0]; }
 const coinCard = (d, win) => `<div class="coin-card r-${d.r}${win ? ' is-win' : ''}"><span class="coin">₽</span><b>${d.v} ₽</b></div>`;
 function mountBonus() {
-  drawRef();
-  $('#wkOpen').onclick = () => openWeekly(); wkCardDraw();
-  const btn = $('#dailyBtn');
-  const ready = () => { const n = bonusReady(), e = $('#bnReady'); if (!e) return; e.innerHTML = n ? `<i></i>Доступно сейчас: <b>${n}</b>` : `${ic.check}Всё собрано — заходите завтра`; e.classList.toggle('all', !n); };
-  const upd = () => {
-    if (!btn.isConnected) return;
-    const left = st.user ? dailyLeft() : 0;
-    $('#dailyBar').style.width = (left ? (1 - left / DAILY_MS) * 100 : 100).toFixed(2) + '%';
-    $('#dailyTimer').classList.toggle('on', !left);
-    $('#dailyLbl').textContent = left ? 'Следующий через' : 'Бонус доступен';
-    $('#dailyVal').textContent = left ? dailyText() : 'сейчас';
-    if (btn.dataset.busy) return;
-    btn.disabled = !!left;
-    $('span', btn).textContent = !st.user ? 'Войти и крутить' : left ? 'Уже получен сегодня' : 'Крутить барабан';
-    ready();
-  };
-  upd(); every(upd, 1000);
-  btn.onclick = async () => {
-    if (!st.user) return openAuth('reg');
-    if (dailyLeft()) return;
-    btn.dataset.busy = '1'; btn.disabled = true; $('span', btn).textContent = 'Крутим…';
-    const bal0 = st.balance, r = await srv('claim_daily');
-    if (!r) { delete btn.dataset.busy; upd(); return; }
-    const prize = DAILY.find(d => d.v === +r.v) || DAILY[0];
-    setBalance(bal0); // показываем прибавку после прокрутки
-    const strip = $('#dailyStrip');
-    strip.classList.remove('done');
-    strip.innerHTML = `<div class="track">${Array.from({ length: 40 }, (_, i) => coinCard(i === 34 ? prize : pickDaily(), i === 34)).join('')}</div>`;
-    await sleep(50);
-    await spinStrip(strip, 4200, true);
-    setBalance(bal0 + prize.v);
-    Snd.win(RAR[prize.r].o); Snd.coin(); if (prize.v >= 100) burst();
-    toast(`Ежедневный бонус: <b>+${money(prize.v)}</b>`);
-    delete btn.dataset.busy; upd();
-  };
-  // промокоды — проверяет сервер
-  const inp = $('#promoInp'), pbtn = $('#promoBtn');
-  const drawUsed = () => { const u = st.user ? st.promos || [] : []; $('#promoUsed').innerHTML = u.length ? `<span>Активированы:</span>${u.map(c => `<em>${ic.check}${esc(c)}</em>`).join('')}` : ''; };
-  inp.oninput = () => { inp.value = inp.value.toUpperCase().replace(/\s+/g, ''); inp.parentElement.classList.remove('err', 'ok'); };
-  inp.onkeydown = e => { if (e.key === 'Enter') pbtn.click(); };
-  pbtn.onclick = async () => {
-    if (!st.user) return openAuth('login');
-    const code = inp.value.trim().toUpperCase(), box = inp.parentElement;
-    if (!code) { box.classList.add('err'); return inp.focus(); }
-    pbtn.disabled = true; pbtn.innerHTML = '<span class="spinner"></span>';
-    const r = await srv('use_promo', { p_code: code });
-    pbtn.disabled = false; pbtn.textContent = 'Активировать';
-    if (!r) { box.classList.add('err'); return; }
-    box.classList.add('ok'); inp.value = '';
-    if (r.t === 'bal') { Snd.coin(); toast(`Промокод активирован: <b>+${money(+r.v)}</b>`); } else toast(`Бонус <b>+${r.v}%</b> применится к следующему пополнению`);
-    drawUsed(); ready();
-  };
-  drawUsed();
+  wkCardDraw(); if (GA_ON) gaMount(); // еженедельный набор и розыгрыши
+  // «Доступно сейчас» — то, что можно забрать на этой странице: неполученные подписки и готовый еженедельный набор
+  const ready = () => { const n = SOCIALS.filter(x => !(st.socials || []).includes(x.k)).length + (wkIsReady() ? 1 : 0), e = $('#bnReady'); if (!e) return; e.innerHTML = n ? `<i></i>Доступно сейчас: <b>${n}</b>` : `${ic.check}Всё собрано`; e.classList.toggle('all', !n); };
+  ready(); wkLoad().then(() => { if ($('#bnReady')) ready(); });
   // соцсети
   const drawSoc = () => {
     const got = SOCIALS.filter(x => (st.socials || []).includes(x.k)).length;
@@ -4772,7 +5484,38 @@ const AU_IC = {
 const auField = (id, label, icon, type = 'text', ac = '', extra = '') => `<div class="field au-f">
   <div class="au-in"><span class="au-ic">${icon}</span><input class="inp" id="${id}" type="${type}" autocomplete="${ac}" placeholder=" " ${extra}><label for="${id}">${label}</label>${type === 'password' ? `<button type="button" class="au-eye" tabindex="-1" aria-label="Показать пароль">${ic.eye}</button>` : ''}<i class="au-line"></i></div>
   <span class="msg"></span></div>`;
+/* ---------- окно входа (по образцу владельца): слева агент владельца с табличкой 18+ на оранжевом, справа вход через Steam
+   с двумя галочками (18+ и правила). Открывается везде, где сайт просит войти; вход по почте — старое окно (openAuthMail) по ссылке внизу ---------- */
 function openAuth(tab = 'login') {
+  const ok = ageOk();
+  const m = modal(`<div class="lg">
+    <div class="lg-art" aria-hidden="true"><span class="lg-pill"><b>18+</b><span>Только для<br>взрослых</span></span><div class="lg-fig"><img src="assets/login-agent.webp" alt="" decoding="async"></div></div>
+    <div class="lg-main">
+      <h2>Вход на RUSH CASE</h2>
+      <p class="lg-sub">Сервис доступен только совершеннолетним пользователям (18+). Авторизуясь через Steam, вы подтверждаете свой возраст и принимаете условия пользования.</p>
+      <div class="lg-chks">
+        <label class="lg-chk"><input type="checkbox" id="lgAge"${ok ? ' checked' : ''}><i>${ic.check}</i><span>Подтверждаю, что мне больше 18 лет (18+)</span></label>
+        <label class="lg-chk"><input type="checkbox" id="lgTerms"${ok ? ' checked' : ''}><i>${ic.check}</i><span>Принимаю <a href="#/terms" class="lg-doc">правила и условия</a> использования сайта</span></label>
+      </div>
+      <button class="lg-steam" id="lgSteam">${STEAM_LOGO}<span>Войти через Steam +18</span></button>
+      <p class="lg-note">Работает на Steam. Не связано с Valve Corp</p>
+      <button class="lg-mail" id="lgMail">Войти по почте</button>
+    </div></div>`, 'm-login');
+  $('.lg-doc', m).onclick = () => closeModal();
+  $('#lgMail', m).onclick = () => openAuthMail(tab);
+  $('#lgSteam', m).onclick = () => {
+    const miss = ['#lgAge', '#lgTerms'].map(s => $(s, m)).filter(x => !x.checked);
+    if (miss.length) { // не отмечено — подсветить и «встряхнуть» пустые галочки
+      miss.forEach(x => { const l = x.closest('.lg-chk'); l.classList.remove('bad'); void l.offsetWidth; l.classList.add('bad'); });
+      return;
+    }
+    ageSave();
+    const b = $('#lgSteam', m); b.classList.add('busy'); $('span', b).textContent = 'Переход в Steam…';
+    steamLogin();
+  };
+  $$('.lg-chk input', m).forEach(x => x.onchange = () => x.closest('.lg-chk').classList.remove('bad'));
+}
+function openAuthMail(tab = 'login') {
   const m = modal(`<div class="auth au2">
     <div class="au-art" aria-hidden="true"><img src="assets/auth-art.webp" alt=""><i class="au-sweep"></i><i class="au-glow"></i><div class="au-embers">${Array.from({ length: 14 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(5, 10)}s;--dl:${rand(-10, 0)}s;--x:${rand(-30, 30)}px;--s:${rand(.6, 1.4)}"></i>`).join('')}</div></div>
     <div class="auth-main au-main">
@@ -4915,6 +5658,7 @@ function addCustomCase(r) {
     items: items.map((x, i) => ({ ...x.s, ch: x.ch / tot, fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p) };
   c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
   c.show = c.items.slice(0, 3).map(s => s.name);
+  if (PITY_SETS[r.id]) pitySetApply(c, PITY_SETS[r.id]); // состав с гарантом, как у BLAST — из кода
   const i = CASES.findIndex(x => x.id === c.id); if (i >= 0) CASES.splice(i, 1);
   CASES.push(c); CASES.sort((a, b) => a.price - b.price);
   c.block = r.block; c.isNew = !!r.is_new; if (CUSTOM_FX[r.id]) Object.assign(c, CUSTOM_FX[r.id]); applyCaseCfg(c);
@@ -4942,7 +5686,7 @@ async function loadCaseSettings() {
   CASES.forEach(c => { const r = data.find(x => x.id === c.id); c.disabled = !!(r && r.disabled); applyLuck(c, r ? +r.luck || 1 : 1); });
   // перерисовать витрину / кнопку открытия (не во время прокрутки)
   const key = location.hash.replace(/^#\/?/, '').split('/')[0];
-  if ((key === '' || key === 'cases') && !spinning) route();
+  if (key === 'cases' && !spinning) route();
   else if (key === 'case' && !spinning && $('#cc') && !$('.rl-row.done, .cc-done')) { const c = caseById(location.hash.split('/')[2]); if (c) ccIdle(c); }
 }
 function afterLogin(isNew) {
@@ -5504,7 +6248,7 @@ const sup = { th: null, ids: new Set(), ch: null, open: false, unread: 0, rated:
 const STARS = n => '★'.repeat(n) + '☆'.repeat(5 - n);
 function supMount() {
   if ($('#swFab')) return;
-  document.body.insertAdjacentHTML('beforeend', `<button class="sw-fab" id="swFab" aria-label="Чат поддержки"><span class="sw-fring" aria-hidden="true"></span><svg class="sw-fic" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4C8.8 4 3 8.9 3 15c0 3.2 1.6 6.1 4.2 8.1L6 28.2c-.1.5.4.9.9.7l5.6-2.6c1.1.3 2.3.4 3.5.4 7.2 0 13-4.9 13-11S23.2 4 16 4z" fill="currentColor"/><circle cx="10.5" cy="15" r="1.9" fill="#f5c76b"/><circle cx="16" cy="15" r="1.9" fill="#f5c76b"/><circle cx="21.5" cy="15" r="1.9" fill="#f5c76b"/></svg><span class="sw-flbl">Поддержка</span><i class="sw-fon" aria-hidden="true"></i><i class="sw-badge" id="swBadge" hidden></i></button>
+  document.body.insertAdjacentHTML('beforeend', `<button class="sw-fab" id="swFab" aria-label="Чат поддержки"><svg class="sw-fic" viewBox="0 0 32 32" aria-hidden="true"><path fill-rule="evenodd" d="M16 4C8.8 4 3 8.9 3 15c0 3.2 1.6 6.1 4.2 8.1L6 28.2c-.1.5.4.9.9.7l5.6-2.6c1.1.3 2.3.4 3.5.4 7.2 0 13-4.9 13-11S23.2 4 16 4zM8.6 15a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0-3.8 0zM14.1 15a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0-3.8 0zM19.6 15a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0-3.8 0z" fill="currentColor"/></svg><span class="sw-flbl">Поддержка</span><i class="sw-fon" aria-hidden="true"></i><i class="sw-badge" id="swBadge" hidden></i></button>
     <div class="sw-panel" id="swPanel" role="dialog" aria-label="Чат поддержки" hidden>
       <header class="sw-head"><span class="sw-ava">${ic.chat}</span><div><b>Поддержка RUSH CASE</b><small><i class="sw-dot"></i>${SUP_TIME}</small></div><button class="sw-x" id="swClose" aria-label="Закрыть">${ic.close}</button></header>
       <div class="sw-body" id="swBody"></div>
@@ -5799,8 +6543,11 @@ const admOwner = () => !admMe || admMe.role === 'owner';
 const admTabs = () => admOwner() ? ADM_TABS : ADM_TABS.filter(([k]) => admMe.perms.includes(k));
 /* каталог цен и составы встроенных кейсов → на сервер (выпадение считает сервер по этим данным); грузим, если на сайте что-то поменялось */
 async function admSync(force) {
+  // локальная копия (localhost) работает с боевой базой: состав кейсов отсюда на сервер не уходит — только с боевого сайта после выкладки
+  if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
   const cat = Object.keys(SK).map(k => [k, Math.round(SK[k].p * 100) / 100, SK[k].c || 'skin']).filter(x => x[1] > 0);
-  const cases = CASES.filter(c => !c.custom).map(c => ({ id: c.id, price: c.price, rc: !!c.rc, rate: c.rc ? 0 : RCOIN_RATE(c), maxn: c.farm ? c.farm.maxN : 7, sell_below: c.farm ? c.farm.sellBelow : null, items: c.items.map(x => ({ n: x.name, ch: x.ch0 != null ? x.ch0 : x.ch, ...(c.pity && (x.r === 'covert' || x.r === 'rare') ? { g: x.r } : {}) })) })); // g — группа для гаранта (supabase/cs2_pity.sql)
+  // srvSync — кейс из админки с составом из кода (PITY_SETS): уходит в cases_srv, сервер берёт его раньше custom_cases
+  const cases = CASES.filter(c => !c.custom || c.srvSync).map(c => ({ id: c.id, price: c.price, rc: !!c.rc, rate: c.rc ? 0 : RCOIN_RATE(c), maxn: c.farm ? c.farm.maxN : 7, sell_below: c.farm ? c.farm.sellBelow : null, items: c.items.map(x => ({ n: x.name, ch: x.ch0 != null ? x.ch0 : x.ch, ...(c.pity && (x.r === 'covert' || x.r === 'rare') ? { g: x.r } : {}) })) })); // g — группа для гаранта (supabase/cs2_pity.sql)
   const str = JSON.stringify(cases) + cat.length + cat.reduce((a, x) => a + x[1], 0).toFixed(2);
   let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
   const ver = (h >>> 0).toString(36);
@@ -5964,7 +6711,7 @@ const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
 const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash', 'build'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'promo', 'tours', 'staff'], 'globe']];
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['news', 'Новости'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -6498,6 +7245,7 @@ function admDraw() {
   if (admTab === 'staff') return admStaff(box);
   if (admTab === 'tours') return admTours(box);
   if (admTab === 'shop') return admCases(box);
+  if (admTab === 'news') return admNews(box);
   if (admTab === 'support') return admSupport(box);
   if (admTab === 'promo') return admPromo(box);
   if (admTab === 'build') return admBuild(box);
@@ -6975,6 +7723,83 @@ function admBanners(el) {
   };
   draw();
 }
+/* ---------- новости главного экрана (вкладка «Новости», только владелец): 4 карточки — тексты, картинка или видео, куда ведёт кнопка, скрыть.
+   Сохраняются в site_cfg 'news'; картинки и видео — в хранилище case-img ---------- */
+const NEWS_SLOTS = { top: 'Верхняя — видео или картинка', promo: 'Вторая — промо со светлой полосой', pass: 'Третья — зелёная', feed: 'Нижняя — «Новое и популярное» (сама листает новые и популярные кейсы)' };
+const NEWS_FIELDS = {
+  top: [['tag', 'Метка', 'Новость'], ['note', 'Рядом с меткой', 'сегодня'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['text', 'Полный текст — на странице «Новости»', '', 1], ['link', 'Кнопка ведёт', '#/crash или https://…'], ['btn', 'Надпись на кнопке', 'Перейти']],
+  promo: [['kicker', 'Надпись над заголовком', 'Играть'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['text', 'Полный текст — на странице «Новости»', '', 1], ['link', 'Кнопка ведёт', '#/crash или https://…'], ['btn', 'Надпись на кнопке', 'Играть']],
+  pass: [['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['text', 'Полный текст — на странице «Новости»', '', 1], ['link', 'Кнопка ведёт', '#/build или https://…'], ['btn', 'Надпись на кнопке', 'Перейти']],
+  feed: [['tag', 'Заголовок', 'Новое и популярное'], ['more', 'Ссылка на все кейсы', 'Показать все…']],
+};
+// картинка новости: не шире 1280 px, WebP (или JPG, если браузер не умеет WebP)
+async function newsImgPack(file) {
+  const bmp = await createImageBitmap(file), k = Math.min(1, 1280 / bmp.width);
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(bmp, 0, 0, c.width, c.height);
+  const blob = await new Promise(res => c.toBlob(res, 'image/webp', .85));
+  return blob && blob.type === 'image/webp' ? blob : await new Promise(res => c.toBlob(res, 'image/jpeg', .88));
+}
+function admNews(el) {
+  if (!el) return;
+  let L = newsList().map(x => ({ ...x })), changed = false;
+  const draw = () => {
+    el.innerHTML = `<div class="adm-panel nwa"><div class="adm-ph"><h3>Новости на главном экране</h3><span class="adm-ph-acts">
+        <a class="btn btn-ghost btn-sm" href="#/news" target="_blank" rel="noopener">Страница «Новости»</a>
+        <button class="btn btn-ghost btn-sm" id="nwReset">Вернуть как было</button>
+        <button class="btn btn-primary btn-sm" id="nwSave"${changed ? '' : ' disabled'}>Сохранить</button></span></div>
+      <p class="bn-req">Четыре карточки слева на главном экране, как в меню CS2. Нажатие на карточку открывает страницу «Новости» сразу на этой новости.
+        Фон карточки — картинка (PNG, JPG, WebP до 12 МБ) или видео (MP4 или WebM до 25 МБ; звук не играет, видео идёт по кругу).</p>
+      <div class="nwa-list">${L.map((x, i) => `<div class="nwa-row${x.off ? ' off' : ''}" data-i="${i}">
+        <div class="nwa-hd"><b>${i + 1}. ${NEWS_SLOTS[x.kind]}</b><span class="bn-st ${x.off ? 'neg' : 'pos'}">${x.off ? 'скрыта' : 'на главной'}</span><button class="btn btn-ghost btn-sm" data-off>${x.off ? 'Показать' : 'Скрыть'}</button></div>
+        <div class="nwa-body">${x.kind === 'feed' ? '' : `<div class="nwa-media">${newsMedia(x, 'nwa-prev') || '<i class="nwa-prev"></i>'}<div class="nwa-mb">
+            <label class="btn btn-ghost btn-sm">Картинка<input type="file" data-up="img" accept="image/png,image/jpeg,image/webp" hidden></label>
+            <label class="btn btn-ghost btn-sm">Видео<input type="file" data-up="video" accept="video/mp4,video/webm" hidden></label>
+            ${x.video ? '<button class="btn btn-ghost btn-sm" data-novid>Убрать видео</button>' : ''}</div></div>`}
+          <div class="nwa-f">${NEWS_FIELDS[x.kind].map(([f, n, ph, area]) => `<label class="${area ? 'wide' : ''}"><span>${n}</span>${area
+            ? `<textarea class="inp" data-f="${f}" rows="3" placeholder="${esc(ph || '')}">${esc(x[f] || '')}</textarea>`
+            : `<input class="inp" data-f="${f}" value="${esc(x[f] || '')}" placeholder="${esc(ph || '')}" maxlength="${f === 'sub' ? 140 : 80}">`}</label>`).join('')}</div></div></div>`).join('')}</div></div>`;
+    const dirty = () => { changed = true; $('#nwSave', el).disabled = false; };
+    $$('.nwa-row', el).forEach(r => {
+      const x = L[+r.dataset.i];
+      $$('[data-f]', r).forEach(inp => inp.onchange = () => {
+        const f = inp.dataset.f, v = inp.value.trim();
+        if (f === 'link' && v && !bannerLink(v)) { toast('Ссылка: раздел сайта (#/crash, #/case/…) или https://…', 'err'); inp.value = x.link || ''; return; }
+        x[f] = f === 'link' && v ? bannerLink(v) : v; dirty();
+      });
+      $('[data-off]', r).onclick = () => { x.off = !x.off; changed = true; draw(); };
+      const nv = $('[data-novid]', r); if (nv) nv.onclick = () => { x.video = ''; x.video2 = ''; changed = true; draw(); };
+      $$('[data-up]', r).forEach(inp => inp.onchange = async e => {
+        const file = e.target.files[0]; if (!file) return;
+        const vid = inp.dataset.up === 'video';
+        if (file.size > (vid ? 25e6 : 12e6)) return toast(vid ? 'Видео больше 25 МБ' : 'Картинка больше 12 МБ', 'err');
+        const lab = inp.closest('label'); lab.classList.add('busy');
+        let blob = file, ext = (file.name.split('.').pop() || '').toLowerCase();
+        if (vid) { if (!['mp4', 'webm'].includes(ext)) ext = file.type === 'video/webm' ? 'webm' : 'mp4'; }
+        else { blob = await newsImgPack(file).catch(() => null); ext = blob && blob.type === 'image/webp' ? 'webp' : 'jpg'; }
+        if (!blob) { lab.classList.remove('busy'); return toast('Не удалось прочитать картинку', 'err'); }
+        const p = `news-${x.id}-${Date.now()}.${ext}`, stg = sb.storage.from('case-img');
+        const { error } = await stg.upload(p, blob, { upsert: true, contentType: blob.type || (ext === 'webm' ? 'video/webm' : 'video/mp4') });
+        lab.classList.remove('busy');
+        if (error) return toast('Не загружено: ' + error.message, 'err');
+        const url = stg.getPublicUrl(p).data.publicUrl;
+        if (vid) { x.video = url; x.video2 = ''; } else x.img = url;
+        changed = true; draw();
+      });
+    });
+    $('#nwReset', el).onclick = () => {
+      if (!confirm('Вернуть новости, как были изначально? Ваши тексты и картинки пропадут после сохранения.')) return;
+      L = NEWS_DEF.map(x => ({ ...x })); changed = true; draw();
+    };
+    $('#nwSave', el).onclick = async () => {
+      const v = L.map(x => { const { kind, ...o } = x; if (!o.off) delete o.off; return o; });
+      const e = await cfgSave([{ k: 'news', v }]); if (e) return cfgErr(e);
+      NEWS = v; try { localStorage.setItem('rc.news', JSON.stringify(v)); } catch (er) { /* */ }
+      changed = false; draw(); toast('Новости сохранены — на главной сразу после обновления страницы');
+    };
+  };
+  draw();
+}
 /* картинка кейса для загрузки: обрезаем прозрачные края, делаем WebP 900 px (страница) и 440 px (витрина); null — если браузер не умеет WebP */
 async function admImgPack(file) {
   const bmp = await createImageBitmap(file);
@@ -7004,7 +7829,7 @@ function admCaseEditor(row, done, base) {
   let itemsDirty = false;
   const blocks = CASE_BLOCKS.filter(b => !!b.rc === !!(base && base.rc));
   const m = modal(`<div class="ced">
-    <h2>${edit ? `Изменить кейс «${esc(E.name)}»` : 'Новый кейс'}</h2>
+    <h2>${edit ? `Изменить кейс «${esc(E.name)}»` : 'Новый кейс'}</h2>${row && PITY_SETS[row.id] ? '<p class="ced-note">Состав этого кейса задан в коде сайта (гарант 75/150, как у BLAST, — PITY_SETS в js/app.js): предметы и шансы ниже на открытие не влияют. Название, цена, картинка и раздел работают как обычно.</p>' : ''}
     <div class="ced-grid">
       <div class="ced-left">
         <label class="ced-img" id="cedImgBox">${E.img ? `<img src="${esc(E.img)}" alt="">` : `<span>${ic.plus}Загрузить картинку<small>PNG/WebP с прозрачным фоном</small></span>`}<input type="file" id="cedFile" accept="image/png,image/webp,image/jpeg" hidden></label>
@@ -7751,7 +8576,7 @@ function buildNameAsk(names) {
    затем подсвеченные карточки ветром летят в профиль (аватарка в шапке) */
 function buildFlyAway(items, done) {
   const from = $('.bd-case');
-  const goHome = () => { if (location.hash !== '#/' && location.hash !== '') location.hash = '#/'; };
+  const goHome = () => { if (location.hash !== '#/cases') location.hash = '#/cases'; };
   if (!from || !document.body.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { goHome(); return done && done(); }
   const a = from.getBoundingClientRect();
   const sx = a.left + a.width / 2, sy = a.top + a.height * .42;
@@ -9188,7 +10013,7 @@ function tutPlace(anim) {
   else ar.style.top = Math.max(22, Math.min(ch - 22, y + h / 2 - cy)) + 'px', ar.style.left = '';
 }
 const ROUTES = {
-  '': [pageCases, mountCases], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
+  '': [pageMain, mountMain], krot: [pageKrot, null], invite: [pageInvite, null], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer],
 };
@@ -9198,7 +10023,7 @@ var ioPause = 'IntersectionObserver' in window ? new IntersectionObserver(es => 
 function ioScan() { if (ioPause) $$('.case-card, .hero3, .rl-stage').forEach(el => ioPause.observe(el)); }
 function route() {
   if (ioPause) ioPause.disconnect();
-  clearTimers(); spinning = false; spinId++; crStop(); // краш: при уходе — тишина и без нагрузки
+  clearTimers(); spinning = false; spinId++; crStop(); mnaStop(); // краш: при уходе — тишина и без нагрузки
   $$('.cr-shock').forEach(x => x.classList.remove('cr-shock')); // тряска от взрыва не должна оставаться на шапке
   const parts = location.hash.replace(/^#\/?/, '').split('/');
   const key = parts[0] || '';
@@ -9213,15 +10038,21 @@ function route() {
   document.body.classList.toggle('pg-crash', key === 'crash');
   document.body.classList.toggle('pg-build', key === 'build');
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
+  document.body.classList.toggle('pg-home', key === '' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite'); // «Крот», «Пригласить друзей» — тот же новый фон, что у «Кейсов» // главный экран и витрина кейсов — свой фон (assets/bg-home.webp)
+  document.body.classList.toggle('pg-main', key === ''); // на главном экране тот же снимок, но чёткий (assets/bg-main.webp)
+  document.body.classList.toggle('pg-cases', key === 'cases');
+  document.body.classList.toggle('pg-bonus', key === 'bonus'); // «Бонусы» — тот же размытый снимок, что у «Кейсов» (как на образце владельца) // страница «Кейсы» — тот же снимок, слегка размытый (assets/bg-cases.webp)
+  document.documentElement.classList.toggle('no-scroll', key === ''); // главный экран не прокручивается, подвала нет — как меню игры
   document.body.classList.toggle('pg-c2', !!$('.c2p')); // CS2 CASE на ПК — во весь экран, без подвала
   c2Wind(!!$('.c2p')); // ветер на фоне — только на странице CS2 CASE
   if (!$('.c2p')) document.body.classList.remove('c2-nolive'); // «Скрыть LIVE» действует только на странице CS2 CASE
   document.body.classList.toggle('pg-tower', key === 'tower'); // «Башня» — свой фон (assets/bg-tower.webp) // «Собери сам» — свой фон (assets/bg-build.webp)
-  const navKey = key === '' || key === 'case' || key === 'build' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
+  luRankDraw();
+  const navKey = key === 'case' || key === 'build' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Режим КРОТ', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', news: 'Новости', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
@@ -9259,5 +10090,5 @@ document.addEventListener('error', e => {
 /* ---------- init ---------- */
 renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit(); supMount(); streamerApply(); // кнопка чата поддержки — на всех страницах
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
-// экран загрузки закрывается сам (index.html: window.plFinish) — по окончании загрузки или через 7 с
+// заставка при открытии сайта закрывается сама (index.html #intro, js/intro.js)
 })();
