@@ -182,7 +182,10 @@ function unlisten() {
 function onKey(e, down) {
   if (!root || view !== 'room') return;
   const inp = e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
-  if (e.code === 'KeyV' && !inp && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); if (!e.repeat || !down) vcKey(down); return; }   // зажать V — говорить
+  if (e.code === 'KeyV' && !e.ctrlKey && !e.metaKey && !e.altKey) {   // зажать V — говорить; отпускание — всегда (даже в чате), иначе микрофон «залипает» открытым
+    if (!down) { vcKey(false); if (!inp) e.preventDefault(); return; }
+    if (!inp) { e.preventDefault(); if (!e.repeat) vcKey(true); return; }
+  }   // зажать V — говорить
   if (e.key === 'Tab' && !$('.modal-ov')) { e.preventDefault(); if (down && !e.repeat && ov !== 'players') { plTemp = true; showPlayers(true); } else if (!down && plTemp) showPlayers(false); return; }
   if (!down) return;
   if (e.key === 'Escape') { if (inp) { e.target.blur(); return; } if (ov) { closeOv(); return; } return; }
@@ -551,7 +554,7 @@ function drawBusy(on) { if (root) root.classList.toggle('busy', on); }
 function ensureHandlers() {
   if (root._krH) return; root._krH = true;
   root.addEventListener('click', onClick); root.addEventListener('submit', onSubmit);
-  root.addEventListener('focusin', e => { if (e.target.id === 'krIn') openChat(true); });
+  root.addEventListener('focusin', e => { if (e.target.id === 'krIn') { openChat(true); vcKey(false); } });
   root.addEventListener('input', e => { const t = e.target; if (t.dataset.vol) { const p = S && S.players.find(q => q.seat === +t.dataset.vol); if (p) vcPlayerVol(p, t.value / 100); } else if (t.dataset.thr) { vcSet('thr', t.value / 100); const m = $('.kr-thr', root); if (m) m.style.left = t.value + '%'; } });
   root.addEventListener('change', e => { const t = e.target; if (t.dataset.dev) vcSet(t.dataset.dev, t.value); else if (t.dataset.chk) vcSet(t.dataset.chk, t.checked); });
 }
@@ -848,8 +851,10 @@ function ovHtml(kind, arg) {
       ${sink ? '<label class="kr-micl"><span>Динамики</span><select data-dev="spk" aria-label="Динамики"><option value="">По умолчанию</option></select></label>' : ''}
       <label class="kr-chk"><input type="checkbox" data-chk="self"${VC.self ? ' checked' : ''}><span>Выключить мой микрофон</span></label>
       <label class="kr-chk"><input type="checkbox" data-chk="deaf"${VC.deaf ? ' checked' : ''}><span>Выключить весь звук игроков</span></label>
+      <label class="kr-chk"><input type="checkbox" data-chk="guard"${VC.guard ? ' checked' : ''}><span>Подавление эха (пока говорят другие, микрофон пропускает только явную речь)</span></label>
+      ${VC.aec ? '' : '<p class="kr-micst warn">Браузер не включил эхоподавление — говорите через наушники и в режиме «Зажать V».</p>'}
       <div class="kr-la"><button class="kr-btn sm" data-a="spk">Проверить звук</button>${VC.micErr ? '<button class="kr-btn sm go" data-a="mic-retry">Включить микрофон</button>' : ''}</div>
-      <p class="kr-fine">Голос идёт напрямую между игроками, без сервера. Если с кем-то не соединилось — дело в сети, пишите в чат.</p></section>`;
+      <p class="kr-fine">Слышите себя с задержкой? Нажмите Tab и говорите: у кого при этом загорается значок — у того микрофон ловит звук из наушников (или идёт трансляция игры со звуком, например в Discord). Заглушите его кнопкой динамика. Голос идёт напрямую между игроками; если с кем-то не соединилось — пишите в чат.</p></section>`;
   }
   if (kind === 'leave') return `<section class="kr-rep kr-glass">${x}<span class="kr-h">Выход</span><h2 class="kr-t">Покинуть матч?</h2><p>Матч поставят на паузу, а если вы не вернётесь за 30 секунд — раунд отменят для всех.</p>
     <div class="kr-la"><button class="kr-btn red" data-a="leave-yes">Выйти</button><button class="kr-btn go" data-a="close">Остаться</button></div></section>`;
@@ -1526,6 +1531,7 @@ function voiceCore(o) {
 }
 
 const VC = { core: null, room: 0, seat: 0, sid: '', ready: false, sendRaw: null, mic: null, track: null, ac: null, an: null, buf: null, lvl: 0,
+  guard: LS.get('echoguard', true), aec: true, loudUntil: 0,
   mode: LS.get('vmode', 'ptt'), thr: LS.get('vthr', .1), deaf: LS.get('deaf', false), self: LS.get('selfmute', false), vol: LS.get('vvol', {}), mute: LS.get('vmute', {}),
   rem: {}, ptt: false, tx: false, txUntil: 0, err: '', micErr: '', tick: 0, helloAt: 0, needTap: false, demo: false, spkFake: {} };
 const vkey = p => p ? String(p.pid || p.name || p.seat) : '';
@@ -1566,6 +1572,7 @@ async function vcMic(dev) {
   if (VC.room !== room0 || !VC.room) { st.getTracks().forEach(t => t.stop()); return; }
   if (VC.mic) VC.mic.getTracks().forEach(t => t.stop());
   VC.mic = st; VC.track = st.getAudioTracks()[0] || null; VC.micErr = '';
+  try { const ss = VC.track && VC.track.getSettings ? VC.track.getSettings() : {}; VC.aec = ss.echoCancellation !== false; } catch (e) { VC.aec = true; }
   if (VC.track) VC.track.enabled = false;
   if (VC.core) VC.core.setTrack(VC.track);
   try {
@@ -1604,20 +1611,25 @@ const rms = (an, buf) => { an.getFloatTimeDomainData(buf); let s = 0; for (let i
 function vcTick() {
   const now = Date.now();
   VC.lvl = VC.an ? Math.min(1, rms(VC.an, VC.buf) * 5) : 0;
-  // передаю ли я: V зажата или «голосом» выше порога (с хвостом 0,4 с), микрофон не выключен
-  if (VC.mode === 'vad' && VC.lvl > VC.thr) VC.txUntil = now + 400;
-  const tx = !!VC.track && !VC.self && (VC.mode === 'ptt' ? VC.ptt : now < VC.txUntil);
-  if (VC.track && VC.track.enabled !== tx) VC.track.enabled = tx;
-  if (tx !== VC.tx) { VC.tx = tx; vcDraw(); }
-  // кто говорит (по громкости)
+  // кто говорит у остальных (по громкости); заодно — слышу ли я сейчас кого-то (heard)
+  let heard = 0;
   for (const s of [1, 2, 3, 4]) {
     if (s === VC.seat) continue;
     const r = VC.rem[s]; let on = false;
-    if (r && r.an && !(r.audio && r.audio.muted)) { const l = rms(r.an, r.buf); if (l > .02) r.until = now + 280; on = now < (r.until || 0); }
+    if (r && r.an && !(r.audio && r.audio.muted)) { const l = rms(r.an, r.buf); heard = Math.max(heard, l); if (l > .02) r.until = now + 280; on = now < (r.until || 0); }
     if (VC.spkFake[s] && now < VC.spkFake[s]) on = true;
     if (r) r.spk = on; else if (on) (VC.rem[s] = {}).spk = on;
     if (G) G.speak(s, on);
   }
+  // передаю ли я: V зажата или «голосом» выше порога (хвост 0,4 с), микрофон не выключен.
+  // Подавление эха: пока я слышу других, микрофон пропускает только явную речь (громче 0,25) — тихий звук
+  // из наушников, который ловит гарнитура, обратно не уходит, и никто не слышит сам себя с задержкой.
+  if (VC.lvl > .25) VC.loudUntil = now + 500;
+  const gate = VC.guard && heard > .02 && now > (VC.loudUntil || 0);
+  if (VC.mode === 'vad' && VC.lvl > VC.thr) VC.txUntil = now + 400;
+  const want = !!VC.track && !VC.self && (VC.mode === 'ptt' ? VC.ptt : now < VC.txUntil), tx = want && !gate;
+  if (VC.track && VC.track.enabled !== tx) VC.track.enabled = tx;
+  if (want !== VC.tx) { VC.tx = want; vcDraw(); }   // «В эфире» — пока V зажата (подавление эха индикатором не мигает)
   // повторный привет тем, с кем ещё нет связи (новый игрок, обновил страницу, сорвалось)
   if (VC.core && VC.ready && now - VC.helloAt > 8000 && S && S.players.some(p => !p.me && !p.left && VC.core.state(p.seat) !== 'connected')) { VC.helloAt = now; VC.core.hello(); }
   if (ov === 'players' || ov === 'voice') vcLiveOv();
@@ -1668,6 +1680,7 @@ function vcSet(k, v) {
   if (k === 'thr') { VC.thr = v; LS.set('vthr', v); }
   if (k === 'deaf') { VC.deaf = v; LS.set('deaf', v); vcApplyVol(); }
   if (k === 'self') { VC.self = v; LS.set('selfmute', v); }
+  if (k === 'guard') { VC.guard = v; LS.set('echoguard', v); }
   if (k === 'mic') { LS.set('mic', v); if (VC.room) vcMic(v); }
   if (k === 'spk') { LS.set('spk', v); for (const s in VC.rem) { const a = VC.rem[s].audio; if (a && a.setSinkId) a.setSinkId(v).catch(() => { /* нет */ }); } }
   vcDraw();
@@ -1804,9 +1817,10 @@ function mmApply(s) {
   } else if (MM.match) { MM.match = 0; mmTitle(false); if (!gameNew) { mmSound('ready', false); mmPopupClose(); } }
   // все приняли → звук запуска, 4/4 на секунду, экран загрузки игры
   if (gameNew) {
-    MM.game = s.game; mmTitle(false); mmSound('ready', false); mmSound('connect');
+    MM.game = s.game; mmTitle(false); mmSound('ready', false);
     const g = s.game, ov = document.getElementById('krmmOv');
-    if (ov) { mmPopupAll(); setTimeout(() => { mmPopupClose(); goGame(g); }, 900); } else goGame(g);
+    if (!MM.accepted && document.visibilityState !== 'visible') { mmPopupClose(); }   // фоновая вкладка: игра уже открыта там, где приняли
+    else { mmSound('connect'); if (ov) { mmPopupAll(); setTimeout(() => { mmPopupClose(); goGame(g); }, 900); } else goGame(g); }
   }
   if (!s.game) MM.game = 0;
   mmDraw();
@@ -2237,5 +2251,5 @@ const Demo = (() => {
   D.skip = () => { if (st2 && st2.room.deadline) st2.room.deadline = now(); };
   return D;
 })();
-K.dbg = { voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st) };   // для проверки из браузера (подставить состояние подбора — только localhost)
+K.dbg = { voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st) };   // для проверки из браузера (подставить состояние подбора — только localhost)
 })();

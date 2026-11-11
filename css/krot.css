@@ -551,3 +551,4 @@ body.pg-krot .krmm-bar.float{display:none}
 .kr-vs input[type=range]{flex:1;accent-color:var(--amb)}
 .kr-chk{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13.5px;color:#dfe5ea;cursor:pointer}
 .kr-chk input{width:16px;height:16px;accent-color:var(--a)}
+.kr-micst.warn{color:#ffe3b5}
