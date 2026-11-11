@@ -1884,7 +1884,7 @@ function mmAudio() {
   } catch (e) { return null; }
 }
 const MM_SND = { ready: 'assets/main/krot-ready.mp3', connect: 'assets/main/krot-connect.mp3' }, mmAud = {};
-const MM_VOL = { ready: .28, connect: .12 };   // владелец: «тише, бьют по ушам»; звук загрузки — ещё тише (11.11)
+const MM_VOL = { ready: .28, connect: .32 };   // владелец: «тише, бьют по ушам»
 function mmSoundEl(k) { let a = mmAud[k]; if (!a) { a = mmAud[k] = new Audio(MM_SND[k]); a.preload = 'auto'; a.volume = MM_VOL[k] || .3; } return a; }
 function mmSound(k, on = true, force = false) {
   const a = mmSoundEl(k);

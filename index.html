@@ -80,7 +80,7 @@
       (sound || Promise.resolve(null)).then(function (buf) {
         if (!t) return; clearTimeout(t);
         if (!buf || !actx || actx.state !== 'running') return run(0);
-        var s = actx.createBufferSource(), lead = .06; s.buffer = buf; s.connect(actx.destination);
+        var s = actx.createBufferSource(), g = actx.createGain(), lead = .06; g.gain.value = .35; s.buffer = buf; s.connect(g); g.connect(actx.destination); // громкость заставки 35% (владелец 11.11: «тише»)
         s.onended = function () { actx.close(); };
         s.start(actx.currentTime + lead);
         run(Math.round((lead + (actx.outputLatency || 0) + (actx.baseLatency || 0)) * 1000));
