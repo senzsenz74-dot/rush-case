@@ -2765,9 +2765,30 @@ function pageInvite() {
     <p class="krp-t">Здесь будет статистика по приглашённым друзьям: кто зашёл по вашей ссылке, сколько потратил и сколько получили вы.</p><a class="krp-go" href="#/">На главную</a></div></section>`;
 }
 // режим КРОТ — пока заглушка (кнопка «Играть» в карточке у ног агента на главной)
+// режим «КРОТ» (#/krot): сама игра — js/krot.js + css/krot.css, грузятся только на этой странице (сервер — supabase/krot.sql)
 function pageKrot() {
-  return `<section class="krp"><div class="krp-box"><img class="krp-logo" src="${MNA.dir}krot-logo.webp?v=${MNA.v}" alt="Режим КРОТ — RUSH CASE">
-    <h1 class="krp-h">Режим «Крот»</h1><p class="krp-t">Новый режим скоро появится. Следите за новостями на главной.</p><a class="krp-go" href="#/">На главную</a></div></section>`;
+  return `<section class="kr" id="kr"><p class="kr-boot"><i class="kr-spin"></i>Загружаем режим «КРОТ»…</p></section>`;
+}
+let krotLib = null;
+function krotLoad() {
+  if (krotLib) return krotLib;
+  const v = ((($('script[src*="js/app.js"]') || {}).src || '').split('?v=')[1]) || String(Date.now());
+  const one = (tag, attrs) => new Promise((ok, no) => { const e = document.createElement(tag); Object.assign(e, attrs); e.onload = ok; e.onerror = no; document.head.appendChild(e); });
+  return (krotLib = Promise.all([one('link', { rel: 'stylesheet', href: 'css/krot.css?v=' + v }), one('script', { src: 'js/krot.js?v=' + v })]).catch(e => { krotLib = null; throw e; }));
+}
+const krotDeps = () => ({ sb, esc, openAuth, user: () => st.user, sound: () => !!st.sound });
+// главная: «плюс» у агента — группа «Крота», «Играть» на карточке — поиск матча (как в CS2). Работает и до загрузки js/krot.js.
+document.addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('#mnInvite, .mnk-go'); if (!a) return;
+  e.preventDefault();
+  try { const AC = window.AudioContext || window.webkitAudioContext; if (AC && !window.__krAC) window.__krAC = new AC(); if (window.__krAC && window.__krAC.state === 'suspended') window.__krAC.resume(); } catch (x) { /* без звука */ }
+  krotLoad().then(() => { window.KROT.mmInit(krotDeps()); if (a.id === 'mnInvite') window.KROT.mmInvite(); else window.KROT.mmPlay(); })
+    .catch(() => toast('Не удалось загрузить режим «КРОТ». Обновите страницу.', 'err'));
+});
+function mountKrot(arg) {
+  const el = $('#kr'); if (!el) return;
+  krotLoad().then(() => { if (el.isConnected && window.KROT) { window.KROT.mmInit(krotDeps()); window.KROT.mount(el, arg, krotDeps()); } })
+    .catch(() => { if (el.isConnected) el.innerHTML = '<p class="kr-boot">Не удалось загрузить режим. Проверьте интернет и обновите страницу.</p>'; });
 }
 // скрытая страница «Новости» (в меню её нет): все новости по порядку, #/news/<id> — сразу к нужной
 function pageNews() {
@@ -10013,7 +10034,7 @@ function tutPlace(anim) {
   else ar.style.top = Math.max(22, Math.min(ch - 22, y + h / 2 - cy)) + 'px', ar.style.left = '';
 }
 const ROUTES = {
-  '': [pageMain, mountMain], krot: [pageKrot, null], invite: [pageInvite, null], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
+  '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, null], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer],
 };
@@ -10023,7 +10044,7 @@ var ioPause = 'IntersectionObserver' in window ? new IntersectionObserver(es => 
 function ioScan() { if (ioPause) $$('.case-card, .hero3, .rl-stage').forEach(el => ioPause.observe(el)); }
 function route() {
   if (ioPause) ioPause.disconnect();
-  clearTimers(); spinning = false; spinId++; crStop(); mnaStop(); // краш: при уходе — тишина и без нагрузки
+  clearTimers(); spinning = false; spinId++; crStop(); mnaStop(); if (window.KROT) window.KROT.stop(); // «Крот»: при уходе — без 3D, таймеров и каналов // краш: при уходе — тишина и без нагрузки
   $$('.cr-shock').forEach(x => x.classList.remove('cr-shock')); // тряска от взрыва не должна оставаться на шапке
   const parts = location.hash.replace(/^#\/?/, '').split('/');
   const key = parts[0] || '';
@@ -10042,12 +10063,14 @@ function route() {
   document.body.classList.toggle('pg-main', key === ''); // на главном экране тот же снимок, но чёткий (assets/bg-main.webp)
   document.body.classList.toggle('pg-cases', key === 'cases');
   document.body.classList.toggle('pg-bonus', key === 'bonus'); // «Бонусы» — тот же размытый снимок, что у «Кейсов» (как на образце владельца) // страница «Кейсы» — тот же снимок, слегка размытый (assets/bg-cases.webp)
-  document.documentElement.classList.toggle('no-scroll', key === ''); // главный экран не прокручивается, подвала нет — как меню игры
+  document.documentElement.classList.toggle('no-scroll', key === '' || key === 'krot');
+  document.body.classList.toggle('pg-krot', key === 'krot'); // «Крот» — игра на весь экран: без подвала и ленты LIVE (css/krot.css) // главный экран не прокручивается, подвала нет — как меню игры
   document.body.classList.toggle('pg-c2', !!$('.c2p')); // CS2 CASE на ПК — во весь экран, без подвала
   c2Wind(!!$('.c2p')); // ветер на фоне — только на странице CS2 CASE
   if (!$('.c2p')) document.body.classList.remove('c2-nolive'); // «Скрыть LIVE» действует только на странице CS2 CASE
   document.body.classList.toggle('pg-tower', key === 'tower'); // «Башня» — свой фон (assets/bg-tower.webp) // «Собери сам» — свой фон (assets/bg-build.webp)
   luRankDraw();
+  if (window.KROT && window.KROT.mmRoute) window.KROT.mmRoute(key); // «Крот»: поиск в шапке, друзья у плюса, кнопка «Играть»
   const navKey = key === 'case' || key === 'build' ? 'cases' : key === 'tournament' ? 'tournaments' : key === 'u' ? 'top' : key;
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
@@ -10089,6 +10112,7 @@ document.addEventListener('error', e => {
 
 /* ---------- init ---------- */
 renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit(); supMount(); streamerApply(); // кнопка чата поддержки — на всех страницах
+try { if (localStorage.getItem('krot:mm') && st.user) krotLoad().then(() => window.KROT.mmInit(krotDeps())).catch(() => { /* без подбора */ }); } catch (e) { /* приватный режим */ } // «Крот»: была группа или поиск — продолжаем
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
 // заставка при открытии сайта закрывается сама (index.html #intro, js/intro.js)
 })();

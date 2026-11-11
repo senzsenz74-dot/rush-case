@@ -6219,3 +6219,4 @@ body.pg-bonus::after{background:radial-gradient(120% 85% at 50% 0%,rgba(6,8,12,.
 .ivp-plus{display:block;width:44px;height:41px;margin:6px auto 16px;color:#fff;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
 .ivp-plus svg{width:100%;height:100%}
 .ivp-soon{margin:0 0 10px;font:500 44px/1 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase;color:#84d9fd}
+.kr-boot{display:flex;align-items:center;justify-content:center;gap:8px;min-height:50vh;margin:0;color:rgba(233,237,242,.6);font-size:14px} /* «Крот»: пока грузятся js/krot.js и css/krot.css */
