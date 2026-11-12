@@ -1169,7 +1169,7 @@ function rankIcon(r, i) { return `<img class="rank-ic" src="assets/ranks/r${i + 
 
 /* ---------- state ---------- */
 const KEY = 'rushcase.v1';
-const freshProfile = () => ({ balance: 0, rcoin: 0, rlog: [], inv: [], bc: [], stats: { opened: 0, spent: 0, upg: 0, upgWin: 0, con: 0, best: null, dep: 0 }, daily: 0, promos: [], depBonus: 0, socials: [], trade: '', pity: {} });
+const freshProfile = () => ({ balance: 0, rcoin: 0, rlog: [], inv: [], bc: [], stats: { opened: 0, spent: 0, upg: 0, upgWin: 0, con: 0, best: null, dep: 0 }, daily: 0, promos: [], depBonus: 0, socials: [], trade: '', cmail: '', pity: {} });
 const DEF = () => ({ user: null, ...freshProfile(), sound: true, fast: false, upgFast: false, accounts: {} });
 let st;
 try {
@@ -1180,7 +1180,7 @@ try {
 /* ---------- база Supabase: аккаунты, профиль, общие ставки ---------- */
 const SB_URL = 'https://gkeexoyrxnsarosymdyp.supabase.co', SB_KEY = 'sb_publishable_oczOEZFsdpzmwq8FB4Of_Q_A_JSZ3zt'; // публичный ключ — ему место в коде
 const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
-const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'bc', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade', 'umults', 'pity'];
+const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'bc', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade', 'cmail', 'umults', 'pity'];
 let sbSaveT = 0;
 // профиль пишется в базу с задержкой (пачкой), локально — сразу
 async function sbPush() {
@@ -1206,7 +1206,7 @@ function sbApply(d) {
 }
 const SRV_ERR = { 'weekly locked': 'Сначала откройте 20 кейсов от 50 ₽ за неделю', 'weekly taken': 'Награда этой недели уже получена', 'weekly item': 'Набор обновился — откройте его заново', 'weekly empty': 'Набор сейчас недоступен', 'bad name': 'Название — от 2 до 24 символов', 'build price changed': 'Цены скинов обновились — обновите страницу', 'too many cases': 'В инвентаре уже 50 неоткрытых кейсов — откройте их', 'case not found': 'Этот кейс уже открыт', 'bad build': 'В кейсе должно быть от 4 до 20 скинов', 'amount mismatch': 'Сумма оплаты не совпала — напишите в поддержку', 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'bad build': 'В кейсе должно быть от 3 до 20 скинов', 'build price changed': 'Цены обновились — проверьте цену кейса и откройте ещё раз', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
   'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку', 'withdraw limit': 'Лимит выводов на сегодня исчерпан — попробуйте завтра',
-  'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка',
+  'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка', 'bad email': 'Проверьте адрес почты',
   'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
 // вызов серверной функции: при ошибке — понятное сообщение и null
 async function srv(fn, args) {
@@ -1453,10 +1453,17 @@ const Snd = {
     else { this.noise(.03 + slow * .03, .38 + slow * .35, 0, 3200 - slow * 1800, 1.3); this.tone(1400 - slow * 600, .02, 'square', .03, 0, 700); }
     if (slow > .35) this.tone(120 - slow * 40, .06 + slow * .05, 'sine', slow * .28, 0, 55);
   },
+  // прокрутка апгрейда (владелец 12.11: «как в кс2») — щелчок рулетки CS2 CASE из «Рулетка.mp3» владельца; без файла — прежний храповик
+  upgTick(speed = 1, tense = 0) {
+    if (this.bufs.c2tick) this.play('c2tick', 1.1 + tense * .15, .98 + Math.random() * .04);
+    else this.safeTick(speed, tense);
+  },
   // напряжение: удар сердца (двойной)
   heart(vol = .5) { this.tone(62, .16, 'sine', vol, 0, 40); this.noise(.08, vol * .25, 0, 180, .7, 'lowpass'); this.tone(55, .2, 'sine', vol * .75, .17, 36); },
   // «почти попал» — вздох-свист вниз
   nearMiss() { this.noise(.55, .22, 0, 1200, 3, 'bandpass', .12); this.tone(880, .5, 'sine', .07, 0, 330, .05); },
+  // кнопки апгрейда (файлы владельца 12.11): выбор предмета/множителя — «Кнопки апгрейд», остальное — «Кнопки апгрейд 2»
+  upgBtn(main = false) { this.play(main ? 'upgBtn' : 'upgBtn2', main ? .7 : 1); },
   // победа: тяжёлый замок сейфа → дверь со скрипом → звон монет
   safeWin() {
     this.tone(60, .6, 'sine', .7, 0, 32); this.noise(.12, .8, 0, 1600, .9); this.tone(1250, .9, 'sine', .07, 0); this.tone(3450, .6, 'sine', .035, 0);
@@ -1477,8 +1484,12 @@ const Snd = {
 
 Snd.preload('lock', 'assets/sounds/lock.wav');
 Snd.preload('tick', 'assets/sounds/tick.wav');
+Snd.preload('c2tick', 'assets/cs2case/snd/tick.wav?v=1'); // щелчок рулетки CS2 — на прокрутке апгрейда
 [1, 2, 3].forEach(n => Snd.preload('safe' + n, 'assets/sounds/safe-tick-' + n + '.wav'));
 Snd.preload('upgWin', 'assets/sounds/upgrade-win.wav');
+// звуки апгрейда — файлы владельца 12.11 («Оформление сайта»): победа, проигрыш («…АПГРЕЙДЕ1»), перед прокруткой, кнопки
+Snd.preload('upgWinF', 'assets/sounds/upg/win.wav'); Snd.preload('upgLose', 'assets/sounds/upg/lose1.wav'); Snd.preload('upgStart', 'assets/sounds/upg/start.wav');
+Snd.preload('upgBtn', 'assets/sounds/upg/btn.wav'); Snd.preload('upgBtn2', 'assets/sounds/upg/btn2.wav');
 Snd.preload('c4Tick', 'assets/sounds/c4-tick.mp3'); Snd.preload('c4Beep', 'assets/sounds/c4-beep.mp3'); Snd.preload('c4Plant', 'assets/sounds/c4-plant.mp3'); Snd.preload('c4Boom', 'assets/sounds/c4-boom.mp3');
 // звуки контрактов
 Snd.preload('conOpen', 'assets/sounds/con-open.mp3'); Snd.preload('conAdd', 'assets/sounds/con-add.mp3'); Snd.preload('conSign', 'assets/sounds/con-sign.mp3');
@@ -4193,91 +4204,83 @@ const UPG_DEF_MULTS = [1.5, 2, 2.5, 3, 5, 10];
 const upgMults = () => Array.isArray(st.umults) && st.umults.length === 6 ? st.umults.map(Number) : UPG_DEF_MULTS;
 const multTxt = m => 'x' + String(+(+m).toFixed(1)).replace('.', ',');
 const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c; };
+/* апгрейд — новый стиль CS2 (12.11): деления колеса — короткие каждые 5°, длинные каждые 30° */
+const ugTicks = long => Array.from({ length: 72 }, (_, i) => i).filter(i => (i % 6 === 0) === long).map(i => {
+  const a = i * 5 * Math.PI / 180, r1 = long ? 152 : 154, r2 = 159, p = r => `${(160 + r * Math.sin(a)).toFixed(2)} ${(160 - r * Math.cos(a)).toFixed(2)}`;
+  return `M${p(r1)}L${p(r2)}`;
+}).join('');
+const UG_IC = {
+  stake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+  goal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.5 2 4.5 13.6h6.2L9.8 22l9-11.7h-6.2z"/></svg>'
+};
 function pageUpgrade() {
-  return `<section class="container upg">
-    <div class="page-head"><h1>Апгрейд <em>скинов</em></h1><p>Соберите ставку из одного или нескольких скинов и/или баланса и выберите скин дороже. Если стрелка остановится в цветной зоне — скин ваш.</p></div>
-    <div class="upg-main">
-      <div class="upg-slot" id="upgFrom"></div>
-      <div class="upg-center">
-        <div class="wheel" id="wheel">
-          <svg viewBox="0 0 320 320">
-            <defs>
-              <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#22c55e"/><stop offset=".5" stop-color="#facc15"/><stop offset="1" stop-color="#ef4444"/></linearGradient>
-              <radialGradient id="innerGrad"><stop offset="0" stop-color="#1f1b15"/><stop offset="1" stop-color="#0b0a09"/></radialGradient>
-              <linearGradient id="rimOut" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a5650"/><stop offset=".5" stop-color="#2a2825"/><stop offset="1" stop-color="#141311"/></linearGradient>
-              <linearGradient id="rimIn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#121110"/><stop offset=".5" stop-color="#2a2825"/><stop offset="1" stop-color="#5f5a52"/></linearGradient>
-              <!-- внутренняя тень: канава утоплена, свет сверху -->
-              <filter id="groove" filterUnits="userSpaceOnUse" x="0" y="0" width="320" height="320">
-                <feComponentTransfer in="SourceAlpha" result="inv"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>
-                <feGaussianBlur in="inv" stdDeviation="4"/><feOffset dy="5" result="off"/>
-                <feFlood flood-color="#000" flood-opacity=".95"/><feComposite in2="off" operator="in"/>
-                <feComposite in2="SourceAlpha" operator="in" result="sh"/>
-                <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="sh"/></feMerge>
-              </filter>
-              <!-- внутренняя тень канавы: темнее у краёв, глубже у внешнего борта -->
-              <radialGradient id="depthGrad" gradientUnits="userSpaceOnUse" cx="160" cy="160" r="151">
-                <stop offset=".835" stop-color="#000" stop-opacity=".85"/><stop offset=".87" stop-color="#000" stop-opacity=".35"/><stop offset=".905" stop-color="#000" stop-opacity="0"/>
-                <stop offset=".93" stop-color="#000" stop-opacity=".15"/><stop offset=".97" stop-color="#000" stop-opacity=".7"/><stop offset="1" stop-color="#000" stop-opacity=".95"/>
-              </radialGradient>
-              <linearGradient id="depthTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".5" stop-color="#000" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
-              <filter id="soft"><feGaussianBlur stdDeviation="1.2"/></filter>
-            </defs>
-            <circle cx="160" cy="160" r="156" class="w-ticks"/>
-            <circle cx="160" cy="160" r="${ARC_R + 13}" class="w-rim-o"/>
-            <circle cx="160" cy="160" r="${ARC_R}" class="w-track" filter="url(#groove)"/>
-            <g filter="url(#groove)"><path class="w-arc" id="wArc" d="M0 0"/></g>
-            <path class="w-arc-gloss" id="wArcGloss" d="M0 0" filter="url(#soft)"/>
-            <circle cx="160" cy="160" r="${ARC_R}" class="w-depth"/><circle cx="160" cy="160" r="${ARC_R}" class="w-depth2"/>
-            <circle cx="160" cy="160" r="${ARC_R - 13}" class="w-rim-i"/>
-            <circle cx="160" cy="160" r="116" class="w-inner"/>
-            <circle cx="160" cy="160" r="104" class="w-dash"/>
-          </svg>
-          <div class="w-ptr" id="wPtr"><svg class="w-tri" viewBox="0 0 40 48" aria-hidden="true">
-            <defs>
-              <linearGradient id="triL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d5d9e0"/></linearGradient>
-              <linearGradient id="triR" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a7adb7"/><stop offset="1" stop-color="#6b717c"/></linearGradient>
-              <linearGradient id="triT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e9ecf1"/></linearGradient>
-            </defs>
-            <path d="M20 46 L2.5 4.5 L20 12 Z" fill="url(#triL)"/>
-            <path d="M20 46 L37.5 4.5 L20 12 Z" fill="url(#triR)"/>
-            <path d="M2.5 4.5 L37.5 4.5 L20 12 Z" fill="url(#triT)"/>
-            <path d="M20 46 L2.5 4.5 L37.5 4.5 Z" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="1" stroke-linejoin="round"/>
-            <path d="M20 44 L20 13" stroke="rgba(255,255,255,.55)" stroke-width=".8"/>
-          </svg></div>
-          <div class="w-center"><b id="wChance">0%</b><span id="wLabel">шанс</span></div>
-        </div>
-        <label class="switch upg-fast"><input type="checkbox" id="upgFastChk"${st.upgFast ? ' checked' : ''}><i></i>Быстрая прокрутка</label>
-        <div class="mults" id="upgMults"></div>
-        <button class="btn btn-primary btn-xl" id="upgBtn">${ic.up}Апгрейд</button>
-      </div>
-      <div class="upg-slot" id="upgTo"></div>
+  return `<section class="container upg ug2">
+    <div class="ug-head">
+      <div class="ug-ttl"><h1>Апгрейд</h1><p>Соберите ставку из скинов и/или баланса и выберите предмет дороже. Стрелка остановится на голубой дуге — предмет ваш.</p></div>
+      <label class="ug-fast" title="Прокрутка за 2 секунды вместо 9"><input type="checkbox" id="upgFastChk"${st.upgFast ? ' checked' : ''}><i></i>${UG_IC.bolt}Быстрая прокрутка</label>
     </div>
-    <div class="upg-lists">
-      <div class="panel">
-        <div class="panel-h"><h3>Ставка</h3><span class="upg-sum" id="upgSum"></span><div class="bal-wrap"><button class="btn btn-dark btn-sm" id="upgBalBtn" aria-haspopup="true"></button><div class="bal-pop hidden" id="upgBalPop"></div></div><button class="btn btn-dark btn-sm" id="upgAll">Выбрать всё</button><button class="btn btn-ghost btn-sm" id="upgClr">Очистить</button></div>
-        <div class="upg-inv" id="upgInv"></div>
-        <div class="mini-grid" id="upgSrc"></div>
+    <div class="ug-stage">
+      <div class="ug-card ug-slot" id="upgFrom"></div>
+      <div class="ug-mid">
+        <div class="ug-wheel" id="wheel">
+          <svg viewBox="0 0 320 320" aria-hidden="true">
+            <defs>
+              <filter id="ugGlow" filterUnits="userSpaceOnUse" x="0" y="0" width="320" height="320"><feGaussianBlur stdDeviation="5"/></filter>
+              <radialGradient id="ugDisc" cx="50%" cy="38%" r="62%"><stop offset="0" stop-color="#262b33"/><stop offset="1" stop-color="#0d1014"/></radialGradient>
+            </defs>
+            <circle cx="160" cy="160" r="159" class="ugw-bg"/>
+            <path class="ugw-tk" d="${ugTicks(false)}"/>
+            <path class="ugw-tk ugw-tk-l" d="${ugTicks(true)}"/>
+            <circle cx="160" cy="160" r="${ARC_R}" class="ugw-track"/>
+            <circle cx="160" cy="160" r="${ARC_R + 13}" class="ugw-edge"/>
+            <circle cx="160" cy="160" r="${ARC_R - 13}" class="ugw-edge"/>
+            <path class="ugw-glow" id="wArcGloss" d="M0 0" filter="url(#ugGlow)"/>
+            <path class="ugw-arc" id="wArc" d="M0 0"/>
+            <circle cx="160" cy="160" r="118" class="ugw-disc"/>
+            <circle cx="160" cy="160" r="108" class="ugw-dash"/>
+          </svg>
+          <div class="ugw-ptr" id="wPtr"><svg viewBox="0 0 320 320" aria-hidden="true"><path class="ugw-ndl" d="M160 6V37"/><path class="ugw-tri" d="M150 -8H170L160 6Z"/></svg></div>
+          <div class="ugw-c"><b id="wChance">0%</b><span id="wLabel">шанс</span></div>
+        </div>
+        <div class="ug-mults" id="upgMults"></div>
+        <button class="ug-go" id="upgBtn" type="button">${PF_IC.up}Апгрейд</button>
       </div>
-      <div class="panel">
-        <div class="panel-h"><h3>Желаемый предмет</h3><input class="inp" id="upgQ" placeholder="Поиск" autocomplete="off"><div class="seg" id="upgSort"><button data-s="asc">₽ ↑</button><button data-s="desc">₽ ↓</button></div></div>
-        <div class="chips upg-cats" id="upgCats">${UPG_TABS.map(([k, t]) => `<button class="chip${k === 'all' ? ' on' : ''}" data-cat="${k}">${t}</button>`).join('')}</div>
-        <div class="upg-cnt" id="upgCnt"></div>
-        <div class="mini-grid" id="upgTargets"></div>
+      <div class="ug-card ug-slot" id="upgTo"></div>
+    </div>
+    <div class="ug-lists">
+      <div class="ug-card ug-list">
+        <div class="ug-lh"><h3>Ставка</h3><span class="ug-sum" id="upgSum"></span>
+          <div class="ug-tools"><div class="bal-wrap"><button class="ug-btn" id="upgBalBtn" type="button" aria-haspopup="true"></button><div class="ug-pop hidden" id="upgBalPop"></div></div><button class="ug-btn" id="upgAll" type="button">Выбрать всё</button><button class="ug-btn ug-btn-q" id="upgClr" type="button">Очистить</button></div>
+        </div>
+        <div class="ug-info" id="upgInv"></div>
+        <div class="ug-grid" id="upgSrc"></div>
+      </div>
+      <div class="ug-card ug-list">
+        <div class="ug-lh"><h3>Желаемый предмет</h3>
+          <div class="ug-tools"><label class="ug-q">${ic.search}<input id="upgQ" placeholder="Поиск" autocomplete="off" aria-label="Поиск предмета"></label><div class="ug-seg" id="upgSort"><button type="button" data-s="asc">Дешевле</button><button type="button" data-s="desc">Дороже</button></div></div>
+        </div>
+        <div class="ug-cats" id="upgCats">${UPG_TABS.map(([k, t]) => `<button type="button" class="${k === 'all' ? 'on' : ''}" data-cat="${k}">${t}</button>`).join('')}</div>
+        <div class="ug-info" id="upgCnt"></div>
+        <div class="ug-grid" id="upgTargets"></div>
       </div>
     </div>
   </section>`;
 }
+/* карточка предмета в списках апгрейда — как в инвентаре профиля: свечение редкости за скином, при наведении кнопка по центру */
+const ugCard = (s, attrs = '', extra = '', act = 'Выбрать') => `<div class="ug-it r-${s.r}" ${attrs}><div class="ug-it-pic"><img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><span class="ug-it-act">${act}</span><span class="ug-it-ok">${UG_IC.check}</span></div>${extra}<div class="ug-it-tx"><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div></div>`;
 const mcard = (s, attrs = '', extra = '') => `<div class="mcard r-${s.r}" ${attrs}>${extra}<img src="${imgUrl(s, 's')}" alt="" loading="lazy"><div class="mc-w">${esc(s.w)}</div><div class="mc-f">${esc(s.f)}</div><div class="mc-p">${money(s.p)}</div></div>`;
 function mountUpgrade() {
-  Snd.warm(['upgWin', 'safe1', 'safe2', 'safe3', 'tick']);
+  Snd.warm(['upgWinF', 'upgLose', 'upgStart', 'upgBtn', 'upgBtn2', 'safe1', 'safe2', 'safe3', 'tick', 'c2tick']);
   upg.busy = false;
-  $('#upgFastChk').onchange = e => { st.upgFast = e.target.checked; save(); };
-  $$('#upgSort button').forEach(b => b.onclick = () => { upg.sort = b.dataset.s; drawTargets(); });
+  $('#upgFastChk').onchange = e => { st.upgFast = e.target.checked; save(); Snd.upgBtn(); };
+  $$('#upgSort button').forEach(b => b.onclick = () => { upg.sort = b.dataset.s; Snd.upgBtn(); drawTargets(); });
   $('#upgQ').oninput = e => { upg.q = e.target.value.trim().toLowerCase(); drawTargets(); };
-  $$('#upgCats [data-cat]').forEach(b => { b.classList.toggle('on', b.dataset.cat === upg.cat); b.onclick = () => { upg.cat = b.dataset.cat; upg.mult = 0; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x === b)); drawTargets(); }; });
+  $$('#upgCats [data-cat]').forEach(b => { b.classList.toggle('on', b.dataset.cat === upg.cat); b.onclick = () => { upg.cat = b.dataset.cat; upg.mult = 0; Snd.upgBtn(); $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x === b)); drawTargets(); }; });
   upg.editMults = false; drawMults();
-  $('#upgAll').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.sel = own().map(x => x.id); Snd.safeSel(true); drawUpg(); };
-  $('#upgClr').onclick = () => { if (upg.busy) return; upg.sel = []; upg.bal = 0; drawUpg(); };
+  $('#upgAll').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.sel = own().map(x => x.id); Snd.upgBtn(true); drawUpg(); };
+  $('#upgClr').onclick = () => { if (upg.busy) return; upg.sel = []; upg.bal = 0; Snd.upgBtn(); drawUpg(); };
   const pop = $('#upgBalPop');
   $('#upgBalBtn').onclick = e => {
     e.stopPropagation();
@@ -4299,10 +4302,10 @@ function mountUpgrade() {
 function setMult(m) {
   if (upg.busy) return;
   const v = upgValue(); if (!v) return toast('Сначала соберите ставку', 'err');
-  if (upg.mult === m) { upg.mult = 0; Snd.safeSel(false); return drawUpg(); }
+  if (upg.mult === m) { upg.mult = 0; Snd.upgBtn(); return drawUpg(); }
   upg.mult = m; upg.cat = 'all';
   const best = upgPickMult(v, m);
-  if (best) { upg.to = best.name; upg.cat = best.c; upg.focus = true; upg.q = ''; const q = $('#upgQ'); if (q) q.value = ''; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x.dataset.cat === upg.cat)); Snd.safeSel(true); drawUpg(); }
+  if (best) { upg.to = best.name; upg.cat = best.c; upg.focus = true; upg.q = ''; const q = $('#upgQ'); if (q) q.value = ''; $$('#upgCats [data-cat]').forEach(x => x.classList.toggle('on', x.dataset.cat === upg.cat)); Snd.upgBtn(true); drawUpg(); }
 }
 function drawMults() {
   const box = $('#upgMults'); if (!box) return;
@@ -4311,13 +4314,13 @@ function drawMults() {
     box.classList.remove('editing');
     box.innerHTML = ms.map(m => `<button data-m="${m}">${multTxt(m)}</button>`).join('') + `<button class="mult-edit" id="multEdit" title="Свои множители" aria-label="Настроить свои множители">${ic.edit}</button>`;
     $$('[data-m]', box).forEach(b => { b.classList.toggle('on', +b.dataset.m === upg.mult); b.onclick = () => setMult(+b.dataset.m); });
-    $('#multEdit').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.editMults = true; drawMults(); };
+    $('#multEdit').onclick = () => { if (upg.busy) return; if (!st.user) return openAuth('login'); upg.editMults = true; Snd.upgBtn(); drawMults(); };
     return;
   }
   box.classList.add('editing');
   box.innerHTML = `<div class="me-h">Свои множители <small>от x1,2 до x20</small></div>
     <div class="me-row">${ms.map((m, i) => `<label class="me-in"><i>x</i><input type="number" min="1.2" max="20" step="0.1" value="${+(+m).toFixed(1)}" data-i="${i}" inputmode="decimal" aria-label="Множитель ${i + 1}"></label>`).join('')}</div>
-    <div class="me-f"><button class="btn btn-ghost btn-sm" id="meDef">Стандартные</button><button class="btn btn-dark btn-sm" id="meCancel">Отмена</button><button class="btn btn-primary btn-sm" id="meSave">Сохранить</button></div>`;
+    <div class="me-f"><button class="ug-btn ug-btn-q" type="button" id="meDef">Стандартные</button><button class="ug-btn" type="button" id="meCancel">Отмена</button><button class="ug-ok" type="button" id="meSave">Сохранить</button></div>`;
   const inputs = $$('input', box);
   inputs.forEach(i => { i.oninput = () => i.parentElement.classList.remove('err'); i.onkeydown = e => { if (e.key === 'Enter') $('#meSave').click(); }; });
   inputs[0].focus(); inputs[0].select();
@@ -4330,7 +4333,7 @@ function drawMults() {
     upg.editMults = false; drawMults(); drawTargets();
     toast(arr.length ? 'Ваши множители сохранены' : 'Вернули стандартные множители');
   };
-  $('#meCancel').onclick = () => { upg.editMults = false; drawMults(); };
+  $('#meCancel').onclick = () => { upg.editMults = false; Snd.upgBtn(); drawMults(); };
   $('#meDef').onclick = () => store([]);
   $('#meSave').onclick = () => {
     let ok = true;
@@ -4339,21 +4342,25 @@ function drawMults() {
     store([...new Set(arr)].length === 6 ? arr.slice().sort((a, b) => a - b) : arr);
   };
 }
+/* слоты «Ваша ставка» / «Вы получите»: подпись и «закрыть» сверху, скин со свечением редкости, имя и цена снизу */
+const ugSlotHead = (t, xid) => `<div class="ug-sl-h"><span class="ug-lbl">${t}</span>${xid ? `<button class="ug-x" type="button" id="${xid}" aria-label="Очистить">${ic.close}</button>` : ''}</div>`;
+const ugSlotEmpty = (icon, b, small) => `<div class="ug-sl-e"><i>${icon}</i><b>${b}</b><small>${small}</small></div>`;
+const ugSlotTx = (w, f, v) => `<div class="ug-sl-tx"><span>${w}</span><b>${f}</b>${prc(v)}</div>`;
 function stakeSlot(items, v) {
-  if (!items.length && !upg.bal) return `<span class="us-label">Ваша ставка</span><div class="us-empty"><div class="plus">${ic.plus}</div>Выберите один или несколько скинов ниже и/или добавьте баланс</div>`;
-  const head = `<span class="us-label">Ваша ставка</span><button class="us-x" id="fromX" aria-label="Очистить ставку">${ic.close}</button>`;
+  if (!items.length && !upg.bal) return ugSlotHead('Ваша ставка') + ugSlotEmpty(UG_IC.stake, 'Ставка пуста', 'Выберите один или несколько скинов ниже и/или добавьте баланс');
+  const head = ugSlotHead('Ваша ставка', 'fromX');
   if (items.length === 1 && !upg.bal) {
     const s = SK[items[0].n];
-    return head + `<img src="${imgUrl(s, 'l')}" alt=""><div class="us-name"><span>${esc(s.w)}</span>${esc(s.f)}</div><div class="us-price">${money(s.p)}</div>`;
+    return head + `<div class="ug-sl-pic"><img src="${imgUrl(s, 'l')}" alt=""></div>` + ugSlotTx(esc(s.w), esc(s.f), s.p);
   }
-  if (!items.length) return head + `<div class="bal-src"><div class="coinbig">₽</div></div><div class="us-name"><span>С баланса</span>Ставка</div><div class="us-price">${money(v)}</div>`;
+  if (!items.length) return head + `<div class="ug-sl-pic ug-sl-bal"><i class="prc-i"></i></div>` + ugSlotTx('С баланса', 'Ставка', v);
   const sorted = items.slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
   const slots = upg.bal ? 3 : 4, shown = sorted.length > slots ? sorted.slice(0, slots - 1) : sorted;
-  let tiles = shown.map(x => { const s = SK[x.n]; return `<div class="us-tile r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""></div>`; }).join('');
-  if (sorted.length > shown.length) tiles += `<div class="us-tile more">+${sorted.length - shown.length}</div>`;
-  if (upg.bal) tiles += `<div class="us-tile coin"><i>₽</i><b>+${money(upg.bal)}</b></div>`;
+  let tiles = shown.map(x => { const s = SK[x.n]; return `<div class="ug-tile r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""></div>`; }).join('');
+  if (sorted.length > shown.length) tiles += `<div class="ug-tile ug-tile-n">+${sorted.length - shown.length}</div>`;
+  if (upg.bal) tiles += `<div class="ug-tile ug-tile-b"><i class="prc-i"></i><b>+${prc(upg.bal)}</b></div>`;
   const n = items.length;
-  return head + `<div class="us-stack">${tiles}</div><div class="us-name"><span>${n} ${plural(n, 'скин', 'скина', 'скинов')}${upg.bal ? ' + баланс' : ''}</span>Сумма ставки</div><div class="us-price">${money(v)}</div>`;
+  return head + `<div class="ug-stack">${tiles}</div>` + ugSlotTx(`${n} ${plural(n, 'скин', 'скина', 'скинов')}${upg.bal ? ' + баланс' : ''}`, 'Сумма ставки', v);
 }
 // случайный предмет из ВСЕХ категорий с ценой около v × m (±12%); если таких мало — ближайшие по цене
 function upgPickMult(v, m) {
@@ -4376,18 +4383,18 @@ function drawUpg() {
   let top = null;
   items.forEach(x => { const r = SK[x.n].r; if (!top || RAR[r].o > RAR[top].o) top = r; });
   const from = $('#upgFrom');
-  from.className = 'upg-slot' + (top ? ' r-' + top : '');
+  from.className = 'ug-card ug-slot' + (top ? ' r-' + top : '') + (v ? ' has' : '');
   from.innerHTML = stakeSlot(items, v);
-  const fx = $('#fromX'); if (fx) fx.onclick = () => { if (upg.busy) return; upg.sel = []; upg.bal = 0; drawUpg(); };
+  const fx = $('#fromX'); if (fx) fx.onclick = () => { if (upg.busy) return; upg.sel = []; upg.bal = 0; Snd.upgBtn(); drawUpg(); };
   // слот цели
   const to = $('#upgTo'), ts = upg.to && SK[upg.to];
-  to.className = 'upg-slot' + (ts ? ' r-' + ts.r : '');
-  to.innerHTML = ts ? `<span class="us-label">Вы получите</span><button class="us-x" id="toX" aria-label="Убрать">${ic.close}</button><img src="${imgUrl(ts, 'l')}" alt=""><div class="us-name"><span>${esc(ts.w)}</span>${esc(ts.f)}</div><div class="us-price">${money(ts.p)}</div>`
-    : `<span class="us-label">Вы получите</span><div class="us-empty"><div class="plus">${ic.star}</div>Выберите желаемый скин справа</div>`;
-  if (ts) $('#toX').onclick = () => { if (upg.busy) return; upg.to = null; drawUpg(); };
+  to.className = 'ug-card ug-slot' + (ts ? ' r-' + ts.r + ' has' : '');
+  to.innerHTML = ts ? ugSlotHead('Вы получите', 'toX') + `<div class="ug-sl-pic"><img src="${imgUrl(ts, 'l')}" alt=""></div>` + ugSlotTx(esc(ts.w), esc(ts.f), ts.p)
+    : ugSlotHead('Вы получите') + ugSlotEmpty(UG_IC.goal, 'Цель не выбрана', 'Выберите желаемый предмет в списке справа внизу или нажмите множитель');
+  if (ts) $('#toX').onclick = () => { if (upg.busy) return; upg.to = null; Snd.upgBtn(); drawUpg(); };
   // колесо
   const ch = upgChance(v, ts);
-  if (upg.lastCh != null && ch && Math.abs(ch - upg.lastCh) > .001) Snd.safeDial(ch);
+  // щелчок шкалы при смене шанса убран (владелец 12.11: на кнопках — его звуки)
   upg.lastCh = ch;
   const arc = $('#wArc');
   arc.setAttribute('d', ch ? arcPath(ch * 360) : 'M0 0');
@@ -4397,19 +4404,19 @@ function drawUpg() {
   const cEl = $('#wChance');
   cEl.textContent = ch ? pctTxt(ch) : '0%';
   cEl.style.fontSize = cEl.textContent.length > 6 ? Math.min(44, 44 * 190 / (34 * cEl.textContent.length)).toFixed(1) + 'px' : ''; // длинный процент — мельче, чтобы влезал в колесо
-  cEl.style.color = ch ? chanceColor(ch) : '';
-  $('#wLabel').textContent = ts && v ? `x${(ts.p / v).toFixed(2)}` : 'шанс';
+  cEl.style.color = ''; // цифра шанса белая, шанс показывает голубая дуга (новый стиль 12.11)
+  $('#wLabel').textContent = ts && v ? `x${(ts.p / v).toFixed(2).replace('.', ',')}` : 'шанс';
   // инвентарь (мультивыбор)
-  $('#upgSum').innerHTML = v ? `${items.length} шт.${upg.bal ? ' + баланс' : ''} · <b>${money(v)}</b>` : '';
+  $('#upgSum').innerHTML = v ? `${items.length} шт.${upg.bal ? ' + баланс' : ''} · ${prc(v)}` : '';
   const src = $('#upgSrc'), list = own().slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
   const invSum = list.reduce((t, x) => t + SK[x.n].p, 0);
-  $('#upgInv').innerHTML = list.length ? `${ic.box}В инвентаре ${list.length} ${plural(list.length, 'предмет', 'предмета', 'предметов')} на <b>${money(invSum)}</b>` : '';
-  src.innerHTML = list.length ? list.map(x => mcard(SK[x.n], `data-inv="${x.id}"`)).join('')
-    : `<div class="empty">${ic.box}${st.user ? 'Инвентарь пуст. Откройте кейс или добавьте баланс кнопкой «С баланса».' : 'Войдите, чтобы увидеть свой инвентарь.'}<a class="btn btn-primary btn-sm" href="#/cases">К кейсам</a></div>`;
+  $('#upgInv').innerHTML = list.length ? `В инвентаре ${list.length} ${plural(list.length, 'предмет', 'предмета', 'предметов')} на ${prc(invSum)}` : '';
+  src.innerHTML = list.length ? list.map(x => ugCard(SK[x.n], `data-inv="${x.id}"`, '', upg.sel.includes(x.id) ? 'Убрать' : 'Выбрать')).join('')
+    : `<div class="ug-empty">${UG_IC.stake}<b>${st.user ? 'Инвентарь пуст' : 'Вы не вошли'}</b><small>${st.user ? 'Откройте кейс или добавьте баланс кнопкой «С баланса».' : 'Войдите, чтобы увидеть свой инвентарь.'}</small><a class="ug-btn" href="#/cases">К кейсам</a></div>`;
   $$('[data-inv]', src).forEach(el => {
     const id = el.dataset.inv;
     if (upg.sel.includes(id)) el.classList.add('sel');
-    el.onclick = () => { if (upg.busy) return; const on = !upg.sel.includes(id); upg.sel = on ? [...upg.sel, id] : upg.sel.filter(z => z !== id); Snd.safeSel(on); drawUpg(); };
+    el.onclick = () => { if (upg.busy) return; const on = !upg.sel.includes(id); upg.sel = on ? [...upg.sel, id] : upg.sel.filter(z => z !== id); Snd.upgBtn(on); drawUpg(); };
   });
   drawBalPop();
   drawTargets();
@@ -4417,26 +4424,26 @@ function drawUpg() {
 /* кнопка «С баланса» и её выпадающее окно */
 function drawBalPop() {
   const btn = $('#upgBalBtn'), pop = $('#upgBalPop'); if (!btn) return;
-  btn.innerHTML = upg.bal ? `${ic.wallet}+${money(upg.bal)}` : `${ic.wallet}С баланса`;
+  btn.innerHTML = upg.bal ? `${ic.wallet}<span>+${prc(upg.bal)}</span>` : `${ic.wallet}С баланса`;
   btn.classList.toggle('on', !!upg.bal);
   if (!st.user) { pop.classList.add('hidden'); return; }
   if (!pop.dataset.ready) {
     pop.dataset.ready = 1;
-    pop.innerHTML = `<div class="bp-h">Добавить с баланса<small id="bpAvail"></small></div>
-      <div class="dep-amt"><input class="inp" id="upgAmt" type="number" min="0" step="10" aria-label="Сумма с баланса"><span>₽</span></div>
-      <div class="amounts">${[50, 100, 500].map(a => `<button data-add="${a}">+${a} ₽</button>`).join('')}<button data-add="max">Весь</button></div>
-      <div class="bp-f"><button class="btn btn-ghost btn-sm" data-add="0">Сбросить</button><button class="btn btn-primary btn-sm" id="bpOk">Готово</button></div>`;
+    pop.innerHTML = `<div class="ug-pop-h"><b>Добавить с баланса</b><small id="bpAvail"></small></div>
+      <label class="ug-pop-in"><input id="upgAmt" type="number" min="0" step="10" aria-label="Сумма с баланса"><i class="prc-i"></i></label>
+      <div class="ug-pop-am">${[50, 100, 500].map(a => `<button type="button" data-add="${a}">+${a}</button>`).join('')}<button type="button" data-add="max">Весь</button></div>
+      <div class="ug-pop-f"><button class="ug-btn ug-btn-q" type="button" data-add="0">Сбросить</button><button class="ug-ok" type="button" id="bpOk">Готово</button></div>`;
     $('#upgAmt').oninput = e => { if (upg.busy) return; upg.bal = clamp(Math.round(+e.target.value || 0), 0, st.balance); upg.typing = true; drawUpg(); upg.typing = false; };
     $('#upgAmt').onkeydown = e => { if (e.key === 'Enter') pop.classList.add('hidden'); };
     $$('[data-add]', pop).forEach(b => b.onclick = () => {
       if (upg.busy) return;
       const a = b.dataset.add;
       upg.bal = a === 'max' ? st.balance : a === '0' ? 0 : clamp(upg.bal + +a, 0, st.balance);
-      Snd.click(); drawUpg();
+      Snd.upgBtn(); drawUpg();
     });
-    $('#bpOk').onclick = () => pop.classList.add('hidden');
+    $('#bpOk').onclick = () => { Snd.upgBtn(); pop.classList.add('hidden'); };
   }
-  $('#bpAvail').textContent = 'Доступно: ' + money(st.balance);
+  $('#bpAvail').innerHTML = 'Доступно: ' + prc(st.balance);
   if (!upg.typing) $('#upgAmt').value = upg.bal;
 }
 function drawTargets() {
@@ -4457,8 +4464,8 @@ function drawTargets() {
   const total = list.length, LIMIT = 240;
   if (total > LIMIT) { const k = upg.to ? list.findIndex(s => s.name === upg.to) : -1; const st0 = k >= LIMIT ? Math.max(0, k - Math.floor(LIMIT / 2)) : 0; list = list.slice(st0, st0 + LIMIT); }
   $('#upgCnt') && ($('#upgCnt').textContent = show ? 'Самый дорогой дроп · добавьте скин или баланс — подберём цели и шансы' : total > LIMIT ? `показано ${LIMIT} из ${fmt(total)} — уточните поиск` : `${fmt(total)} предм.`);
-  box.innerHTML = list.length ? list.map(s => mcard(s, `data-t="${esc(s.name)}"`, v ? `<span class="mc-x">${pctTxt(upgChance(v, s))}</span>` : '')).join('') : `<div class="empty">${ic.search}Ничего не найдено</div>`;
-  $$('[data-t]', box).forEach(el => { if (el.dataset.t === upg.to) el.classList.add('sel'); el.onclick = () => { if (upg.busy) return; upg.to = el.dataset.t; const x = SK[upg.to].p / (v || 1); if (upg.mult && Math.abs(Math.log(x / upg.mult)) > Math.log(1.15)) upg.mult = 0; Snd.safeSel(true); drawUpg(); }; });
+  box.innerHTML = list.length ? list.map(s => ugCard(s, `data-t="${esc(s.name)}"`, v ? `<span class="ug-it-ch">${pctTxt(upgChance(v, s))}</span>` : '', s.name === upg.to ? 'Выбрано' : 'Выбрать')).join('') : `<div class="ug-empty">${ic.search}<b>Ничего не найдено</b><small>Измените поиск или вкладку</small></div>`;
+  $$('[data-t]', box).forEach(el => { if (el.dataset.t === upg.to) el.classList.add('sel'); el.onclick = () => { if (upg.busy) return; upg.to = el.dataset.t; const x = SK[upg.to].p / (v || 1); if (upg.mult && Math.abs(Math.log(x / upg.mult)) > Math.log(1.15)) upg.mult = 0; Snd.upgBtn(true); drawUpg(); }; });
   // после выбора множителем — прокручиваем список к выбранному предмету
   if (upg.focus) { upg.focus = false; const el = $('[data-t].sel', box); if (el) box.scrollTop = el.offsetTop - box.clientHeight / 2 + el.offsetHeight / 2; }
 }
@@ -4477,7 +4484,7 @@ async function runUpgrade() {
   let won = win ? st.inv.find(x => x.id === r.id) || null : null;
   // старт: рычаг сейфа, стрелка трогается после «клаца»
   const F = !!st.upgFast; // быстрая прокрутка: ~2 с вместо ~9, без сердцебиения
-  Snd.safeStart();
+  Snd.play('upgStart', .3); // «Апгрейдер перед прокрутом» (файл владельца, ястреб) — тихо, на фоне (владелец 12.11: было 1,8 — в 6 раз громче)
   await sleep(F ? 150 : 380);
   // зона выигрыша — дуга ±half градусов от низа кольца
   const half = ch * 180, m = Math.min(3, half / 3);
@@ -4496,8 +4503,8 @@ async function runUpgrade() {
   const loop = now => {
     const mx = new DOMMatrixReadOnly(getComputedStyle(ptr).transform), a = (Math.atan2(mx.b, mx.a) * 180 / Math.PI + 360) % 360;
     const el = now - t0, dA = lastA == null ? 0 : (a - lastA + 360) % 360; lastA = a;
-    const k = Math.floor(a / 40), tense = !F && el > DUR - 2300 ? 1 : 0; // щелчок реже — раз в 40°
-    if (last !== null && k !== last) Snd.safeTick(Math.min(1, dA / 14), tense);
+    const k = Math.floor(a / 30), tense = !F && el > DUR - 2300 ? 1 : 0; // щелчок CS2 на каждом длинном делении колеса (раз в 30°)
+    if (last !== null && k !== last) Snd.upgTick(Math.min(1, dA / 14), tense);
     last = k;
     if (el >= nextBeat && el < DUR - 150) { const p = (el - (DUR - 2300)) / 2300; Snd.heart(.35 + p * .35); nextBeat += 620 - p * 260; }
     raf = requestAnimationFrame(loop);
@@ -4510,8 +4517,8 @@ async function runUpgrade() {
   // победа — без надписи на колесе, сразу 3D-карточка; проигрыш — LOSE
   cEl.textContent = win ? '' : 'LOSE';
   $('#wLabel').textContent = win ? '' : 'не повезло';
-  if (win) { liveMine({ n: ts.name, t: 'upg', x: ts.p / v }); Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(120); setTimeout(() => burst(60), 600); toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
-  else { if (nearMiss) { Snd.nearMiss(); setTimeout(() => Snd.safeLose(), 450); } else Snd.safeLose(); $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); }
+  if (win) { liveMine({ n: ts.name, t: 'upg', x: ts.p / v }); Snd.play('upgWinF', 1.2); /* только файл владельца «Победа в апгрейде», без синтеза */ toast(`Апгрейд успешен: <b>${esc(ts.name)}</b>`); }
+  else { Snd.play('upgLose', 1); /* «Проигрыш в АПГРЕЙДЕ1» — на любой проигрыш */ $('#upgFrom').classList.add('lost'); toast('Апгрейд не удался — попробуйте ещё раз', 'err'); }
   // победа — карточка выигрыша поверх апгрейда, ждём выбор игрока
   let act = null;
   if (win) act = await upgWinCard(ts);
@@ -4530,56 +4537,25 @@ async function runUpgrade() {
   if (act === 'again' && won && won.st === 'own') { upg.sel = [won.id]; drawUpg(); setMult(2); return; }
   drawUpg();
 }
-/* 3D-карточка выигрыша поверх апгрейда: наклон за курсором (без курсора — плавное покачивание),
-   толщина пластины, слои на разной глубине, блик и голографическая рамка. Возвращает 'take' | 'again' */
+/* окно выигрыша поверх колеса — новый стиль CS2 (12.11): стекло, зелёная черта, скин со свечением редкости, без наклона и конфетти.
+   Возвращает 'take' | 'again' */
 function upgWinCard(s) {
   return new Promise(res => {
-    const host = $('.upg-main'); if (!host) return res('take');
-    const cols = ['#f5c76b', '#ffe7a3', '#ffffff', '#ff6fb5', '#7dd3fc', '#a3e635'];
-    const conf = Array.from({ length: 70 }, () => `<i style="--x:${rand(0, 100)}%;--dx:${rand(-80, 80)}px;--r:${rand(-720, 720)}deg;--d:${rand(1.8, 3.4)}s;--dl:${rand(0, 1.2)}s;--c:${pick(cols)};--w:${rand(5, 9)}px"></i>`).join('');
+    const host = $('.ug-stage'); if (!host) return res('take');
     const ov = document.createElement('div');
-    ov.className = 'uw-ov';
-    ov.innerHTML = `<div class="uw-conf" aria-hidden="true">${conf}</div>
-      <div class="uw3-stage">
-        <div class="uw3 r-${s.r}" role="dialog" aria-label="Апгрейд успешен">
-          ${Array.from({ length: 8 }, (_, i) => `<i class="uw3-slab" style="--z:${-(i + 1) * 1.5}px"></i>`).join('')}
-          <div class="uw3-face">
-            <i class="uw3-holo"></i><i class="uw3-grid"></i>
-            <div class="uw3-h">Апгрейд успешен</div>
-            <div class="uw3-stagev">
-              <i class="uw3-rays"></i><i class="uw3-pad"></i><i class="uw3-shadow"></i>
-              <img class="uw3-img" src="${imgUrl(s, 'l')}" alt="">
-            </div>
-            <div class="uw3-rar">${RAR[s.r] ? RAR[s.r].n : ''}</div>
-            <div class="uw3-name"><span>${esc(s.w)}</span>${esc(s.f)}</div>
-            <div class="uw3-price">${money(s.p)}</div>
-            <div class="uw3-btns">
-              <button class="btn btn-take" data-uw="take">${ic.box}Забрать</button>
-              <button class="btn btn-primary" data-uw="again">${ic.trend}Апгрейднуть</button>
-            </div>
-            <i class="uw3-shine"></i>
-          </div>
-        </div>
+    ov.className = 'ugw-ov';
+    ov.innerHTML = `<div class="ugw-win r-${s.r}" role="dialog" aria-label="Апгрейд успешен">
+        <header class="ugw-win-h"><small>RUSH CASE · апгрейд</small><h3>Апгрейд успешен</h3></header>
+        <div class="ugw-win-pic"><img src="${imgUrl(s, 'l')}" alt=""></div>
+        <div class="ugw-win-tx"><em>${RAR[s.r] ? RAR[s.r].n : ''}</em><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>
+        <div class="ugw-win-f"><button class="ug-btn" type="button" data-uw="take">${ic.box}Забрать</button><button class="ug-ok" type="button" data-uw="again">${PF_IC.up}Апгрейднуть</button></div>
       </div>`;
     host.appendChild(ov);
-    const card = $('.uw3', ov);
-    // наклон: курсор задаёт цель, rAF плавно догоняет; без курсора — покачивание
-    let tx = 0, ty = 0, rx = 0, ry = 0, mx = 50, my = 30, hover = false, raf, t0 = performance.now();
-    const onMove = e => { const r = card.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height; tx = (px - .5) * 26; ty = -(py - .5) * 20; mx = px * 100; my = py * 100; hover = true; };
-    ov.addEventListener('pointermove', onMove);
-    ov.addEventListener('pointerleave', () => { hover = false; });
-    const tick = now => {
-      if (!hover) { const t = (now - t0) / 1000; tx = Math.sin(t * .9) * 9; ty = Math.cos(t * .7) * 6; mx = 50 + Math.sin(t * .9) * 30; my = 35 + Math.cos(t * .7) * 20; }
-      rx += (ty - rx) * .09; ry += (tx - ry) * .09;
-      card.style.setProperty('--rx', rx.toFixed(2) + 'deg'); card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
-      card.style.setProperty('--mx', mx.toFixed(1) + '%'); card.style.setProperty('--my', my.toFixed(1) + '%');
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
     requestAnimationFrame(() => ov.classList.add('on'));
     $$('[data-uw]', ov).forEach(b => b.onclick = () => {
-      ov.classList.remove('on'); ov.classList.add('off');
-      setTimeout(() => { cancelAnimationFrame(raf); ov.remove(); }, 320);
+      Snd.upgBtn();
+      ov.classList.remove('on');
+      setTimeout(() => ov.remove(), 220);
       res(b.dataset.uw);
     });
   });
@@ -5182,209 +5158,375 @@ function mountBonus() {
 /* =========================================================
    PROFILE
    ========================================================= */
-let pfTab = 'inv';
 const STATUS = { own: ['В инвентаре', 'st-ok'], sold: ['Продан', 'st-mute'], out: ['Выведен в Steam', 'st-ok'], pend: ['Выводится в Steam…', 'st-warn'], upg: ['Сгорел в апгрейде', 'st-bad'], con: ['Использован в контракте', 'st-mute'], bet: ['В ставке', 'st-warn'], jp: ['Поставлен в ставки', 'st-mute'], tower: ['Поставлен в башне', 'st-mute'] };
 const fromName = f => f === 'weekly' ? 'Еженедельный набор' : f === 'tower' ? 'Башня' : f === 'jackpot' ? 'Ставки' : f === 'upgrade' ? 'Апгрейд' : f === 'contract' ? 'Контракт' : (caseById(f) ? 'Кейс «' + caseById(f).name + '»' : f);
+/* ---------- профиль (новый стиль CS2, по образцу владельца 12.11): три карточки, плашка, вкладки «Предметы / История / Апгрейды» ----------
+   сервер: supabase/profile_v2.sql (my_upgrades, set_cmail); купон — use_promo (promo_admin.sql); выводы — my_withdrawals (market.sql) */
+const PF_IC = {
+  bell: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2c-.9 0-1.6.7-1.6 1.6v.5a6.3 6.3 0 0 0-4.7 6.1v4.2L3.9 17v1.3h16.2V17l-1.8-2.4v-4.2a6.3 6.3 0 0 0-4.7-6.1v-.5c0-.9-.7-1.6-1.6-1.6zM9.6 19.3a2.4 2.4 0 0 0 4.8 0z"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.47.47 0 0 0-.47.41l-.36 2.54a7.4 7.4 0 0 0-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54a7 7 0 0 0 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></svg>',
+  exit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4H6.2A2.2 2.2 0 0 0 4 6.2v11.6A2.2 2.2 0 0 0 6.2 20H10"/><path d="M14.5 7.5 19 12l-4.5 4.5M19 12H9.5"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z"/></svg>',
+  dbl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square" aria-hidden="true"><path d="M5 6l6 6-6 6M12 6l6 6-6 6"/></svg>',
+  case: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 3h6a1.2 1.2 0 0 1 1.2 1.2V6h-2V5H9.8v1h-2V4.2A1.2 1.2 0 0 1 9 3zM3 8.6A1.6 1.6 0 0 1 4.6 7h14.8A1.6 1.6 0 0 1 21 8.6V12H3z"/><path fill="currentColor" opacity=".72" d="M3 13.4h7.2v1.8h3.6v-1.8H21v5A1.6 1.6 0 0 1 19.4 20H4.6A1.6 1.6 0 0 1 3 18.4z"/></svg>',
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 13 12 5.5l8.5 7.5"/><path d="M7.5 19 12 15l4.5 4"/></svg>',
+  spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.5 4l1.8 5.2 5.2 1.8-5.2 1.8-1.8 5.2-1.8-5.2L2.5 11l5.2-1.8z"/><path fill="currentColor" d="M18 2.5l.9 2.6 2.6.9-2.6.9L18 9.5l-.9-2.6-2.6-.9 2.6-.9zM18.5 14.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>',
+  sort: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v16M2.8 16.8 6 20l3.2-3.2"/><path d="M12.5 6H21M12.5 11H19M12.5 16H17"/></svg>',
+  chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+  mail: '<svg viewBox="0 0 64 52" aria-hidden="true"><defs><linearGradient id="pfmA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#63e28f"/><stop offset="1" stop-color="#23974e"/></linearGradient><linearGradient id="pfmB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6fff0"/><stop offset="1" stop-color="#95eab2"/></linearGradient></defs><rect x="3" y="9" width="58" height="40" rx="6" fill="#145a2f"/><rect x="3" y="4" width="58" height="40" rx="6" fill="url(#pfmA)"/><path d="M4.2 8.6 32 27.4 59.8 8.6A5.6 5.6 0 0 0 55 4H9a5.6 5.6 0 0 0-4.8 4.6z" fill="url(#pfmB)"/><path d="M3.6 41.6 24 22.8M60.4 41.6 40 22.8" stroke="#1d7f42" stroke-width="2" opacity=".55"/></svg>',
+};
+let pfTab = 'inv', pfSort = 'new', pfRev = false, pfGhostS = null;
+const PF_TABS = [['inv', 'Предметы'], ['hist', 'История'], ['upg', 'Апгрейды']];
+const PF_SORT = [['new', 'По новизне'], ['exp', 'Сначала дорогие'], ['cheap', 'Сначала дешёвые'], ['rar', 'По редкости']];
+const pfHid = k => { try { return localStorage.getItem('rc.pfHide.' + k) === '1'; } catch (e) { return false; } };
+// силуэт ножа в пустой карточке «Лучший дроп» (как на образце): любой охотничий нож / нож Боуи из каталога, перекрашенный в серый
+function pfGhost() {
+  if (pfGhostS === null) pfGhostS = Object.values(SK).find(s => /^★ (Охотничий нож|Нож Боуи)/.test(s.name)) || Object.values(SK).find(s => s.r === 'rare') || false;
+  return pfGhostS ? `<img class="pf2-ghost" src="${imgUrl(pfGhostS, 'l')}" alt="">` : '';
+}
 function pageProfile() {
-  if (!st.user) return `<section class="container"><div class="empty-big">${ic.user}<h2>Войдите в аккаунт</h2><p>Чтобы видеть инвентарь, историю дропов и статистику.</p><button class="btn btn-primary btn-lg" data-act="login">${ic.login}Войти</button></div></section>`;
-  const u = st.user, rk = rankOf(st.stats.spent), best = st.stats.best && SK[st.stats.best];
-  return `<section class="container profile">
-    <div class="pf-hero" style="--rk1:${rk.cur.c[0]};--rk2:${rk.cur.c[1]}">
-      <span class="pfh-wm" aria-hidden="true">${rk.cur.n}</span>
-      <div class="pfh-main">
-        <div class="pfh-ava">${ava(u, 'xl')}<span class="pfh-rk" title="Ранг ${rk.cur.n}">${rankIcon(rk.cur, rk.i)}</span></div>
-        <div class="pfh-info">
-          <h1>${esc(u.name)}</h1>
-          <div class="pfh-chips">
-            <button class="pfh-chip" data-act="copy" data-copy="${u.pid || u.rid || u.id}" title="Скопировать ID">ID <span class="priv">${u.pid || u.rid || u.id}</span>${ic.copy}</button>
-            <span class="pfh-chip">${u.via === 'steam' ? ic.steam + 'Steam' : ic.user + esc(u.email || '')}</span>
-            <span class="pfh-chip">${ic.clock}с ${new Date(u.reg).toLocaleDateString('ru-RU')}</span>
-          </div>
-          <div class="pfh-rank">
-            <div class="pfr-top"><span class="pfr-cur">${rankIcon(rk.cur, rk.i)}<b>${rk.cur.n}</b></span>
-              <span class="pfr-pct">${Math.round(rk.pct)}%</span>
-              ${rk.next ? `<span class="pfr-next"><b>${rk.next.n}</b>${rankIcon(rk.next, rk.i + 1)}</span>` : '<span class="pfr-next"><b>Максимум</b></span>'}</div>
-            <div class="pfr-bar"><i style="width:${rk.pct}%"></i></div>
-            <div class="pfr-sub">${rk.next ? `Откройте кейсов ещё на <b>${money(rk.left)}</b>, чтобы получить «${rk.next.n}»${rk.next.cb ? ` и кэшбэк ${rk.next.cb}%` : ''}` : 'Вы достигли максимального ранга'}</div>
-          </div>
-        </div>
-        <div class="pfh-wallet">
-          <div class="pfw-bal"><span>Баланс</span><b>${money(st.balance)}</b><small class="pfw-hold" id="pfHold" hidden></small></div>
-          <div class="pfw-rc"><img class="rc-ic" src="assets/rcoin.webp" alt=""><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b></div>
-          <div class="pfw-btns"><button class="btn btn-primary" data-act="deposit">${ic.plus}Пополнить</button><button class="btn btn-dark pf-stream${st.streamer ? ' on' : ''}" data-act="streamer" title="Режим стримера: вместо рублей — монеты, личные данные скрыты">${st.streamer ? ic.eyeOff : ic.eye}<span>Стример</span></button><button class="btn btn-dark" data-act="logout" title="Выйти" aria-label="Выйти">${ic.logout}</button></div>
-        </div>
-      </div>
-      <div class="pfh-stats">
-        <div><span>${ic.box}Кейсов открыто</span><b>${fmt(st.stats.opened)}</b></div>
-        <div><span>${ic.coins}Потрачено на кейсы</span><b>${money(st.stats.spent)}</b></div>
-        <div><span>${ic.gem}Инвентарь</span><b>${own().length} · ${money(own().reduce((t, x) => t + SK[x.n].p, 0))}</b></div>
-        <div class="pfh-best r-${best ? best.r : 'milspec'}"><span>${ic.trophy}Лучший дроп</span>${best ? `<b><img src="${imgUrl(best, 's')}" alt="">${money(best.p)}</b>` : '<b>—</b>'}</div>
-      </div>
+  if (!st.user) return `<section class="container pf2"><div class="pf2-card pf2-guest"><span class="pf2-guest-i">${PF_IC.case}</span><h2>Войдите в аккаунт</h2><p>Чтобы видеть инвентарь, историю дропов и апгрейдов.</p><button class="pf2-go" type="button" data-act="login">Войти</button></div></section>`;
+  return `<section class="container pf2">
+    <div class="pf2-top" id="pfTop">${pfTopHtml()}</div>
+    <div id="pfBanner"></div>
+    <div class="pf2-bar">
+      <div class="pf2-tabs" id="pfTabs">${PF_TABS.map(([k, t]) => `<button type="button" data-tab="${k}">${t}</button>`).join('')}</div>
+      <div class="pf2-tools" id="pfTools"></div>
     </div>
-    <div class="tabs-row"><div class="seg pf-seg" id="pfTabs"><button data-tab="inv">${ic.box}Инвентарь<b id="invCnt"></b></button><button data-tab="wd">${ic.steam}Выводы<b id="wdCnt"></b></button><button data-tab="stats">${ic.trend}Статистика</button><button data-tab="rc"><img class="rc-ic" src="assets/rcoin.webp" alt="">R-COIN</button><button data-tab="hist">${ic.history}История</button><button data-tab="team">${ic.users}Команда</button></div><div class="sum" id="invSum"></div></div>
     <div id="pfBody"></div>
   </section>`;
 }
+function pfTopHtml() {
+  const u = st.user, S = st.stats, rk = rankOf(S.spent), best = S.best && SK[S.best];
+  const out = st.inv.filter(x => x.st === 'out' && SK[x.n]), outSum = out.reduce((t, x) => t + SK[x.n].p, 0);
+  const rkHtml = S.spent > 0
+    ? `<a class="pf2-rk on" href="#/bonus" style="--k1:${rk.cur.c[0]};--k2:${rk.cur.c[1]}" title="Ранги и кэшбэк — на странице «Бонусы»"><span class="pf2-rk-b">${rankIcon(rk.cur, rk.i)}<b>${esc(rk.cur.n)}</b></span><span class="pf2-rk-t" title="${rk.next ? `До ранга «${esc(rk.next.n)}» осталось открыть кейсов на ${money(rk.left)}` : ''}"><span class="pf2-rk-x">${rk.next ? `Ещё ${prc(Math.ceil(rk.left))}` : 'Максимум'}</span>${PF_IC.dbl}</span></a>`
+    : `<a class="pf2-rk" href="#/cases" title="Откройте кейс — появится ранг"><span class="pf2-rk-b"><i></i><i></i><b>———</b></span><span class="pf2-rk-t">Играйте для рейтинга${PF_IC.dbl}</span></a>`;
+  return `
+  <div class="pf2-card pf2-me">
+    <div class="pf2-me-hd">
+      <span class="pf2-ava">${ava(u, 'xl')}</span>
+      <div class="pf2-me-id">
+        <div class="pf2-nick"><b>${esc(u.name)}</b>${u.steamid ? `<a class="pf2-sv" href="https://steamcommunity.com/profiles/${encodeURIComponent(u.steamid)}" target="_blank" rel="noopener" title="Профиль Steam" aria-label="Профиль Steam">${ic.steam}</a>` : ''}</div>
+        <button class="pf2-pid" type="button" data-act="copy" data-copy="${u.pid || u.rid}" title="Скопировать ID">ID:<span class="priv">${u.pid || u.rid}</span></button>
+        ${rkHtml}
+      </div>
+      <div class="pf2-ics">
+        <button class="pf2-ic" type="button" id="pfBell" title="Уведомления" aria-label="Уведомления">${PF_IC.bell}<i class="pf2-dot" id="pfBellDot" hidden></i></button>
+        <button class="pf2-ic" type="button" id="pfGear" title="Настройки" aria-label="Настройки">${PF_IC.gear}</button>
+        <button class="pf2-ic" type="button" data-act="logout" title="Выйти" aria-label="Выйти">${PF_IC.exit}</button>
+      </div>
+    </div>
+    <div class="pf2-me-bal">
+      <div class="pf2-me-bv"><button class="pf2-lbl pf2-lnk" type="button" id="pfBalHist" title="Пополнения, продажи и бонусы">История баланса</button><b class="pf2-big">${prc(st.balance)}</b><small class="pf2-hold" id="pfHold" hidden></small></div>
+      <button class="pf2-dep" type="button" data-act="deposit">Пополнить${PF_IC.plus}</button>
+    </div>
+    <div class="pf2-me-st">
+      <span title="Кейсов открыто">${PF_IC.case}<b>${fmt(S.opened)}</b></span>
+      <span title="Апгрейдов">${PF_IC.up}<b>${fmt(S.upg)}</b></span>
+      <span title="Контрактов">${PF_IC.spark}<b>${fmt(S.con)}</b></span>
+    </div>
+  </div>
+  <div class="pf2-card pf2-best${best ? ' has r-' + best.r : ''}">
+    <span class="pf2-lbl">Лучший дроп</span>
+    <div class="pf2-best-tx">${best ? `<span>${esc(best.w)}</span><b>${esc(best.f)}</b>${prc(best.p)}` : 'Отобразится<br>после первой игры'}</div>
+    <div class="pf2-best-pic">${best ? `<img src="${imgUrl(best, 'l')}" alt="">` : pfGhost()}</div>
+  </div>
+  <div class="pf2-col">
+    <button class="pf2-card pf2-out" type="button" id="pfOut" title="Выводы в Steam: статусы и история">
+      <span class="pf2-lbl">Выведено</span><b class="pf2-big">${prc(outSum)}</b><span class="pf2-out-n">Предметов: ${fmt(out.length)}</span>
+      <span class="pf2-out-wm" aria-hidden="true">${STEAM_LOGO}</span>
+    </button>
+    <form class="pf2-card pf2-cpn" id="pfCpn" autocomplete="off"><input class="pf2-inp" id="pfCpnInp" placeholder="Персональный купон" maxlength="24" spellcheck="false" aria-label="Персональный купон"><button class="pf2-btn" type="submit">Применить</button></form>
+  </div>`;
+}
+function pfTopMount() {
+  pfHolds();
+  $('#pfBell').onclick = e => { e.stopPropagation(); pfEvOpen('all'); };
+  $('#pfBalHist').onclick = e => { e.stopPropagation(); pfEvOpen('bal'); };
+  $('#pfGear').onclick = () => pfSettings();
+  $('#pfOut').onclick = () => pfWdWin();
+  $('#pfCpn').onsubmit = async e => {
+    e.preventDefault();
+    const i = $('#pfCpnInp'), v = i.value.trim(); if (!v) return i.focus();
+    const b = $('#pfCpn button'); b.disabled = true;
+    const r = await srv('use_promo', { p_code: v }); b.disabled = false;
+    if (!r) return;
+    i.value = ''; Snd.coin(); pfEvList = null;
+    toast(r.t === 'bal' ? `Купон активирован: <b>+${money(+r.v)}</b> на баланс` : `Купон активирован: <b>+${+r.v}%</b> к следующему пополнению`);
+    pfTop();
+  };
+  pfEvDot();
+}
+function pfTop() { const t = $('#pfTop'); if (!t) return; t.innerHTML = pfTopHtml(); pfTopMount(); }
 function mountProfile(sub) {
   if (!st.user) return;
-  pfHolds();
-  if (sub) pfTab = sub; // #/profile/team — сразу вкладка «Команда»
-  $$('#pfTabs button').forEach(b => b.onclick = () => { pfTab = b.dataset.tab; drawPf(); });
-  drawPf();
+  pfEvList = null; wdSeen = ''; pfPage = { hist: 0, upg: 0 };
+  if (sub === 'team') pfTab = 'team'; // #/profile/team — сразу вкладка «Команда» (турниры)
+  else if (!PF_TABS.some(t => t[0] === pfTab)) pfTab = 'inv';
+  $$('#pfTabs button').forEach(b => b.onclick = () => { if (pfTab === b.dataset.tab) return; pfTab = b.dataset.tab; drawPf(true); });
+  pfTopMount(); pfBanner(); drawPf(true);
 }
-/* пустые карточки: дорисовываем до полных рядов (минимум 3 ряда) — по фактическому числу колонок сетки */
-function invFill() {
-  const g = $('#invGrid'); if (!g) return;
-  $$('.inv-empty-card', g).forEach(x => x.remove());
-  const cols = getComputedStyle(g).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
-  const n = $$('.inv-card', g).length, total = Math.max(cols * 3, Math.ceil(n / cols) * cols);
-  g.insertAdjacentHTML('beforeend', Array.from({ length: total - n }, () => `<div class="icard inv-empty-card" aria-hidden="true"><span>${ic.box}</span></div>`).join(''));
-}
-window.addEventListener('resize', () => { if ($('#invGrid')) invFill(); });
-const dstr = ts => new Date(ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-/* статистика: числа «набегают» от нуля (cu — число с форматом, countUp — запустить анимацию в блоке) */
-const CU_F = { int: fmt, money, pct: v => Math.round(v) + '%' };
-const cu = (n, f = 'int') => `<i class="cu" data-n="${+n || 0}" data-f="${f}">${CU_F[f](+n || 0)}</i>`;
-function countUp(root, ms = 1100) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const els = $$('.cu', root).map(e => ({ e, n: +e.dataset.n, f: CU_F[e.dataset.f] || fmt })).filter(x => x.n);
-  if (!els.length) return;
-  const t0 = performance.now(), ease = t => 1 - Math.pow(1 - t, 3);
-  const step = now => { const k = Math.min(1, (now - t0) / ms), v = ease(k); els.forEach(x => { x.e.textContent = x.f(k < 1 ? x.n * v : x.n); }); if (k < 1 && els[0].e.isConnected) requestAnimationFrame(step); };
-  els.forEach(x => { x.e.textContent = x.f(0); }); requestAnimationFrame(step);
-}
-function drawPf() {
+function drawPf(keepTop) {
   const body = $('#pfBody'); if (!body) return;
   $$('#pfTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === pfTab));
-  const list = own(), sum = list.reduce((a, x) => a + SK[x.n].p, 0);
-  $('#invCnt').textContent = list.length;
-  $('#invSum').innerHTML = '';
+  $('#pfTools').innerHTML = '';
+  if (!keepTop) pfTop(); // цифры в карточках сверху (баланс, выведено, лучший дроп) — после продажи и вывода
   if (pfTab === 'team') return drawTeamTab(body);
-  if (pfTab === 'wd') return drawWdTab(body);
-  if (pfTab === 'inv') {
-    $('#invSum').innerHTML = list.length ? `Стоимость: <b>${money(sum)}</b> &nbsp;<button class="btn btn-accent btn-sm" id="sellAllInv">${ic.coin}Продать всё</button>` : '';
-    const sorted = list.slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
-    body.innerHTML = `<div class="pf-trade inv-trade">
-        <div class="t"><span class="tr-ic">${ic.steam}</span><span>Трейд-ссылка Steam<small>Нужна для вывода скинов. <a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></small></span></div>
-        <div class="inp-row"><input class="inp" id="tradeInp" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade)}"><button class="btn btn-accent" id="tradeSave">Сохранить</button></div>
-      </div>
-      <div id="wdNote"></div>
-      <div class="items-grid inv-grid" id="invGrid">${myBc().map(b => `<div class="icard inv-card inv-bc"><img src="assets/case-build-s.webp" alt=""><div class="ic-w">${(b.items || []).length} ${plural((b.items || []).length, 'скин', 'скина', 'скинов')}</div><div class="ic-f">${esc(b.name || 'Собери сам')}</div><div class="ic-p">${money(+b.price)}</div>
-          <div class="inv-acts"><a class="btn btn-primary" href="#/case/b-${b.id}">${ic.box}Открыть</a></div></div>`).join('')}${sorted.map(x => {
-        const s = SK[x.n];
-        return `<div class="icard inv-card r-${s.r}"><span class="ic-st">${fromName(x.from)}</span><img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="ic-w">${esc(s.w)}</div><div class="ic-f">${esc(s.f)}</div><div class="ic-p">${money(s.p)}</div>
-          <div class="inv-acts"><button class="btn btn-accent" data-sell="${x.id}">Продать</button><button class="btn btn-dark" data-wd="${x.id}" title="Вывести в Steam">${ic.send}</button></div></div>`;
-      }).join('')}</div>${list.length || myBc().length ? '' : '<p class="inv-hint">Инвентарь пуст — выпавшие предметы займут эти места. <a href="#/cases">Открыть кейс</a></p>'}`;
-    invFill(); drawWd();
-    $('#tradeSave').onclick = () => {
-      const v = $('#tradeInp').value.trim();
-      if (!/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/.test(v)) { $('#tradeInp').classList.add('err'); return toast('Неверный формат трейд-ссылки', 'err'); }
-      $('#tradeInp').classList.remove('err'); srv('save_trade', { p_trade: v }).then(r => { if (r) toast('Трейд-ссылка сохранена'); });
-    };
-    const sa = $('#sellAllInv');
-    if (sa) sa.onclick = () => {
-      const items = own(), total = items.reduce((a, x) => a + SK[x.n].p, 0);
-      const m = modal(`<div class="wd confirm"><h2>Продать всё?</h2><p>${items.length} ${plural(items.length, 'предмет', 'предмета', 'предметов')} на сумму <b>${money(total)}</b> будут проданы, деньги придут на баланс. Отменить это действие нельзя.</p>
-        <div class="cc-btns"><button class="btn btn-dark btn-lg" id="cfNo">Отмена</button><button class="btn btn-primary btn-lg" id="cfYes">${ic.coin}Подтвердить</button></div></div>`, 'm-wd');
-      $('#cfNo', m).onclick = closeModal;
-      $('#cfYes', m).onclick = async () => { closeModal(); const t = await sellItems(own().map(x => x.id), true); if (t) { Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); } drawPf(); };
-    };
-    $$('[data-sell]', body).forEach(b => b.onclick = async () => { b.disabled = true; await sellItem(b.dataset.sell); drawPf(); });
-    $$('[data-wd]', body).forEach(b => b.onclick = () => withdraw(b.dataset.wd));
-  } else if (pfTab === 'stats') {
-    const S = st.stats, all = st.inv.filter(x => SK[x.n]), val = x => SK[x.n].p;
-    const by = k => all.filter(x => x.st === k), sumOf = a => a.reduce((t, x) => t + val(x), 0);
-    const fromCases = all.filter(x => caseById(x.from)), dropSum = sumOf(fromCases);
-    const best = S.best && SK[S.best], rk = rankOf(S.spent);
-    const perCase = {}; fromCases.forEach(x => { const c = perCase[x.from] = perCase[x.from] || { n: 0, v: 0 }; c.n++; c.v += val(x); });
-    const topCases = Object.entries(perCase).sort((a, b) => b[1].n - a[1].n).slice(0, 5);
-    const rcIn = (st.rlog || []).filter(x => x.v > 0).reduce((t, x) => t + x.v, 0), rcOut = Math.abs((st.rlog || []).filter(x => x.v < 0).reduce((t, x) => t + x.v, 0));
-    const upgWr = S.upg ? S.upgWin / S.upg * 100 : 0, roi = S.spent ? dropSum / S.spent * 100 : 0;
-    let ti = 0;
-    const tile = (icn, v, t, sub = '', cls = '') => `<div class="st-tile ${cls}" style="--i:${ti++}"><span class="st-ic">${icn}</span><div><b>${v}</b><span>${t}</span>${sub ? `<small>${sub}</small>` : ''}</div></div>`;
-    body.innerHTML = `<div class="st-grid">
-        ${tile(ic.box, cu(S.opened), 'Кейсов открыто', `потрачено ${money(S.spent)}`)}
-        ${tile(ic.gem, cu(dropSum, 'money'), 'Выпало из кейсов', `средний дроп ${fromCases.length ? money(dropSum / fromCases.length) : '—'}`)}
-        ${tile(ic.trend, roi ? cu(roi, 'pct') : '—', 'Окупаемость', 'стоимость дропа / потрачено', roi >= 100 ? 'good' : roi ? 'bad' : '')}
-        ${tile(ic.wallet, cu(S.dep || 0, 'money'), 'Пополнено', `баланс сейчас ${money(st.balance)}`)}
-        ${tile(ic.up, `${cu(S.upgWin)} / ${cu(S.upg)}`, 'Апгрейдов: побед / всего', S.upg ? `успешных ${upgWr.toFixed(1)}%` : 'ещё не было')}
-        ${tile(ic.swap, cu(S.con), 'Контрактов', '')}
-        ${tile(ic.coin, cu(sumOf(by('sold')), 'money'), 'Продано предметов', `${by('sold').length} шт.`)}
-        ${tile(ic.send, cu(by('out').length), 'Выведено в Steam', by('out').length ? money(sumOf(by('out'))) : '')}
-      </div>
-      <div class="st-row">
-        <div class="st-card st-best r-${best ? best.r : 'milspec'}"><h3>Лучший дроп</h3>${best ? `<img src="${imgUrl(best, 'l')}" alt=""><div class="sb-n"><span>${esc(best.w)}</span>${esc(best.f)}</div><div class="sb-p">${cu(best.p, 'money')}</div>` : `<div class="muted">Пока нет</div>`}</div>
-        <div class="st-card"><h3>Любимые кейсы</h3>${topCases.length ? topCases.map(([id, d]) => { const c = caseById(id); const mx = topCases[0][1].n; return `<div class="st-bar" style="--i:${topCases.findIndex(t => t[0] === id)}"><span>${esc(c.name)}</span><i><b style="width:${(d.n / mx * 100).toFixed(0)}%;background:${c.th.a}"></b></i><em>${cu(d.n)}</em></div>`; }).join('') : '<div class="muted">Откройте пару кейсов</div>'}</div>
-        <div class="st-card"><h3>Аккаунт</h3>
-          <div class="st-kv"><span>Ранг</span><b>${rk.cur.n}</b></div>
-          <div class="st-kv"><span>До следующего</span><b>${rk.next ? money(rk.left) : 'максимум'}</b></div>
-          <div class="st-kv"><span>Предметов сейчас</span><b>${list.length} · ${money(sum)}</b></div>
-          <div class="st-kv"><span>R-COIN получено / потрачено</span><b>${rc(rcIn)} / ${rc(rcOut)}</b></div>
-          <div class="st-kv"><span>Сгорело в апгрейде</span><b>${money(sumOf(by('upg')))}</b></div>
-          <div class="st-kv"><span>На сайте с</span><b>${new Date(st.user.reg).toLocaleDateString('ru-RU')}</b></div>
-        </div>
-      </div>`;
-    countUp(body);
-  } else if (pfTab === 'rc') {
-    body.innerHTML = `<div class="pf-rc" id="rcoins">
-      <div class="rc-head"><img class="rc-ic big" src="assets/rcoin.webp" alt="" aria-hidden="true"><div><span>R-COIN</span><b>${rc(st.rcoin || 0)}</b><small>1 R-COIN = 1 ₽ · тратятся в бонусных кейсах</small></div></div>
-      <div class="rc-rules"><b>Как начисляются</b><p>За каждое открытие кейса — <em>2% от его цены</em>. «Сифон и Борода» — 0,5%. При открытии нескольких кейсов сразу — за каждый. А ещё <em>5% от пополнения</em> и <em>0,5% от ставки</em> при проигрыше в апгрейде.</p>
-        <div class="rc-ex">${CASES.filter(c => !c.rc && !c.adm).sort((a, b) => a.price - b.price).map(c => `<span>${esc(c.name)} <i>+${rc(Math.round(c.price * RCOIN_RATE(c) * 100 + 1e-6) / 100)}</i></span>`).join('')}</div></div>
-      <div class="rc-log"><b>История</b>${(st.rlog || []).length ? (st.rlog || []).slice(0, 30).map(x => `<div><span>${esc(x.note)}</span><small>${dstr(x.ts)}</small><i class="${x.v < 0 ? 'neg' : ''}">${x.v < 0 ? '−' + rc(-x.v) : '+' + rc(x.v)}</i></div>`).join('') : '<p class="muted">Откройте кейс — здесь появятся начисления.</p>'}</div>
-    </div>`;
-  } else {
-    const all = st.inv.filter(x => SK[x.n]);
-    body.innerHTML = all.length ? `<div class="hist">${all.map(x => {
-      const s = SK[x.n], [t, cls] = STATUS[x.st] || ['—', ''];
-      return `<div class="hrow r-${s.r}"><img src="${imgUrl(s, 's')}" alt=""><div class="n">${esc(s.name)}<small>${fromName(x.from)}</small></div><div class="s ${cls}">${t}</div><div class="d">${dstr(x.ts)}</div><div class="p">${money(s.p)}</div></div>`;
-    }).join('')}</div>` : `<div class="empty">${ic.history}История пока пуста</div>`;
-  }
+  if (pfTab === 'upg') return pfUpg(body);
+  if (pfTab === 'hist') return pfHist(body);
+  pfInv(body);
 }
+/* плашка под карточками: сначала трейд-ссылка (без неё не вывести), потом почта для игроков со Steam; «Скрыть» — запоминает браузер */
+function pfBanner() {
+  const el = $('#pfBanner'); if (!el || !st.user) return;
+  let k = '';
+  if (!st.trade && !pfHid('trade')) k = 'trade';
+  else if (st.user.via === 'steam' && !st.cmail && !pfHid('mail')) k = 'mail';
+  el.innerHTML = !k ? '' : k === 'trade'
+    ? `<div class="pf2-bn"><span class="pf2-bn-ic pf2-bn-steam">${STEAM_LOGO}</span><b>Укажите трейд-ссылку Steam, чтобы выводить скины</b><button class="pf2-bn-x" type="button">Скрыть</button><button class="pf2-btn pf2-bn-go" type="button">Указать ссылку<i></i></button></div>`
+    : `<div class="pf2-bn"><span class="pf2-bn-ic">${PF_IC.mail}</span><b>Подключите email, чтобы получать уникальные предложения</b><button class="pf2-bn-x" type="button">Скрыть</button><button class="pf2-btn pf2-bn-go" type="button">Подключить email<i></i></button></div>`;
+  if (!k) return;
+  $('.pf2-bn-x', el).onclick = () => { try { localStorage.setItem('rc.pfHide.' + k, '1'); } catch (e) { /* приватный режим */ } el.innerHTML = ''; pfBanner(); };
+  $('.pf2-bn-go', el).onclick = () => k === 'trade' ? pfSettings('trade') : pfMailWin();
+}
+/* ---------- вкладка «Предметы» ---------- */
+function pfInv(body) {
+  const list = st.inv.filter(x => (x.st === 'own' || x.st === 'pend') && SK[x.n]);
+  const owned = list.filter(x => x.st === 'own'), sum = owned.reduce((t, x) => t + SK[x.n].p, 0);
+  const cur = PF_SORT.find(s => s[0] === pfSort) || PF_SORT[0];
+  $('#pfTools').innerHTML = `<button class="pf2-btn pf2-sell" type="button" id="pfSellAll"${owned.length ? ` title="${owned.length} ${plural(owned.length, 'предмет', 'предмета', 'предметов')} на ${money(sum)}"` : ' disabled'}>Продать все</button>
+    <button class="pf2-sort${pfRev ? ' rev' : ''}" type="button" id="pfRev" title="Обратный порядок" aria-label="Обратный порядок">${PF_IC.sort}</button>
+    <div class="pf2-dd" id="pfDd"><button class="pf2-dd-b" type="button" aria-haspopup="listbox"><span>${cur[1]}</span>${PF_IC.chev}</button><div class="pf2-dd-l" role="listbox" hidden>${PF_SORT.map(([k, t]) => `<button type="button" data-s="${k}"${k === pfSort ? ' class="on"' : ''}>${t}</button>`).join('')}</div></div>`;
+  const rar = x => (RAR[SK[x.n].r] || { o: 0 }).o;
+  const keyed = list.map((x, i) => ({ x, i }));
+  const by = { new: (a, b) => a.i - b.i, exp: (a, b) => SK[b.x.n].p - SK[a.x.n].p, cheap: (a, b) => SK[a.x.n].p - SK[b.x.n].p, rar: (a, b) => rar(b.x) - rar(a.x) || SK[b.x.n].p - SK[a.x.n].p }[cur[0]];
+  const sorted = keyed.sort(by).map(k => k.x); if (pfRev) sorted.reverse();
+  const card = x => {
+    const s = SK[x.n], pend = x.st === 'pend';
+    return `<div class="pf2-it r-${s.r}${pend ? ' pend' : ''}">
+      <div class="pf2-it-pic"><img src="${imgUrl(s, 'm')}" alt="" loading="lazy">${pend ? '<span class="pf2-it-st">Выводится</span>' : `<span class="pf2-it-acts"><button type="button" class="pf2-it-sell" data-sell="${x.id}">Продать</button><button type="button" class="pf2-it-wd" data-wd="${x.id}" title="Вывести в Steam" aria-label="Вывести в Steam">${ic.send}</button></span>`}</div>
+      <div class="pf2-it-tx"><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>
+    </div>`;
+  };
+  const bc = myBc().map(b => `<a class="pf2-it pf2-it-bc" href="#/case/b-${b.id}" title="Открыть свой кейс">
+      <div class="pf2-it-pic"><img src="assets/case-build-s.webp" alt=""><span class="pf2-it-acts"><span class="pf2-it-sell">Открыть</span></span></div>
+      <div class="pf2-it-tx"><span>${(b.items || []).length} ${plural((b.items || []).length, 'скин', 'скина', 'скинов')}</span><b>${esc(b.name || 'Собери сам')}</b>${prc(+b.price)}</div></a>`).join('');
+  body.innerHTML = `<div class="pf2-grid" id="invGrid">${bc}${sorted.map(card).join('')}</div>${list.length || myBc().length ? '' : `<p class="pf2-hint">Инвентарь пуст — выпавшие предметы займут эти места. <a href="#/cases">Открыть кейс</a></p>`}`;
+  invFill();
+  const dd = $('#pfDd'), ddl = $('.pf2-dd-l', dd);
+  $('.pf2-dd-b', dd).onclick = e => { e.stopPropagation(); ddl.hidden = !ddl.hidden; dd.classList.toggle('open', !ddl.hidden); };
+  $$('[data-s]', ddl).forEach(b => b.onclick = () => { pfSort = b.dataset.s; drawPf(true); });
+  $('#pfRev').onclick = () => { pfRev = !pfRev; drawPf(true); };
+  $('#pfSellAll').onclick = () => {
+    const items = own(), total = items.reduce((a, x) => a + SK[x.n].p, 0); if (!items.length) return;
+    const m = pfWin({ k: 'Инвентарь', t: 'Продать всё?', gl: '#5be38f', body: `<p class="pfw-p">${items.length} ${plural(items.length, 'предмет', 'предмета', 'предметов')} на сумму <b>${prc(total)}</b> будут проданы, деньги придут на баланс. Отменить это действие нельзя.</p>`,
+      foot: `<button class="pf2-btn" type="button" id="cfNo">Отмена</button><button class="pf2-go" type="button" id="cfYes">Продать все</button>` });
+    $('#cfNo', m).onclick = closeModal;
+    $('#cfYes', m).onclick = async () => { closeModal(); const t = await sellItems(own().map(x => x.id), true); if (t) { Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); pfEvList = null; } drawPf(); };
+  };
+  $$('[data-sell]', body).forEach(b => b.onclick = async () => { b.disabled = true; await sellItem(b.dataset.sell); pfEvList = null; drawPf(); });
+  $$('[data-wd]', body).forEach(b => b.onclick = () => withdraw(b.dataset.wd));
+  drawWd();
+}
+// пустые ячейки: дорисовываем до полных рядов (минимум 2 ряда) — по фактическому числу колонок сетки
+function invFill() {
+  const g = $('#invGrid'); if (!g) return;
+  $$('.pf2-it-empty', g).forEach(x => x.remove());
+  const cols = getComputedStyle(g).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
+  const n = g.children.length, total = Math.max(cols * 2, Math.ceil(n / cols) * cols);
+  g.insertAdjacentHTML('beforeend', Array.from({ length: total - n }, () => '<div class="pf2-it pf2-it-empty" aria-hidden="true"></div>').join(''));
+}
+window.addEventListener('resize', () => { if ($('#invGrid')) invFill(); });
+document.addEventListener('click', e => { const dd = $('#pfDd'); if (dd && !dd.contains(e.target)) { const l = $('.pf2-dd-l', dd); if (l) l.hidden = true; dd.classList.remove('open'); } });
+const dstr = ts => new Date(ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const pfEmpty = (t, sub) => `<div class="pf2-card pf2-empty">${PF_IC.case}<b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+const pfRow = o => `<div class="pf2-row${o.r ? ' r-' + o.r : ''}${o.cls2 ? ' ' + o.cls2 : ''}"><span class="pf2-row-pic">${o.img ? `<img src="${o.img}" alt="" loading="lazy">` : o.ic || ''}</span><span class="pf2-row-n"><b>${o.n}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</span>${o.extra || ''}<span class="pf2-row-d">${o.d}</span><span class="pf2-st ${o.cls || ''}">${o.st}</span><span class="pf2-row-p">${o.p}</span></div>`;
+/* ---------- «История» и «Апгрейды» — по 10 записей, внизу страницы (владелец 12.11: «прикинь сколько листать») ---------- */
+const PF_PER = 10;
+let pfPage = { hist: 0, upg: 0 };
+const PF_AR = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+function pfPager(p, n, total) {
+  let nums = '', prev = -1;
+  for (let i = 0; i < n; i++) {
+    if (!(i === 0 || i === n - 1 || Math.abs(i - p) <= 1)) continue; // 1 … 4 5 6 … 30
+    if (prev >= 0 && i - prev > 1) nums += '<span class="pf2-pg-gap">…</span>';
+    nums += `<button type="button" data-pg="${i}"${i === p ? ' class="on" aria-current="page"' : ''}>${i + 1}</button>`; prev = i;
+  }
+  return `<nav class="pf2-pg" aria-label="Страницы"><button type="button" class="pf2-pg-ar" data-pg="${p - 1}"${p ? '' : ' disabled'} aria-label="Назад">${PF_AR('M15 6l-6 6 6 6')}</button>${nums}<button type="button" class="pf2-pg-ar" data-pg="${p + 1}"${p < n - 1 ? '' : ' disabled'} aria-label="Дальше">${PF_AR('M9 6l6 6-6 6')}</button><span class="pf2-pg-n">${p * PF_PER + 1 === Math.min(total, (p + 1) * PF_PER) ? fmt(total) : `${p * PF_PER + 1}–${Math.min(total, (p + 1) * PF_PER)}`} из ${fmt(total)}</span></nav>`;
+}
+function pfPaged(body, key, rows) {
+  const n = Math.ceil(rows.length / PF_PER);
+  const draw = () => {
+    const p = pfPage[key] = Math.max(0, Math.min(pfPage[key] || 0, n - 1));
+    body.innerHTML = `<div class="pf2-list">${rows.slice(p * PF_PER, (p + 1) * PF_PER).join('')}</div>${n > 1 ? pfPager(p, n, rows.length) : ''}`;
+    $$('[data-pg]', body).forEach(b => b.onclick = () => {
+      pfPage[key] = +b.dataset.pg; draw();
+      const bar = $('.pf2-bar'); if (bar && bar.getBoundingClientRect().top < 0) bar.scrollIntoView({ block: 'start' });
+    });
+  };
+  draw();
+}
+/* ---------- вкладка «История»: все предметы и что с ними стало ---------- */
+function pfHist(body) {
+  const all = st.inv.filter(x => SK[x.n]);
+  if (!all.length) { body.innerHTML = pfEmpty('История пока пуста', 'Откройте кейс — здесь появятся все ваши предметы. <a href="#/cases">К кейсам</a>'); return; }
+  pfPaged(body, 'hist', all.map(x => {
+    const s = SK[x.n], [t, cls] = STATUS[x.st] || ['—', ''];
+    return pfRow({ img: imgUrl(s, 's'), r: s.r, n: esc(s.name), sub: fromName(x.from), d: dstr(x.ts), st: t, cls, p: prc(s.p) });
+  }));
+}
+/* ---------- вкладка «Апгрейды»: с сервера (my_upgrades, profile_v2.sql); пока SQL не запущен — победы из инвентаря ---------- */
+async function pfUpg(body) {
+  body.innerHTML = '<div class="pf2-load"><span class="spinner"></span>Загружаем апгрейды…</div>';
+  let list = null;
+  if (sb && st.user && st.user.sb) { const { data, error } = await sb.rpc('my_upgrades'); if (!error && Array.isArray(data)) list = data; }
+  if (!$('#pfBody') || pfTab !== 'upg') return;
+  if (!list) list = st.inv.filter(x => x.from === 'upgrade' && SK[x.n]).map(x => ({ ts: x.ts, won: SK[x.n].p, c: x.n, amount: null, x: null }));
+  if (!list.length) { body.innerHTML = pfEmpty('Апгрейдов пока не было', 'Поставьте предмет или часть баланса и заберите скин дороже. <a href="#/upgrade">К апгрейду</a>'); return; }
+  const mult = x => 'x' + (Math.round(+x * 100) / 100).toLocaleString('ru-RU');
+  pfPaged(body, 'upg', list.map(u => {
+    const s = u.c && SK[fixName(u.c)], win = +u.won > 0;
+    return pfRow({ img: s && imgUrl(s, 's'), ic: PF_IC.up, r: s && s.r, cls2: win ? 'win' : 'lose', n: s ? esc(s.name) : 'Апгрейд', sub: u.amount != null ? `Ставка ${money(+u.amount)}${u.x ? ' · ' + mult(u.x) : ''}` : 'Победа в апгрейде',
+      d: dstr(u.ts), st: win ? 'Победа' : 'Проигрыш', cls: win ? 'st-ok' : 'st-bad', p: win ? '+' + prc(+u.won) : u.amount != null ? '−' + prc(+u.amount) : '' });
+  }));
+}
+/* ---------- окна профиля — в новом стиле, как «Правила» BLAST и розыгрыши (стекло, цветная черта сверху, квадратный «закрыть») ---------- */
+function pfWin({ k = 'RUSH CASE', t, body, foot = '', cls = '', gl = '#84d9fd' }) {
+  return modal(`<div class="pfw" style="--gl:${gl}"><header class="pfw-h"><small>${k}</small><h3>${t}</h3></header><div class="pfw-b">${body}</div>${foot ? `<footer class="pfw-f">${foot}</footer>` : ''}</div>`, ('m-pf ' + cls).trim());
+}
+const TRADE_RE = /^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/;
+async function pfSaveTrade(inp) {
+  const v = inp.value.trim();
+  if (!TRADE_RE.test(v)) { inp.classList.add('err'); inp.focus(); toast('Неверный формат трейд-ссылки', 'err'); return false; }
+  inp.classList.remove('err');
+  const r = await srv('save_trade', { p_trade: v }); if (!r) return false;
+  st.trade = v; save(); toast('Трейд-ссылка сохранена'); pfBanner(); return true;
+}
+async function pfSaveMail(inp) {
+  const v = inp.value.trim().toLowerCase();
+  if (v && !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(v)) { inp.classList.add('err'); inp.focus(); toast('Проверьте адрес почты', 'err'); return false; }
+  inp.classList.remove('err');
+  const r = await srv('set_cmail', { p_email: v }); if (!r) return false;
+  st.cmail = v; save(); toast(v ? 'Почта подключена — будем присылать предложения' : 'Почта отвязана'); pfBanner(); return true;
+}
+function pfSettings(focus) {
+  const mail = st.user.via === 'email';
+  const m = pfWin({ k: 'Профиль', t: 'Настройки', body: `
+    <div class="pfw-fl"><span>Трейд-ссылка Steam<a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">Где её взять?</a></span>
+      <form class="pfw-row" id="sTradeF"><input class="pf2-inp priv" id="sTrade" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade || '')}" spellcheck="false" autocomplete="off"><button class="pf2-btn" type="submit">Сохранить</button></form></div>
+    <div class="pfw-fl"><span>Почта для предложений</span>
+      ${mail ? `<div class="pfw-ro priv">${esc(st.user.email || '')}</div>` : `<form class="pfw-row" id="sMailF"><input class="pf2-inp priv" id="sMail" type="email" placeholder="name@mail.ru" value="${esc(st.cmail || '')}" spellcheck="false" autocomplete="email"><button class="pf2-btn" type="submit">Сохранить</button></form>`}</div>
+    <div class="pfw-tg"><span>Режим стримера<small>Вместо рублей — монеты, ID и трейд-ссылка скрыты</small></span><button class="pfw-sw${st.streamer ? ' on' : ''}" type="button" id="sStream" role="switch" aria-checked="${!!st.streamer}" aria-label="Режим стримера"><i></i></button></div>
+    <div class="pfw-tg"><span>Звук<small>Звуки открытия кейсов и интерфейса</small></span><button class="pfw-sw${st.sound ? ' on' : ''}" type="button" id="sSnd" role="switch" aria-checked="${!!st.sound}" aria-label="Звук"><i></i></button></div>` });
+  $('#sTradeF', m).onsubmit = async e => { e.preventDefault(); const b = $('#sTradeF button', m); b.disabled = true; await pfSaveTrade($('#sTrade', m)); b.disabled = false; };
+  const mf = $('#sMailF', m); if (mf) mf.onsubmit = async e => { e.preventDefault(); const b = $('button', mf); b.disabled = true; await pfSaveMail($('#sMail', m)); b.disabled = false; };
+  $('#sStream', m).onclick = () => { closeModal(); streamerToggle(); };
+  $('#sSnd', m).onclick = e => { toggleSound(); e.currentTarget.classList.toggle('on', !!st.sound); e.currentTarget.setAttribute('aria-checked', !!st.sound); };
+  if (focus === 'trade') setTimeout(() => $('#sTrade', m).focus(), 60);
+}
+function pfMailWin() {
+  const m = pfWin({ k: 'Профиль', t: 'Подключить email', gl: '#5be38f', body: `<div class="pfw-lead"><span class="pfw-lead-i">${PF_IC.mail}</span><p>Будем присылать уникальные предложения, промокоды и бонусы. Без спама — отписаться можно в любой момент в настройках профиля.</p></div>
+      <form class="pfw-row" id="mlF"><input class="pf2-inp" id="mlInp" type="email" placeholder="name@mail.ru" spellcheck="false" autocomplete="email" aria-label="Почта"><button class="pf2-go" type="submit">Подключить</button></form>` });
+  $('#mlF', m).onsubmit = async e => { e.preventDefault(); const b = $('#mlF button', m), i = $('#mlInp', m); if (!i.value.trim()) return i.focus(); b.disabled = true; const ok = await pfSaveMail(i); b.disabled = false; if (ok) closeModal(); };
+  setTimeout(() => $('#mlInp', m).focus(), 60);
+}
+/* ---------- уведомления (колокольчик) и «История баланса»: пополнения, выводы, продажи, крупные дропы, бонусы R-COIN ---------- */
+let pfEvList = null;
+const PF_EVF = [['all', 'Все'], ['bal', 'Баланс'], ['wd', 'Выводы'], ['drop', 'Дропы']];
+const pfEvSeen = () => { try { return +localStorage.getItem('rc.evSeen') || 0; } catch (e) { return 0; } };
+async function pfEvLoad() {
+  if (pfEvList) return pfEvList;
+  if (!sb || !st.user || !st.user.sb) return [];
+  const [pay, wd] = await Promise.all([
+    sb.from('payments').select('amount, credited, status, created_at, paid_at').eq('uid', st.user.id).in('status', ['paid', 'hold']).order('created_at', { ascending: false }).limit(20),
+    sb.rpc('my_withdrawals')]);
+  const ev = [], img = s => s ? imgUrl(s, 's') : '';
+  (pay.data || []).forEach(p => ev.push(p.status === 'hold'
+    ? { ts: Date.parse(p.created_at), k: 'bal', t: 'Пополнение скинами на проверке', s: `Зачислим через ${SK_HOLD} дн. после обмена`, v: prc(+p.amount), c: 'warn' }
+    : { ts: Date.parse(p.paid_at || p.created_at), k: 'bal', t: 'Баланс пополнен', s: 'Пополнение', v: '+' + prc(+(p.credited || p.amount)), c: 'ok' }));
+  (wd.data || []).forEach(w => { const s = SK[w.n], [t, c] = WD_ST[w.status] || ['—', '']; ev.push({ ts: Date.parse(w.ts), k: 'wd', img: img(s), t: 'Вывод: ' + t.toLowerCase(), s: esc(s ? s.name : w.n), v: prc(+w.price), c: c.replace('st-', '') }); });
+  st.inv.forEach(x => {
+    const s = SK[x.n]; if (!s) return;
+    if (x.st === 'sold') ev.push({ ts: x.ot || x.ts, k: 'bal', img: img(s), t: 'Предмет продан', s: esc(s.name), v: '+' + prc(s.p), c: 'ok' });
+    if (s.p >= 1000) ev.push({ ts: x.ts, k: 'drop', img: img(s), t: x.from === 'upgrade' ? 'Победа в апгрейде' : 'Крупный дроп', s: `${esc(s.name)} · ${fromName(x.from)}`, v: prc(s.p), c: 'gold' });
+  });
+  (st.rlog || []).forEach(r => { if (r.v > 0 && !/^Кейс/.test(r.note || '')) ev.push({ ts: r.ts, k: 'bal', t: 'Бонус R-COIN', s: esc(r.note || ''), v: '+' + rc(r.v) + ' R', c: 'ok' }); });
+  const by = {}; ev.filter(e => e.ts).sort((a, b) => b.ts - a.ts).forEach(e => { (by[e.k] = by[e.k] || []).length < 40 && by[e.k].push(e); }); // не больше 40 каждого вида — продажи не вытесняют пополнения и выводы
+  return pfEvList = Object.values(by).flat().sort((a, b) => b.ts - a.ts);
+}
+async function pfEvDot() {
+  const list = await pfEvLoad(), d = $('#pfBellDot');
+  if (d) d.hidden = !(list.length && list[0].ts > pfEvSeen());
+}
+function pfEvClose() { const p = $('#pfEv'); if (p) p.remove(); }
+async function pfEvOpen(f) {
+  if ($('#pfEv')) { const same = $('#pfEv').dataset.f === f; pfEvClose(); if (same) return; }
+  const btn = f === 'bal' ? $('#pfBalHist') : $('#pfBell'); if (!btn) return;
+  const p = document.createElement('div'); p.className = 'pf2-ev'; p.id = 'pfEv'; p.dataset.f = f;
+  p.innerHTML = `<div class="pf2-ev-h"><b>${f === 'bal' ? 'История баланса' : 'Уведомления'}</b><nav>${PF_EVF.map(([k, t]) => `<button type="button" data-f="${k}"${k === f ? ' class="on"' : ''}>${t}</button>`).join('')}</nav></div><div class="pf2-ev-l"><div class="pf2-load"><span class="spinner"></span></div></div>`;
+  document.body.appendChild(p);
+  const r = btn.getBoundingClientRect();
+  p.style.top = Math.round(r.bottom + 10) + 'px';
+  p.style.left = Math.round(f === 'bal' ? Math.max(12, r.left - 6) : Math.max(12, Math.min(innerWidth - p.offsetWidth - 12, r.right - p.offsetWidth + 10))) + 'px';
+  const list = await pfEvLoad(); if (!p.isConnected) return;
+  try { if (list.length) localStorage.setItem('rc.evSeen', String(list[0].ts)); } catch (e) { /* приватный режим */ }
+  const dot = $('#pfBellDot'); if (dot) dot.hidden = true;
+  const draw = k => {
+    p.dataset.f = k; $$('nav button', p).forEach(b => b.classList.toggle('on', b.dataset.f === k));
+    const l = list.filter(e => k === 'all' || e.k === k);
+    $('.pf2-ev-l', p).innerHTML = l.length ? l.map(e => `<div class="pf2-evi ${e.c || ''}"><span class="pf2-evi-pic">${e.img ? `<img src="${e.img}" alt="" loading="lazy">` : PF_IC.bell}</span><span class="pf2-evi-t"><b>${e.t}</b><small>${e.s}</small></span><span class="pf2-evi-v"><em>${e.v}</em><small>${dstr(e.ts)}</small></span></div>`).join('')
+      : '<div class="pf2-ev-0">Пока пусто — здесь появятся пополнения, выводы, продажи и крупные дропы</div>';
+  };
+  $$('nav button', p).forEach(b => b.onclick = e => { e.stopPropagation(); draw(b.dataset.f); });
+  draw(f);
+}
+document.addEventListener('mousedown', e => { const p = $('#pfEv'), t = e.target; if (p && !p.contains(t) && !(t.closest && t.closest('#pfBell, #pfBalHist'))) pfEvClose(); });
+window.addEventListener('scroll', pfEvClose, { passive: true });
+window.addEventListener('hashchange', pfEvClose);
 /* ---------- вывод в Steam через market.csgo: заявка → покупка на маркете → обмен игроку (supabase/market.sql, functions/market) ---------- */
 const WD_ST = { wait: ['Проверяется', 'st-warn', 'заявку проверяет администратор'], new: ['В очереди', 'st-warn', 'покупаем предмет на маркете'], buying: ['Покупаем', 'st-warn', 'покупаем предмет на маркете'],
   sent: ['Примите обмен', 'st-warn', 'продавец отправляет обмен — примите его в Steam'], prot: ['Получен', 'st-ok', 'обмен принят, идёт защита обмена Steam'], done: ['Выведен', 'st-ok', 'предмет в вашем инвентаре Steam'], fail: ['Отменён', 'st-bad', ''] };
 const wdKick = () => { try { fetch(`${SB_URL}/functions/v1/market?action=tick`, { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: '{}' }).catch(() => {}); } catch (e) { /* без сети */ } };
 let wdTimer = 0, wdSeen = '';
-// вкладка «Выводы» в профиле (вся история) + в инвентаре — короткая плашка, пока что-то выводится; число активных — на кнопке вкладки
+// статусы выводов: пока что-то выводится — проверяем раз в 15 с; статус поменялся — обновляем инвентарь; окно «Выводы» (карточка «Выведено») — полный список
 async function drawWd() {
   clearTimeout(wdTimer); if (!$('#pfBody') || !sb || !st.user || !st.user.sb) return;
   const { data } = await sb.rpc('my_withdrawals'); if (!$('#pfBody')) return;
   const list = data || [], act = list.filter(w => !['done', 'fail'].includes(w.status));
   const sig = list.map(w => w.id + w.status).join();
-  if (wdSeen && sig !== wdSeen) { wdSeen = sig; await sbRefresh(); return drawPf(); } // статус поменялся — инвентарь обновить (отменённый предмет вернулся)
+  if (wdSeen && sig !== wdSeen) { wdSeen = sig; pfEvList = null; await sbRefresh(); return drawPf(); } // статус поменялся — инвентарь обновить (отменённый предмет вернулся)
   wdSeen = sig;
-  const cnt = $('#wdCnt'); if (cnt) cnt.textContent = act.length || '';
-  const note = $('#wdNote');
-  if (note) { note.innerHTML = act.length ? `<button class="wd-note" id="wdGoTab">${ic.steam}<span>${act.length} ${plural(act.length, 'предмет выводится', 'предмета выводятся', 'предметов выводятся')} в Steam</span><b>Смотреть статус →</b></button>` : ''; const g = $('#wdGoTab'); if (g) g.onclick = () => { pfTab = 'wd'; drawPf(); }; }
   const box = $('#wdList');
   if (box) {
     const row = w => {
       const s = SK[w.n], [t, cls, hint] = WD_ST[w.status] || ['—', '', ''];
-      return `<div class="wd-row r-${s ? s.r : 'milspec'}"><img src="${s ? imgUrl(s, 's') : ''}" alt=""><div class="n">${esc(s ? s.name : w.n)}<small>${esc(w.status === 'fail' ? w.err || 'вывод отменён — предмет возвращён в инвентарь' : hint)}</small></div>
-        ${w.status === 'sent' ? `<a class="btn btn-accent btn-sm" href="https://steamcommunity.com/my/tradeoffers/" target="_blank" rel="noopener">${ic.steam}Обмены</a>` : ''}<span class="d">${dstr(Date.parse(w.ts))}</span><span class="s ${cls}">${t}</span><span class="p">${money(+w.price)}</span></div>`;
+      return pfRow({ img: s && imgUrl(s, 's'), r: s ? s.r : 'milspec', n: esc(s ? s.name : w.n), sub: esc(w.status === 'fail' ? w.err || 'вывод отменён — предмет возвращён в инвентарь' : hint),
+        extra: w.status === 'sent' ? `<a class="pf2-btn pf2-row-a" href="https://steamcommunity.com/my/tradeoffers/" target="_blank" rel="noopener">${ic.steam}Обмены</a>` : '', d: dstr(w.ts), st: t, cls, p: prc(+w.price) });
     };
     const fin = list.filter(w => ['done', 'fail'].includes(w.status));
-    box.innerHTML = list.length ? `${act.length ? `<div class="wd-list"><b class="wd-h">Сейчас выводятся</b>${act.map(row).join('')}</div>` : ''}${fin.length ? `<div class="wd-list"><b class="wd-h">История выводов</b>${fin.map(row).join('')}</div>` : ''}`
-      : `<div class="empty">${ic.steam}Выводов пока не было<small>Нажмите на кнопку со стрелкой у предмета в инвентаре, чтобы вывести его в Steam</small></div>`;
+    box.innerHTML = list.length ? `${act.length ? `<b class="pfw-sub">Сейчас выводятся</b><div class="pf2-list">${act.map(row).join('')}</div>` : ''}${fin.length ? `<b class="pfw-sub">История выводов</b><div class="pf2-list">${fin.map(row).join('')}</div>` : ''}`
+      : `<div class="pf2-ev-0">Выводов пока не было. Наведите на предмет в инвентаре и нажмите стрелку, чтобы вывести его в Steam.</div>`;
   }
   if (act.length) wdTimer = setTimeout(() => { wdKick(); drawWd(); }, 15000);
 }
-function drawWdTab(body) {
-  body.innerHTML = `<div class="wd-tab">
-    <div class="wd-info">${ic.steam}<span>Мы покупаем предмет на маркете, и продавец отправляет его обменом на вашу трейд-ссылку — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.${st.trade ? '' : ' <b>Сначала укажите трейд-ссылку во вкладке «Инвентарь».</b>'}</span></div>
-    <div id="wdList"><div class="ax-load"><span class="spinner"></span>Загружаем выводы…</div></div></div>`;
+function pfWdWin() {
+  pfWin({ k: 'Steam', t: 'Выводы', cls: 'm-pf-wide', body: `<div class="pfw-note">${ic.steam}<span>Мы покупаем предмет на маркете, и продавец отправляет его обменом на вашу трейд-ссылку — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.${st.trade ? '' : ' <b>Сначала укажите трейд-ссылку в настройках профиля.</b>'}</span></div>
+    <div id="wdList"><div class="pf2-load"><span class="spinner"></span>Загружаем выводы…</div></div>` });
   drawWd();
 }
 function withdraw(id) {
   const it = st.inv.find(x => x.id === id); if (!it || it.st !== 'own') return;
-  if (!st.trade) { const ti = $('#tradeInp'); if (ti) { ti.classList.add('err'); ti.focus(); } return toast('Сначала укажите трейд-ссылку Steam', 'err'); }
+  if (!st.trade) { toast('Сначала укажите трейд-ссылку Steam', 'err'); return pfSettings('trade'); }
   const s = SK[it.n];
-  const m = modal(`<div class="wd r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><h2>Вывод предмета</h2><p>${esc(s.name)} · ${money(s.p)}<br>Мы купим этот предмет на маркете, и продавец отправит его обменом на вашу трейд-ссылку. Обычно это занимает несколько минут — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.</p><button class="btn btn-primary btn-lg btn-block" id="wdGo">${ic.send}Вывести в Steam</button></div>`, 'm-wd');
+  const m = pfWin({ k: 'Steam', t: 'Вывод предмета', body: `<div class="pfw-item r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>
+      <p class="pfw-p">Мы купим этот предмет на маркете, и продавец отправит его обменом на вашу трейд-ссылку. Обычно это занимает несколько минут — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.</p>`,
+    foot: `<button class="pf2-btn" type="button" id="wdNo">Отмена</button><button class="pf2-go" type="button" id="wdGo">${ic.send}Вывести</button>` });
+  $('#wdNo', m).onclick = closeModal;
   $('#wdGo', m).onclick = async () => {
     const b = $('#wdGo', m); b.disabled = true; b.innerHTML = '<span class="spinner"></span>Создаём заявку…';
     const r = await srv('withdraw', { p_id: id }); closeModal();
-    if (r) { wdKick(); wdSeen = ''; toast(r.status === 'wait' ? `Заявка на вывод <b>${esc(s.name)}</b> принята — её проверит администратор` : `Выводим <b>${esc(s.name)}</b> — примите обмен в Steam, статус во вкладке «Выводы»`); }
-    if (r) pfTab = 'wd';
+    if (r) { wdKick(); wdSeen = ''; pfEvList = null; toast(r.status === 'wait' ? `Заявка на вывод <b>${esc(s.name)}</b> принята — её проверит администратор` : `Выводим <b>${esc(s.name)}</b> — примите обмен в Steam. Статус — в карточке «Выведено»`); }
     if ($('#pfBody')) drawPf();
   };
 }
@@ -5814,9 +5956,11 @@ async function openDeposit(need = 0, promo = null) {
   const soon = x => isSk(x.k) ? !skOn(x.k) : x.soon; // скины работают отдельно от основной кассы
   const bonusPct = () => Math.max(st.depBonus || 0, refPct);
   const m = modal(`<div class="dpn">
+    <header class="dpn-hd"><div class="dpn-hd-t"><small>Пополнение баланса</small><h2>Выберите способ оплаты</h2></div>
+      <div class="dpn-hd-r"><span class="dpn-cur">На балансе ${prc(st.balance)}</span>${need ? `<span class="dpn-need">Не хватает <b>${prc(need)}</b></span>` : ''}</div></header>
+    <div class="dpn-main">
     <nav class="dpn-rail">${PAY_TABS.map(t => `<button data-tab="${t.k}">${ic[t.i]}<span>${t.t}</span></button>`).join('')}</nav>
     <div class="dpn-body">
-      <div class="dpn-head"><h2>Выберите способ оплаты</h2>${need ? `<span class="dpn-need">Для открытия не хватает <b>${money(need)}</b></span>` : ''}</div>
       <div class="dpn-methods" id="dpnM"></div>
       <div class="dpn-form">
         <label class="dpn-l" for="depAmt">Сумма:<small>Мин. 100 ₽</small></label>
@@ -5826,7 +5970,7 @@ async function openDeposit(need = 0, promo = null) {
         <div class="dpn-in dpn-tr"><input class="inp" id="depTrade" value="${esc(st.trade || '')}" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" autocomplete="off" spellcheck="false"></div>
         <label class="dpn-l" for="depPromo">Промокод:<small>если есть</small></label>
         <div class="dpn-in"><input class="inp" id="depPromo" value="${esc(promo || '')}" placeholder="Например, RUSH35" autocomplete="off" spellcheck="false" maxlength="24"><span>%</span></div>
-        <button class="btn btn-primary dpn-go" id="depGo"></button>
+        <button class="dpn-go" id="depGo"></button>
       </div>
       <div class="dpn-get">
         <span class="dpn-get-l">Вы получите</span>
@@ -5836,6 +5980,7 @@ async function openDeposit(need = 0, promo = null) {
       </div>
       <p class="dpn-hint" id="depHint"></p>
       <p class="dpn-foot">Если после оплаты прошло более 30 минут, а баланс не пополнился — напишите нам в <a data-act="support" id="dpnSup">поддержку</a>.</p>
+    </div>
     </div>
   </div>`, 'm-dep m-dpn');
   const drawMethods = () => {
@@ -5854,7 +5999,7 @@ async function openDeposit(need = 0, promo = null) {
     $('.dpn-form', m).classList.remove('sk');
     const ok = amount >= 100 && amount <= 1000000, b = bonusPct();
     $$('.dpn-chips button', m).forEach(e => e.classList.toggle('on', +e.dataset.a === amount));
-    $('#depTotal', m).textContent = ok ? money(Math.round(amount * (1 + b / 100))) : '—';
+    $('#depTotal', m).innerHTML = ok ? prc(Math.round(amount * (1 + b / 100))) : '—';
     $('#depBon', m).textContent = ok && b ? `бонус +${b}%` : 'на баланс';
     $('#depRc', m).textContent = ok ? rc(Math.floor(amount * DEP_RC)) : '—';
     // «Вы получите» — только когда введена сумма
@@ -5881,6 +6026,9 @@ async function openDeposit(need = 0, promo = null) {
   $('#depAmt', m).oninput = e => { amount = Math.max(0, Math.round(+e.target.value || 0)); draw(); };
   $('#depPromo', m).oninput = e => { const c = e.target.value.trim().toUpperCase(); code = /^[A-Z0-9]{2,24}$/.test(c) ? c : null; draw(); };
   $('#dpnSup', m).onclick = () => closeModal();
+  if (need > 0) { amount = Math.min(1000000, Math.max(100, Math.ceil(need / 50) * 50)); $('#depAmt', m).value = amount; } // сразу сумма, которой не хватает
+  [$('#depAmt', m), $('#depPromo', m), $('#depTrade', m)].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') $('#depGo', m).click(); }));
+  if (matchMedia('(pointer:fine)').matches) setTimeout(() => { const i = $('#depAmt', m); if (i && i.offsetParent) i.focus(); }, 120);
   $('#depGo', m).onclick = async e => {
     if (!method) return toast('Выберите способ оплаты', 'err');
     // касса ещё не подключена — сообщаем прямо в окне, не закрывая его
@@ -10059,7 +10207,9 @@ function route() {
   document.body.classList.toggle('pg-crash', key === 'crash');
   document.body.classList.toggle('pg-build', key === 'build');
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
-  document.body.classList.toggle('pg-home', key === '' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite'); // «Крот», «Пригласить друзей» — тот же новый фон, что у «Кейсов» // главный экран и витрина кейсов — свой фон (assets/bg-home.webp)
+  document.body.classList.toggle('pg-home', key === '' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite' || key === 'profile' || key === 'upgrade');
+  document.body.classList.toggle('pg-upgrade', key === 'upgrade'); // апгрейд — фон владельца 12.11 (ночные руины, assets/bg-upgrade.webp), слегка размыт
+  document.body.classList.toggle('pg-profile', key === 'profile'); // профиль — размытый снимок главного экрана (assets/bg-home.webp), как на образце владельца 12.11 // «Крот», «Пригласить друзей» — тот же новый фон, что у «Кейсов» // главный экран и витрина кейсов — свой фон (assets/bg-home.webp)
   document.body.classList.toggle('pg-main', key === ''); // на главном экране тот же снимок, но чёткий (assets/bg-main.webp)
   document.body.classList.toggle('pg-cases', key === 'cases');
   document.body.classList.toggle('pg-bonus', key === 'bonus'); // «Бонусы» — тот же размытый снимок, что у «Кейсов» (как на образце владельца) // страница «Кейсы» — тот же снимок, слегка размытый (assets/bg-cases.webp)
