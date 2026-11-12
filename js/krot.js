@@ -37,7 +37,7 @@ const PH = { lobby: 'Сбор группы', brief: 'Брифинг', talk: 'О�
   open: 'Вскрытие', debrief: 'Разбор операции', done: 'Операция завершена' };
 const HINT = { lobby: 'Ждём четырёх игроков. Нажмите «Готов к операции», когда будете на месте.',
   brief: 'Прочитайте свою карточку — опустите взгляд или зажмите ПКМ. Остальные её не видят.',
-  talk: 'Сверьте улики и найдите цель. Крот среди вас — не верьте на слово.',
+  talk: 'Сверьте улики и найдите цель. Готовы голосовать — нажмите красную кнопку перед собой: когда нажмут все, начнётся голосование.',
   vote: 'Кликните по контейнеру (или 1–4). Выбор можно менять до конца таймера. Зажмите ЛКМ — осмотреться.',
   revote: 'Голоса разделились. Выберите один из подсвеченных контейнеров.',
   open: 'Вскрываем…', debrief: 'Роли раскрыты. Кто был Кротом?', done: '' };
@@ -46,7 +46,7 @@ const CANCEL = { disconnect: 'игрок не вернулся вовремя', 
 const REPORT = [['abuse', 'Оскорбления'], ['cheat', 'Подсказки со стороны или сговор'], ['spam', 'Спам в чате'], ['afk', 'Не участвует в игре'], ['other', 'Другое']];
 const ERR = { 'not authenticated': 'Войдите в аккаунт, чтобы играть', 'not in room': 'Вы не в этой комнате', 'room not found': 'Комната с таким кодом не найдена',
   'already started': 'В этой комнате игра уже идёт', 'room full': 'В комнате уже 4 игрока', 'too many rooms': 'Слишком много комнат за час — попробуйте позже',
-  'not lobby': 'Игра уже началась', 'closed': 'Голосование уже закрыто', 'vote locked': 'Ваш голос уже зафиксирован', 'bad box': 'Этот контейнер сейчас выбрать нельзя',
+  'not lobby': 'Игра уже началась', 'not talk': 'Кнопка работает только во время обсуждения', 'closed': 'Голосование уже закрыто', 'vote locked': 'Ваш голос уже зафиксирован', 'bad box': 'Этот контейнер сейчас выбрать нельзя',
   'empty': 'Пустое сообщение', 'too long': 'Слишком длинное сообщение', 'too fast': 'Не так быстро — подождите секунду', 'repeat': 'Такое сообщение уже было',
   'too many reports': 'Слишком много жалоб — попробуйте позже', 'bad player': 'Этого игрока выбрать нельзя',
   'not leader': 'Поиск запускает лидер группы', 'member in game': 'Кто-то из группы ещё доигрывает матч', 'in game': 'Сначала доиграйте текущий матч',
@@ -165,7 +165,7 @@ function listen() {
   H.scr = () => { if (window.scrollY && root) window.scrollTo(0, 0); };   // игра на весь экран: страница не прокручивается (фокус в чате и т. п.)
   H.pu = e => {
     if (e.button === 2 && G) G.setRead(false);
-    if (e.button === 0 && drag && !drag.moved && G) { const a = G.aim(); if (a && canPick()) vote(a); }   // клик без перетаскивания — выбор контейнера
+    if (e.button === 0 && drag && !drag.moved && G) { if (G.aimBtn() && canBtn()) voteReady(); else { const a = G.aim(); if (a && canPick()) vote(a); } }   // клик без перетаскивания — выбор контейнера
     drag = null; if (root) root.classList.remove('drag');
   };
   H.bu = e => { if (S && room && ['brief', 'talk', 'vote', 'revote'].includes(S.room.phase)) { e.preventDefault(); e.returnValue = ''; } };
@@ -214,6 +214,7 @@ function bindCanvas(cv) {
   });
   cv.addEventListener('pointerleave', () => { if (G && !drag) G.mouse(null); });
 }
+const canBtn = () => !!(S && S.room.phase === 'talk' && !S.room.paused);
 const canPick = () => !!(S && S.round && ['brief', 'talk', 'vote', 'revote'].includes(S.room.phase) && !S.room.paused);
 
 /* ---------- клики по интерфейсу ---------- */
@@ -245,6 +246,7 @@ function onClick(e) {
   else if (a === 'chat') openChat(!chatOpen);
   else if (a === 'skip') { if (G) G.skipOpen(); }
   else if (a === 'mic') micStart();
+  else if (a === 'vready') voteReady();
   else if (a === 'voice') { if (VC.needTap) vcTapPlay(); else openOv('voice'); }
   else if (a === 'vmode') { vcSet('mode', b.dataset.v); if (ov === 'voice') openOv('voice'); else drawMid(); }
   else if (a === 'vmute') { const p = S && S.players.find(q => q.seat === +b.dataset.seat); if (p) { vcPlayerMute(p); drawOvLive(true); } }
@@ -362,6 +364,34 @@ function myPick() {
 function marks() {
   const m = myPick(), ph = S && S.room.phase;
   return { mine: m.box || 0, kind: m.kind || '', cands: ph === 'revote' && S.round ? S.round.cands || [] : null };
+}
+
+/* ---------- красная кнопка «готов голосовать» (обсуждение): нажали все — сразу голосование ---------- */
+let rdyBusy = false;
+async function voteReady() {
+  if (!canBtn() || rdyBusy) return;
+  const me = myPlayer(); if (!me) return;
+  const on = !me.vote_ready; me.vote_ready = on;   // сразу видно у себя, сервер подтвердит
+  if (G) G.sync(S); drawRdy(); btnClick(on);
+  rdyBusy = true;
+  try { await api.rpc('krot_vote_ready', { p_room: room, p_on: on }); } catch (e) { note(errText(e), 'err'); }
+  finally { rdyBusy = false; refresh(); }
+}
+function btnClick(on) {   // тихий механический щелчок
+  if (!soundOn()) return;
+  try {
+    const ac = window.__krAC || (window.__krAC = new (window.AudioContext || window.webkitAudioContext)()); if (ac.state === 'suspended') ac.resume();
+    const o = ac.createOscillator(), g = ac.createGain(), t0 = ac.currentTime;
+    o.type = 'square'; o.frequency.setValueAtTime(on ? 220 : 160, t0); o.frequency.exponentialRampToValueAtTime(70, t0 + .06);
+    g.gain.setValueAtTime(.05, t0); g.gain.exponentialRampToValueAtTime(.001, t0 + .08);
+    o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0 + .1);
+  } catch (e) { /* без звука */ }
+}
+function drawRdy() {
+  const el = root && $('#krRdy', root); if (!el || !S) return;
+  const show = canBtn(); el.hidden = !show; if (!show) return;
+  const ps = S.players.filter(p => !p.left), n = ps.filter(p => p.vote_ready).length, me = myPlayer();
+  el.innerHTML = `<span class="kr-h">Готовы голосовать</span><span class="kr-rdd">${[1, 2, 3, 4].map(st2 => { const p = S.players.find(q => q.seat === st2); return `<i class="${p && p.vote_ready ? 'on' : ''}" title="${p ? esc(p.name) + (p.vote_ready ? ' — готов' : '') : ''}"></i>`; }).join('')}</span><b>${n}/${ps.length}</b><button class="kr-btn sm ${me && me.vote_ready ? 'ghost' : 'red'}" data-a="vready">${me && me.vote_ready ? 'Отжать' : 'Я готов'}</button>`;
 }
 
 /* ---------- чат ---------- */
@@ -563,6 +593,7 @@ function drawRoom() {
   view = 'room'; root.classList.remove('in-menu'); root.classList.add('in-room');
   if (G) G.menu(false);
   ui.innerHTML = `
+  <div class="kr-rdy kr-glass" id="krRdy" hidden></div>
   <header class="kr-top kr-glass" id="krTop"><span class="kr-ph" id="krPh"></span><b class="kr-tm" id="krTm"></b><i class="kr-bar"><i id="krBar"></i></i><em class="kr-net" id="krNet" hidden>Нет связи — переподключаемся…</em></header>
   <div class="kr-rm" id="krRm"></div>
   <aside class="kr-left" id="krLeft"><section class="kr-card kr-glass" id="krCard"></section><section class="kr-dos kr-glass" id="krDos"></section></aside>
@@ -582,7 +613,7 @@ function drawRoom() {
 }
 function drawAll() {
   if (!S || view !== 'room') return;
-  drawTop(); drawRm(); drawCard(); drawDos(); drawMid(); drawHint(); drawOvLive();
+  drawTop(); drawRm(); drawCard(); drawDos(); drawMid(); drawHint(); drawOvLive(); drawRdy();
   root.classList.toggle('can-pick', canPick());
   root.classList.toggle('paused', !!S.room.paused);
   root.dataset.ph = S.room.phase;
@@ -911,10 +942,11 @@ function uiTick() {
 let aimShown = -1;
 function aimHint() {
   if (view !== 'room' || !S) return;
-  const a = canPick() ? G.aim() : 0;
+  const btn = canBtn() && G.aimBtn(), a = btn ? 'btn' : canPick() ? G.aim() : 0;
   if (a === aimShown) return; aimShown = a;
   root.classList.toggle('aim', !!a);
   const h = $('#krHint', root); if (!h) return;
+  if (btn) { const me = myPlayer(); h.hidden = false; h.innerHTML = `<b>Красная кнопка</b> · ${me && me.vote_ready ? 'вы готовы голосовать — клик, чтобы отжать' : 'клик — готов голосовать'}`; return; }
   const b = a && S.round && S.round.boxes.find(x => x.n === a), d = (S.round && S.round.dict) || DICT0;
   if (b) { h.hidden = false; h.innerHTML = `<b>Контейнер ${nn(a)}</b> · ${svgSym(b.sym)}${esc(d.sym[b.sym])} · ${svgGun(b.gun)}${esc(d.gun[b.gun])} · ${sw(b.col)}${esc(d.col[b.col])}<span class="kr-hk">${S.room.phase === 'vote' || S.room.phase === 'revote' ? 'клик — выбрать' : 'клик — черновик'}</span>`; }
   else drawHint();
@@ -1035,7 +1067,8 @@ function makeWorld(T, RB, RE, cv) {
   const suitM = std({ color: 0x252b33, roughness: .72, metalness: .08 }), skinM = std({ color: 0x323a43, roughness: .55, metalness: .15 });
   const visorM = std({ color: 0x0a0e13, roughness: .1, metalness: .9, emissive: 0x0c3446, emissiveIntensity: .7 });
   const chairM = std({ color: 0x14181d, roughness: .55, metalness: .45 }), gearM = std({ color: 0x15191d, roughness: .5, metalness: .5 });
-  const backT = tex(paintCardBack()), blankT = tex(paintCardFront(null)), spkT = tex(paintSpk());
+  const backT = tex(paintCardBack()), blankT = tex(paintCardFront(null)), spkT = tex(paintSpk()), glowDotT = tex(paintGlowDot());
+  const btnBaseM = std({ color: 0x1b1f24, roughness: .45, metalness: .7 }), hazardM = new T.MeshStandardMaterial({ color: 0xd4a017, roughness: .6, metalness: .2, emissive: 0x3a2a00, emissiveIntensity: .4 });
   const myCardT = tex(paintCardFront(null));
   const AV = {};
   const cyl = (r, m) => mesh(new T.CylinderGeometry(r, r, 1, 12), m);
@@ -1047,6 +1080,15 @@ function makeWorld(T, RB, RE, cv) {
     const seat = mesh(new RB(.46, .06, .44, 2, .015), chairM); seat.position.set(0, .45, .04); g.add(seat);
     const back = mesh(new RB(.44, .5, .05, 2, .015), chairM); back.position.set(0, .76, .27); back.rotation.x = .08; g.add(back);
     [[-.19, -.15], [.19, -.15], [-.19, .23], [.19, .23]].forEach(([x, z]) => { const l = mesh(new T.CylinderGeometry(.016, .016, .43, 8), chairM); l.position.set(x, .215, z); g.add(l); });
+    // красная кнопка «готов голосовать»
+    const bg = new T.Group(); bg.position.set(.2, TOP, -.46); g.add(bg);
+    const bbase = mesh(new T.CylinderGeometry(.052, .06, .02, 28), btnBaseM); bbase.position.y = .01; bg.add(bbase);
+    const bring = new T.Mesh(new T.RingGeometry(.06, .078, 36), hazardM); bring.rotation.x = -Math.PI / 2; bring.position.y = .0012; bg.add(bring);
+    const capM = std({ color: 0xc8201c, roughness: .32, metalness: .1, emissive: 0xff2a1a, emissiveIntensity: .2 });
+    const cap = mesh(new T.CylinderGeometry(.038, .04, .022, 28), capM); cap.position.y = .031; bg.add(cap);
+    const dome = mesh(new T.SphereGeometry(.038, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2), capM); dome.scale.y = .32; dome.position.y = .042; bg.add(dome);
+    const bglow = new T.Sprite(new T.SpriteMaterial({ map: glowDotT, color: 0xff3a2a, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })); bglow.scale.set(.24, .24, 1); bglow.position.y = .05; bg.add(bglow);
+    Object.assign(a, { bCap: cap, bDome: dome, bCapM: capM, bGlow: bglow, bHit: [bbase, cap, dome], bOn: false, bk: 0 });
     // тело
     const body = new T.Group(); g.add(body); a.body = body;
     const torso = mesh(new T.CapsuleGeometry(.16, .28, 6, 16), suitM); torso.scale.set(1.08, 1, .7); torso.position.set(0, .85, .05); torso.rotation.x = -.06; body.add(torso);
@@ -1083,6 +1125,7 @@ function makeWorld(T, RB, RE, cv) {
   }
 
   /* состояние камеры и ввода */
+  let btnActive = false, aimBtn = false;
   let mySeat = 1, yaw = 0, pitch = -.38, readHold = false, locked = false, menuOn = true, clock = 0, userAt = 0, auto = null;
   let mouseN = null, aimN = 0, aimOn = false, mk = { mine: 0, kind: '', cands: null }, roundId = 0, cardKey = '', hideMine = false;
   const tw = [];
@@ -1096,6 +1139,7 @@ function makeWorld(T, RB, RE, cv) {
   W.look = (dx, dy) => { if (menuOn) return; yaw = clamp(yaw - dx * .0023, -1.5, 1.5); pitch = clamp(pitch - dy * .0023, -1.15, .5); userAt = clock; auto = null; };
   W.mouse = (x, y) => { mouseN = x == null ? null : [x, y]; };
   W.aim = () => aimN;
+  W.aimBtn = () => aimBtn;
   W.headAngles = () => menuOn ? null : { y: yaw, p: pitch };
   W.hideCard = on => { hideMine = on; cardKey = ''; if (S) W.sync(S); };
   W.head = (s, y, p) => { const a = AV[s]; if (!a || a.me) return; a.ty = clamp(+y || 0, -1.3, 1.3); a.tp = clamp(+p || 0, -1, .45); };
@@ -1110,7 +1154,7 @@ function makeWorld(T, RB, RE, cv) {
     const roles = d.round && d.round.roles;
     for (const s of [1, 2, 3, 4]) {
       const a = AV[s], p = d.players.find(x => x.seat === s);
-      a.on = !!p; a.me = !!(p && p.me);
+      a.on = !!p; a.me = !!(p && p.me); a.bOn = !!(p && p.vote_ready);
       const vis = !menuOn && a.on;
       a.body.visible = vis; a.card.visible = vis; a.arm.forEach(r => { r.up.visible = r.fo.visible = r.el.visible = r.hand.visible = vis; r.shp.visible = vis && !a.me; });
       a.headParts.forEach(o => { o.visible = !a.me; });
@@ -1125,6 +1169,7 @@ function makeWorld(T, RB, RE, cv) {
     const ck = (d.me.role || '') + JSON.stringify(d.me.card || {}) + hideMine;
     if (ck !== cardKey) { cardKey = ck; const c = paintCardFront(d.me.role && !hideMine ? { role: d.me.role, card: d.me.card, dict: (d.round && d.round.dict) || DICT0 } : hideMine && d.me.role ? 'hidden' : null); myCardT.image = c; myCardT.needsUpdate = true; }
     // контейнеры
+    btnActive = d.room.phase === 'talk' && !d.room.paused;
     const rd = d.round, rid = rd ? rd.id : 0;
     if (rid !== roundId) { roundId = rid; W.resetRound(true); }
     setBoxes(rd);
@@ -1212,7 +1257,10 @@ function makeWorld(T, RB, RE, cv) {
     cam.updateMatrixWorld();
     // фигуры: голова, дыхание, карточка, руки
     for (const s of [1, 2, 3, 4]) {
-      const a = AV[s]; if (!a.on || menuOn) continue;
+      const a = AV[s];
+      { const on = a.bOn && btnActive && a.on, hov = a.me && aimBtn; a.bk += ((on ? 1 : 0) - a.bk) * (1 - Math.exp(-dt * 16));   // кнопка: утоплена и светится, когда нажата
+        a.bCap.position.y = .031 - .009 * a.bk; a.bDome.position.y = .042 - .009 * a.bk; a.bCapM.emissiveIntensity = .2 + 1.7 * a.bk + (hov ? .35 : 0) + (btnActive && a.me && !on ? .15 * (1 + Math.sin(t * 4)) : 0); a.bGlow.material.opacity = .9 * a.bk; }
+      if (!a.on || menuOn) continue;
       const f = 1 - Math.exp(-dt * 9);
       if (!a.me) { a.hy += (a.ty - a.hy) * f; a.hp += (a.tp - a.hp) * f; a.hd.rotation.set(a.hp * .85, a.hy * .9, 0); }
       a.body.position.y = Math.sin(t * 1.7 + s * 1.3) * .004;
@@ -1237,10 +1285,11 @@ function makeWorld(T, RB, RE, cv) {
       }
     }
     // прицел по контейнерам
-    aimN = 0;
+    aimN = 0; aimBtn = false;
     if (!menuOn && (locked || mouseN)) {
       ndc.set(locked ? 0 : mouseN[0], locked ? 0 : mouseN[1]); ray.setFromCamera(ndc, cam);
-      const h = ray.intersectObjects(hitList, false)[0]; if (h && h.distance < 3) aimN = h.object.userData.n;
+      if (btnActive && AV[mySeat] && ray.intersectObjects(AV[mySeat].bHit, false)[0]) aimBtn = true;   // моя красная кнопка
+      else { const h = ray.intersectObjects(hitList, false)[0]; if (h && h.distance < 3) aimN = h.object.userData.n; }
     }
     // подсветка: прицел — голубой, мой выбор — ярко-голубой, доп. голосование — янтарь, черновик — тусклый
     let mineN = 0;
@@ -1365,6 +1414,11 @@ function paintMine() {
   x.fillStyle = 'rgba(10,22,30,.85)'; rr(x, 4, 6, 248, 52, 4); x.fill(); x.strokeStyle = '#84d9fd'; x.lineWidth = 3; x.stroke();
   x.fillStyle = '#84d9fd'; x.font = F_H(30); x.textAlign = 'center'; x.fillText('ВАШ ВЫБОР', 128, 43);
   return c;
+}
+function paintGlowDot() {   // мягкое круглое свечение (кнопка)
+  const c = cnv(128, 128), x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.3, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 128, 128); return c;
 }
 function paintSpk() {   // значок «говорит»: зелёный круг с микрофоном
   const c = cnv(128, 128), x = c.getContext('2d');
@@ -2088,7 +2142,7 @@ const MMDemo = (() => {
 const Demo = (() => {
   const D = { onPush: null, onHead: null };
   let st2 = null, iv = 0, heads = 0;
-  const DUR = { lobby: 4, brief: 9, talk: 45, vote: 14, revote: 10, open: 8, debrief: 40 };
+  const DUR = { lobby: 4, brief: 9, talk: 120, vote: 14, revote: 10, open: 8, debrief: 40 };
   const NAMES = shuffle(['Viper', 'Сова', 'Grizzly', 'Lynx', 'Кобра', 'Shade', 'Гром']);
   const TASKS = [['push', 'Продвинуть вариант', 'Добейся, чтобы команда чаще обсуждала контейнер %.'], ['split', 'Разделить мнения', 'Добейся, чтобы голоса команды разделились между двумя вариантами.'],
     ['doubt', 'Посеять сомнение', 'Заставь Оперативников усомниться в одной из правдивых улик.'], ['rush', 'Ускорить решение', 'Подтолкни команду зафиксировать выбор раньше, чем все сверят данные.'],
@@ -2117,6 +2171,7 @@ const Demo = (() => {
   function sys(t) { st2.chat.push({ id: ++st2.cid, kind: 'sys', seat: null, name: null, text: t, at: now() }); }
   function say(seat, t) {
     if (D.onSpeak) D.onSpeak(seat); const p = st2.players.find(x => x.seat === seat); st2.chat.push({ id: ++st2.cid, kind: 'msg', seat, name: p ? p.name : 'Игрок', text: t, at: now() }); bump(); }
+  function botsReady() { if (st2.room.phase === 'talk' && st2.players.every(p => p.vote_ready)) { st2.room.deadline = now(); sys('Все нажали «готов голосовать».'); } }
   function bump() { st2.room.rev++; if (D.onPush) D.onPush(); }
   function phase(p, sec) { st2.room.phase = p; st2.room.phase_at = now(); st2.room.deadline = sec ? now() + sec * 1000 : null; bump(); }
   function gen() {
@@ -2140,6 +2195,7 @@ const Demo = (() => {
     st2.sec = {};
     st2.players.forEach(p => { st2.sec[p.seat] = p.seat === ks ? { role: 'krot', card: { target: g.target, task, text: `Ты — КРОТ. Цель — контейнер ${nn(g.target)}.` } } : { role: 'agent', card: clue(attrs[i], tb[attrs[i++]]) }; });
     st2.votes = { main: {}, revote: {} };
+    st2.players.forEach(p => { p.vote_ready = false; });
     phase('brief', DUR.brief); sys('Операция начинается. Проверьте личные данные.');
     planTalk(decoy);
   }
@@ -2152,6 +2208,7 @@ const Demo = (() => {
       st2.plan.push([t0 + 2500 + j * 3800 + rnd(1500), () => say(p.seat, first)]);
       st2.plan.push([t0 + 17000 + j * 4000 + rnd(3000), () => say(p.seat, pickOne(['Кто ещё не сказал свою улику?', 'Сверяем: у нас противоречие по одному признаку.', 'Не торопимся, проверим ещё раз.', 'Я бы не верил тому, кто первым назвал номер.', 'Хм, подозрительно складно…']))]);
       st2.plan.push([t0 + 31000 + j * 3000 + rnd(2000), () => say(p.seat, `Я за ${nn(s.role === 'krot' ? decoy.n : Math.random() < .75 ? st2.rd.target : decoy.n)}.`)]);
+      st2.plan.push([t0 + 36000 + j * 4000 + rnd(4000), () => { if (st2.room.phase === 'talk') { p.vote_ready = true; botsReady(); bump(); } }]);
     });
   }
   function botVotes(stage) {
@@ -2242,6 +2299,7 @@ const Demo = (() => {
       if (m && bot && ['talk', 'brief'].includes(st2.room.phase)) later(1800 + rnd(1500), () => say(bot.seat, pickOne([`Почему именно ${nn(+m[1])}?`, `${nn(+m[1])}? Давай сверим признаки.`, `С ${nn(+m[1])} не сходится моя улика.`])));
       bump(); return { ok: true, id: st2.cid, text: t, at: now() };
     }
+    if (n === 'krot_vote_ready') { if (st2.room.phase !== 'talk') throw new Error('not talk'); st2.players.find(p => p.me).vote_ready = a.p_on !== false; botsReady(); bump(); return { now: now(), phase: st2.room.phase, rev: st2.room.rev, deadline: st2.room.deadline, paused: false }; }
     if (n === 'krot_loaded') { const me = st2.players.find(p => p.me); me.loaded = true; bump(); return { now: now(), phase: st2.room.phase, rev: st2.room.rev, deadline: st2.room.deadline, paused: false }; }
     if (n === 'krot_leave') { D.stop(); return { ok: true }; }
     if (n === 'krot_report') return { ok: true };

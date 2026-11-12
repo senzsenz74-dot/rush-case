@@ -8,7 +8,7 @@
 -- Каждый Оперативник получает одну правдивую улику (один признак цели); Крот знает цель и секретное задание.
 -- Фазы (секунды по умолчанию, меняются в site_cfg 'krot'):
 --   lobby (ждём 4-х; быстрая игра — старт через 20 с, все «Готов» — через 3 с; комната по коду — когда все «Готов»)
---   → brief 12 → talk 75 → vote 15 → [revote 12, только при ничьей] → open 8 → debrief 20 → done.
+--   → brief 12 → talk 120 (раньше — когда все четверо нажали красную кнопку «готов голосовать») → vote 15 → [revote 12, только при ничьей] → open 8 → debrief 20 → done.
 -- Подсчёт (ТЗ 2.7–2.8): в исход входят только голоса Оперативников, голос Крота сохраняется и раскрывается в разборе.
 --   3 голоса: 3:0 / 2:1 — итог; 1:1:1 — доп. голосование между тремя.
 --   2 голоса (один не проголосовал): одинаковые — итог; 1:1 — доп. голосование между двумя. Случайный голос не подставляется.
@@ -200,7 +200,8 @@ alter table public.krot_rooms add column if not exists mm boolean not null defau
 alter table public.krot_players add column if not exists solo boolean not null default true;   -- искал игру один (очки — только одиночкам)
 alter table public.krot_players add column if not exists party_id bigint;
 alter table public.krot_rooms add column if not exists load_at timestamptz;              -- все приняли: экран загрузки (проверка микрофона) до старта
-alter table public.krot_players add column if not exists loaded boolean not null default false;   -- игра у игрока загрузилась (krot_loaded)
+alter table public.krot_players add column if not exists loaded boolean not null default false;
+alter table public.krot_players add column if not exists vote_ready boolean not null default false;   -- нажал красную кнопку «готов голосовать» (обсуждение)   -- игра у игрока загрузилась (krot_loaded)
 alter table public.krot_party enable row level security;           -- из браузера не читаются: только через функции
 alter table public.krot_party_members enable row level security;
 
@@ -235,7 +236,7 @@ end $$;
 -- числа по умолчанию; переопределяются записью site_cfg k='krot' (только нужные поля), например {"talk": 60, "pts_agent": 12}
 create or replace function public._krot_cfg() returns jsonb language sql stable as $$
   select jsonb_build_object(
-    'lobby', 20, 'ready', 3, 'brief', 12, 'talk', 75, 'vote', 15, 'revote', 12, 'open', 8, 'debrief', 20,
+    'lobby', 20, 'ready', 3, 'brief', 12, 'talk', 120, 'vote', 15, 'revote', 12, 'open', 8, 'debrief', 20,
     'offline', 15,       -- без «пульса» столько секунд — игрок пропал
     'reconnect', 30,     -- столько ждём пропавшего (пауза), потом отмена раунда
     'stale', 30,         -- в лобби пропавшего убираем с места через столько секунд
@@ -490,6 +491,7 @@ begin
     end if;
   end loop;
   update public.krot_rooms set round_id = rid where id = p_room;
+  update public.krot_players set vote_ready = false where room_id = p_room;
   perform public._krot_phase(p_room, 'brief');
   perform public._krot_log(p_room, rid, 'start', jsonb_build_object('commit', cm));
   perform public._krot_sys(p_room, 'Операция начинается. Проверьте личные данные.');
@@ -776,7 +778,7 @@ begin
       'pause_left', case when rm.pause_left is not null then (extract(epoch from rm.pause_left) * 1000)::bigint end,
       'owner', rm.owner = auth.uid(),
       'times', jsonb_build_object('brief', c->'brief', 'talk', c->'talk', 'vote', c->'vote', 'revote', c->'revote', 'open', c->'open', 'debrief', c->'debrief')),
-    'players', coalesce((select jsonb_agg(jsonb_build_object('seat', p.seat, 'name', p.name, 'loaded', p.loaded, 'ava', p.ava, 'pid', p.pid,
+    'players', coalesce((select jsonb_agg(jsonb_build_object('seat', p.seat, 'name', p.name, 'loaded', p.loaded, 'vote_ready', p.vote_ready, 'ava', p.ava, 'pid', p.pid,
         'ready', p.ready, 'me', p.uid = auth.uid(),
         'online', p.left_at is null and p.seen_at >= now_ts - public._krot_dur(c, 'offline'), 'left', p.left_at is not null) order by p.seat)
       from public.krot_players p where p.room_id = rm.id), '[]'::jsonb),
@@ -1332,6 +1334,30 @@ begin
   return public.krot_tick(p_room);
 end $x$;
 
+-- красная кнопка «готов голосовать» (только в обсуждении): нажали все игроки за столом — обсуждение заканчивается сразу
+create or replace function public.krot_vote_ready(p_room bigint, p_on boolean default true) returns jsonb
+language plpgsql security definer set search_path = public as $x$
+declare rm public.krot_rooms; me public.krot_players; n int; nr int;
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  perform 1 from public.krot_rooms where id = p_room for no key update;
+  me := public._krot_touch(p_room);
+  if me.uid is null then raise exception 'not in room'; end if;
+  perform public._krot_advance(p_room);
+  select * into rm from public.krot_rooms where id = p_room;
+  if rm.phase <> 'talk' or rm.paused_at is not null then raise exception 'not talk'; end if;
+  update public.krot_players set vote_ready = coalesce(p_on, true) where room_id = p_room and uid = auth.uid();
+  select count(*) filter (where left_at is null), count(*) filter (where left_at is null and vote_ready) into n, nr from public.krot_players where room_id = p_room;
+  if n > 0 and nr = n then   -- все готовы: конец обсуждения сейчас (переход к голосованию — обычным шагом по сроку)
+    update public.krot_rooms set phase_deadline = clock_timestamp(), rev = rev + 1, updated_at = clock_timestamp() where id = p_room;
+    perform public._krot_sys(p_room, 'Все нажали «готов голосовать».');
+  else
+    update public.krot_rooms set rev = rev + 1, updated_at = clock_timestamp() where id = p_room;
+  end if;
+  perform public._krot_advance(p_room);
+  return public.krot_tick(p_room);
+end $x$;
+
 -- «Принять» в окне «Ваша игра готова!»
 create or replace function public.krot_accept() returns jsonb
 language plpgsql security definer set search_path = public as $$
@@ -1451,7 +1477,7 @@ grant execute on function public.krot_state(bigint, bigint), public.krot_tick(bi
   public.krot_create(boolean), public.krot_join(text), public.krot_quick(), public.krot_ready(bigint, boolean),
   public.krot_vote(bigint, int, uuid), public.krot_chat_send(bigint, text), public.krot_report(bigint, int, text, text),
   public.krot_mm_state(), public.krot_party_open(), public.krot_party_join(text), public.krot_party_leave(), public.krot_party_kick(int),
-  public.krot_search(boolean), public.krot_accept(), public.krot_loaded(bigint) to authenticated;
+  public.krot_search(boolean), public.krot_accept(), public.krot_loaded(bigint), public.krot_vote_ready(bigint, boolean) to authenticated;
 -- krot_selftest — только из SQL Editor
 
 select public.krot_selftest(2000) as "КРОТ: самопроверка";
