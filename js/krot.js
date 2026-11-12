@@ -18,7 +18,7 @@ let sb = null, openAuth = null, getUser = () => null, soundOn = () => true;   //
 function setDeps(dep) { if (!dep) return; if (dep.sb) sb = dep.sb; if (dep.openAuth) openAuth = dep.openAuth; if (dep.esc) esc = dep.esc; if (dep.user) getUser = dep.user; if (dep.sound) soundOn = dep.sound; }
 
 /* ---------- константы ---------- */
-const R_SEAT = 1.08, EYE = 1.22, TOP = .765;                                   // радиус мест, высота глаз, высота сукна (м)
+const R_SEAT = 1.08, EYE = 1.28, TOP = .765;                                   // радиус мест, высота глаз, высота сукна (м)
 const BOXP = { 1: [-.2, -.16], 2: [.2, -.16], 3: [-.2, .16], 4: [.2, .16] };   // центры контейнеров на столе (x, z)
 const COL = { amber: '#e3a33b', red: '#e2493f', green: '#4fbf62', blue: '#3f8fe6' };
 const DICT0 = { sym: { tri: 'треугольник', circle: 'круг', hex: 'шестиугольник', rhomb: 'ромб' },
@@ -1074,12 +1074,12 @@ function makeWorld(T, RB, RE, cv) {
   const cyl = (r, m) => mesh(new T.CylinderGeometry(r, r, 1, 12), m);
   const setLimb = (o, a, b) => { _c.subVectors(b, a); const L = _c.length() || .001; o.position.copy(a).addScaledVector(_c, .5); o.quaternion.setFromUnitVectors(UP, _c.divideScalar(L)); o.scale.set(1, L, 1); };
   for (const s of [1, 2, 3, 4]) {
-    const th = (s - 1) * Math.PI / 2, a = { s, th, on: false, me: false, k: 0, kt: 0, hy: 0, hp: -.3, ty: 0, tp: -.3, tagKey: '' };
+    const th = (s - 1) * Math.PI / 2, a = { s, th, on: false, me: false, k: 0, kt: 0, hy: 0, hp: -.3, ty: 0, tp: -.3, tagKey: '', M: null, gk: 0 };
     const g = new T.Group(); g.position.set(Math.sin(th) * R_SEAT, 0, Math.cos(th) * R_SEAT); g.rotation.y = th; scene.add(g); a.g = g;
     // стул
-    const seat = mesh(new RB(.46, .06, .44, 2, .015), chairM); seat.position.set(0, .45, .04); g.add(seat);
-    const back = mesh(new RB(.44, .5, .05, 2, .015), chairM); back.position.set(0, .76, .27); back.rotation.x = .08; g.add(back);
-    [[-.19, -.15], [.19, -.15], [-.19, .23], [.19, .23]].forEach(([x, z]) => { const l = mesh(new T.CylinderGeometry(.016, .016, .43, 8), chairM); l.position.set(x, .215, z); g.add(l); });
+    const seat = mesh(new RB(.46, .06, .44, 2, .015), chairM); seat.position.set(0, .37, .04); g.add(seat);
+    const back = mesh(new RB(.44, .5, .05, 2, .015), chairM); back.position.set(0, .76, .31); back.rotation.x = .08; g.add(back); a.cb = back;
+    [[-.19, -.15], [.19, -.15], [-.19, .23], [.19, .23]].forEach(([x, z]) => { const l = mesh(new T.CylinderGeometry(.016, .016, .35, 8), chairM); l.position.set(x, .175, z); g.add(l); });
     // красная кнопка «готов голосовать»
     const bg = new T.Group(); bg.position.set(.2, TOP, -.46); g.add(bg);
     const bbase = mesh(new T.CylinderGeometry(.052, .06, .02, 28), btnBaseM); bbase.position.y = .01; bg.add(bbase);
@@ -1133,7 +1133,149 @@ function makeWorld(T, RB, RE, cv) {
   const tween = (dur, fn, delay = 0) => new Promise(res => tw.push({ t0: clock + delay, dur, fn, res }));
   const seatYaw = s => (s - 1) * Math.PI / 2;
 
-  W.menu = on => { menuOn = on; for (const s in AV) { AV[s].body.visible = !on && AV[s].on; AV[s].card.visible = AV[s].body.visible; AV[s].arm.forEach(r => { r.up.visible = r.fo.visible = r.el.visible = r.hand.visible = AV[s].body.visible; }); AV[s].tag.visible = !on; } };
+  /* персонажи CS2 (этап 5): assets/krot/<имя>.glb (~1 МБ: без анимаций, WebP, meshopt). Грузятся после показа стола, до тех пор — манекены.
+     Все четыре — один скелет CS2 (рост ~2 м, лицом в +z). Посадка — поворотом костей каждый кадр: корпус чуть вперёд, ноги — IK
+     бедро→колено→щиколотка под столом, руки — IK к нижним углам карточки (ладони за карточкой), голова — head_0/neck_0 по взгляду игрока;
+     дыхание, при речи — кивок и жест правой рукой. Кто где сидит — случайно на каждую игру (у всех одинаково: от номера комнаты).
+     У своего места голова сжата в ноль (вид от первого лица). */
+  const CHARS = ['romanov', 'dragomir', 'fbi', 'prof'], MDL = [], MS = .84, HIP = V(0, .565, .035);
+  let mdlOrder = [0, 1, 2, 3], mdlKey = null, mdlAlive = true;
+  const _p = V(0, 0, 0), _p3 = V(0, 0, 0), _d1 = V(0, 0, 0), _d2 = V(0, 0, 0), _n = V(0, 0, 0), _mv = V(0, 0, 0), _sc = V(0, 0, 0), _ps = V(0, 0, 0);
+  const _e1 = V(0, 0, 0), _e2 = V(0, 0, 0), _e3 = V(0, 0, 0), _e4 = V(0, 0, 0), _f1 = V(0, 0, 0), _f2 = V(0, 0, 0), _f3 = V(0, 0, 0), _t1 = V(0, 0, 0), _t2 = V(0, 0, 0), _t3 = V(0, 0, 0);
+  const _qa = new T.Quaternion(), _qb = new T.Quaternion(), _qc = new T.Quaternion(), _qg = new T.Quaternion(), _qs = new T.Quaternion(), _qh = new T.Quaternion(), _qh2 = new T.Quaternion(), _qI = new T.Quaternion(), _m2 = new T.Matrix4(), _mi = new T.Matrix4(), _eg = new T.Euler(0, 0, 0, 'YXZ');
+  const wp = (b, o) => o.setFromMatrixPosition(b.matrixWorld);
+  const wq = (o, q) => { o.matrixWorld.decompose(_ps, q, _sc); return q; };
+  const rotW = (b, q) => { wq(b.parent, _qa); _qb.copy(_qa).invert().multiply(q).multiply(_qa); b.quaternion.premultiply(_qb); b.updateMatrixWorld(true); };   // поворот кости в мировых осях
+  const setW = (b, q) => { wq(b.parent, _qa); b.quaternion.copy(_qa.invert()).multiply(q); b.updateMatrixWorld(true); };                                       // задать кости мировой поворот
+  const aim = (b, cur, tgt) => { wp(b, _p); _d1.subVectors(cur, _p).normalize(); _d2.subVectors(tgt, _p).normalize(); _qc.setFromUnitVectors(_d1, _d2); rotW(b, _qc); };
+  const frameQ = (F, A, q) => { _f1.copy(F).normalize(); _f2.copy(A).addScaledVector(_f1, -A.dot(_f1)).normalize(); _f3.crossVectors(_f1, _f2); _m2.makeBasis(_f1, _f2, _f3); return q.setFromRotationMatrix(_m2); };
+  // две кости к цели: b1 (плечо/бедро) → b2 (локоть/колено) → b3 (кисть/щиколотка); сгиб — в сторону pole; сустав крутим в свою плоскость
+  const ik2 = (b1, b2, b3, tgt, pole, l1, l2) => {
+    wp(b1, _p3); _n.subVectors(tgt, _p3); const d = clamp(_n.length(), Math.abs(l1 - l2) + .002, l1 + l2 - .002); _n.normalize();
+    const x = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+    _mv.copy(pole).addScaledVector(_n, -pole.dot(_n)).normalize();
+    _e1.copy(_p3).addScaledVector(_n, x).addScaledVector(_mv, h); _e2.copy(_p3).addScaledVector(_n, d);
+    aim(b1, wp(b2, _e3), _e1);
+    wp(b2, _e3); wp(b3, _e4); _n.subVectors(_e1, _p3).normalize();
+    _t1.subVectors(_e4, _e3); _t1.addScaledVector(_n, -_t1.dot(_n)); _t2.subVectors(_e2, _e1); _t2.addScaledVector(_n, -_t2.dot(_n));
+    if (_t1.lengthSq() > 1e-8 && _t2.lengthSq() > 1e-8) { _qc.setFromUnitVectors(_t1.normalize(), _t2.normalize()); rotW(b1, _qc); }
+    aim(b2, wp(b3, _e4), _e2);
+  };
+  const FING = ['index', 'middle', 'ring', 'pinky'];
+  const setupModel = (gl, i) => {
+    const root = new T.Group(), sc = gl.scene; sc.rotation.y = Math.PI; sc.scale.setScalar(MS); root.add(sc); root.visible = false;
+    const B = {}; sc.traverse(o => { if (o.isBone) B[o.name] = o; if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; const m = o.material; if (m.map) m.map.anisotropy = ANI; m.envMapIntensity = 1.6; } });
+    root.updateMatrixWorld(true);
+    const hipC = wp(B.leg_upper_l, V(0, 0, 0)).add(wp(B.leg_upper_r, V(0, 0, 0))).multiplyScalar(.5);
+    const ankleY = wp(B.ankle_l, V(0, 0, 0)).y;   // щиколотка над полом стоя
+    sc.position.sub(hipC).add(HIP); root.updateMatrixWorld(true);
+    const len = (a, b) => wp(B[a], V(0, 0, 0)).distanceTo(wp(B[b], V(0, 0, 0)));
+    const M = { i, root, B, bones: [], rest: [], head: B.head_0, rel: {}, hand: {}, L: {} };
+    sc.traverse(o => { if (o.isBone) { M.bones.push(o); M.rest.push(o.quaternion.clone()); } });
+    M.rel.neck = wq(B.neck_0, new T.Quaternion()); M.rel.head = wq(B.head_0, new T.Quaternion());
+    for (const k of ['l', 'r']) {
+      M.L['arm' + k] = [len('arm_upper_' + k, 'arm_lower_' + k), len('arm_lower_' + k, 'hand_' + k)];
+      M.L['leg' + k] = [len('leg_upper_' + k, 'leg_lower_' + k), len('leg_lower_' + k, 'ankle_' + k), len('ankle_' + k, 'ball_' + k)];
+      // рамка ладони (к среднему пальцу / от мизинца к указательному) относительно кости кисти — для поворота кисти по карточке
+      const F0 = wp(B['finger_middle_0_' + k], V(0, 0, 0)).sub(wp(B['hand_' + k], V(0, 0, 0))), A0 = wp(B['finger_index_0_' + k], V(0, 0, 0)).sub(wp(B['finger_pinky_0_' + k], V(0, 0, 0)));
+      M.hand[k] = wq(B['hand_' + k], new T.Quaternion()).invert().multiply(frameQ(F0, A0, new T.Quaternion())).invert();   // кисть = рамка · это
+      M['fing' + k] = FING.map(f => [0, 1, 2].map(j => B['finger_' + f + '_' + j + '_' + k])).filter(ch => ch.every(Boolean));
+      M['tip' + k] = M['fing' + k].map(ch => ch[2].position.clone().multiplyScalar(.8));   // кончик пальца: ось последней фаланги ≈ ось средней
+      M['palm' + k] = len('hand_' + k, 'finger_middle_0_' + k);
+    }
+    M.ankleY = ankleY;
+    return M;
+  };
+  const mdlFor = s => MDL[mdlOrder[s - 1]] || null;
+  const showAV = a => {   // видимость фигуры: модель, пока не загружена — манекен; у себя без головы
+    const vis = !menuOn && a.on, man = vis && !a.M;
+    a.body.visible = man; a.card.visible = vis;
+    a.arm.forEach(r => { r.up.visible = r.fo.visible = r.el.visible = r.hand.visible = man; r.shp.visible = man && !a.me; });
+    a.headParts.forEach(o => { o.visible = !a.me; });
+    if (a.M) { a.M.root.visible = vis; a.M.head.scale.setScalar(a.me ? 1e-4 : 1); a.M.root.position.z = a.me ? .1 : 0; }   // у себя модель на 10 см назад: глаза модели = камера, воротник не лезет в кадр
+    a.cb.visible = !(a.me && a.M);   // свою спинку стула не видно, а сдвинутая спина в неё заходит
+  };
+  const mdlApply = () => {
+    for (const s of [1, 2, 3, 4]) {
+      const a = AV[s], M = mdlFor(s);
+      if (a.M !== M) { if (a.M) { a.M.root.visible = false; a.M.head.scale.setScalar(1); } a.M = M; if (M) { a.g.add(M.root); a.hd.position.set(0, 1.215, -.03); } else a.hd.position.set(0, 1.13, .02); }
+      showAV(a);
+    }
+  };
+  const mdlShuffle = key => {   // одинаковая у всех перестановка от номера комнаты
+    let h = 2166136261; for (const ch of String(key)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    const rnd2 = () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
+    const o = [0, 1, 2, 3]; for (let i = 3; i > 0; i--) { const j = Math.floor(rnd2() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; }
+    return o;
+  };
+  setTimeout(() => {
+    if (!mdlAlive) return;
+    Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]).then(([{ GLTFLoader }, { MeshoptDecoder }]) => {
+      const ld = new GLTFLoader(); ld.setMeshoptDecoder(MeshoptDecoder);
+      CHARS.forEach((n, i) => ld.load('assets/krot/' + n + '.glb?v=1', gl => {
+        if (!mdlAlive) { gl.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { for (const k in o.material) { const v = o.material[k]; if (v && v.isTexture) v.dispose(); } o.material.dispose(); } }); return; }
+        try { MDL[i] = setupModel(gl, i); mdlApply(); } catch (e) { console.warn('KROT model', n, e); }
+      }, undefined, e => console.warn('KROT model', n, e)));
+    }).catch(e => console.warn('KROT models', e));
+  }, 400);
+
+  // поза модели за кадр (после того как карточка встала на место)
+  const poseModel = (a, t, dt) => {
+    const M = a.M, B = M.B, g = a.g;
+    for (let i = 0; i < M.bones.length; i++) M.bones[i].quaternion.copy(M.rest[i]);
+    M.root.updateMatrixWorld(true);
+    wq(g, _qs);
+    const ax = _t3.set(1, 0, 0).applyQuaternion(_qs);
+    // корпус: чуть вперёд + дыхание
+    const br = Math.sin(t * 1.6 + a.s * 1.3);
+    _qc.setFromAxisAngle(ax, -.05); rotW(B.spine_0, _qc);
+    _qc.setFromAxisAngle(ax, -.04); rotW(B.spine_1, _qc);
+    _qc.setFromAxisAngle(ax, -.03 + br * .012); rotW(B.spine_2, _qc);
+    // ноги: щиколотки на полу перед стулом, колени под столом
+    for (const [k, sd] of [['l', -1], ['r', 1]]) {
+      const L = M.L['leg' + k];
+      _t1.set(sd * .125, M.ankleY + .012, HIP.z - .47).applyMatrix4(g.matrixWorld);
+      _t2.set(sd * .12, .45, -1).applyQuaternion(_qs);
+      ik2(B['leg_upper_' + k], B['leg_lower_' + k], B['ankle_' + k], _t1, _t2, L[0], L[1]);
+      _t2.set(sd * .1, -.4, -1).normalize().multiplyScalar(L[2]).applyQuaternion(_qs).add(wp(B['ankle_' + k], _e3));
+      aim(B['ankle_' + k], wp(B['ball_' + k], _t3), _t2);
+    }
+    // голова по взгляду игрока (+ кивок при речи)
+    a.gk += ((a.spk && !a.me ? 1 : 0) - a.gk) * (1 - Math.exp(-dt * 5));
+    _eg.set(a.hp * .85 + a.gk * .06 * Math.sin(t * 7.3), a.hy * .9, 0); _qg.setFromEuler(_eg);
+    _qh.copy(_qs).multiply(_qI.identity().slerp(_qg, .35)).multiply(M.rel.neck); setW(B.neck_0, _qh);
+    _qh.copy(_qs).multiply(_qg).multiply(M.rel.head); setW(B.head_0, _qh);
+    // руки: ладони за нижними углами карточки, пальцы вверх; при речи правая рука жестикулирует
+    a.card.matrixWorld.decompose(_ps, _qh2, _sc); _mi.copy(a.card.matrixWorld).invert();
+    for (const [k, sd] of [['l', -1], ['r', 1]]) {
+      const L = M.L['arm' + k], pl = M['palm' + k];
+      _t1.set(-.15 * sd, 1, 0).applyQuaternion(_qh2);                 // пальцы
+      _t2.set(sd, 0, 0).applyQuaternion(_qh2);                         // от мизинца к большому
+      frameQ(_t1, _t2, _qh);
+      _f3.set(0, 0, -1).applyQuaternion(_qh2);                         // за карточку
+      _e4.set(sd * .041, -.06, 0).applyMatrix4(a.card.matrixWorld).addScaledVector(_f1, -pl * .95).addScaledVector(_f3, .026);   // хват у нижних углов: карточку видно над пальцами
+      const gk = k === 'r' ? a.gk : 0;
+      if (gk > .01) {
+        _t1.set(-.25, .28 + .14 * Math.sin(t * 4.3 + a.s), -1).applyQuaternion(_qs); _t2.set(1, 0, 0).applyQuaternion(_qs);
+        frameQ(_t1, _t2, _qc);
+        _t3.set(.17 + .025 * Math.sin(t * 3.1), .93 + .035 * Math.sin(t * 4.3 + a.s), -.27 + .03 * Math.sin(t * 2.2)).applyMatrix4(g.matrixWorld);
+        _e4.lerp(_t3, gk); _qh.slerp(_qc, gk);
+      }
+      _t3.set(sd * .75, -1, .35).applyQuaternion(_qs);                 // локти — вниз и в стороны
+      ik2(B['arm_upper_' + k], B['arm_lower_' + k], B['hand_' + k], _e4, _t3, L[0], L[1]);
+      setW(B['hand_' + k], _qh.multiply(M.hand[k]));
+      // пальцы: в исходной позе модели они согнуты и прошли бы сквозь карточку — каждую фалангу выпрямляем до рубашки (оси фаланг в 2,2 см за карточкой)
+      if (gk < .5) M['fing' + k].forEach((ch, fi) => {
+        for (let j = 0; j < 3; j++) {
+          if (j < 2) wp(ch[j + 1], _t1); else _t1.copy(M['tip' + k][fi]).applyMatrix4(ch[2].matrixWorld);
+          _t2.copy(_t1).applyMatrix4(_mi); if (_t2.z <= -.022) continue;
+          _t2.z = -.022; _t2.applyMatrix4(a.card.matrixWorld); aim(ch[j], _t1, _t2);
+        }
+      });
+    }
+  };
+
+  W.menu = on => { menuOn = on; for (const s in AV) { showAV(AV[s]); AV[s].tag.visible = !on && !AV[s].me; } };
   W.setLock = on => { locked = on; };
   W.setRead = on => { readHold = on; };
   W.look = (dx, dy) => { if (menuOn) return; yaw = clamp(yaw - dx * .0023, -1.5, 1.5); pitch = clamp(pitch - dy * .0023, -1.15, .5); userAt = clock; auto = null; };
@@ -1152,12 +1294,11 @@ function makeWorld(T, RB, RE, cv) {
     if (me !== mySeat) { mySeat = me; for (const n in BX) BX[n].dec.rotation.y = seatYaw(me); }
     else for (const n in BX) BX[n].dec.rotation.y = seatYaw(me);
     const roles = d.round && d.round.roles;
+    if (d.room && d.room.id != null && d.room.id !== mdlKey) { mdlKey = d.room.id; mdlOrder = mdlShuffle(mdlKey); mdlApply(); }
     for (const s of [1, 2, 3, 4]) {
       const a = AV[s], p = d.players.find(x => x.seat === s);
       a.on = !!p; a.me = !!(p && p.me); a.bOn = !!(p && p.vote_ready);
-      const vis = !menuOn && a.on;
-      a.body.visible = vis; a.card.visible = vis; a.arm.forEach(r => { r.up.visible = r.fo.visible = r.el.visible = r.hand.visible = vis; r.shp.visible = vis && !a.me; });
-      a.headParts.forEach(o => { o.visible = !a.me; });
+      showAV(a);
       a.tag.visible = !menuOn && !a.me;
       const role = roles && (roles.find(x => x.seat === s) || {}).role;
       const st2 = !p ? 'free' : d.room.phase === 'lobby' ? (p.online ? (p.ready ? 'ready' : 'wait') : 'off') : p.left ? 'left' : !p.online ? 'off' : role || '';
@@ -1263,7 +1404,7 @@ function makeWorld(T, RB, RE, cv) {
       if (!a.on || menuOn) continue;
       const f = 1 - Math.exp(-dt * 9);
       if (!a.me) { a.hy += (a.ty - a.hy) * f; a.hp += (a.tp - a.hp) * f; a.hd.rotation.set(a.hp * .85, a.hy * .9, 0); }
-      a.body.position.y = Math.sin(t * 1.7 + s * 1.3) * .004;
+      if (!a.M) a.body.position.y = Math.sin(t * 1.7 + s * 1.3) * .004;
       { const o = a.sp.material, want = a.spk && !a.me ? 1 : 0; o.opacity += (want - o.opacity) * (1 - Math.exp(-dt * 14)); a.sp.visible = o.opacity > .02; const k2 = 1 + (a.spk ? Math.sin(t * 12) * .08 : 0); a.sp.scale.set(.1 * k2, .1 * k2, 1); }
       a.kt = (a.me ? readHold || pitch < -.62 : a.hp < -.62) ? 1 : 0;
       a.k += (a.kt - a.k) * (1 - Math.exp(-dt * 7));
@@ -1276,6 +1417,7 @@ function makeWorld(T, RB, RE, cv) {
       else { a.hd.updateMatrixWorld(); _b.set(0, .02, -.3).applyMatrix4(a.hd.matrixWorld); a.hd.getWorldQuaternion(_q2); }
       a.card.position.lerpVectors(_a, _b, k); a.card.quaternion.slerpQuaternions(_q, _q2, k);
       a.card.updateMatrixWorld();
+      if (a.M) { poseModel(a, t, dt); continue; }
       for (let i = 0; i < 2; i++) {
         const r = a.arm[i], sd = i ? 1 : -1;
         const S0 = a.sh[i].clone().applyMatrix4(a.body.matrixWorld), Hn = V(sd * .052, -.04, .012).applyMatrix4(a.card.matrixWorld);
@@ -1309,7 +1451,8 @@ function makeWorld(T, RB, RE, cv) {
   };
 
   W.dispose = () => {
-    ro.disconnect();
+    ro.disconnect(); mdlAlive = false;
+    MDL.forEach(M => { if (M && !M.root.parent) scene.add(M.root); });   // незанятые модели — тоже освободить
     const seenT = new Set();
     scene.traverse(o => {
       if (o.geometry) o.geometry.dispose();
@@ -1319,6 +1462,7 @@ function makeWorld(T, RB, RE, cv) {
     if (scene.environment) scene.environment.dispose();
     ren.dispose(); try { ren.forceContextLoss(); } catch (e) { /* уже потерян */ }
   };
+  W.dbg = { AV, MDL, cam, ren, scene, order: o => { mdlOrder = o; mdlApply(); }, look: (y, p) => { yaw = y; pitch = p; userAt = clock; auto = null; } };   // для проверки из браузера (KROT.dbg.world().dbg)
   W.resetRound();
   return W;
 }
@@ -2309,5 +2453,5 @@ const Demo = (() => {
   D.skip = () => { if (st2 && st2.room.deadline) st2.room.deadline = now(); };
   return D;
 })();
-K.dbg = { voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st) };   // для проверки из браузера (подставить состояние подбора — только localhost)
+K.dbg = { voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st), world: () => (DEMO_OK ? G : null) };   // для проверки из браузера (подставить состояние подбора — только localhost)
 })();
