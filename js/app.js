@@ -759,6 +759,38 @@ const CASES = [
     ],
   },
   {
+    // «MAJOR» (13.11.2026, владелец): 3D-кейс из Blender (ветка blender: blender/scenes/case-major.blend → assets/cs2case/case-major.glb,
+    // выгрузка blender/scripts/case_export_glb_major.py) — открывается в той же 3D-сцене, что CS2 CASE (ui: 'cs2', только на ПК)
+    id: 'major', name: 'MAJOR', price: 499, tag: 'Новый', tagIc: 'star', rtp: 0.8, ui: 'cs2',
+    c2glb: 'case-major.glb', // своя 3D-модель в assets/cs2case/ (у CS2 CASE — case.glb)
+    c2p: { sun: 8.4, env: .58, exposure: 1.01, contrast: 1.12, saturate: 1.6, shadow: 1, fill: 2, dust: 6 }, // свет сцены — подобран владельцем в пробе 13.11
+    sub: 'Легенды мейджоров: 42 позиции от 100 ₽, ~17% открытий окупаются. Классика — AWP Азимов, AK-47 Красная линия и Вулкан, M4A4 Император. Джекпоты — M4A4 Вой, AWP Медуза и Dragon Lore, ножи и перчатки',
+    th: { a: '#e3b04b' }, img: 'assets/case-major.webp', // рендер 3D-модели (тёмно-синий кейс, золото, объёмный кубок)
+    exact: [
+      // дешёвые, до цены кейса (от 100 ₽)
+      ['Desert Eagle | Sputnik', 'FT', 0.06], ['Glock-18 | Moonrise', 'MW', 0.06], ['AK-47 | Элитное снаряжение', 'FT', 0.06],
+      ['USP-S | Lead Conduit', 'MW', 0.06], ['AWP | Worm God', 'FT', 0.06], ['M4A4 | Evil Daimyo', 'FT', 0.06],
+      ['USP-S | Cortex', 'FT', 0.06], ['AK-47 | Slate', 'FT', 0.06], ['AK-47 | Ледяной уголь', 'FT', 0.06],
+      ['Desert Eagle | Механо-пушка', 'FT', 0.06],
+      // около цены кейса
+      ['USP-S | Cortex', 'MW', 0.035], ['M4A1-S | Nightmare', 'FT', 0.035], ['M4A1-S | Decimator', 'FT', 0.035],
+      ['P250 | Asiimov', 'FT', 0.035], ['AWP | Fever Dream', 'FT', 0.035], ['AK-47 | Point Disarray', 'FT', 0.035],
+      ['M4A4 | Desolate Space', 'FT', 0.035],
+      // классика мейджоров
+      ['Glock-18 | Water Elemental', 'FT', 0.008], ['USP-S | Caiman', 'FT', 0.008], ['AWP | Электрический улей', 'FT', 0.008],
+      ['AK-47 | Красная линия', 'FT', 0.008], ['AWP | Красная линия', 'FT', 0.008], ['AWP | Скоростной зверь', 'FT', 0.008],
+      ['M4A4 | Neo-Noir', 'FT', 0.008], ['Desert Eagle | Printstream', 'FT', 0.008],
+      // дорогие легенды
+      ['AK-47 | Азимов', 'FT', 0.002], ['AK-47 | Неоновый гонщик', 'FT', 0.002], ['M4A4 | Император', 'FT', 0.002],
+      ['M4A1-S | Golden Coil', 'FT', 0.002], ['USP-S | Убийство подтверждено', 'FT', 0.002], ['AWP | Азимов', 'FT', 0.002],
+      ['AK-47 | Кровавый спорт', 'FT', 0.002], ['AK-47 | Вулкан', 'FT', 0.002], ['M4A4 | Азимов', 'FT', 0.002],
+      // джекпоты — ножи, перчатки, легенды (Огненный змей, Медуза, Вой, Dragon Lore)
+      ['★ Sport Gloves | Vice', 'FT', 0.0002], ['AK-47 | Огненный змей', 'FT', 0.0002], ['★ M9 Bayonet | Doppler', 'FN', 0.0002],
+      ['★ Karambit | Doppler', 'FN', 0.0002], ['★ Butterfly Knife | Fade', 'FN', 0.0002], ['AWP | Медуза', 'FT', 0.0002],
+      ['M4A4 | Вой', 'FT', 0.0002], ['AWP | История о драконе', 'FT', 0.0002],
+    ],
+  },
+  {
     id: 'rushb', name: 'RUSH B', price: 249, tag: 'Мемный', tagIc: 'bolt', rtp: 0.8,
     sub: 'GO GO GO!!! 45 граффити-скинов в красно-оранжевом стиле от 25 ₽ до 85 тыс., ~23% открытий окупаются. Джекпоты — Karambit | Slaughter, Autotronic и Crimson Web',
     th: { a: '#ea580c' }, img: 'assets/case-rushb.webp',
@@ -1654,7 +1686,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
+const CASE_AR = {'assets/case-major.webp':1.5101,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
 // картинки из админки (хранилище Supabase) весят 2–3 МБ: для уже загруженных — лёгкие копии в assets/cc (900 px и 440 px для витрины);
 // новые загрузки админка сама сжимает в *.opt.webp + *.opt-s.webp (admImgPack). Неизвестная картинка — как есть.
@@ -2265,7 +2297,7 @@ const casePrice = (c, v) => c.rc ? `<span class="prc prc-rc">${rc(v)}<i class="p
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
-  { id: 'bmw5dfjvu', wm: 'NEW', t: 'CS2 CASE', sub: '', ic: 'star', a: '#f3c14f', ids: ['cs2'] },
+  { id: 'bmw5dfjvu', wm: 'NEW', t: 'CS2 CASE', sub: '', ic: 'star', a: '#f3c14f', ids: ['cs2', 'major'] },
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
   { id: 'guns', wm: 'GUNS', t: 'Оружейные кейсы', sub: 'Кейс одного оружия — все его скины, от ширпа до легенд', ic: 'trophy', a: '#22d3ee', ids: ['awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps'] },
@@ -2280,7 +2312,7 @@ const CASE_BLOCKS = [
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
+const NEW_CASES = ['major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
 /* раздел, порядок и метки кейса: по умолчанию — из кода (CASE_BLOCKS, NEW_CASES, HOME_POP); админ-панель может поменять (site_cfg) */
 const DEF_BLOCK = {}, DEF_ORD = {};
 CASE_BLOCKS.forEach(b => b.ids.forEach((id, i) => { DEF_BLOCK[id] = b.id; DEF_ORD[id] = i; }));
@@ -2821,7 +2853,7 @@ function mountNews(id) {
    справа выезжает кейс), дальше остальные разделы. Над блоками строка вкладок (не уезжает при прокрутке), поиск, цена, «По балансу».
    Плитка: серая картинка, под ней тёмная полоса с названием и ценой (цена — числом и значком баланса). */
 const IX_NEW_MAX = 10;                       // «Новые кейсы» — не больше двух рядов
-const IX_SPEC_CASES = ['cs2'];               // особые кейсы (кроме раздела «Всё или ничего»); они же первыми в «Новых»
+const IX_SPEC_CASES = ['cs2', 'major'];               // особые кейсы (кроме раздела «Всё или ничего»); они же первыми в «Новых»
 const IX_SPEC_BLOCK = 'allin', IX_AUTH_BLOCK = 'pro';
 const IX_RC = { common: '#b0c3d9', uncommon: '#5e98d9', milspec: '#4b69ff', restricted: '#8847ff', classified: '#d32ce6', covert: '#eb4b4b', rare: '#e4ae39' };
 const ixTab = b => String(b.t || '').replace(/\s+кейс(ы|ов)$/i, '') || b.t; // «Оружейные кейсы» → «Оружейные»
@@ -3561,7 +3593,8 @@ function c2Mount(c) {
   c2Lib().then(async ([THREE, { GLTFLoader }, { RGBELoader }]) => {
     if (!S.alive) return;
     const url = f => C2D.dir + f + '?v=' + C2D.v;
-    const P = { sun: 9, env: .2, shadow: .55, dust: 3, fill: .3 }; // подогнано в пробе под рендер Blender (07.11: день)
+    // подогнано в пробе под рендер Blender (07.11: день); у кейса может быть свой свет — c.c2p (MAJOR: настройки владельца 13.11)
+    const P = Object.assign({ sun: 9, env: .2, shadow: .55, dust: 3, fill: .3, exposure: 1, contrast: 1, saturate: 1 }, c && c.c2p);
     const BL = (x, y, z) => new THREE.Vector3(x, z, -y); // Blender (Z вверх) → three (Y вверх)
     const FLOOR_Y = -4.064, CASE_POS = BL(7.098, 52.9, -4.064);
     const H_FOV = 2 * Math.atan(18 / 25); // камера Blender: матрица 36 мм, объектив 25 мм (по ширине)
@@ -3569,7 +3602,8 @@ function c2Mount(c) {
     try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true }); } catch (e) { return fail(); }
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
     renderer.setClearColor(0x000000, 0);
-    renderer.toneMapping = THREE.AgXToneMapping; renderer.toneMappingExposure = 1;
+    renderer.toneMapping = THREE.AgXToneMapping; renderer.toneMappingExposure = P.exposure;
+    canvas.style.filter = P.contrast !== 1 || P.saturate !== 1 ? `contrast(${P.contrast}) saturate(${P.saturate})` : ''; // как в пробе: только 3D-слой
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(43.6, 16 / 9, .05, 200);
     // солнце — направление луча из Blender
@@ -3618,7 +3652,7 @@ function c2Mount(c) {
       d.s.material.opacity = Math.min(1, L(p[5], q[5]) * P.dust); d.s.visible = d.s.material.opacity > .002;
     });
     // кейс
-    const gl = await load('case.glb');
+    const gl = await load((c && c.c2glb) || 'case.glb');
     if (!S.alive) return renderer.dispose();
     const caseMats = new Set();
     scene.add(gl.scene);
