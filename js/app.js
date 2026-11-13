@@ -1920,7 +1920,7 @@ function renderFooter() {
     <div class="ft-col"><h4>Поддержка</h4><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a><a href="https://t.me/rushcasse" target="_blank" rel="noopener">Telegram-канал</a>
       <div class="pay"><span>СБП</span><span>МИР</span><span>VISA</span><span>MC</span></div></div>
   </div>
-  <div class="container ft-bottom"><span class="age">18+</span><p>© ${new Date().getFullYear()} RUSH CASE. ${LEGAL.name}, ИНН ${LEGAL.inn}, ОГРНИП ${LEGAL.ogrnip}. Сайт не аффилирован с Valve Corporation. Counter-Strike 2 и Steam — товарные знаки Valve Corporation. Все изображения предметов принадлежат их правообладателям.<br><span class="ft-req"><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span></p></div>`;
+  <div class="container ft-bottom"><span class="age">18+</span><p>© ${new Date().getFullYear()} RUSH CASE. ${LEGAL.name}, ИНН ${LEGAL.inn}, ОГРНИП ${LEGAL.ogrnip}. Сайт не аффилирован с Valve Corporation. Counter-Strike 2 и Steam — товарные знаки Valve Corporation. Все изображения предметов принадлежат их правообладателям.<br><span class="ft-req"><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span><br><span class="ft-req">Кодовое слово: пейпинг</span></p></div>`;
 }
 
 /* ---------- live feed ---------- */
