@@ -4350,8 +4350,9 @@ body.pg-crash::after{content:'';display:block;position:fixed;inset:0;z-index:-1;
 .cr-act>*{flex:1;min-width:0}
 .crash .c2-btn{font:500 18px/1 'Oswald',var(--ff);letter-spacing:.04em;border-radius:2px}
 .crash .cr-go{width:100%;height:46px;padding:0 12px;font-size:17px;white-space:nowrap}
-.crash .tut-q{width:26px;height:26px;margin-left:10px;border:0;border-radius:2px;vertical-align:4px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(132,217,253,.45);color:var(--cr-blue);font:500 15px/1 'Oswald',var(--ff);animation:none}
-.crash .tut-q:hover{background:rgba(132,217,253,.14)}
+.crash .cr-top h1{display:flex;align-items:center;gap:9px}
+.crash .tut-q{flex:none;width:22px;height:22px;margin:0;padding:1px 0 0;border:0;border-radius:2px;vertical-align:baseline;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:#c9ced8;font:500 13px/1 'Oswald',var(--ff);animation:none;transition:color .2s,box-shadow .2s}
+.crash .tut-q:hover{transform:none;color:var(--cr-blue);background:rgba(132,217,253,.08);box-shadow:inset 0 0 0 1px rgba(132,217,253,.55)}
 .crash .cr-mini{height:36px;padding:0 16px;font-size:15px;text-decoration:none}
 .crash .cr-cash{background:linear-gradient(180deg,#5fd36f,#2f9a42);animation:crCash 1s ease-in-out infinite}
 .cr-cash b{margin-left:8px;font-weight:500;font-variant-numeric:tabular-nums}
