@@ -2914,7 +2914,7 @@ function pageCases() {
   if (P.fresh.length) { tabs.push(['new', 'Новые']); secs.push(ixSec('new', 'Новые кейсы', `<div class="ix-grid">${P.fresh.map((c, i) => ixTile(c, i)).join('')}</div>`)); }
   tabs.push(['auth', 'Авторские']);
   secs.push(ixSec('auth', 'Авторские кейсы', P.auth.length ? `<div class="ix-grid">${P.auth.map((c, i) => ixTile(c, i, { risk: true })).join('')}</div>` : '<p class="ix-soon">Скоро здесь появятся кейсы, которые соберут сами игроки.</p>',
-    { side: '<button class="ix-create" id="ixCreate" type="button">Создать свой кейс</button>' }));
+    { side: '<button class="ix-create" id="ixCreate" type="button">Создать свой кейс<span class="ix-crs">Скоро</span></button>' }));
   tabs.push(['spec', 'Особые']);
   // фон блока — видео из CS2 (background_movie_op10: золотое знамя), просьба владельца 11.11; пока грузится — первый кадр
   const spBg = '<video class="ix-spv" muted loop playsinline preload="metadata" poster="assets/bg-special.webp" aria-hidden="true"><source src="assets/bg-special.webm" type="video/webm"><source src="assets/bg-special.mp4" type="video/mp4"></video>';

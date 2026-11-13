@@ -5883,6 +5883,9 @@ body.pg-cases::after{background:radial-gradient(120% 85% at 50% 0%,rgba(6,8,12,.
   font:500 18px/1 'Oswald',var(--ff);letter-spacing:.03em;text-transform:uppercase;box-shadow:0 0 0 1px rgba(0,0,0,.25),0 6px 16px rgba(0,0,0,.3);transition:filter .2s,box-shadow .2s}
 .ix-create:hover{filter:brightness(1.18);box-shadow:0 0 0 1px rgba(0,0,0,.25),0 0 22px rgba(61,220,132,.35)}
 .ix-create:active{transform:translateY(1px)}
+.ix-create{position:relative}
+/* метка «Скоро» на кнопке — как метки CS2: тёмное стекло, голубая тонкая обводка */
+.ix-crs{position:absolute;top:-10px;right:8px;padding:4px 7px 3px;border-radius:2px;background:rgba(10,18,26,.82);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:inset 0 0 0 1px rgba(132,217,253,.55),0 2px 8px rgba(0,0,0,.4);color:#84d9fd;font:500 11px/1 'Oswald',var(--ff);letter-spacing:.08em;text-transform:uppercase;pointer-events:none}
 .ix-soon{margin:0;padding:34px 0;text-align:center;font:500 14px var(--ff);color:rgba(255,255,255,.6)}
 
 /* плитка, как на примере: серая картинка, под ней тёмная полоса с названием и ценой */
