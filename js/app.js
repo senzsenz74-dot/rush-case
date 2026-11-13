@@ -9474,32 +9474,35 @@ function admTower(box) {
 }
 
 function pageCrash() {
-  return `<section class="container crash" id="crash">
-    <div class="cr-glass cr-top">
-      <div class="page-head top-head"><div><h1>Краш <em>C4</em></h1><p>Поставьте скины, пока идёт приём ставок. Бомба пикает — множитель растёт. Успели забрать до взрыва — получаете случайный скин дороже ставки во столько раз, на каком x остановились. Не успели — ставка сгорает.</p></div></div>
-      </div>
-    <div class="cr-glass cr-histbox"><div class="cr-histh"><b>Результаты прошлых раундов</b><span>последние  · на каком x взорвалась бомба</span></div><div class="cr-hist" id="crHist"></div></div>
-    <div class="cr-main">
-        <div class="cr-stage" id="crStage">
-          <canvas id="crCanvas"></canvas>
-          <div class="cr-wait" id="crWait"><span>Приём ставок</span><b id="crWaitT">0:15</b><i><em id="crWaitBar"></em></i></div>
-          <div class="cr-boomtxt" id="crBoomT"></div>
-        </div>
-        <div class="cr-glass cr-players">
-          <div class="panel-h"><h3>Игроки раунда</h3><span class="cr-sum" id="crPl"></span></div>
-          <div class="cr-thead"><span>Игрок</span><span>Ставка</span><span>Итог</span></div>
-          <div id="crList"></div>
-        </div>
-      <aside class="cr-glass cr-betp">
-        <div class="cr-btns"><div class="cr-act" id="crAct"></div><button class="btn btn-dark cr-rules-btn" id="crRules">${ic.doc || ''}Правила</button></div>
-        <div class="cr-bsum">
-          <div class="cr-bsum-v"><span>Ваша ставка</span><b id="crSel">0 ₽</b><small id="crSelN"></small></div>
-          <label class="cr-auto" title="Сервер заберёт ставку сам на этом x">Автовывод<span>x</span><input class="inp" id="crAutoIn" type="number" min="1.01" max="100" step="0.01" placeholder="—" inputmode="decimal"></label>
-        </div>
-        <div class="cr-invh"><b>Ваши скины</b><button class="cr-clr" id="crClr">Очистить</button></div>
-        <div class="mini-grid cr-inv" id="crInv"></div>
-      </aside>
+  // HUD как в CS2 (13.11): сцена на весь экран, панели по краям — слева сверху название и прошлые раунды,
+  // слева снизу игроки раунда, справа ставка; сверху по центру таймер / «Бомба заложена» (по фазе — класс ph-* у #crStage)
+  return `<section class="crash" id="crash">
+    <div class="cr-stage" id="crStage">
+      <video class="cr-bg" id="crBg" muted playsinline preload="auto" disablepictureinpicture poster="assets/crash-fly-end.webp" src="assets/crash-fly.mp4"></video>
+      <canvas id="crCanvas"></canvas>
+      <div class="cr-wait" id="crWait"><span>Приём ставок</span><b id="crWaitT">0:15</b><i><em id="crWaitBar"></em></i></div>
+      <div class="cr-ph" aria-hidden="true">${ic.bomb || ''}<span></span></div>
     </div>
+    <div class="cr-boomtxt" id="crBoomT"></div>
+    <header class="cr-hud cr-top">
+      <h1>Краш <em>C4</em></h1>
+      <div class="cr-histh">Прошлые раунды</div>
+      <div class="cr-hist" id="crHist"></div>
+    </header>
+    <section class="cr-hud cr-players">
+      <div class="cr-hh"><h3>Игроки раунда</h3><span class="cr-sum" id="crPl"></span></div>
+      <div id="crList"></div>
+    </section>
+    <aside class="cr-hud cr-betp">
+      <div class="cr-hh"><h3>Ставка</h3><button class="cr-rules-btn" id="crRules" type="button">Правила</button></div>
+      <div class="cr-invh"><b>Ваши скины</b><button class="cr-clr" id="crClr" type="button">Очистить</button></div>
+      <div class="cr-inv" id="crInv"></div>
+      <div class="cr-bsum">
+        <div class="cr-bsum-v"><span>Ваша ставка</span><b id="crSel">0</b><small id="crSelN"></small></div>
+        <label class="cr-auto" title="Сервер заберёт ставку сам на этом x"><span>Автовывод</span><i>x</i><input id="crAutoIn" type="number" min="1.01" max="100" step="0.01" placeholder="—" inputmode="decimal"></label>
+      </div>
+      <div class="cr-act" id="crAct"></div>
+    </aside>
   </section>`;
 }
 function mountCrash() {
@@ -9555,7 +9558,10 @@ async function crAdmSlider(box) {
   draw(+data.mode || 0);
 }
 function crRulesModal() {
-  modal(`<div class="dep cr-rules-m"><h2>Правила «Краша»</h2><ol>${CR_RULES.map(t => `<li>${t}</li>`).join('')}</ol><p class="dep-sub">Окупаемость режима — 90%: в среднем игрокам возвращается 90% ставок.</p></div>`, 'm-dep');
+  const m = modal(`<div class="ga-mod" style="--gl:#84d9fd"><header class="ga-mh"><small>Краш C4</small><h3>Правила</h3></header>
+    <ol class="ga-ol">${[...CR_RULES, 'Окупаемость режима — 90%: в среднем игрокам возвращается 90% ставок.'].map((t, k) => `<li><i>${k + 1}</i><span>${t}</span></li>`).join('')}</ol>
+    <footer class="ga-mf"><button class="bw-go ga-ok" type="button">Понятно</button></footer></div>`, 'm-ga');
+  $('.ga-ok', m).onclick = closeModal;
 }
 /* опрос сервера: чаще, пока бомба тикает; во вкладке в фоне — редко */
 async function crPoll(gen) {
@@ -9618,8 +9624,10 @@ function crFrame() {
   if (ph !== 'fly') cr.lastBeep = 0;
   if (stg.dataset.ph !== ph) { stg.dataset.ph = ph; stg.className = 'cr-stage ph-' + ph + (cr.g && cr.g.ready ? ' ready' : ''); crRender(); }
   const bt = $('#crBoomT'), btT = ph === 'crash' ? crTxt(r.crash_x) : '';
-  if (bt.dataset.t !== btT) { bt.dataset.t = btT; bt.innerHTML = btT ? '<small>БУМ</small>' + btT : ''; }
+  if (bt.dataset.t !== btT) { bt.dataset.t = btT; bt.innerHTML = btT ? '<small>Бомба взорвалась</small><b>' + btT + '</b>' : ''; }
   crLcd(lcd);
+  cr.flyP = ph === 'bet' ? clamp(1 - Math.max(0, r.start - now) / 15000, 0, 1) : ph === 'load' ? 0 : 1;
+  crFlySync();
   crDraw3d(ph, k);
 }
 /* меню ставки: скины игрока, выбранные суммируются */
@@ -9627,10 +9635,10 @@ const crSelItems = () => cr.sel.map(id => st.inv.find(x => x.id === id && x.st =
 function crDrawInv() {
   const box = $('#crInv'); if (!box) return;
   cr.sel = crSelItems().map(x => x.id);
-  if (!st.user) box.innerHTML = `<div class="empty">${ic.login}Войдите, чтобы ставить скины<button class="btn btn-primary btn-sm" data-act="login">Войти</button></div>`;
+  if (!st.user) box.innerHTML = `<div class="empty">${ic.login}Войдите, чтобы ставить скины<button class="c2-btn c2-green cr-mini" data-act="login">Войти</button></div>`;
   else {
     const list = own().slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
-    box.innerHTML = list.length ? list.map(x => mcard(SK[x.n], `data-id="${x.id}"`)).join('') : `<div class="empty">${ic.box}Инвентарь пуст — откройте пару кейсов.<a class="btn btn-primary btn-sm" href="#/cases">К кейсам</a></div>`;
+    box.innerHTML = list.length ? list.map(x => mcard(SK[x.n], `data-id="${x.id}"`)).join('') : `<div class="empty">${ic.box}Инвентарь пуст — откройте пару кейсов.<a class="c2-btn c2-green cr-mini" href="#/cases">К кейсам</a></div>`;
     $$('[data-id]', box).forEach(el => {
       el.classList.toggle('sel', cr.sel.includes(el.dataset.id));
       el.onclick = () => {
@@ -9644,7 +9652,7 @@ function crDrawInv() {
 }
 function crSum() {
   const its = crSelItems(), s = its.reduce((a, x) => a + SK[x.n].p, 0), e = $('#crSel'); if (!e) return;
-  e.textContent = money(s);
+  e.innerHTML = prc(s);
   $('#crSelN').textContent = its.length ? `${its.length} из ${CR_MAXN} предм.${s < CR_MIN ? ` · нужно от ${CR_MIN} ₽` : ''}` : 'выберите скины ниже';
   const b = $('#crBet'); if (b) b.disabled = !its.length || s < CR_MIN;
 }
@@ -9661,28 +9669,28 @@ function crRender() {
     act.dataset.k = key;
     if (cr.err || !sb) act.innerHTML = `<div class="cr-note">Нет связи с сервером — переподключаемся…</div>`;
     else if (ph === 'load') act.innerHTML = `<div class="cr-note"><span class="spinner"></span></div>`;
-    else if (!st.user) act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и сделать ставку</button>`;
+    else if (!st.user) act.innerHTML = `<button class="c2-btn c2-green cr-go" data-act="login">Войти и сделать ставку</button>`;
     else if (me) {
       if (me.cash) act.innerHTML = `<div class="cr-done win">Забрали на <b>${crTxt(me.cash)}</b>${me.prize && SK[me.prize] ? `<small>${esc(me.prize)} · ${money(SK[me.prize].p)}</small>` : ''}</div>`;
-      else if (ph === 'bet') act.innerHTML = `<div class="cr-done">Ставка <b>${money(me.stake)}</b> принята${me.auto ? `<small>автовывод ${crTxt(me.auto)}</small>` : '<small>ждём старта</small>'}</div>`;
-      else if (ph === 'fly') { act.innerHTML = `<button class="btn btn-xl cr-cash" id="crCash">Забрать <b id="crCashV">${money(me.stake * crCurX())}</b></button>`; $('#crCash').onclick = crCashout; }
+      else if (ph === 'bet') act.innerHTML = `<div class="cr-done">Ставка <b>${prc(me.stake)}</b> принята${me.auto ? `<small>автовывод ${crTxt(me.auto)}</small>` : '<small>ждём старта</small>'}</div>`;
+      else if (ph === 'fly') { act.innerHTML = `<button class="c2-btn c2-green cr-go cr-cash" id="crCash">Забрать <b id="crCashV">${money(me.stake * crCurX())}</b></button>`; $('#crCash').onclick = crCashout; }
       else act.innerHTML = `<div class="cr-done lose">Взрыв на <b>${crTxt(cr.r.crash_x)}</b><small>ставка ${money(me.stake)} сгорела</small></div>`;
-    } else if (ph === 'bet') { act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" id="crBet">${ic.plus}Сделать ставку</button>`; $('#crBet').onclick = crPlaceBet; crSum(); }
+    } else if (ph === 'bet') { act.innerHTML = `<button class="c2-btn c2-green cr-go" id="crBet">Сделать ставку</button>`; $('#crBet').onclick = crPlaceBet; crSum(); }
     else act.innerHTML = `<div class="cr-note">${ph === 'fly' ? 'Раунд идёт — ставки откроются после взрыва' : 'Новый раунд через несколько секунд'}</div>`;
   }
   // игроки: ставка и итог
   const tot = cr.bets.reduce((a, b) => a + +b.stake, 0), wins = cr.bets.filter(b => b.cash).length;
-  $('#crPl').innerHTML = cr.bets.length ? `${cr.bets.length} игр. · банк <b>${money(tot)}</b>${wins ? ` · забрали ${wins}` : ''}` : '';
+  $('#crPl').innerHTML = cr.bets.length ? `${cr.bets.length} игр. · банк <b>${prc(tot)}</b>${wins ? ` · забрали ${wins}` : ''}` : '';
   const lk = ph + '|' + JSON.stringify(cr.bets), lb = $('#crList'); if (lb.dataset.k === lk) return; lb.dataset.k = lk;
   lb.innerHTML = cr.bets.length ? cr.bets.map(b => {
     const its = (b.items || []).map(n => SK[n]).filter(Boolean), pz = b.prize && SK[b.prize];
     const res = b.cash
-      ? `<div class="cr-res win"><b>${crTxt(b.cash)}</b>${pz ? `<img class="r-${pz.r}" src="${imgUrl(pz, 'm')}" alt="" title="${esc(pz.name)}"><span>+${money(pz.p)}</span>` : ''}</div>`
-      : ph === 'crash' ? `<div class="cr-res lose"><b>Сгорело</b><span>−${money(b.stake)}</span></div>`
+      ? `<div class="cr-res win"><b>${crTxt(b.cash)}</b>${pz ? `<img class="r-${pz.r}" src="${imgUrl(pz, 'm')}" alt="" title="${esc(pz.name)}"><span>+${prc(pz.p)}</span>` : ''}</div>`
+      : ph === 'crash' ? `<div class="cr-res lose"><b>Сгорело</b><span>−${prc(b.stake)}</span></div>`
       : `<div class="cr-res play"><b>в игре</b>${b.me && b.auto ? `<span>авто ${crTxt(b.auto)}</span>` : ''}</div>`;
     return `<div class="cr-row${b.me ? ' me' : ''}${b.cash ? ' won' : ph === 'crash' ? ' lost' : ''}">
       <div class="cr-who">${ava({ name: b.name, ava: b.ava }, 'xs')}<b>${plink(b.uid, esc(b.name || 'Игрок'))}${b.me ? ' <em>вы</em>' : ''}</b></div>
-      <div class="cr-stk"><div class="cr-its">${its.slice(0, 3).map(s => `<img class="r-${s.r}" src="${imgUrl(s, 'm')}" alt="" title="${esc(s.name)} — ${money(s.p)}">`).join('')}${its.length > 3 ? `<em>+${its.length - 3}</em>` : ''}</div><span>${money(b.stake)}</span></div>
+      <div class="cr-stk"><div class="cr-its">${its.slice(0, 3).map(s => `<img class="r-${s.r}" src="${imgUrl(s, 'm')}" alt="" title="${esc(s.name)} — ${money(s.p)}">`).join('')}${its.length > 3 ? `<em>+${its.length - 3}</em>` : ''}</div><span>${prc(b.stake)}</span></div>
       ${res}</div>`;
   }).join('') : `<div class="cr-empty">${ic.users}<span>${ph === 'bet' ? 'Пока никто не поставил — будьте первым' : 'В этом раунде ставок нет'}</span></div>`;
 }
@@ -9761,7 +9769,7 @@ function crBoom() {
 function crShock() {
   const stg = $('#crStage'); if (!stg) return;
   const s = stg.getBoundingClientRect(), cx = s.left + s.width / 2, cy = s.top + s.height * .48;
-  $$('.cr-top, .cr-histbox, .cr-betp, .cr-players, #header .hd').forEach(el => {
+  $$('.cr-top, .cr-betp, .cr-players, #header .hd').forEach(el => {
     const r = el.getBoundingClientRect(); if (!r.width) return;
     const ex = clamp(cx, r.left, r.right), ey = clamp(cy, r.top, r.bottom), vx = ex - cx, vy = ey - cy, d = Math.hypot(vx, vy) || 1;
     const m = clamp(16 - d / 70, 4, 16);
@@ -9773,53 +9781,71 @@ function crShock() {
     el.addEventListener('animationend', off);
   });
 }
-/* взрыв поверх всей страницы (за рамки сцены): вспышка, огненные клубы, ударная волна, искры, дым; ~3 с, потом холст удаляется */
+/* взрыв как в CS2 (13.11): белая вспышка, огненный шар из клубов, песчаная пыль затягивает плент и оседает ~4 с,
+   обломки и искры; рисуется внутри сцены (под панелями HUD), холст удаляется сам */
+let crPuffs = null;
+function crPuffTex(rgb, k) {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  for (let i = 0; i < 28; i++) {
+    const a = Math.random() * 6.283, r = Math.random() * 30, px = 64 + Math.cos(a) * r, py = 64 + Math.sin(a) * r, rr = 16 + Math.random() * 28;
+    const g = x.createRadialGradient(px, py, 0, px, py, rr); g.addColorStop(0, `rgba(${rgb},${k})`); g.addColorStop(1, `rgba(${rgb},0)`);
+    x.fillStyle = g; x.beginPath(); x.arc(px, py, rr, 0, 6.283); x.fill();
+  }
+  return c;
+}
 function crBoomFx() {
   const stg = $('#crStage'); if (!stg) return;
   const old = document.getElementById('crBoomFx'); if (old) old.remove();
-  const rc = stg.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
-  const cv = document.createElement('canvas'); cv.id = 'crBoomFx'; cv.className = 'cr-boomfx';
-  const W = innerWidth, H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; document.body.appendChild(cv);
+  if (!crPuffs) crPuffs = { hot: crPuffTex('255,246,220', .5), fire: crPuffTex('255,150,48', .45), ember: crPuffTex('170,45,12', .4), dust: crPuffTex('168,140,104', .38), soot: crPuffTex('58,48,40', .38) };
+  const P = crPuffs, dpr = Math.min(2, window.devicePixelRatio || 1), W = stg.clientWidth, H = stg.clientHeight;
+  const cv = document.createElement('canvas'); cv.id = 'crBoomFx'; cv.className = 'cr-boomfx'; cv.width = W * dpr; cv.height = H * dpr; stg.appendChild(cv);
   const x = cv.getContext('2d'); x.scale(dpr, dpr);
-  const cx = rc.left + rc.width / 2, cy = rc.top + rc.height * .48, R = Math.max(W, H), gen = cr.gen;
-  const rnd = (a, b) => a + Math.random() * (b - a);
-  const fire = Array.from({ length: 34 }, () => { const a = rnd(0, Math.PI * 2), sp = rnd(120, 780); return { a, sp, x: cx, y: cy, r: rnd(30, 70), gr: rnd(140, 340), dl: rnd(0, .12), life: rnd(.8, 1.5) }; });
-  const smoke = Array.from({ length: 22 }, () => { const a = rnd(0, Math.PI * 2), sp = rnd(40, 260); return { a, sp, r: rnd(60, 120), gr: rnd(80, 200), dl: rnd(.15, .45), life: rnd(2, 3.2) }; });
-  const sparks = Array.from({ length: 160 }, () => { const a = rnd(0, Math.PI * 2), sp = rnd(300, 1500); return { x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rnd(0, 300), life: rnd(.6, 1.6), w: rnd(1.2, 3) }; });
+  const cx = W / 2, cy = H * .5, R = Math.min(W, H), gen = cr.gen, rnd = (a, b) => a + Math.random() * (b - a);
+  const fire = Array.from({ length: 46 }, () => ({ a: rnd(0, 6.283), sp: rnd(.08, .55) * R, r: rnd(.05, .1) * R, gr: rnd(.12, .3) * R, dl: rnd(0, .12), life: rnd(.7, 1.5), rot: rnd(0, 6.283), vr: rnd(-1.5, 1.5) }));
+  const dust = Array.from({ length: 44 }, (_, i) => {
+    const ground = i % 3 === 0, a = ground ? (Math.random() < .5 ? 0 : Math.PI) + rnd(-.35, .35) : rnd(0, 6.283);
+    return { a, ground, sp: rnd(.15, ground ? 1.1 : .6) * R, r: rnd(.08, .14) * R, gr: rnd(.25, .5) * R, dl: rnd(.06, .45), life: rnd(3, 4.8), rot: rnd(0, 6.283), vr: rnd(-.4, .4), soot: Math.random() < .3 };
+  });
+  const debris = Array.from({ length: 56 }, () => { const a = rnd(0, 6.283), sp = rnd(.6, 2.2) * R; return { x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * .8 - rnd(.2, .9) * R, s: rnd(2, 6), rot: rnd(0, 6.283), vr: rnd(-12, 12), life: rnd(1, 1.9) }; });
+  const sparks = Array.from({ length: 90 }, () => { const a = rnd(0, 6.283), sp = rnd(.5, 2.4) * R; return { x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rnd(0, .4) * R, life: rnd(.5, 1.3), w: rnd(1, 2.6) }; });
+  const puff = (tex, px, py, r, rot, al) => { if (al <= .003) return; x.globalAlpha = Math.min(1, al); x.save(); x.translate(px, py); x.rotate(rot); x.drawImage(tex, -r, -r, r * 2, r * 2); x.restore(); };
   const t0 = performance.now(); let last = t0;
   const step = now => {
     if (gen !== cr.gen || !cv.isConnected) { cv.remove(); return; }
     const t = (now - t0) / 1000, dt = Math.min(.05, (now - last) / 1000); last = now;
-    x.clearRect(0, 0, W, H);
-    // дым (обычное смешивание, под огнём)
+    x.clearRect(0, 0, W, H); x.globalAlpha = 1;
+    // пыль и копоть: плотное облако, по земле расползается вширь, потом медленно оседает
     x.globalCompositeOperation = 'source-over';
-    smoke.forEach(s => {
-      const lt = t - s.dl; if (lt <= 0 || lt > s.life) return;
-      const e = 1 - Math.exp(-lt * 1.4), r = s.r + s.gr * e, px = cx + Math.cos(s.a) * s.sp * e, py = cy + Math.sin(s.a) * s.sp * e - lt * 30;
-      const al = Math.min(1, lt * 2.5) * (1 - lt / s.life) * .55, g = x.createRadialGradient(px, py, 0, px, py, r);
-      g.addColorStop(0, `rgba(38,30,24,${al})`); g.addColorStop(.6, `rgba(28,22,18,${al * .6})`); g.addColorStop(1, 'rgba(20,16,12,0)');
-      x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, Math.PI * 2); x.fill();
+    dust.forEach(d => {
+      const lt = t - d.dl; if (lt <= 0 || lt > d.life) return;
+      const e = 1 - Math.exp(-lt * 1.5), px = cx + Math.cos(d.a) * d.sp * e, py = cy + Math.sin(d.a) * d.sp * e * (d.ground ? .25 : .7) - lt * R * (d.ground ? .01 : .035);
+      const al = Math.min(1, lt * 3) * (1 - lt / d.life) ** .8 * 1.6;
+      puff(d.soot ? P.soot : P.dust, px, py, d.r + d.gr * e, d.rot + d.vr * lt, al);
+    });
+    // обломки
+    debris.forEach(p => {
+      if (t > p.life) return;
+      p.vy += R * 2.2 * dt; p.vx *= .99; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+      x.globalAlpha = Math.min(1, (p.life - t) * 2); x.fillStyle = '#1d1712'; x.save(); x.translate(p.x, p.y); x.rotate(p.rot); x.fillRect(-p.s, -p.s * .6, p.s * 2, p.s * 1.2); x.restore();
     });
     x.globalCompositeOperation = 'lighter';
-    // вспышка на весь экран
-    if (t < .7) { const al = (1 - t / .7) ** 2, r = R * (.3 + t * 1.6), g = x.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, `rgba(255,248,220,${al})`); g.addColorStop(.25, `rgba(255,190,90,${al * .8})`); g.addColorStop(.6, `rgba(255,90,30,${al * .3})`); g.addColorStop(1, 'rgba(255,60,20,0)'); x.fillStyle = g; x.fillRect(0, 0, W, H); }
-    // ударная волна
-    if (t < .9) { const e = t / .9; x.strokeStyle = `rgba(255,214,160,${(1 - e) * .7})`; x.lineWidth = 2 + (1 - e) * 22; x.beginPath(); x.arc(cx, cy, 40 + e * R * .75, 0, Math.PI * 2); x.stroke(); }
-    // огненные клубы
-    fire.forEach(f => {
-      const lt = t - f.dl; if (lt <= 0 || lt > f.life) return;
-      const e = 1 - Math.exp(-lt * 3.2), px = cx + Math.cos(f.a) * f.sp * e * .7, py = cy + Math.sin(f.a) * f.sp * e * .7 - lt * 40, r = f.r + f.gr * e;
-      const al = (1 - lt / f.life) ** 1.4, g = x.createRadialGradient(px, py, 0, px, py, r);
-      g.addColorStop(0, `rgba(255,240,200,${al})`); g.addColorStop(.3, `rgba(255,160,60,${al * .75})`); g.addColorStop(.7, `rgba(220,60,10,${al * .3})`); g.addColorStop(1, 'rgba(120,20,0,0)');
-      x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, Math.PI * 2); x.fill();
+    // вспышка: первые кадры — белый экран, потом тёплое зарево гаснет
+    if (t < .12) { x.globalAlpha = 1 - t / .3; x.fillStyle = '#fff6e6'; x.fillRect(0, 0, W, H); }
+    if (t < 1) { const al = (1 - t) ** 2, g = x.createRadialGradient(cx, cy, 0, cx, cy, R * (.4 + t * .9)); g.addColorStop(0, `rgba(255,236,190,${al})`); g.addColorStop(.35, `rgba(255,150,60,${al * .6})`); g.addColorStop(1, 'rgba(255,90,20,0)'); x.globalAlpha = 1; x.fillStyle = g; x.fillRect(0, 0, W, H); }
+    // огненный шар: клубы белеют в центре, краснеют и гаснут к краям
+    fire.forEach(p => {
+      const lt = t - p.dl; if (lt <= 0 || lt > p.life) return;
+      const e = 1 - Math.exp(-lt * 3.4), age = lt / p.life, px = cx + Math.cos(p.a) * p.sp * e, py = cy + Math.sin(p.a) * p.sp * e * .75 - lt * R * .07, r = p.r + p.gr * e, rot = p.rot + p.vr * lt;
+      const al = (1 - age) ** 1.3 * 1.5;
+      puff(age < .3 ? P.hot : age < .65 ? P.fire : P.ember, px, py, r, rot, al);
     });
     // искры
     sparks.forEach(p => {
       if (t > p.life) return;
-      p.vy += 900 * dt; p.vx *= .985; const ox = p.x, oy = p.y; p.x += p.vx * dt; p.y += p.vy * dt;
-      x.strokeStyle = `rgba(255,${180 + Math.random() * 60 | 0},90,${1 - t / p.life})`; x.lineWidth = p.w; x.beginPath(); x.moveTo(ox, oy); x.lineTo(p.x, p.y); x.stroke();
+      p.vy += R * 1.6 * dt; p.vx *= .985; const ox = p.x, oy = p.y; p.x += p.vx * dt; p.y += p.vy * dt;
+      x.globalAlpha = 1 - t / p.life; x.strokeStyle = `rgb(255,${190 + Math.random() * 50 | 0},110)`; x.lineWidth = p.w; x.beginPath(); x.moveTo(ox, oy); x.lineTo(p.x, p.y); x.stroke();
     });
-    if (t < 3.4) requestAnimationFrame(step); else cv.remove();
+    if (t < 5) requestAnimationFrame(step); else cv.remove();
   };
   requestAnimationFrame(step);
 }
@@ -9894,12 +9920,12 @@ async function crScene(gen) {
   const scene = new T.Scene();
   // отражения на скотче и пластике — мягкая «комната»
   const pm = new T.PMREMGenerator(ren); scene.environment = pm.fromScene(new RoomEnvironment(), .04).texture; scene.environmentIntensity = .4; pm.dispose();
-  // камера строго сверху: экран бомбы вверху кадра, клавиатура ниже (экран: вправо = −x, вверх = +z)
-  const cam = new T.PerspectiveCamera(24, 1, .1, 50);
-  cam.position.set(0, 5, 0); cam.up.set(0, 0, 1); cam.lookAt(0, 0, 0);
-  scene.add(new T.HemisphereLight(0xffe9cc, 0x24160c, .55));
-  // закатное солнце слева сверху — длинные мягкие тени проводов на брикетах и бомбы на «полу»
-  const key = new T.DirectionalLight(0xffd29a, 3.4); key.position.set(.75, 4.2, .6); key.castShadow = true;
+  // камера летит по пути из Blender (assets/crash-fly.json, кадр в кадр с видео-фоном); бомба лежит на короне плента
+  const cam = new T.PerspectiveCamera(30, 1, .05, 400);
+  cam.position.set(0, 5, -2); cam.lookAt(0, 0, 0);
+  scene.add(new T.HemisphereLight(0xdfe8ff, 0xc9a273, .75));
+  // полуденное солнце как в сцене Blender (направление — из crash-fly.json)
+  const key = new T.DirectionalLight(0xfff2e0, 3.2); key.position.set(1.8, 4.4, -1.5); key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 9; key.shadow.bias = -.0002; key.shadow.normalBias = .012;
   Object.assign(key.shadow.camera, { left: -1.4, right: 1.4, top: 1.4, bottom: -1.4, near: .5, far: 9 });
   scene.add(key);
@@ -9910,13 +9936,22 @@ async function crScene(gen) {
   const floor = new T.Mesh(new T.PlaneGeometry(9, 9), new T.ShadowMaterial({ opacity: .4 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
   const glow = crGlowTex(T);
+  // выжженное пятно на месте бомбы после взрыва (до нового раунда)
+  const scC = document.createElement('canvas'); scC.width = scC.height = 256; const sx = scC.getContext('2d');
+  for (let i = 0; i < 46; i++) {
+    const a = Math.random() * 6.283, r = Math.random() * 70, px = 128 + Math.cos(a) * r, py = 128 + Math.sin(a) * r, rr = 22 + Math.random() * 46, al = .55 - r / 180;
+    const gr = sx.createRadialGradient(px, py, 0, px, py, rr); gr.addColorStop(0, `rgba(14,10,8,${al})`); gr.addColorStop(1, 'rgba(14,10,8,0)'); sx.fillStyle = gr; sx.beginPath(); sx.arc(px, py, rr, 0, 6.283); sx.fill();
+  }
+  const scT = new T.CanvasTexture(scC); scT.colorSpace = T.SRGBColorSpace;
+  const scorch = new T.Mesh(new T.PlaneGeometry(4.4, 4.4), new T.MeshBasicMaterial({ map: scT, transparent: true, depthWrite: false, opacity: 0 }));
+  scorch.rotation.x = -Math.PI / 2; scorch.position.y = .004; scene.add(scorch);
   // ореол под бомбой: тёплый, к концу раунда краснеет
   const halo = crSprite(T, glow, 0xff8a3a); halo.scale.set(3.4, 3.4, 1); halo.position.y = -.05; scene.add(halo);
-  const g = cr.g = { T, ren, scene, cam, fire, red, floor, halo, glow, bomb: null, lcd: null, boomT: 0, shake: 0 };
+  const g = cr.g = { T, ren, scene, cam, key, fire, red, floor, halo, glow, scorch, bomb: null, lcd: null, boomT: 0, shake: 0, aspect: 2, fly: null };
+  fetch('assets/crash-fly.json?v=1').then(x => x.json()).then(j => { g.fly = j; const sd = j.sun; key.position.set(-sd[0] * 5, -sd[1] * 5, -sd[2] * 5); }).catch(() => {});
   const fit = () => {
     const w = cv.clientWidth || 1, h = cv.clientHeight || 1; ren.setSize(w, h, false); cam.aspect = w / h;
-    // бомба почти во весь кадр: по высоте ~1.85, по ширине ~1.45
-    const need = Math.max(1.86, 1.45 / cam.aspect); cam.position.y = need / 2 / Math.tan(T.MathUtils.degToRad(cam.fov / 2)) + .12;
+    cr.g && (cr.g.aspect = w / h);
     cam.updateProjectionMatrix();
   };
   g.ro = new ResizeObserver(fit); g.ro.observe(cv); fit();
@@ -9977,6 +10012,33 @@ async function crScene(gen) {
     $('#crStage') && $('#crStage').classList.add('ready');
   }, undefined, () => { $('#crStage') && $('#crStage').classList.add('no3d'); });
 }
+/* пролёт камеры (assets/crash-fly.mp4 + crash-fly.json, сцена blender/scenes/location-crash-plant.blend, камера CAM_FLY):
+   во время приёма ставок видео идёт по таймеру, к старту раунда камера у самой бомбы; потом стоит на последнем кадре */
+const CR_FLY_N = 450, CR_FLY_END = (CR_FLY_N - 1) / 30;
+function crFlySync() {
+  const v = $('#crBg'); if (!v || v.readyState < 1) return;
+  if (v.requestVideoFrameCallback && !v._rvfc) { v._rvfc = 1; const cb = (n, md) => { v._mt = md.mediaTime; v.requestVideoFrameCallback(cb); }; v.requestVideoFrameCallback(cb); }
+  const p = cr.flyP || 0, t = p * CR_FLY_END;
+  if (p > 0 && p < 1) {
+    if (Math.abs(v.currentTime - t) > .35) { v.currentTime = t; v._mt = null; }
+    if (v.paused) v.play().catch(() => {});
+  } else {
+    if (!v.paused) v.pause();
+    if (Math.abs(v.currentTime - t) > .04) v.currentTime = t;
+  }
+}
+function crFlyCam(g) {
+  const fl = g.fly, T = g.T; if (!fl) return;
+  const v = $('#crBg'), fr = fl.f, K = 1.6 / fl.bombLen;          // метры сцены → единицы бомбы (длина бомбы 1.6)
+  let ft = (cr.flyP || 0) * (CR_FLY_N - 1);
+  if (v && v.readyState >= 2 && !v.error) ft = !v.paused && v._mt != null ? Math.round(v._mt * 30) : Math.round(v.currentTime * 30);
+  ft = clamp(ft, 0, fr.length - 1);
+  const i = Math.floor(ft), j = Math.min(fr.length - 1, i + 1), w = ft - i, A = fr[i], B = fr[j], m = n => A[n] + (B[n] - A[n]) * w;
+  g.cam.position.set(m(0) * K, m(1) * K, m(2) * K); g.cam.up.set(0, 1, 0); g.cam.lookAt(m(3) * K, m(4) * K, m(5) * K);
+  // видео 2:1 вписано «обложкой»: шире 2:1 — режется верх и низ, уже — бока
+  const tanH = fl.sensor / 2 / m(6), fov = T.MathUtils.radToDeg(2 * Math.atan(tanH / Math.max(g.aspect || 2, fl.aspect)));
+  if (Math.abs(g.cam.fov - fov) > 1e-4) { g.cam.fov = fov; g.cam.aspect = g.aspect || 2; g.cam.updateProjectionMatrix(); }
+}
 function crDraw3d(ph, k) {
   const g = cr.g; if (!g) return;
   const t = performance.now(), pos = g.parts.geometry.attributes.position.array, pm = g.parts.material;
@@ -9992,7 +10054,8 @@ function crDraw3d(ph, k) {
   }
   // тряска камеры только при взрыве
   const sh = g.boomT ? Math.max(0, 1 - (t - g.boomT) / 700) : 0;
-  g.cam.position.x = (Math.random() - .5) * sh * .12; g.cam.position.z = (Math.random() - .5) * sh * .12;
+  crFlyCam(g);
+  g.cam.position.x += (Math.random() - .5) * sh * .12; g.cam.position.z += (Math.random() - .5) * sh * .12;
   if (ph === 'crash' && g.boomT) {
     const bt = (t - g.boomT) / 1000;
     if (g.boomInit !== g.boomT) {
@@ -10024,15 +10087,15 @@ function crDraw3d(ph, k) {
     g.halo.material.color.setRGB(1, .45, .15); g.halo.material.opacity = Math.max(0, .9 * (1 - bt / 1.2));
     // огонь, волну и дым рисует crBoomFx поверх всей страницы — в сцене гасим, иначе виден край холста
     pm.opacity = 0; g.ring.material.opacity = 0; g.halo.material.opacity = 0; g.fx.forEach(s => { s.material.opacity = 0; });
-    const vis = bt < .06; [g.bomb, g.lcd, g.led, g.ledGlow, g.lcdGlow].forEach(o => o && (o.visible = vis)); g.floor.visible = vis;
+    const vis = bt < .04; [g.bomb, g.lcd, g.led, g.ledGlow, g.lcdGlow].forEach(o => o && (o.visible = vis)); g.floor.visible = vis;
+    g.scorch.material.opacity = clamp((bt - .1) * 3, 0, .9);
   } else {
     pm.opacity = 0; g.ring.material.opacity = 0; g.fire.intensity = 0; g.fx.forEach(s => { s.material.opacity = 0; });
     // после взрыва бомбы нет до нового раунда (зашли на страницу во время итогов — тоже)
     const vis = ph !== 'crash'; [g.bomb, g.lcd, g.led, g.ledGlow, g.lcdGlow].forEach(o => o && (o.visible = vis)); g.floor.visible = vis;
     if (!vis) g.halo.material.opacity = 0;
+    g.scorch.material.opacity = vis ? 0 : .9;
   }
-  // наклон за мышкой, плавно
-  if (g.rig && cr.tilt) { const k2 = .08; g.rig.rotation.x += (cr.tilt.y * .2 - g.rig.rotation.x) * k2; g.rig.rotation.z += (cr.tilt.x * .2 - g.rig.rotation.z) * k2; }
   g.ren.render(g.scene, g.cam);
 }
 /* ---------- обучение новичков: затемнение, «прожектор» на нужном элементе, подсказка, анимированный палец ----------
@@ -10052,12 +10115,12 @@ const TUT = {
     { sel: ['#dosToSign', '.dos-next'], t: 'Шаг 2 · Соглашение', d: 'Набрали 3+ предмета — передайте дело на подпись, впишите ник и распишитесь пальцем или мышкой.', tap: 1 },
     { sel: ['#dosTabs [data-step="3"]', '#dosTabs'], t: 'Шаг 3 · Выдача', d: 'Комиссия выдаст один случайный скин: от 25% до 400% суммы контракта. Его можно забрать, продать или отправить в апгрейд.' },
   ] },
-  crash: { name: 'Краш C4', head: '.crash .page-head h1', steps: [
+  crash: { name: 'Краш C4', head: '.crash .cr-top h1', steps: [
     { sel: ['#crInv .mcard', '#crInv', '.cr-betp'], t: 'Шаг 1 · Ставка', d: 'Пока идёт приём ставок, выберите скины — их сумма станет вашей ставкой.', tap: 1 },
     { sel: ['.cr-auto', '.cr-bsum'], t: 'Автовывод', d: 'Можно указать x, на котором сервер заберёт ставку сам, — если не успеваете нажать.' },
-    { sel: ['#crAct', '.cr-btns'], t: 'Шаг 2 · Поставить', d: 'Нажмите кнопку ставки. Когда раунд начнётся, здесь появится кнопка «Забрать».', tap: 1 },
+    { sel: ['#crAct'], t: 'Шаг 2 · Поставить', d: 'Нажмите кнопку ставки. Когда раунд начнётся, здесь появится кнопка «Забрать».', tap: 1 },
     { sel: ['#crStage'], t: 'Шаг 3 · Бомба', d: 'Бомба пикает — множитель растёт. Заберите до взрыва и получите скин дороже ставки во столько раз. Не успели — ставка сгорает.' },
-    { sel: ['.cr-histbox'], t: 'История', d: 'Здесь видно, на каком x взрывалась бомба в прошлых раундах.' },
+    { sel: ['.cr-hist', '.cr-top'], t: 'История', d: 'Здесь видно, на каком x взрывалась бомба в прошлых раундах.' },
   ] },
 };
 const TUT_FINGER = `<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tutCg" x1="0" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="#fff6d8"/><stop offset=".5" stop-color="#f6c650"/><stop offset="1" stop-color="#c7851a"/></linearGradient></defs><path d="M3 2.2V19.6l4.4-4.1 2.9 6.2 2.9-1.3-2.8-6.1h6Z" fill="url(#tutCg)" stroke="#1a1204" stroke-width="1.3" stroke-linejoin="round"/><path d="M4.5 5.6v9.2" stroke="rgba(255,255,255,.75)" stroke-width=".9" stroke-linecap="round"/></svg><i></i>`;
