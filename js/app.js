@@ -9690,7 +9690,7 @@ function crRender() {
       : `<div class="cr-res play"><b>в игре</b>${b.me && b.auto ? `<span>авто ${crTxt(b.auto)}</span>` : ''}</div>`;
     return `<div class="cr-row${b.me ? ' me' : ''}${b.cash ? ' won' : ph === 'crash' ? ' lost' : ''}">
       <div class="cr-who">${ava({ name: b.name, ava: b.ava }, 'xs')}<b>${plink(b.uid, esc(b.name || 'Игрок'))}${b.me ? ' <em>вы</em>' : ''}</b></div>
-      <div class="cr-stk"><div class="cr-its">${its.slice(0, 3).map(s => `<img class="r-${s.r}" src="${imgUrl(s, 'm')}" alt="" title="${esc(s.name)} — ${money(s.p)}">`).join('')}${its.length > 3 ? `<em>+${its.length - 3}</em>` : ''}</div><span>${prc(b.stake)}</span></div>
+      <div class="cr-stk"><div class="cr-its">${its.slice(0, 1).map(s => `<img class="r-${s.r}" src="${imgUrl(s, 'm')}" alt="" title="${esc(s.name)} — ${money(s.p)}">`).join('')}${its.length > 1 ? `<em>+${its.length - 1}</em>` : ''}</div><span>${prc(b.stake)}</span></div>
       ${res}</div>`;
   }).join('') : `<div class="cr-empty">${ic.users}<span>${ph === 'bet' ? 'Пока никто не поставил — будьте первым' : 'В этом раунде ставок нет'}</span></div>`;
 }
