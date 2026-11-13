@@ -2031,11 +2031,16 @@ function liveAvaLoad(e) {
   if (!liveAvas.has(uid)) liveAvas.set(uid, sb.rpc('player_card', { p_id: uid }).then(r => (r.data && r.data.ava) || null, () => null));
   liveAvas.get(uid).then(src => { const box = src && $('.ld-u .ava', el); if (!box) return; const i = new Image(); i.alt = ''; i.src = src; box.replaceChildren(i); });
 }
-// ONLINE над лентой — сколько устройств на сайте прямо сейчас (Supabase Realtime Presence, без таблиц)
+// счётчик у иконки над лентой — сколько игроков зарегистрировано (supabase/players_count.sql, раз в 30 с; решение владельца 13.11);
+// пока функции на сервере нет — как раньше, устройства на сайте (Supabase Realtime Presence)
 function liveOnlineInit() {
   if (!sb) return;
+  let reg = false;
+  const put = n => { const o = $('#liveOnline'); if (o) o.textContent = fmt(n); };
+  const pull = () => sb.rpc('players_count').then(r => { if (!r.error && r.data != null) { reg = true; put(+r.data); } }, () => {});
+  pull(); setInterval(pull, 30000);
   const ch = sb.channel('site-online', { config: { presence: { key: SID } } });
-  ch.on('presence', { event: 'sync' }, () => { const o = $('#liveOnline'); if (o) o.textContent = fmt(Object.keys(ch.presenceState()).length); })
+  ch.on('presence', { event: 'sync' }, () => { if (!reg) put(Object.keys(ch.presenceState()).length); })
     .subscribe(s => { if (s === 'SUBSCRIBED') ch.track({}); });
 }
 // сверка часов с сервером + последние реальные дропы + подписка на новые
