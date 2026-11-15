@@ -5715,12 +5715,9 @@ const AU_IC = {
   lock: sv('<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>'),
   eyeOff: sv('<path d="M3 3l18 18M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6A17.4 17.4 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
 };
-// поле ввода: значок слева, плавающая подпись, у пароля — кнопка «показать»
-const auField = (id, label, icon, type = 'text', ac = '', extra = '') => `<div class="field au-f">
-  <div class="au-in"><span class="au-ic">${icon}</span><input class="inp" id="${id}" type="${type}" autocomplete="${ac}" placeholder=" " ${extra}><label for="${id}">${label}</label>${type === 'password' ? `<button type="button" class="au-eye" tabindex="-1" aria-label="Показать пароль">${ic.eye}</button>` : ''}<i class="au-line"></i></div>
-  <span class="msg"></span></div>`;
 /* ---------- окно входа (по образцу владельца): слева агент владельца с табличкой 18+ на оранжевом, справа вход через Steam
-   с двумя галочками (18+ и правила). Открывается везде, где сайт просит войти; вход по почте — старое окно (openAuthMail) по ссылке внизу ---------- */
+   с двумя галочками (18+ и правила). Открывается везде, где сайт просит войти. Игроки входят только через Steam (владелец 15.11: ссылка «Войти по почте»
+   и регистрация по почте убраны); админы и сотрудники входят по почте на отдельной странице #/staff (pageStaff) ---------- */
 function openAuth(tab = 'login') {
   const ok = ageOk();
   const m = modal(`<div class="lg">
@@ -5734,10 +5731,8 @@ function openAuth(tab = 'login') {
       </div>
       <button class="lg-steam" id="lgSteam">${STEAM_LOGO}<span>Войти через Steam +18</span></button>
       <p class="lg-note">Работает на Steam. Не связано с Valve Corp</p>
-      <button class="lg-mail" id="lgMail">Войти по почте</button>
     </div></div>`, 'm-login');
   $('.lg-doc', m).onclick = () => closeModal();
-  $('#lgMail', m).onclick = () => openAuthMail(tab);
   $('#lgSteam', m).onclick = () => {
     const miss = ['#lgAge', '#lgTerms'].map(s => $(s, m)).filter(x => !x.checked);
     if (miss.length) { // не отмечено — подсветить и «встряхнуть» пустые галочки
@@ -5750,85 +5745,61 @@ function openAuth(tab = 'login') {
   };
   $$('.lg-chk input', m).forEach(x => x.onchange = () => x.closest('.lg-chk').classList.remove('bad'));
 }
-function openAuthMail(tab = 'login') {
-  const m = modal(`<div class="auth au2">
-    <div class="au-art" aria-hidden="true"><img src="assets/auth-art.webp" alt=""><i class="au-sweep"></i><i class="au-glow"></i><div class="au-embers">${Array.from({ length: 14 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(5, 10)}s;--dl:${rand(-10, 0)}s;--x:${rand(-30, 30)}px;--s:${rand(.6, 1.4)}"></i>`).join('')}</div></div>
-    <div class="auth-main au-main">
-      <div class="au-head"><span class="au-eyebrow"><i></i>RUSH CASE</span><h2 id="authTitle"></h2><p class="au-sub" id="authSub"></p></div>
-      <div class="au-tabs" id="authTabs"><i class="au-pill"></i><button data-tab="login">Вход</button><button data-tab="reg">Регистрация</button></div>
-      <div class="au-body" id="authBody">
-        <button class="au-steam" id="steamBtn"><span class="au-steam-ic">${ic.steam}</span><span class="au-steam-t"><b>Войти через Steam</b><small>быстро и безопасно</small></span>${ic.right}</button>
-        <div class="au-or"><span>или по e-mail</span></div>
-        <form id="authForm" novalidate></form>
-        <label class="check au-age" id="aAgeBox"><input type="checkbox" id="aAge"${ageOk() ? ' checked' : ''}><span>Мне исполнилось 18 лет, я принимаю <a href="#/terms" class="au-doc">пользовательское соглашение</a> и <a href="#/privacy" class="au-doc">политику конфиденциальности</a></span></label>
-        <span class="msg au-age-msg" id="aAgeMsg"></span>
-      </div>
-      <div class="au-foot">${ic.shield}<span>Данные защищены · Только 18+</span></div>
-    </div></div>`, 'm-auth m-auth2');
-  const draw = (t, first) => {
-    const dir = t === 'reg' ? 1 : -1;
-    tab = t;
-    $$('#authTabs button', m).forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-    $('#authTabs', m).dataset.on = t;
-    $('#authTitle', m).textContent = t === 'login' ? 'С возвращением' : 'Создать аккаунт';
-    $('#authSub', m).innerHTML = t === 'login' ? 'Войдите, чтобы открывать кейсы и забирать дроп' : 'Регистрация за 20 секунд — <b>+100 ₽</b> на баланс сразу';
-    const f = $('#authForm', m);
-    f.innerHTML = t === 'login' ? `
-      ${auField('aEmail', 'E-mail', AU_IC.mail, 'email', 'email')}
-      ${auField('aPass', 'Пароль', AU_IC.lock, 'password', 'current-password')}
-      <div class="au-row"><span></span><button type="button" class="forgot" id="forgot">Забыли пароль?</button></div>
-      <button class="au-go" type="submit"><span>Войти</span>${ic.right}</button>
-      <div class="sw">Нет аккаунта? <button type="button" data-sw="reg">Зарегистрироваться</button></div>` : `
-      ${auField('aNick', 'Никнейм', ic.user, 'text', 'nickname', 'maxlength="16"')}
-      ${auField('aEmail', 'E-mail', AU_IC.mail, 'email', 'email')}
-      <div class="row2">${auField('aPass', 'Пароль', AU_IC.lock, 'password', 'new-password')}${auField('aPass2', 'Повторите', AU_IC.lock, 'password', 'new-password')}</div>
-      <button class="au-go" type="submit"><span>Создать аккаунт</span><em class="au-bonus">+100 ₽</em>${ic.right}</button>
-      <div class="sw">Уже есть аккаунт? <button type="button" data-sw="login">Войти</button></div>`;
-    // смена вкладки — форма въезжает с нужной стороны, поля появляются по очереди
-    if (!first) { const body = $('#authBody', m); body.style.setProperty('--dir', dir); body.classList.remove('au-swap'); void body.offsetWidth; body.classList.add('au-swap'); }
-    $$('[data-sw]', f).forEach(b => b.onclick = () => draw(b.dataset.sw));
-    const fg = $('#forgot', f); if (fg) fg.onclick = () => { const e = $('#aEmail', f).value.trim(); if (!/^\S+@\S+\.\S+$/.test(e)) return setErr($('#aEmail', f), 'Введите e-mail для восстановления');
-      if (sb) sb.auth.resetPasswordForEmail(e, { redirectTo: location.origin + location.pathname }).then(({ error }) => error ? toast(sbErr(error), 'err') : toast(`Ссылка для сброса пароля отправлена на <b>${esc(e)}</b>`, 'info')); };
-    $$('.au-eye', f).forEach(b => b.onclick = () => { const i = b.parentElement.querySelector('input'), show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? AU_IC.eyeOff : ic.eye; b.classList.toggle('on', show); i.focus(); });
-    f.onsubmit = ev => { ev.preventDefault(); submit(f); };
-    $$('.inp', f).forEach(i => i.oninput = () => setErr(i, ''));
+/* ---------- вход для команды #/staff (владелец 15.11): игроки входят только через Steam, а админы и сотрудники — здесь, по почте и паролю.
+   Ссылок на страницу в меню и подвале нет. Пускает только аккаунты с доступом в админку (profiles.is_admin = владелец или сотрудник),
+   из остальных сразу выходим. Права всё равно проверяет сервер (is_admin(), staff — supabase/roles.sql); новый стиль CS2 (.stf в css) ---------- */
+let stfBusy = false; // идёт вход на #/staff — общий обработчик SIGNED_IN не должен сам загружать профиль до проверки доступа
+const STF_NO = 'Вход по почте — только для команды сайта. Игроки входят через Steam';
+const stfField = (id, label, type, ac) => `<label class="stf-fl"><span>${label}</span><div class="stf-in"><input id="${id}" type="${type}" autocomplete="${ac}" spellcheck="false">${type === 'password' ? `<button type="button" class="stf-eye" tabindex="-1" aria-label="Показать пароль">${ic.eye}</button>` : ''}</div></label>`;
+const stfEyes = root => $$('.stf-eye', root).forEach(b => b.onclick = () => { const i = b.previousElementSibling, show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? AU_IC.eyeOff : ic.eye; b.classList.toggle('on', show); i.focus(); });
+// есть ли у аккаунта доступ в админку; нет — выходим из него
+async function stfAllowed(session) {
+  const { data: p } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).single();
+  if (p && p.is_admin) return true;
+  await sb.auth.signOut();
+  return false;
+}
+function pageStaff() {
+  const u = st.user;
+  const body = u ? `<div class="stf-me"><p>Вы вошли как <b>${esc(u.name)}</b>${u.admin ? '' : ' — у этого аккаунта нет доступа в админку'}.</p>
+      ${u.admin ? '<a class="bw-go stf-go" href="#/admin">Открыть админку</a>' : '<a class="stf-ln" href="#/">На главную</a>'}</div>` : `
+    <form class="stf-f" id="stfF" novalidate>
+      ${stfField('stfMail', 'Почта', 'email', 'username')}
+      ${stfField('stfPass', 'Пароль', 'password', 'current-password')}
+      <p class="stf-msg" id="stfMsg" role="alert"></p>
+      <button class="bw-go stf-go" type="submit">Войти</button>
+      <div class="stf-row"><button type="button" class="stf-ln" id="stfForgot">Забыли пароль?</button><button type="button" class="stf-ln" id="stfSteam">Я игрок — войти через Steam</button></div>
+    </form>`;
+  return `<section class="container stf"><div class="stf-card"><header class="ga-mh"><small>RUSH CASE · команда</small><h3>Вход для админов</h3></header>${body}</div></section>`;
+}
+function mountStaff() {
+  const f = $('#stfF'); if (!f) return;
+  const msg = (t, ok) => { const el = $('#stfMsg'); el.textContent = t || ''; el.classList.toggle('ok', !!ok); };
+  stfEyes(f);
+  $$('input', f).forEach(i => i.oninput = () => msg(''));
+  $('#stfSteam').onclick = () => openAuth();
+  $('#stfForgot').onclick = async () => {
+    const e = $('#stfMail').value.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(e)) return msg('Введите почту — пришлём на неё ссылку для нового пароля');
+    if (!sb) return msg('Нет связи с сервером — попробуйте позже');
+    const { error } = await sb.auth.resetPasswordForEmail(e, { redirectTo: location.origin + location.pathname });
+    msg(error ? sbErr(error) : 'Если это почта команды — на неё пришла ссылка для нового пароля', !error);
   };
-  const setErr = (inp, msg) => { inp.classList.toggle('err', !!msg); const fl = inp.closest('.field'); if (fl) { fl.classList.toggle('bad', !!msg); const s = fl.querySelector('.msg'); if (s) s.textContent = msg; if (msg) { fl.classList.remove('shake'); void fl.offsetWidth; fl.classList.add('shake'); } } return !msg; };
-  const ageCheck = () => { const on = $('#aAge', m).checked; $('#aAgeMsg', m).textContent = on ? '' : 'Подтвердите, что вам есть 18 лет'; $('#aAgeBox', m).classList.toggle('bad', !on); if (on) ageSave(); else { const bx = $('#aAgeBox', m); bx.classList.remove('shake'); void bx.offsetWidth; bx.classList.add('shake'); } return on; };
-  const submit = async f => {
-    if (!ageCheck()) return;
-    const email = $('#aEmail', f).value.trim().toLowerCase(), pass = $('#aPass', f).value;
-    let ok = setErr($('#aEmail', f), /^\S+@\S+\.\S+$/.test(email) ? '' : 'Некорректный e-mail');
-    ok = setErr($('#aPass', f), pass.length >= 6 ? '' : 'Минимум 6 символов') && ok;
-    if (tab === 'reg') {
-      const nick = $('#aNick', f).value.trim();
-      ok = setErr($('#aNick', f), /^[\wА-Яа-яЁё\- ]{3,16}$/.test(nick) ? '' : '3–16 символов: буквы, цифры, _ и -') && ok;
-      ok = setErr($('#aPass2', f), pass === $('#aPass2', f).value ? '' : 'Пароли не совпадают') && ok;
-      if (!ok) return;
-      if (!sb) return toast('Нет связи с сервером — попробуйте позже', 'err');
-      busy(f, true);
-      const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { nick }, emailRedirectTo: location.origin + location.pathname } });
-      busy(f, false);
-      if (error) return setErr($('#aEmail', f), sbErr(error));
-      if (data.session) { if (await sbLoadProfile(data.session)) { closeModal(); afterLogin(true); } }
-      else { closeModal(); toast(`Мы отправили письмо на <b>${esc(email)}</b> — подтвердите e-mail по ссылке и войдите`, 'info'); }
-    } else {
-      if (!ok) return;
-      if (!sb) return toast('Нет связи с сервером — попробуйте позже', 'err');
-      busy(f, true);
+  f.onsubmit = async ev => {
+    ev.preventDefault();
+    const email = $('#stfMail').value.trim().toLowerCase(), pass = $('#stfPass').value;
+    if (!/^\S+@\S+\.\S+$/.test(email)) return msg('Введите почту');
+    if (!pass) return msg('Введите пароль');
+    if (!sb) return msg('Нет связи с сервером — попробуйте позже');
+    const b = $('.stf-go', f); b.disabled = true; b.textContent = 'Входим…'; msg('');
+    stfBusy = true;
+    try {
       const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-      busy(f, false);
-      if (error) return setErr($('#aEmail', f), sbErr(error));
-      if (await sbLoadProfile(data.session)) { closeModal(); afterLogin(false); }
-    }
+      if (error) return msg(sbErr(error));
+      if (!(await stfAllowed(data.session))) return msg(STF_NO);
+      if (await sbLoadProfile(data.session)) { location.hash = '#/admin'; toast(`С возвращением, <b>${esc(st.user.name)}</b>!`); }
+    } finally { stfBusy = false; if (b.isConnected) { b.disabled = false; b.textContent = 'Войти'; } }
   };
-  const busy = (f, on) => { const b = $('.au-go', f); if (b) { b.disabled = on; b.classList.toggle('busy', on); } };
-  $$('#authTabs button', m).forEach(b => b.onclick = () => { if (b.dataset.tab !== tab) draw(b.dataset.tab); });
-  // вход через Steam: серверная функция Supabase steam-auth (OpenID) → обратно на сайт с одноразовым токеном
-  $('#aAge', m).onchange = () => { if ($('#aAge', m).checked) ageCheck(); };
-  $$('.au-doc', m).forEach(a => a.onclick = () => closeModal());
-  $('#steamBtn', m).onclick = () => { if (!ageCheck()) return; const b = $('#steamBtn', m); b.classList.add('busy'); $('.au-steam-t', b).innerHTML = '<b>Переход в Steam…</b><small>войдите на странице Steam</small>'; location.href = SB_URL + '/functions/v1/steam-auth?start=1&ret=' + encodeURIComponent(location.origin + location.pathname); };
-  draw(tab, true);
 }
 /* аккаунты — в базе Supabase: вход по e-mail, профиль игрока хранится на сервере */
 const SB_ERR = { 'Invalid login credentials': 'Неверный e-mail или пароль', 'Email not confirmed': 'Подтвердите e-mail по ссылке из письма', 'User already registered': 'Этот e-mail уже зарегистрирован — войдите', 'Email signups are disabled': 'Регистрация временно недоступна — попробуйте позже', 'Signups not allowed for this instance': 'Регистрация временно недоступна — попробуйте позже' };
@@ -5952,19 +5923,24 @@ function sbInit() {
     else if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); }
   });
   sb.auth.onAuthStateChange((ev, session) => {
-    if (ev === 'PASSWORD_RECOVERY') openNewPass();
-    if (ev === 'SIGNED_IN' && session && (!st.user || !st.user.sb)) sbLoadProfile(session); // вход по ссылке из письма
+    // ссылка «новый пароль» из письма — только для команды (#/staff); игрока по почте не впускаем
+    if (ev === 'PASSWORD_RECOVERY' && session) stfAllowed(session).then(ok => { if (ok) return openNewPass(); Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); toast(STF_NO, 'err'); });
+    if (ev === 'SIGNED_IN' && session && !stfBusy && (!st.user || !st.user.sb)) sbLoadProfile(session); // вход по ссылке из письма
   });
 }
-function openNewPass() {
-  const m = modal(`<div class="dep"><h2>Новый пароль</h2><p class="dep-sub">Придумайте новый пароль для входа.</p>
-    <div class="field"><input class="inp" id="npPass" type="password" autocomplete="new-password" placeholder="Минимум 6 символов"></div>
-    <button class="btn btn-primary btn-lg btn-block" id="npGo" style="margin-top:14px">Сохранить</button></div>`, 'm-dep');
-  $('#npGo', m).onclick = async () => {
-    const v = $('#npPass', m).value; if (v.length < 6) return toast('Минимум 6 символов', 'err');
+function openNewPass() { // новый пароль по ссылке из письма — окно в новом стиле (как «Правила»)
+  const m = modal(`<div class="ga-mod" style="--gl:#84d9fd"><header class="ga-mh"><small>RUSH CASE · команда</small><h3>Новый пароль</h3></header>
+    <form class="stf-f" id="npF" novalidate>${stfField('npPass', 'Новый пароль — минимум 6 символов', 'password', 'new-password')}
+      <p class="stf-msg" id="npMsg" role="alert"></p><button class="bw-go stf-go" type="submit">Сохранить</button></form></div>`, 'm-ga');
+  stfEyes(m);
+  $('#npF', m).onsubmit = async ev => {
+    ev.preventDefault();
+    const v = $('#npPass', m).value, el = $('#npMsg', m);
+    if (v.length < 6) { el.textContent = 'Минимум 6 символов'; return; }
     const { error } = await sb.auth.updateUser({ password: v });
-    if (error) return toast(sbErr(error), 'err');
+    if (error) { el.textContent = sbErr(error); return; }
     closeModal(); toast('Пароль изменён');
+    if (st.user && st.user.admin) location.hash = '#/admin';
   };
 }
 
@@ -10320,6 +10296,7 @@ const ROUTES = {
   '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, null], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer],
+  staff: [pageStaff, mountStaff], // вход для админов и сотрудников по почте (ссылок на неё нет)
 };
 // анимации за экраном — на паузу (покачивание кейсов, светлячки, искры баннера): браузеру меньше работы при прокрутке.
 // Наблюдатель сбрасывается при каждой смене страницы (route) и заново смотрит за новыми элементами
