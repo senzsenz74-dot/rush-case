@@ -2578,7 +2578,7 @@ const newsCol = () => newsList().map(newsCard).join('');
 function pageMain() {
   // справа от первой новости — значок «?»: при наведении (или нажатии) стеклянная подложка с реквизитами продавца (подвала на главной нет);
   // в самом низу — мелкая приписка про Valve
-  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><img src="${MNA.dir}krot-logo.webp?v=${MNA.v}" alt="Режим КРОТ — RUSH CASE" decoding="async"><a class="mnk-go" href="#/krot">Играть</a></div>
+  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><img src="${MNA.dir}krot-logo.webp?v=${MNA.v}" alt="Режим КРОТ — RUSH CASE" decoding="async"><a class="mnk-go" href="#/krot">${krotOpen() ? 'Играть' : 'Скоро'}</a></div>
     <div class="mn-info"><button class="mn-q" id="mnQ" aria-label="Реквизиты продавца" aria-expanded="false"><i></i></button>
       <div class="mn-req" role="tooltip"><small>Продавец</small><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}</span><span>ОГРНИП ${LEGAL.ogrnip}</span>
         <span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span>
@@ -2845,9 +2845,13 @@ function pageInvite() {
   return `<section class="krp"><div class="krp-box ivp"><span class="ivp-plus">${INVITE_SVG}</span><h1 class="krp-h">Пригласить друзей</h1><p class="ivp-soon">Скоро</p>
     <p class="krp-t">Здесь будет статистика по приглашённым друзьям: кто зашёл по вашей ссылке, сколько потратил и сколько получили вы.</p><a class="krp-go" href="#/">На главную</a></div></section>`;
 }
-// режим КРОТ — пока заглушка (кнопка «Играть» в карточке у ног агента на главной)
 // режим «КРОТ» (#/krot): сама игра — js/krot.js + css/krot.css, грузятся только на этой странице (сервер — supabase/krot.sql)
+// «Крот» пока закрыт для игроков (владелец 15.11: «не готов на 100%») — открыт только админам и на localhost (разработка, демо).
+// Открыть всем: krotOpen = () => true.
+const krotOpen = () => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || !!(st.user && st.user.admin);
 function pageKrot() {
+  if (!krotOpen()) return `<section class="krp"><div class="krp-box"><img class="krp-logo" src="${MNA.dir}krot-logo.webp?v=${MNA.v}" alt="Режим КРОТ — RUSH CASE">
+    <h1 class="krp-h">Режим «Крот» — скоро</h1><p class="krp-t">Новый режим почти готов: доводим и проверяем. Откроем совсем скоро — следите за новостями на главной.</p><a class="krp-go" href="#/">На главную</a></div></section>`;
   return `<section class="kr" id="kr"><p class="kr-boot"><i class="kr-spin"></i>Загружаем режим «КРОТ»…</p></section>`;
 }
 let krotLib = null;
@@ -2860,14 +2864,14 @@ function krotLoad() {
 const krotDeps = () => ({ sb, esc, openAuth, user: () => st.user, sound: () => !!st.sound });
 // главная: «плюс» у агента — группа «Крота», «Играть» на карточке — поиск матча (как в CS2). Работает и до загрузки js/krot.js.
 document.addEventListener('click', e => {
-  const a = e.target.closest && e.target.closest('#mnInvite, .mnk-go'); if (!a) return;
+  const a = e.target.closest && e.target.closest('#mnInvite, .mnk-go'); if (!a || !krotOpen()) return;   // закрыт — обычный переход по ссылке
   e.preventDefault();
   try { const AC = window.AudioContext || window.webkitAudioContext; if (AC && !window.__krAC) window.__krAC = new AC(); if (window.__krAC && window.__krAC.state === 'suspended') window.__krAC.resume(); } catch (x) { /* без звука */ }
   krotLoad().then(() => { window.KROT.mmInit(krotDeps()); if (a.id === 'mnInvite') window.KROT.mmInvite(); else window.KROT.mmPlay(); })
     .catch(() => toast('Не удалось загрузить режим «КРОТ». Обновите страницу.', 'err'));
 });
 function mountKrot(arg) {
-  const el = $('#kr'); if (!el) return;
+  const el = $('#kr'); if (!el || !krotOpen()) return;
   krotLoad().then(() => { if (el.isConnected && window.KROT) { window.KROT.mmInit(krotDeps()); window.KROT.mount(el, arg, krotDeps()); } })
     .catch(() => { if (el.isConnected) el.innerHTML = '<p class="kr-boot">Не удалось загрузить режим. Проверьте интернет и обновите страницу.</p>'; });
 }
@@ -10325,8 +10329,8 @@ function route() {
   document.body.classList.toggle('pg-main', key === ''); // на главном экране тот же снимок, но чёткий (assets/bg-main.webp)
   document.body.classList.toggle('pg-cases', key === 'cases');
   document.body.classList.toggle('pg-bonus', key === 'bonus'); // «Бонусы» — тот же размытый снимок, что у «Кейсов» (как на образце владельца) // страница «Кейсы» — тот же снимок, слегка размытый (assets/bg-cases.webp)
-  document.documentElement.classList.toggle('no-scroll', key === '' || key === 'krot');
-  document.body.classList.toggle('pg-krot', key === 'krot'); // «Крот» — игра на весь экран: без подвала и ленты LIVE (css/krot.css) // главный экран не прокручивается, подвала нет — как меню игры
+  document.documentElement.classList.toggle('no-scroll', key === '' || (key === 'krot' && krotOpen()));
+  document.body.classList.toggle('pg-krot', key === 'krot' && krotOpen()); // «Крот» — игра на весь экран: без подвала и ленты LIVE (css/krot.css) // главный экран не прокручивается, подвала нет — как меню игры
   document.body.classList.toggle('pg-c2', !!$('.c2p')); // CS2 CASE на ПК — во весь экран, без подвала
   c2Wind(!!$('.c2p')); // ветер на фоне — только на странице CS2 CASE
   if (!$('.c2p')) document.body.classList.remove('c2-nolive'); // «Скрыть LIVE» действует только на странице CS2 CASE
@@ -10374,7 +10378,7 @@ document.addEventListener('error', e => {
 
 /* ---------- init ---------- */
 renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit(); supMount(); streamerApply(); // кнопка чата поддержки — на всех страницах
-try { if (localStorage.getItem('krot:mm') && st.user) krotLoad().then(() => window.KROT.mmInit(krotDeps())).catch(() => { /* без подбора */ }); } catch (e) { /* приватный режим */ } // «Крот»: была группа или поиск — продолжаем
+try { if (localStorage.getItem('krot:mm') && st.user && krotOpen()) krotLoad().then(() => window.KROT.mmInit(krotDeps())).catch(() => { /* без подбора */ }); } catch (e) { /* приватный режим */ } // «Крот»: была группа или поиск — продолжаем
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
 // заставка при открытии сайта закрывается сама (index.html #intro, js/intro.js)
 })();
