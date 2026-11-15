@@ -7077,6 +7077,7 @@ body.pg-invite::after{background:linear-gradient(180deg,rgba(6,8,12,.3),rgba(6,8
 .rf-steps b{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:2px;background:rgba(132,217,253,.12);color:var(--bl);font:500 16px/1 'Oswald',var(--ff)}
 .rf-mgo{flex:none;max-width:none;width:100%;gap:10px}
 .rf-mgo svg{width:20px;height:20px}
+.rf-mgo .steam-logo{fill:currentColor;stroke:none} /* настоящий логотип Steam, как в окне входа (STEAM_LOGO) */
 /* окна (основа — .m-ga, как «Правила» BLAST) */
 .m-rf .rf-mb{display:grid;gap:14px;padding:20px 26px 24px}
 .m-rf .rf-mt{margin:0;font:500 13px/1 'Oswald',var(--ff);letter-spacing:.08em;text-transform:uppercase;color:#8a92a1}

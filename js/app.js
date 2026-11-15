@@ -1350,7 +1350,7 @@ async function refWelcome() {
   const m = modal(`<div class="ga-mod" style="--gl:#84d9fd"><header class="ga-mh"><small>Приглашение на RUSH CASE</small><h3>Вас пригласил ${esc(R.name)}</h3></header>
     <div class="rf-mb"><div class="rf-who">${refAva(R)}<div><b>${esc(R.name)}</b><span>дарит вам после входа через Steam</span></div></div>${refGiftList(R)}
       ${R.partner && (+R.bal || R.case) ? `<p class="rf-mn">Осталось подарков: <b>${fmt(R.left)}</b>. Деньги и кейс — для аккаунтов Steam${R.steam_days ? ` старше ${R.steam_days} ${plural(R.steam_days, 'дня', 'дней', 'дней')}` : ''} с CS2 и открытым профилем.</p>` : ''}
-      <button class="ga-go rf-mgo" id="rfLogin">${ic.steam}Войти через Steam</button></div></div>`, 'm-ga m-rf');
+      <button class="ga-go rf-mgo" id="rfLogin">${STEAM_LOGO}Войти через Steam</button></div></div>`, 'm-ga m-rf');
   $('#rfLogin', m).onclick = () => openAuth('login');
 }
 /* журнал для статистики админки: пульс онлайна (раз в 2 мин с открытой вкладки), пополнения, выводы, открытия кейсов */
@@ -2886,7 +2886,7 @@ function pageInvite() {
     <h1 class="rf-h1">Пригласить друзей</h1>
     <p class="rf-lead">Получайте <b id="rfGP">5%</b> от каждого пополнения друзей — навсегда. Друзьям — <b id="rfGF">+10%</b> к первому пополнению.</p>
     <ol class="rf-steps"><li><b>1</b><span>Войдите через Steam и скопируйте свою ссылку</span></li><li><b>2</b><span>Друг входит по ссылке и получает подарок</span></li><li><b>3</b><span>С каждого его пополнения вам процент в реферальный кошелёк</span></li></ol>
-    <button class="ga-go rf-mgo" data-act="login">${ic.steam}Войти через Steam</button></div></section>`;
+    <button class="ga-go rf-mgo" data-act="login">${STEAM_LOGO}Войти через Steam</button></div></section>`;
   return `<section class="rf" id="rf"><div class="rf-load"><span class="spinner"></span>Загружаем статистику…</div></section>`;
 }
 async function mountInvite() {
