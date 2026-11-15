@@ -2622,7 +2622,7 @@ function pageMain() {
       <div class="mn-req" role="tooltip"><small>Продавец</small><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}</span><span>ОГРНИП ${LEGAL.ogrnip}</span>
         <span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span>
         <nav><a href="#/terms">Пользовательское соглашение</a><a href="#/privacy">Политика конфиденциальности</a><a href="#/payment">Оплата и возврат</a></nav></div></div>
-    <p class="mn-legal"><span class="mn-18">18+</span> © ${new Date().getFullYear()} RUSH CASE. Сайт не связан с Valve Corporation и не одобрен ею. Counter-Strike 2 и Steam — товарные знаки Valve Corporation, изображения предметов принадлежат правообладателям. Все совпадения случайны.</p>
+    <p class="mn-legal"><span class="mn-18">18+</span> © ${new Date().getFullYear()} RUSH CASE. Сайт не связан с Valve Corporation и не одобрен ею. Counter-Strike 2 и Steam — товарные знаки Valve Corporation, изображения предметов принадлежат правообладателям. Все совпадения случайны. Кодовое слово: пейпинг.</p>
   </section>`;
 }
 // «Новое и популярное»: до 5 кейсов (сначала новые, потом популярные), листаются сами раз в 5 с и стрелками
