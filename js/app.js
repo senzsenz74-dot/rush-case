@@ -2020,7 +2020,7 @@ function renderFooter() {
       <div class="socials"><a href="#/bonus" aria-label="Telegram">${ic.tg}</a><a href="#/bonus" aria-label="VK">${ic.vk}</a><a href="#/bonus" aria-label="YouTube">${ic.yt}</a><a href="#/bonus" aria-label="Discord">${ic.ds}</a></div>
     </div>
     <div class="ft-col"><h4>Игры</h4><a href="#/cases">Кейсы</a><a href="#/upgrade">Апгрейд</a><a href="#/contracts">Контракты</a><a href="#/bonus">Бонусы</a><a href="#/tournaments">Турниры</a><a href="#/top">Топ игроков</a></div>
-    <div class="ft-col"><h4>Информация</h4><a href="#/faq">FAQ</a><a href="#/terms">Пользовательское соглашение</a><a href="#/privacy">Политика конфиденциальности</a><a href="#/payment">Оплата и возврат</a><a href="#/faq">Честная игра</a></div>
+    <div class="ft-col"><h4>Информация</h4><a href="#/faq">FAQ</a><a href="#/terms">Пользовательское соглашение</a><a href="#/privacy">Политика конфиденциальности</a><a href="#/payment">Оплата и возврат</a><a href="#/cookies">Политика cookie</a><a href="#/faq">Честная игра</a></div>
     <div class="ft-col"><h4>Поддержка</h4><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a><a href="https://t.me/rushcasse" target="_blank" rel="noopener">Telegram-канал</a>
       <div class="pay"><span>СБП</span><span>МИР</span><span>VISA</span><span>MC</span></div></div>
   </div>
@@ -2621,7 +2621,7 @@ function pageMain() {
     <div class="mn-info"><button class="mn-q" id="mnQ" aria-label="Реквизиты продавца" aria-expanded="false"><i></i></button>
       <div class="mn-req" role="tooltip"><small>Продавец</small><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}</span><span>ОГРНИП ${LEGAL.ogrnip}</span>
         <span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span>
-        <nav><a href="#/terms">Пользовательское соглашение</a><a href="#/privacy">Политика конфиденциальности</a><a href="#/payment">Оплата и возврат</a></nav></div></div>
+        <nav><a href="#/terms">Пользовательское соглашение</a><a href="#/privacy">Политика конфиденциальности</a><a href="#/payment">Оплата и возврат</a><a href="#/cookies">Политика cookie</a></nav></div></div>
     <p class="mn-legal"><span class="mn-18">18+</span> © ${new Date().getFullYear()} RUSH CASE. Сайт не связан с Valve Corporation и не одобрен ею. Counter-Strike 2 и Steam — товарные знаки Valve Corporation, изображения предметов принадлежат правообладателям. Все совпадения случайны. <span class="mn-code">Кодовое слово: <b>пейпинг</b></span></p>
   </section>`;
 }
@@ -5946,7 +5946,7 @@ const LEGAL_DOCS = {
     <h3>4. Передача третьим лицам</h3><p>Данные передаются только в объёме, необходимом для работы сервиса: Steam (вход и вывод), платёжным сервисам (оплата), хостинг-провайдерам. Данные не продаются.</p>
     <h3>5. Хранение и защита</h3><p>Данные хранятся, пока существует аккаунт, и удаляются по запросу Пользователя, кроме сведений, которые нужно хранить по закону. Доступ к данным защищён.</p>
     <h3>6. Права Пользователя</h3><p>Пользователь может запросить сведения о своих данных, их исправление или удаление, написав на <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a>.</p>
-    <h3>7. Cookies</h3><p>Сайт использует локальное хранилище браузера и cookies для входа и настроек. Их можно отключить в браузере, но часть функций перестанет работать.</p>
+    <h3>7. Cookies</h3><p>Сайт использует локальное хранилище браузера и cookies для входа и настроек. Их можно отключить в браузере, но часть функций перестанет работать. Подробно — в <a href="#/cookies">Политике cookie</a>.</p>
     <h3>8. Контакты</h3>${legalReq()}` },
   payment: { t: 'Оплата и возврат', body: () => `
     <h3>1. Пополнение баланса</h3>
@@ -5963,14 +5963,88 @@ const LEGAL_DOCS = {
     <h3>4. Ошибочные платежи</h3><p>Если платёж прошёл, а баланс не зачислился в течение часа, напишите в поддержку с данными платежа — мы проверим и зачислим или вернём средства.</p>
     <h3>5. Отказ в обслуживании</h3><p>При подозрении на мошенничество, использование чужой карты или нарушение Соглашения Администрация вправе приостановить операции до выяснения обстоятельств.</p>
     <h3>6. Контакты</h3>${legalReq()}` },
+  cookies: { t: 'Политика cookie', date: '15.11.2026', body: () => `
+    <h3>1. Что такое cookie</h3>
+    <p>Cookie — небольшие файлы, которые сайт сохраняет в браузере Пользователя. Вместе с ними Сайт использует локальное хранилище браузера (localStorage) — оно работает так же и в этой Политике тоже называется cookie.</p>
+    <h3>2. Обязательные cookie</h3>
+    <p>Без них Сайт не работает, поэтому они включены всегда:</p>
+    <ul><li>вход в аккаунт — данные сессии, чтобы не входить заново на каждой странице;</li>
+      <li>настройки — звук, выбранные вкладки, подтверждение возраста 18+, пройденное обучение;</li>
+      <li>ваш выбор в плашке cookie — чтобы не показывать её снова;</li>
+      <li>реферальный код, если вы пришли по ссылке друга.</li></ul>
+    <h3>3. Аналитические cookie</h3>
+    <p>Помогают понять, какими разделами пользуются чаще, и улучшать Сайт. Сведения собираются обезличенно. Такие cookie включаются, только если вы нажали «Принять все».</p>
+    <h3>4. Сторонние сервисы</h3>
+    <p>Steam (при входе через Steam) и платёжные сервисы (на своих страницах оплаты) ставят собственные cookie по своим правилам. Сайт эти cookie не читает.</p>
+    <h3>5. Как управлять cookie</h3>
+    <ul><li>«Принять все» — обязательные и аналитические cookie.</li>
+      <li>«Скрыть» — только обязательные.</li>
+      <li>Удалить или запретить cookie можно в настройках браузера, но тогда придётся входить заново, а часть функций перестанет работать.</li></ul>
+    <p><button type="button" class="dc-btn" data-act="cookie">Изменить выбор</button></p>
+    <h3>6. Контакты</h3>
+    <p>Вопросы о cookie и персональных данных — на <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a>. Как мы обрабатываем данные — в <a href="#/privacy">Политике конфиденциальности</a>.</p>${legalReq()}` },
 };
+/* страницы документов — как окно «Правила» BLAST (новый стиль CS2, владелец 15.11): стеклянная панель, шапка с голубой линией,
+   слева документы (у открытого голубая полоска) и разделы текущего документа, справа текст. Разделы режутся из LEGAL_DOCS по <h3> */
+const DOC_KEYS = ['terms', 'privacy', 'payment', 'cookies'];
 function pageDoc(key) {
   const d = LEGAL_DOCS[key];
-  return `<section class="container"><div class="page-head lg-head"><h1>${d.t}</h1><p>Редакция от ${LEGAL.date}</p></div>
-    <nav class="lg-nav">${Object.entries(LEGAL_DOCS).map(([k, x]) => `<a href="#/${k}" class="${k === key ? 'on' : ''}">${x.t}</a>`).join('')}</nav>
-    <div class="textpage lg-page">${d.body()}</div></section>`;
+  const secs = d.body().split('<h3>').slice(1).map(ch => { const m = ch.match(/^(\d+)\.\s*([\s\S]*?)<\/h3>([\s\S]*)$/); return m && { n: m[1], t: m[2], h: m[3] }; }).filter(Boolean);
+  return `<section class="container dc"><div class="dc-card">
+    <header class="ga-mh dc-hd"><small>RUSH CASE · документы</small><h1>${d.t}</h1><span class="dc-ed">Редакция от ${d.date || LEGAL.date}</span></header>
+    <div class="dc-body">
+      <aside class="dc-side">
+        <nav class="dc-nav" aria-label="Документы">${DOC_KEYS.map((k, i) => `<a href="#/${k}"${k === key ? ' class="on" aria-current="page"' : ''}><i>0${i + 1}</i>${LEGAL_DOCS[k].t}</a>`).join('')}</nav>
+        <div class="dc-toc" id="dcToc"><small>Разделы</small>${secs.map((s, i) => `<button type="button" data-dc="${s.n}"${i ? '' : ' class="on"'}><b>${s.n}</b>${s.t}</button>`).join('')}</div>
+      </aside>
+      <article class="dc-tx">${secs.map(s => `<section id="dc-${s.n}"><h2><i>${s.n}</i>${s.t}</h2>${s.h}</section>`).join('')}</article>
+    </div></div></section>`;
 }
-const pageTerms = () => pageDoc('terms'), pagePrivacy = () => pageDoc('privacy'), pagePayment = () => pageDoc('payment');
+// разделы слева: нажатие — прокрутка к разделу, при прокрутке подсвечивается тот, который сейчас читают
+let dcLock = 0; // после нажатия на раздел подсветка не прыгает, пока страница доезжает
+function dcSpy() {
+  const toc = $('#dcToc'); if (!toc || Date.now() < dcLock) return;
+  const top = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hd')) || 66) + 40;
+  let cur = null;
+  $$('.dc-tx section').forEach(s => { if (s.getBoundingClientRect().top <= top) cur = s.id.slice(3); });
+  if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = $$('.dc-tx section').pop().id.slice(3); // долистали до конца — последний раздел
+  $$('button', toc).forEach((b, i) => b.classList.toggle('on', cur ? b.dataset.dc === cur : !i));
+}
+let dcSpyOn = false;
+function mountDoc() {
+  $$('#dcToc button').forEach(b => b.onclick = () => {
+    const s = $(`#dc-${b.dataset.dc}`); if (!s) return;
+    const hd = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hd')) || 66;
+    $$('#dcToc button').forEach(x => x.classList.toggle('on', x === b)); dcLock = Date.now() + 1200;
+    window.scrollTo({ top: s.getBoundingClientRect().top + scrollY - hd - 20, behavior: 'smooth' });
+  });
+  if (!dcSpyOn) { dcSpyOn = true; let raf = 0; addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; dcSpy(); }); }, { passive: true }); }
+  dcSpy();
+}
+const pageTerms = () => pageDoc('terms'), pagePrivacy = () => pageDoc('privacy'), pagePayment = () => pageDoc('payment'), pageCookies = () => pageDoc('cookies');
+
+/* ---------- плашка cookie (по образцу владельца 15.11): внизу слева, тёмное стекло, «Принять все» (зелёная) и «Скрыть».
+   Выбор хранится в браузере (rc.cookie = all | min) и больше не показывается; «Изменить выбор» на #/cookies открывает её снова.
+   Сейчас аналитики на сайте нет — если появится (например, Метрика), включать её только при ckAll() ---------- */
+const CK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M12 2.2A9.8 9.8 0 1 0 21.8 12a3.4 3.4 0 0 1-4.3-3.6 3.4 3.4 0 0 1-3.9-3.9A3.2 3.2 0 0 1 12 2.2zM6.6 8.6a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0-2.8 0zM6.1 14.6a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM10.7 17a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0zM15 14.4a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0zM10.6 11.8a1 1 0 1 0 2 0a1 1 0 1 0-2 0z"/></svg>';
+const ckGet = () => { try { return localStorage.getItem('rc.cookie'); } catch (e) { return null; } };
+const ckAll = () => ckGet() === 'all';
+async function ckShow(force) {
+  if (!force && ckGet()) return;
+  if ($('#ck')) return;
+  if (!force) { await sleep(1200); for (let i = 0; i < 60 && document.getElementById('intro'); i++) await sleep(250); } // после заставки
+  if ($('#ck')) return;
+  document.body.insertAdjacentHTML('beforeend', `<div class="ck" id="ck" role="dialog" aria-labelledby="ckT">
+    <h3 id="ckT"><i>${CK_SVG}</i>Выберите cookie</h3>
+    <p>Мы используем cookie для анализа использования сайта и улучшения вашего опыта. Используя сайт, вы принимаете нашу <a href="#/cookies">политику cookie</a>.</p>
+    <div class="ck-btns"><button type="button" class="ck-ok" data-ck="all">Принять все</button><button type="button" class="ck-no" data-ck="min">Скрыть</button></div></div>`);
+  const el = $('#ck');
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
+  $$('[data-ck]', el).forEach(b => b.onclick = () => {
+    try { localStorage.setItem('rc.cookie', b.dataset.ck); } catch (e) { /* */ }
+    el.classList.remove('in'); setTimeout(() => el.remove(), 300);
+  });
+}
 /* подтверждение 18+ — в окне входа и регистрации (одна галочка на почту и Steam), запоминается в браузере */
 const ageOk = () => { try { return localStorage.getItem('rc.age18') === '1'; } catch (e) { return false; } };
 const ageSave = () => { try { localStorage.setItem('rc.age18', '1'); } catch (e) { /* */ } };
@@ -10647,7 +10721,7 @@ function tutPlace(anim) {
 }
 const ROUTES = {
   '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, mountInvite], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
-  bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
+  bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, mountDoc], privacy: [pagePrivacy, mountDoc], payment: [pagePayment, mountDoc], cookies: [pageCookies, mountDoc], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer],
   staff: [pageStaff, mountStaff], // вход для админов и сотрудников по почте (ссылок на неё нет)
 };
@@ -10671,8 +10745,9 @@ function route() {
   tutAuto(key); // обучение новичков (кнопка «?» и первый заход)
   document.body.classList.toggle('pg-crash', key === 'crash');
   document.body.classList.toggle('pg-build', key === 'build');
+  document.body.classList.toggle('pg-doc', DOC_KEYS.includes(key)); // документы — размытый фон «Кейсов», как «Бонусы»
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
-  document.body.classList.toggle('pg-home', key === '' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite' || key === 'profile' || key === 'upgrade');
+  document.body.classList.toggle('pg-home', key === '' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite' || key === 'profile' || key === 'upgrade' || DOC_KEYS.includes(key));
   document.body.classList.toggle('pg-upgrade', key === 'upgrade'); // апгрейд — фон владельца 12.11 (ночные руины, assets/bg-upgrade.webp), слегка размыт
   document.body.classList.toggle('pg-invite', key === 'invite'); // «Пригласить друзей» — размытый снимок главного экрана, как профиль
   document.body.classList.toggle('pg-profile', key === 'profile'); // профиль — размытый снимок главного экрана (assets/bg-home.webp), как на образце владельца 12.11 // «Крот», «Пригласить друзей» — тот же новый фон, что у «Кейсов» // главный экран и витрина кейсов — свой фон (assets/bg-home.webp)
@@ -10691,7 +10766,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Режим КРОТ', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', news: 'Новости', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Режим КРОТ', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', news: 'Новости', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
@@ -10705,6 +10780,7 @@ document.addEventListener('click', e => {
   else if (act === 'register') openAuth('reg');
   else if (act === 'tut') tutOpen(a.dataset.tut);
   else if (act === 'weekly') openWeekly();
+  else if (act === 'cookie') { const o = $('#ck'); if (o) o.remove(); ckShow(true); } // «Изменить выбор» на #/cookies
   else if (act === 'deposit') openDeposit(+a.dataset.need || 0);
   else if (act === 'logout') logout();
   else if (act === 'copy') copyText(a.dataset.copy);
@@ -10727,7 +10803,7 @@ document.addEventListener('error', e => {
 }, true);
 
 /* ---------- init ---------- */
-renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit(); supMount(); streamerApply(); // кнопка чата поддержки — на всех страницах
+renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit(); supMount(); streamerApply(); ckShow(); // кнопка чата поддержки — на всех страницах
 try { if (localStorage.getItem('krot:mm') && st.user && krotOpen()) krotLoad().then(() => window.KROT.mmInit(krotDeps())).catch(() => { /* без подбора */ }); } catch (e) { /* приватный режим */ } // «Крот»: была группа или поиск — продолжаем
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
 // заставка при открытии сайта закрывается сама (index.html #intro, js/intro.js)

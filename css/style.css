@@ -7117,3 +7117,61 @@ body.pg-invite::after{background:linear-gradient(180deg,rgba(6,8,12,.3),rgba(6,8
 @container (max-width:1180px){.rf-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @container (max-width:980px){.rf-top{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.rf-top>:first-child{grid-column:1/-1}}
 @container (max-width:640px){.rf-top{grid-template-columns:minmax(0,1fr)}.rf-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rf-hd{flex-wrap:wrap}.rf-h1{font-size:26px}.rf-ch-sum{margin-left:0;width:100%}.rf-ls-hd{flex-wrap:wrap}.rf-search{width:100%}.rf-share .rf-mute{display:none}}
+
+/* ===== документы (соглашение, конфиденциальность, оплата и возврат, cookie) — как окно «Правила» BLAST, новый стиль CS2 (владелец 15.11) ===== */
+body.pg-doc::before{background-image:url("../assets/bg-cases.webp")}
+body.pg-doc::after{background:linear-gradient(180deg,rgba(6,8,12,.42),rgba(6,8,12,.66))}
+.dc{padding-top:28px;padding-bottom:10px}
+.dc-card{--gl:#84d9fd;max-width:1120px;margin:0 auto;border-radius:3px;background:linear-gradient(180deg,rgba(38,42,51,.9),rgba(18,20,25,.92) 140px,rgba(16,18,22,.93));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06)}
+.page-in .dc-card{animation:c2rIn .45s cubic-bezier(.2,.8,.3,1) both}
+.dc-hd{border-radius:3px 3px 0 0;padding:26px 230px 22px 30px}
+.dc-hd h1{margin:0;font:500 34px/1.05 'Oswald',var(--ff);letter-spacing:.01em;text-transform:uppercase;color:#fff;filter:none}
+.dc-ed{position:absolute;right:30px;bottom:24px;font-size:12.5px;color:#8a92a1}
+.dc-body{display:flex;align-items:flex-start;background:linear-gradient(90deg,rgba(0,0,0,.16) 0 270px,rgba(255,255,255,.07) 270px 271px,transparent 271px)}
+.dc-side{position:sticky;top:calc(var(--hd) + 16px);flex:0 0 270px;display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - var(--hd) - 32px);padding:18px 12px 22px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent}
+.dc-nav{display:flex;flex-direction:column;gap:2px}
+.dc-nav a{position:relative;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:2px;color:#8f97a6;font:600 14px/1.25 var(--ff);text-decoration:none;transition:color .2s,background .2s}
+.dc-nav a i{flex:none;width:22px;font:500 13px/1 'Oswald',var(--ff);font-style:normal;color:#5d6472;transition:color .2s}
+.dc-nav a:hover{color:#e3e6ec;background:rgba(255,255,255,.04)}
+.dc-nav a.on{color:#fff;background:linear-gradient(90deg,rgba(132,217,253,.16),rgba(132,217,253,.03))}
+.dc-nav a.on::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;background:#84d9fd;box-shadow:0 0 10px rgba(132,217,253,.7)}
+.dc-nav a.on i{color:#84d9fd}
+.dc-toc{display:flex;flex-direction:column;gap:1px;padding-top:16px;border-top:1px solid rgba(255,255,255,.07)}
+.dc-toc small{padding:0 14px 8px;font:500 11px/1 'Oswald',var(--ff);letter-spacing:.18em;text-transform:uppercase;color:#6b7383}
+.dc-toc button{display:flex;gap:10px;padding:7px 14px;border:0;border-radius:2px;background:none;color:#7f8796;font:500 12.5px/1.35 var(--ff);text-align:left;cursor:pointer;transition:color .2s,background .2s}
+.dc-toc button b{flex:none;width:16px;font:500 12px/1.4 'Oswald',var(--ff);color:#525a68;transition:color .2s}
+.dc-toc button:hover{color:#dfe3ea;background:rgba(255,255,255,.03)}
+.dc-toc button.on,.dc-toc button.on b{color:#84d9fd}
+.dc-tx{flex:1;min-width:0;padding:6px 40px 40px 36px;color:#c3c8d2}
+.dc-tx section{padding-top:26px}
+.dc-tx h2{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.08);font:500 19px/1.2 'Oswald',var(--ff);letter-spacing:.03em;text-transform:uppercase;color:#fff}
+.dc-tx h2 i{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:2px;font:500 13px/1 'Oswald',var(--ff);font-style:normal;color:#0e1a22;background:#84d9fd}
+.dc-tx p,.dc-tx li{margin:0;font-size:14.5px;line-height:1.65;color:#c3c8d2}
+.dc-tx p+p,.dc-tx p+ul,.dc-tx ul+p,.dc-tx p+.lg-req,.dc-tx ul+.lg-req{margin-top:10px}
+.dc-tx ul{margin:0;padding:0;list-style:none}
+.dc-tx li{position:relative;padding:4px 0 4px 22px}
+.dc-tx li::before{content:"";position:absolute;left:4px;top:13px;width:6px;height:6px;background:#84d9fd;opacity:.75}
+.dc-tx a{color:#84d9fd;text-decoration:none;border-bottom:1px solid rgba(132,217,253,.35);transition:border-color .2s}
+.dc-tx a:hover{border-color:#84d9fd}
+.dc-tx .lg-req{gap:4px;margin-top:4px;padding:14px 16px;border-radius:2px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-left:2px solid #84d9fd;font-size:14px;color:#aeb4bf}
+.dc-tx .lg-req b{color:#fff;font-weight:700}
+.dc-btn{height:42px;margin-top:6px;padding:0 22px;border:0;border-radius:2px;background:#16a85b;color:#fff;font:500 16px/1 'Oswald',var(--ff);text-transform:uppercase;cursor:pointer;transition:background .2s}
+.dc-btn:hover{background:#1bbd67}
+@media (max-width:760px){.dc-body{display:block;background:none}.dc-side{display:none}.dc-hd{padding:20px 18px 16px}.dc-ed{position:static;display:block;margin-top:10px}.dc-hd h1{font-size:24px}.dc-tx{padding:0 18px 30px}}
+
+/* ---------- плашка cookie (по образцу владельца 15.11): внизу слева, тёмное стекло, «Принять все» — зелёная ---------- */
+.ck{position:fixed;left:24px;bottom:24px;z-index:60;width:min(425px,calc(100vw - 32px));padding:22px;border-radius:3px;background:linear-gradient(245deg,rgba(255,255,255,.09),transparent 60%),rgba(24,26,30,.38);backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 60px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.1);opacity:0;transform:translateY(14px);transition:opacity .3s,transform .35s cubic-bezier(.2,.8,.3,1)}
+.ck.in{opacity:1;transform:none}
+body:has(.modal-ov) .ck{opacity:0;pointer-events:none} /* открыто окно — плашка не мешает */
+.ck h3{display:flex;align-items:center;gap:12px;margin:0 0 12px;font:500 21px/1 'Oswald',var(--ff);letter-spacing:.01em;text-transform:uppercase;color:#fff}
+.ck h3 i{flex:none;display:flex;width:20px;height:20px;color:#fff}
+.ck h3 svg{width:100%;height:100%}
+.ck p{margin:0;font-size:15px;line-height:1.55;color:#c2c7cf;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.ck p a{color:#fff;font-weight:700;text-decoration:none}
+.ck p a:hover{text-decoration:underline}
+.ck-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.ck-btns button{height:48px;padding:0 12px;border-radius:2px;font:500 18px/1 'Oswald',var(--ff);text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s}
+.ck-ok{border:1px solid #2bd47c;background:linear-gradient(180deg,rgba(40,170,100,.42),rgba(18,92,56,.5));color:#55ec9a;box-shadow:inset 0 0 18px rgba(43,212,124,.18);text-shadow:0 0 10px rgba(85,236,154,.35)}
+.ck-ok:hover{background:linear-gradient(180deg,rgba(48,190,112,.55),rgba(22,110,66,.62));color:#86f6b9}
+.ck-no{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);color:#fff}
+.ck-no:hover{background:rgba(255,255,255,.15)}
