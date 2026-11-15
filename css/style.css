@@ -7175,3 +7175,54 @@ body:has(.modal-ov) .ck{opacity:0;pointer-events:none} /* открыто окн�
 .ck-ok:hover{background:linear-gradient(180deg,rgba(48,190,112,.55),rgba(22,110,66,.62));color:#86f6b9}
 .ck-no{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);color:#fff}
 .ck-no:hover{background:rgba(255,255,255,.15)}
+
+/* ===== уведомление игроку от администрации (supabase/notices.sql, владелец 15.11): новый стиль CS2 ===== */
+/* у игрока — поверх всего, закрыть можно только «Принять» */
+html.ntc-lock{overflow:hidden}
+.ntc-ov{position:fixed;inset:0;z-index:990;display:grid;place-items:center;padding:16px;background:rgba(3,4,6,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;transition:opacity .25s}
+.ntc-ov.in{opacity:1}
+body:has(.ntc-ov) .ck{opacity:0;pointer-events:none}
+.ntc{--gl:#84d9fd;width:min(560px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;border-radius:3px;overflow:hidden;background:linear-gradient(245deg,rgba(255,255,255,.08),transparent 60%),rgba(24,26,30,.62);backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);border:1px solid rgba(255,255,255,.14);box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.1);transform:translateY(12px) scale(.98);transition:transform .35s cubic-bezier(.2,.8,.3,1)}
+.ntc-ov.in .ntc{transform:none}
+.ntc-hd{flex:none;padding-right:26px}
+.ntc-hd small i{margin-left:6px;font-style:normal;letter-spacing:.1em;color:#8a92a1}
+.ntc-tx{flex:1 1 auto;min-height:0;overflow-y:auto;padding:20px 26px 2px;font-size:15.5px;line-height:1.6;color:#d6dae1;white-space:pre-line;overflow-wrap:anywhere;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.ntc-sign{flex:none;display:flex;flex-direction:column;gap:4px;margin:18px 26px 0;padding:2px 0 2px 14px;border-left:2px solid #84d9fd}
+.ntc-sign span{font-size:14px;color:#8a92a1}
+.ntc-sign b{font:500 17px/1.1 'Oswald',var(--ff);letter-spacing:.03em;text-transform:uppercase;color:#fff}
+.ntc-ft{flex:none;display:flex;align-items:center;gap:16px;margin-top:22px;padding:14px 18px 14px 26px;border-top:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.22)}
+.ntc-ft span{flex:1;font-size:12.5px;color:#8a92a1}
+.ntc-ok{margin-top:0;min-width:180px;height:48px}
+/* в админке — окно «Уведомление игроку» (как розыгрыши, m-ga) */
+.modal.m-ntc{--gl:#84d9fd;width:min(620px,calc(100vw - 32px));overflow-y:auto}
+.an-f{display:grid;gap:14px;padding:20px 26px 6px}
+.an-f .stf-fl>span i{margin-left:6px;font-style:normal;letter-spacing:0;text-transform:none;color:#5f6775}
+.an-tx{width:100%;min-height:130px;resize:vertical;padding:12px 14px;border:0;border-radius:2px;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:#fff;font:400 15px/1.5 var(--ff);outline:0;transition:box-shadow .2s}
+.an-tx:focus{box-shadow:inset 0 0 0 1px #84d9fd}
+.an-note{margin:0;font-size:12.5px;line-height:1.5;color:#8a92a1}
+.an-row{display:flex;align-items:center;gap:14px}
+.an-cnt{flex:1;font-size:12px;color:#6b7383;font-variant-numeric:tabular-nums}
+.an-go{margin-top:0;min-width:170px;height:46px}
+.an-pid{font-style:normal;font-size:.6em;letter-spacing:.04em;vertical-align:middle;color:#8a92a1}
+.an-hist{margin-top:16px;padding:16px 26px 22px;border-top:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.16)}
+.an-hist>small{display:block;margin-bottom:10px;font:500 11px/1 'Oswald',var(--ff);letter-spacing:.18em;text-transform:uppercase;color:#6b7383}
+#anList{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.an-it{padding:10px 12px;border-radius:2px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}
+.an-it-h{display:flex;align-items:center;gap:10px}
+.an-it-h b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:500 14px/1.2 'Oswald',var(--ff);text-transform:uppercase;color:#fff}
+.an-it-h em{flex:none;font-style:normal;font-size:12px;font-weight:700}
+.an-it-h em.ok{color:#4ade80}
+.an-it-h em.wait{color:#84d9fd}
+.an-it-h em.off{color:#6b7383}
+.an-rv{flex:none;height:26px;padding:0 10px;border:1px solid rgba(255,255,255,.14);border-radius:2px;background:rgba(255,255,255,.05);color:#c9ced8;font:600 12px/1 var(--ff);cursor:pointer;transition:background .2s,border-color .2s,color .2s}
+.an-rv:hover{color:#fff;background:rgba(235,75,75,.2);border-color:rgba(235,75,75,.5)}
+.an-it p{display:-webkit-box;margin:6px 0 4px;overflow:hidden;-webkit-line-clamp:3;-webkit-box-orient:vertical;font-size:13px;line-height:1.5;color:#b5bbc6;white-space:pre-line;overflow-wrap:anywhere}
+.an-it small{font-size:11.5px;color:#6b7383}
+.an-empty{padding:10px 0;font-size:13px;color:#8a92a1}
+/* список игроков: кнопка «Уведомление» рядом с «Начислить» */
+.at-h,.at-r{grid-template-columns:minmax(220px,2fr) 1fr 80px 1fr 90px 110px 270px}
+.at-acts{display:flex;justify-content:flex-end;gap:6px}
+.at-ntc{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid rgba(132,217,253,.3);border-radius:2px;background:rgba(132,217,253,.08);color:#84d9fd;font:600 12.5px/1 var(--ff);cursor:pointer;transition:background .2s,color .2s}
+.at-ntc:hover{background:rgba(132,217,253,.18);color:#fff}
+.at-ntc svg{width:15px;height:15px}
+@media (max-width:1180px){.at-r{grid-template-columns:1fr 1fr}.at-acts{justify-content:flex-start}}

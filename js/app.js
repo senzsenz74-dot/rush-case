@@ -6160,7 +6160,7 @@ async function sbLoadProfile(session) {
   if (p.is_admin) try { localStorage.setItem('rc.adm', '1'); } catch (e) { /* */ }
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
   renderUser(); route();
-  tutSync(); jpClaim(false); jpResolveMine(); claimGrants(); refHello(); supInit(); supAdmInit();
+  tutSync(); jpClaim(false); jpResolveMine(); claimGrants(); ntcCheck(); refHello(); supInit(); supAdmInit();
   return true;
 }
 // начисления от администратора: забираем при входе, раз в 30 с и при возврате на вкладку
@@ -6174,6 +6174,45 @@ async function claimGrants() {
   if (sum > 0) { Snd.coin(); burst(30); }
 }
 setInterval(claimGrants, 30000);
+/* ---------- уведомление от администрации (supabase/notices.sql, владелец 15.11): окно поверх всего в новом стиле CS2 с подписью
+   «С уважением, команда RUSH CASE»; закрыть можно только кнопкой «Принять» (ни крестика, ни Esc, ни клика мимо).
+   Проверка при входе, раз в 30 с и при возврате на вкладку; несколько уведомлений — по очереди ---------- */
+let ntcBusy = false;
+async function ntcCheck() {
+  if (ntcBusy || !sb || !st.user || !st.user.sb || $('#ntcOv')) return;
+  ntcBusy = true;
+  try {
+    const { data, error } = await sb.rpc('my_notices');
+    if (error || !data || !data.length) return;
+    for (let i = 0; i < 60 && document.getElementById('intro'); i++) await sleep(250); // после заставки
+    if (!$('#ntcOv')) ntcShow(data, 0);
+  } finally { ntcBusy = false; }
+}
+function ntcShow(list, i) {
+  const n = list[i], d = new Date(n.created_at);
+  const ov = document.createElement('div');
+  ov.className = 'ntc-ov'; ov.id = 'ntcOv';
+  ov.innerHTML = `<div class="ntc" role="alertdialog" aria-modal="true" aria-labelledby="ntcT" aria-describedby="ntcB">
+    <header class="ga-mh ntc-hd"><small>RUSH CASE · уведомление${list.length > 1 ? ` <i>${i + 1} из ${list.length}</i>` : ''}</small><h3 id="ntcT">${esc(n.title || 'Уведомление')}</h3></header>
+    <div class="ntc-tx" id="ntcB">${esc(n.body)}</div>
+    <div class="ntc-sign"><span>С уважением,</span><b>команда RUSH CASE</b></div>
+    <footer class="ntc-ft"><span id="ntcD">${d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}, ${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span><button type="button" class="bw-go ntc-ok" id="ntcOk">Принять</button></footer></div>`;
+  document.body.appendChild(ov);
+  document.documentElement.classList.add('ntc-lock');
+  requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('in')));
+  const ok = $('#ntcOk', ov);
+  setTimeout(() => ok.focus({ preventScroll: true }), 300);
+  ov.addEventListener('keydown', e => { if (e.key === 'Tab') { e.preventDefault(); ok.focus(); } }); // фокус не уходит из окна
+  ok.onclick = async () => {
+    ok.disabled = true; ok.innerHTML = '<span class="spinner"></span>';
+    const { error } = await sb.rpc('notice_accept', { p_id: n.id });
+    if (error) { ok.disabled = false; ok.textContent = 'Принять'; $('#ntcD', ov).textContent = 'Нет связи — нажмите ещё раз'; return; }
+    ov.classList.remove('in');
+    setTimeout(() => { ov.remove(); document.documentElement.classList.remove('ntc-lock'); if (list[i + 1]) ntcShow(list, i + 1); }, 250);
+  };
+}
+setInterval(ntcCheck, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) ntcCheck(); });
 async function syncLuck() {
   if (!sb || !st.user || !st.user.sb) return;
   const { data } = await sb.from('profiles').select('luck').eq('id', st.user.id).maybeSingle();
@@ -8631,8 +8670,9 @@ async function admPlayers(box) {
       ${data.map(p => `<div class="at-r" data-uid="${p.id}" data-name="${esc(p.name)}" data-luck="${+p.luck || 1}" data-pid="${p.pid || ''}">
         <span class="at-u">${ava({ name: p.name }, 'xs')}<span><b>${p.pid ? `<i class="at-id">#${p.pid}</i>` : ''}${plink(p.pid, esc(p.name))}${p.is_admin ? ' <i class="at-adm">админ</i>' : ''}</b><small>${esc(p.email || '')} · с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</small></span></span>
         <span class="at-bal">${money(+p.balance)}<small>R ${rc(+p.rcoin)}</small></span><span>${fmt(+p.opened)}</span><span>${money(+p.spent)}</span><span><button class="at-luck${(+p.luck || 1) > 1 ? ' up' : (+p.luck || 1) < 1 ? ' dn' : ''}"${own ? '' : ' disabled'}>×${(+p.luck || 1).toFixed(2).replace('.', ',')}</button></span><span>${ago(p.last_seen)}</span>
-        <span>${own ? `<button class="btn btn-dark btn-sm at-give">${ic.plus}Начислить</button>` : ''}</span></div>`).join('')}</div>`;
-    if (!own) return; // сотрудник: только поиск и просмотр
+        <span class="at-acts"><button class="at-ntc" title="Написать уведомление игроку">${ic.chat}Уведомление</button>${own ? `<button class="btn btn-dark btn-sm at-give">${ic.plus}Начислить</button>` : ''}</span></div>`).join('')}</div>`;
+    $$('.at-ntc', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admNotice(r.dataset.uid, r.dataset.name, r.dataset.pid); }); // уведомление — и сотруднику с вкладкой «Игроки»
+    if (!own) return; // сотрудник: только поиск, просмотр и уведомления
     $$('.at-give', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admGive(r.dataset.uid, r.dataset.name, load); });
     $$('.at-luck', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admLuck(r.dataset.uid, r.dataset.name, r.dataset.pid, +r.dataset.luck, load); });
   };
@@ -8685,6 +8725,50 @@ function admGive(uid, name, done) {
     if (st.user && uid === st.user.id) claimGrants();
     done && done();
   };
+}
+
+/* уведомление игроку (supabase/notices.sql): заголовок и текст; игрок увидит окно поверх всего и закроет только «Принять».
+   Ниже — что уже отправлено этому игроку: ждёт / принял / отозвано; непринятое можно отозвать. Новый стиль: окно как розыгрыши (m-ga) */
+function admNotice(uid, name, pid) {
+  const m = modal(`<header class="ga-mh"><small>Уведомление игроку</small><h3>${esc(name)}${pid ? ` <i class="an-pid">#${pid}</i>` : ''}</h3></header>
+    <div class="an-f">
+      <label class="stf-fl"><span>Заголовок <i>необязательно</i></span><div class="stf-in"><input id="anT" maxlength="80" placeholder="Уведомление" autocomplete="off"></div></label>
+      <label class="stf-fl"><span>Текст</span><textarea class="an-tx" id="anB" maxlength="2000" rows="6" placeholder="Что написать игроку"></textarea></label>
+      <p class="an-note">В конце игрок увидит «С уважением, команда RUSH CASE». Окно появится поверх сайта при заходе (если игрок уже на сайте — в течение 30 секунд), закрыть его можно только кнопкой «Принять».</p>
+      <div class="an-row"><span class="an-cnt" id="anCnt">0 / 2000</span><button type="button" class="bw-go an-go" id="anGo">Отправить</button></div>
+    </div>
+    <div class="an-hist"><small>Отправленные</small><div id="anList"><div class="an-empty"><span class="spinner"></span></div></div></div>`, 'm-ga m-ntc');
+  const B = $('#anB', m), T = $('#anT', m), go = $('#anGo', m);
+  const noSql = e => /function|does not exist|schema cache/i.test(e.message);
+  B.oninput = () => { $('#anCnt', m).textContent = `${B.value.length} / 2000`; };
+  const load = async () => {
+    const box = $('#anList', m); if (!box || !box.isConnected) return;
+    const { data, error } = await sb.rpc('admin_notice_list', { p_uid: uid });
+    if (error) return (box.innerHTML = `<div class="an-empty">${noSql(error) ? 'Сначала запустите supabase/notices.sql в Supabase' : esc(error.message)}</div>`);
+    if (!data.length) return (box.innerHTML = '<div class="an-empty">Этому игроку ещё ничего не отправляли</div>');
+    const dt = ts => new Date(ts).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    box.innerHTML = data.map(n => `<div class="an-it">
+      <div class="an-it-h"><b>${esc(n.title || 'Уведомление')}</b>${n.accepted_at ? `<em class="ok">Принял ${dt(n.accepted_at)}</em>` : n.revoked_at ? '<em class="off">Отозвано</em>' : `<em class="wait">Ждёт</em><button type="button" class="an-rv" data-id="${n.id}">Отозвать</button>`}</div>
+      <p>${esc(n.body)}</p><small>${dt(n.created_at)}${n.by_name ? ' · ' + esc(n.by_name) : ''}</small></div>`).join('');
+    $$('.an-rv', box).forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      const { error: e2 } = await sb.rpc('admin_notice_revoke', { p_id: +b.dataset.id });
+      if (e2) { b.disabled = false; return toast('Не отозвано: ' + esc(e2.message), 'err'); }
+      load();
+    });
+  };
+  go.onclick = async () => {
+    const body = B.value.trim(); if (!body) { B.focus(); return toast('Напишите текст уведомления', 'err'); }
+    go.disabled = true; go.innerHTML = '<span class="spinner"></span>';
+    const { error } = await sb.rpc('admin_notice_send', { p_uid: uid, p_title: T.value.trim() || null, p_body: body });
+    go.disabled = false; go.textContent = 'Отправить';
+    if (error) return toast('Не отправлено: ' + (noSql(error) ? 'сначала запустите supabase/notices.sql' : esc(error.message)), 'err');
+    B.value = ''; T.value = ''; B.oninput(); toast(`${esc(name)}: уведомление отправлено`);
+    if (st.user && uid === st.user.id) ntcCheck(); // себе — сразу
+    load();
+  };
+  load();
+  setTimeout(() => T.focus(), 250);
 }
 
 /* =========================================================
