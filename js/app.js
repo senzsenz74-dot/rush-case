@@ -3121,12 +3121,13 @@ function krotLoad() {
   return (krotLib = Promise.all([one('link', { rel: 'stylesheet', href: 'css/krot.css?v=' + v }), one('script', { src: 'js/krot.js?v=' + v })]).catch(e => { krotLib = null; throw e; }));
 }
 const krotDeps = () => ({ sb, esc, openAuth, user: () => st.user, sound: () => !!st.sound });
-// главная: «плюс» у агента — группа «Крота», «Играть» на карточке — поиск матча (как в CS2). Работает и до загрузки js/krot.js.
+// главная: «Играть» на карточке «Крота» — поиск матча (как в CS2). Работает и до загрузки js/krot.js.
+// «Плюс» у агента — всегда рефералка #/invite (владелец 15.11); пригласить в группу «Крота» — внутри режима.
 document.addEventListener('click', e => {
-  const a = e.target.closest && e.target.closest('#mnInvite, .mnk-go'); if (!a || !krotOpen()) return;   // закрыт — обычный переход по ссылке
+  const a = e.target.closest && e.target.closest('.mnk-go'); if (!a || !krotOpen()) return;   // закрыт — обычный переход по ссылке
   e.preventDefault();
   try { const AC = window.AudioContext || window.webkitAudioContext; if (AC && !window.__krAC) window.__krAC = new AC(); if (window.__krAC && window.__krAC.state === 'suspended') window.__krAC.resume(); } catch (x) { /* без звука */ }
-  krotLoad().then(() => { window.KROT.mmInit(krotDeps()); if (a.id === 'mnInvite') window.KROT.mmInvite(); else window.KROT.mmPlay(); })
+  krotLoad().then(() => { window.KROT.mmInit(krotDeps()); window.KROT.mmPlay(); })
     .catch(() => toast('Не удалось загрузить режим «КРОТ». Обновите страницу.', 'err'));
 });
 function mountKrot(arg) {
