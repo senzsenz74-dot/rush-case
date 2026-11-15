@@ -1,6 +1,7 @@
 // RUSH CASE — вход через Steam (OpenID 2.0) для Supabase.
 // Supabase → Edge Functions → функция «steam-auth». Проверку JWT для неё ВЫКЛЮЧИТЬ (Steam возвращает игрока без токена).
-// Секрет STEAM_API_KEY (необязательно) — чтобы подтянуть ник и аватар из Steam.
+// Секрет STEAM_API_KEY (необязательно) — чтобы подтянуть ник и аватар из Steam, а для рефералки — возраст аккаунта Steam
+// и часы в CS2 (подарок ₽/кейс по реферальной ссылке — только «живым» аккаунтам, supabase/referral2.sql).
 //
 // Как работает:
 //  1) сайт отправляет игрока на  .../functions/v1/steam-auth?start=1&ret=<адрес сайта>
@@ -48,13 +49,20 @@ Deno.serve(async (req) => {
 
   // ник и аватар из Steam
   let nick = 'Steam_' + sid.slice(-5), avatar: string | null = null;
+  const chk: Record<string, unknown> = { steam_checked: new Date().toISOString() }; // рефералка (referral2.sql): возраст аккаунта и часы в CS2
   const key = Deno.env.get('STEAM_API_KEY');
   if (key) {
     try {
       const r = await fetch(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${key}&steamids=${sid}`);
       const pl = (await r.json())?.response?.players?.[0];
       if (pl) { nick = String(pl.personaname || nick).trim().slice(0, 16) || nick; avatar = pl.avatarfull || null; }
+      if (pl?.timecreated) chk.steam_since = new Date(pl.timecreated * 1000).toISOString(); // закрытый профиль — даты нет
     } catch (_) { /* без ника из Steam */ }
+    try { // CS2 = appid 730; закрытая библиотека — игры нет в ответе
+      const r = await fetch(`https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${key}&steamid=${sid}&include_played_free_games=1&appids_filter[0]=730`);
+      const g = ((await r.json())?.response?.games || []).find((x: { appid: number }) => x.appid === 730);
+      if (g) chk.steam_cs2h = Math.round((g.playtime_forever || 0) / 6) / 10; // минуты → часы
+    } catch (_) { /* без проверки CS2 */ }
   }
 
   // 4. аккаунт и одноразовый токен входа
@@ -66,5 +74,6 @@ Deno.serve(async (req) => {
   const upd: Record<string, string> = { steamid: sid };
   if (avatar) upd.ava = avatar;
   await admin.from('profiles').update(upd).eq('id', link.user.id);
+  await admin.from('profiles').update(chk).eq('id', link.user.id); // отдельно: если referral2.sql ещё не запущен — вход не ломается
   return back('steam_token=' + encodeURIComponent(link.properties.hashed_token));
 });

@@ -3729,21 +3729,6 @@ a.plink{color:inherit;text-decoration:none}a.plink:hover{color:var(--gold)}
 .bn-ref{display:block}
 .bn-ref .bn-h{margin-bottom:16px}
 .bn-ref .bn-h p b{color:var(--gold)}
-.ref-by{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.25);font-size:13.5px}
-.ref-by svg{width:18px;height:18px;flex:none;color:#4ade80}.ref-by em{font-style:normal;font-weight:800;color:#4ade80}
-.ref-link{display:flex;gap:10px}
-.ref-link .inp{flex:1;min-width:0;font-weight:700}
-.ref-link .btn svg{width:16px;height:16px}
-.ref-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
-.ref-stats>div{padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
-.ref-stats span{display:block;font-size:12px;color:var(--txt2);font-weight:700}
-.ref-stats b{display:block;margin-top:4px;font:800 19px var(--ff-h);color:#fff}
-.ref-list{display:flex;flex-direction:column;gap:6px;margin-top:14px;max-height:320px;overflow:auto}
-.ref-f{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.03)}
-.ref-f b{flex:1;min-width:0;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ref-f small{font-size:12px;color:var(--txt3);white-space:nowrap}
-.ref-f i{font-style:normal;font-weight:800;color:var(--gold);min-width:70px;text-align:right}
-@media (max-width:600px){.ref-link{flex-direction:column}.ref-stats b{font-size:16px}}
 /* статистика профиля: иконки по центру, лучший дроп по центру с подсветкой редкости, анимация появления */
 .st-tile{position:relative;overflow:hidden;animation:stIn .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 60ms);transition:border-color .2s,transform .2s}
 .st-tile:hover{border-color:rgba(243,193,79,.3);transform:translateY(-2px)}
@@ -6254,11 +6239,6 @@ body.pg-bonus::after{background:radial-gradient(120% 85% at 50% 0%,rgba(6,8,12,.
 .mni:hover i{transform:perspective(500px) rotateY(0) scale(1.06);filter:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.3),inset 0 1px 0 rgba(255,255,255,.25),0 2px 0 rgba(0,0,0,.45),3px 8px 18px rgba(0,0,0,.5),0 0 16px rgba(132,217,253,.25)}
 .mni:hover span{filter:none}
 @media (max-width:1024px){html:not(.phone) .mni{display:none}}
-/* страница-заглушка «Пригласить друзей» (#/invite, pageInvite): то же окно, что у «Крота», черта сверху голубая */
-.ivp::before{background:#84d9fd}
-.ivp-plus{display:block;width:44px;height:41px;margin:6px auto 16px;color:#fff;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
-.ivp-plus svg{width:100%;height:100%}
-.ivp-soon{margin:0 0 10px;font:500 44px/1 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase;color:#84d9fd}
 .kr-boot{display:flex;align-items:center;justify-content:center;gap:8px;min-height:50vh;margin:0;color:rgba(233,237,242,.6);font-size:14px} /* «Крот»: пока грузятся js/krot.js и css/krot.css */
 
 /* ===== профиль: новый стиль CS2 (по образцу владельца 12.11; js: pageProfile, pfTopHtml, pfInv, pfWin, pfEvOpen) ===== */
@@ -6934,3 +6914,202 @@ a.stf-go{display:grid;place-items:center;text-decoration:none}
 .stf-me{display:grid;gap:16px;padding:22px 26px 24px}
 .stf-me p{margin:0;font-size:14px;line-height:1.5;color:#c9ced8}
 .stf-me b{color:#fff}
+
+/* ===== «Пригласить друзей» #/invite — рефералка v2, новый стиль CS2 (js: pageInvite, rfDraw, rfChart, rfList, окна .m-rf; админка — admRef) ===== */
+body.pg-invite::before{inset:-24px;background-image:url("../assets/bg-main.webp");filter:blur(6px)}
+body.pg-invite::after{background:linear-gradient(180deg,rgba(6,8,12,.3),rgba(6,8,12,.56))}
+.rf{--pg:rgba(54,58,64,.56);--pg2:rgba(255,255,255,.05);--pl:rgba(255,255,255,.09);--pt:#a9afb7;--bl:#84d9fd;--gr:#5be38f;display:grid;gap:11px;max-width:1640px;margin:0 auto;padding:18px clamp(16px,2.2vw,36px) 44px;color:#fff;container-type:inline-size}
+.rf-card{position:relative;min-width:0;border-radius:2px;background:var(--pg);-webkit-backdrop-filter:blur(16px) saturate(1.08);backdrop-filter:blur(16px) saturate(1.08);box-shadow:inset 0 0 0 1px var(--pl),inset 0 1px 0 rgba(255,255,255,.06),0 16px 36px rgba(0,0,0,.34),0 3px 8px rgba(0,0,0,.24)}
+.rf .spinner{border-color:rgba(132,217,253,.22);border-top-color:var(--bl)}
+.rf-load{display:flex;align-items:center;justify-content:center;gap:10px;min-height:50vh;color:var(--pt);font-size:14px}
+.rf-err{display:flex;align-items:center;gap:10px;padding:18px 20px;color:#ffb4b4}
+.rf-err svg{width:20px;height:20px;flex:none}
+.rf-h{margin:0;font:500 17px/1.1 'Oswald',var(--ff);letter-spacing:.05em;text-transform:uppercase;color:#fff}
+.rf-h1{display:flex;align-items:center;gap:12px;margin:0;font:500 32px/1.05 'Oswald',var(--ff);letter-spacing:.02em;text-transform:uppercase;color:#fff}
+.rf-lead{margin:6px 0 0;font-size:15px;line-height:1.45;color:#c9ced6}
+.rf-lead b{color:var(--gr);font-weight:700}
+.rf-lbl{font:600 13px/1.2 var(--ff);color:var(--pt)}
+.rf-mute{margin:0;font-size:12.5px;line-height:1.4;color:var(--pt)}
+.rf-pos{color:var(--gr)!important}
+.rf-neg{display:inline-flex;align-items:center;gap:6px;color:#ff8a8a}
+.rf-neg svg{width:14px;height:14px}
+.rf-0{font-style:normal;color:rgba(255,255,255,.28)}
+.rf-tag{font-style:normal;padding:2px 6px;border-radius:2px;background:rgba(132,217,253,.14);color:var(--bl);font:600 11px/1.2 var(--ff)}
+.rf-badge{font-style:normal;padding:4px 8px 3px;border-radius:2px;background:rgba(91,227,143,.14);box-shadow:inset 0 0 0 1px rgba(91,227,143,.45);color:var(--gr);font:500 13px/1 'Oswald',var(--ff);letter-spacing:.08em}
+/* шапка */
+.rf-hd{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:6px 2px 4px}
+.rf-hd-t{display:flex;align-items:center;gap:16px;min-width:0}
+.rf-plus{flex:none;display:block;width:38px;height:36px;color:#fff;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
+.rf-plus svg{width:100%;height:100%}
+.rf-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 14px;border:0;border-radius:2px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#dfe3e8;font:500 14px/1 'Oswald',var(--ff);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}
+.rf-btn:hover{background:rgba(132,217,253,.1);box-shadow:inset 0 0 0 1px rgba(132,217,253,.5);color:#fff}
+.rf-btn svg{width:16px;height:16px}
+.rf-btn-w{width:100%}
+/* «Вас пригласил» */
+.rf-by{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;padding:12px 16px}
+.rf-by-t{font-size:14px;color:#c9ced6}
+.rf-by-t .plink{color:#fff}
+.rf-by-g{flex:1;min-width:0}
+.rf-by-g .rf-gl{flex-direction:row;flex-wrap:wrap;gap:6px 8px}
+.rf-by-g .rf-gl li{padding:6px 10px}
+.rf-sm{flex:0 0 auto;height:38px;padding:0 16px;gap:8px;font-size:16px}
+.rf-sm svg{width:17px;height:17px}
+/* три карточки сверху */
+.rf-top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);gap:11px}
+.rf-c{display:flex;flex-direction:column;gap:14px;padding:18px 20px 20px}
+.rf-url{display:flex;align-items:stretch;min-width:0;height:48px;border-radius:2px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.rf-url-t{flex:1;min-width:0;display:flex;align-items:center;padding:0 14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:500 15px/1 var(--ff);color:#c9ced6}
+.rf-url-t b{color:var(--bl);font-weight:700}
+.rf-go{flex:none;display:inline-flex;align-items:center;gap:8px;padding:0 18px;border:0;border-radius:0 2px 2px 0;background:linear-gradient(180deg,rgba(40,170,95,.32),rgba(20,120,65,.32));box-shadow:inset 0 0 0 1px #2fbf71;color:#7ef0a8;font:500 16px/1 'Oswald',var(--ff);letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:background .15s,color .15s}
+.rf-go:hover{background:linear-gradient(180deg,rgba(40,170,95,.5),rgba(20,120,65,.5));color:#b5ffcf}
+.rf-go svg{width:16px;height:16px}
+.rf-row{display:flex;align-items:center;gap:10px;min-width:0}
+.rf-row-b{margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.07)}
+.rf-row b{font:500 18px/1 'Oswald',var(--ff);color:#fff}
+.rf-code{min-width:0;overflow:hidden;text-overflow:ellipsis;letter-spacing:.03em}
+.rf-mini{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:5px 8px;border:0;border-radius:2px;background:none;color:var(--pt);font:600 13px/1 var(--ff);cursor:pointer;transition:color .15s,background .15s}
+.rf-mini:hover{color:var(--bl);background:rgba(132,217,253,.08)}
+.rf-mini svg{width:14px;height:14px}
+.rf-share{display:flex;align-items:center;gap:8px;margin-top:auto}
+.rf-share .rf-mute{margin-left:6px}
+.rf-sq{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:2px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:#cfd4da;transition:background .15s,color .15s,box-shadow .15s}
+.rf-sq:hover{background:rgba(132,217,253,.12);box-shadow:inset 0 0 0 1px rgba(132,217,253,.55);color:#fff}
+.rf-sq svg{width:18px;height:18px}
+.rf-big{font:500 40px/1 'Oswald',var(--ff);color:#fff;white-space:nowrap}
+.rf-big .prc-i{width:.8em;height:.8em;margin-left:.22em;vertical-align:-.06em;color:var(--gr)}
+.rf-dl{display:grid;gap:8px;margin:0}
+.rf-dl div{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.rf-dl dt{display:inline-flex;align-items:center;gap:5px;font-size:13.5px;color:var(--pt)}
+.rf-dl dt svg{width:13px;height:13px;opacity:.7}
+.rf-dl dd{margin:0;font:500 16px/1 'Oswald',var(--ff);color:#fff;white-space:nowrap}
+.rf-claim{flex:none;max-width:none;width:100%;margin-top:auto}
+.rf-claim:disabled,.rf .ga-go:disabled{opacity:.42;cursor:default;filter:saturate(.4)}
+.rf-claim:disabled:hover{background:linear-gradient(180deg,rgba(40,170,95,.3),rgba(20,120,65,.3));color:#7ef0a8}
+/* подарок: список */
+.rf-gl{display:flex;flex-direction:column;gap:7px;margin:0;padding:0;list-style:none}
+.rf-gl li{display:flex;align-items:center;gap:10px;min-width:0;padding:10px 12px;border-radius:2px;background:rgba(255,255,255,.045);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.rf-gl li>i{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:2px;background:rgba(91,227,143,.12);color:var(--gr)}
+.rf-gl li>i svg{width:16px;height:16px}
+.rf-gl b{font:500 18px/1 'Oswald',var(--ff);color:#fff;white-space:nowrap}
+.rf-gl b .prc-i{color:var(--gr)}
+.rf-gl li>span{min-width:0;font-size:13px;color:var(--pt)}
+.rf-gl em{margin-left:auto;padding-left:8px;font-style:normal;font-size:12px;white-space:nowrap;color:var(--pt)}
+.rf-gl em.ok{color:var(--gr)}
+.rf-gl em.wait{color:#f5c26b}
+.rf-meter{display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:baseline}
+.rf-meter span{font-size:13px;color:var(--pt)}
+.rf-meter b{font:500 16px/1 'Oswald',var(--ff)}
+.rf-meter i{grid-column:1/-1;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--gr) calc(var(--p) * 100%),rgba(255,255,255,.1) 0)}
+/* цифры */
+.rf-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:11px}
+.rf-kpi{display:flex;flex-direction:column;gap:9px;padding:15px 16px 14px}
+.rf-kv{font:500 26px/1 'Oswald',var(--ff);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rf-kv .prc-i{width:.8em;height:.8em;margin-left:.2em;vertical-align:-.06em}
+.rf-kpi small{font-size:12px;line-height:1.35;color:var(--pt)}
+.rf-kpi small b{color:#dfe3e8;font-weight:600}
+.rf-kpi small .prc-i{width:1em;height:1em}
+/* переключатели */
+.rf-seg{display:inline-flex;gap:2px;padding:2px;border-radius:2px;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.rf-seg button{position:relative;height:30px;padding:0 12px;border:0;border-radius:2px;background:none;color:var(--pt);font:500 13px/1 'Oswald',var(--ff);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;cursor:pointer;transition:color .15s,background .15s}
+.rf-seg button:hover{color:#fff}
+.rf-seg button.on{background:rgba(132,217,253,.1);color:var(--bl)}
+.rf-seg button.on::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:2px;background:var(--bl)}
+/* график */
+.rf-ch{padding:16px 20px 12px}
+.rf-ch-hd{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin-bottom:10px}
+.rf-ch-sum{margin-left:auto;font-size:13.5px;color:var(--pt)}
+.rf-ch-sum b{font:500 17px/1 'Oswald',var(--ff);color:#fff}
+.rf-plot{position:relative;min-height:230px}
+.rf-svg{display:block;max-width:100%}
+.rf-grid line{stroke:rgba(255,255,255,.07);stroke-width:1}
+.rf-grid text,.rf-xl text{fill:#8a919b;font:500 11px var(--ff)}
+.rf-bars path{fill:var(--bl);opacity:.82;transition:opacity .12s}
+.rf-plot.hov .rf-bars path{opacity:.45}
+.rf-plot.hov .rf-bars path.on{opacity:1}
+.rf-hit rect{fill:transparent;cursor:crosshair}
+.rf-ch-0{position:absolute;inset:0 0 26px 52px;display:grid;place-items:center;margin:0;font-size:14px;color:var(--pt);pointer-events:none}
+.rf-tip{position:absolute;z-index:2;display:grid;gap:4px;padding:8px 11px;border-radius:2px;background:rgba(14,17,22,.94);box-shadow:inset 0 0 0 1px rgba(132,217,253,.35),0 8px 22px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap}
+.rf-tip small{font-size:11.5px;color:var(--pt)}
+.rf-tip b{font:500 17px/1 'Oswald',var(--ff);color:#fff}
+/* список приглашённых */
+.rf-ls{padding:16px 0 4px}
+.rf-ls-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 20px 12px}
+.rf-n{margin-left:6px;color:var(--bl)}
+.rf-search{display:flex;align-items:center;gap:8px;width:min(260px,50%);height:36px;padding:0 10px;border-radius:2px;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:var(--pt);transition:box-shadow .15s}
+.rf-search:focus-within{box-shadow:inset 0 0 0 1px var(--bl)}
+.rf-search svg{flex:none;width:16px;height:16px}
+.rf-search input{flex:1;min-width:0;height:100%;border:0;background:none;color:#fff;font:400 14px var(--ff);outline:0}
+.rf-tw{overflow-x:auto}
+.rf-t{width:100%;min-width:860px;border-collapse:collapse;font-size:14px}
+.rf-t th{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:right;font:500 12.5px/1.1 'Oswald',var(--ff);letter-spacing:.05em;text-transform:uppercase;color:var(--pt);white-space:nowrap}
+.rf-t th:first-child,.rf-t td:first-child{padding-left:20px;text-align:left}
+.rf-t th:last-child,.rf-t td:last-child{padding-right:20px}
+.rf-s{cursor:pointer;user-select:none;transition:color .15s}
+.rf-s:hover{color:#fff}
+.rf-s svg{width:12px;height:12px;margin-left:4px;vertical-align:-1px;opacity:0;transform:rotate(90deg)}
+.rf-s.on{color:var(--bl);box-shadow:inset 0 -2px 0 var(--bl)}
+.rf-s.on svg{opacity:1}
+.rf-t td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);text-align:right;white-space:nowrap;color:#e3e6ea}
+.rf-t td small{display:block;margin-top:3px;font-size:11.5px;color:var(--pt)}
+.rf-t tbody tr{transition:background .12s}
+.rf-t tbody tr:hover{background:rgba(255,255,255,.035)}
+.rf-t td b{font-weight:700}
+.rf-t .rf-d{color:#cfd4da}
+.rf-tl{padding:28px 20px!important;text-align:center!important;color:var(--pt)!important;white-space:normal!important}
+.rf-pl{display:inline-flex;align-items:center;gap:10px;max-width:220px;vertical-align:middle;color:#fff;text-decoration:none}
+.rf-pl b{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.rf-pl:hover b{color:var(--bl)}
+.rf-gi{display:inline-grid;place-items:center;width:22px;height:22px;margin-left:6px;vertical-align:middle;border-radius:2px;background:rgba(91,227,143,.12);color:var(--gr)}
+.rf-gi svg{width:13px;height:13px}
+.rf-more{display:flex;justify-content:center;padding:12px 20px}
+.rf-more:empty{display:none}
+/* аватарка — квадрат 2 px, тонкая обводка (новый стиль) */
+.rf-ava{flex:none;display:inline-grid;place-items:center;width:30px;height:30px;overflow:hidden;border-radius:2px;background:#2a2f37;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#cfd4da;font:500 14px/1 'Oswald',var(--ff)}
+.rf-ava img{width:100%;height:100%;object-fit:cover}
+/* гость */
+.rf-guest{place-items:center;min-height:calc(100vh - var(--hd, 70px) - 40px)}
+.rf-hero{width:min(560px,100%);display:grid;justify-items:center;gap:14px;padding:30px 30px 32px;text-align:center}
+.rf-hero::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--bl)}
+.rf-hero .rf-plus{width:46px;height:43px}
+.rf-hero .rf-lead{margin:0}
+.rf-steps{display:grid;gap:8px;width:100%;margin:6px 0 4px;padding:0;list-style:none;text-align:left}
+.rf-steps li{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:2px;background:rgba(255,255,255,.045);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);font-size:14px;color:#dfe3e8}
+.rf-steps b{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:2px;background:rgba(132,217,253,.12);color:var(--bl);font:500 16px/1 'Oswald',var(--ff)}
+.rf-mgo{flex:none;max-width:none;width:100%;gap:10px}
+.rf-mgo svg{width:20px;height:20px}
+/* окна (основа — .m-ga, как «Правила» BLAST) */
+.m-rf .rf-mb{display:grid;gap:14px;padding:20px 26px 24px}
+.m-rf .rf-mt{margin:0;font:500 13px/1 'Oswald',var(--ff);letter-spacing:.08em;text-transform:uppercase;color:#8a92a1}
+.m-rf .rf-mn{margin:0;font-size:13px;line-height:1.5;color:#aab1bc}
+.m-rf .rf-mn b{color:#fff}
+.m-rf .rf-mbtn{display:flex;gap:10px}
+.m-rf .rf-mbtn .ga-go{flex:1 1 0;max-width:none}
+.m-rf .rf-ghost{background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);color:#dfe3e8}
+.m-rf .rf-ghost:hover{background:rgba(255,255,255,.1);color:#fff}
+.m-rf .rf-who{display:flex;align-items:center;gap:12px}
+.m-rf .rf-who .rf-ava{width:48px;height:48px;font-size:20px}
+.m-rf .rf-who b{display:block;font:500 20px/1.1 'Oswald',var(--ff);color:#fff}
+.m-rf .rf-who span{font-size:13px;color:#aab1bc}
+.m-rf .rf-gl b{font-size:20px}
+.m-rf .rf-prev{margin:-4px 0 0;font-size:13px;color:#aab1bc;word-break:break-all}
+.m-rf .rf-prev b{color:#84d9fd}
+.m-rf .rf-rules ol{display:grid;gap:12px;margin:0;padding-left:20px;font-size:14px;line-height:1.55;color:#c9ced6}
+.m-rf .rf-rules b{color:#fff}
+.m-rf .stf-in select{width:100%;height:44px;padding:0 12px;border:0;border-radius:2px;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:#fff;font:400 15px var(--ff);outline:0}
+.m-rf .stf-in select option{background:#1b1f26}
+.m-rf .rf-rg{display:flex;align-items:center;gap:12px}
+.m-rf .rf-rg input[type=range]{flex:1;accent-color:#5be38f}
+.m-rf .rf-rg .stf-in{flex:0 0 92px}
+.m-rf .rf-rg .stf-in input{padding-right:10px}
+/* кнопка «Открыть бесплатно» на странице кейса */
+.rf-gbtn{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:260px;height:64px;padding:0 26px;border:0;border-radius:2px;background:linear-gradient(180deg,rgba(40,170,95,.42),rgba(20,120,65,.42));box-shadow:inset 0 0 0 1px #2fbf71,0 0 24px rgba(47,191,113,.25);color:#b5ffcf;font:500 22px/1 'Oswald',var(--ff);text-transform:uppercase;cursor:pointer;transition:background .15s}
+.rf-gbtn:hover{background:linear-gradient(180deg,rgba(40,170,95,.6),rgba(20,120,65,.6));color:#fff}
+.rf-gbtn svg{display:none}
+.rf-gbtn small{font:600 11.5px/1 var(--ff);letter-spacing:.04em;text-transform:none;color:#8de8b0}
+.c2-btn.rf-c2g{background:linear-gradient(180deg,rgba(40,170,95,.5),rgba(20,120,65,.5));box-shadow:inset 0 0 0 1px #2fbf71}
+/* админка: галочки в настройках рефералки */
+.rf-axchk{grid-column:span 3;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;min-height:36px}
+.rf-axchk label{flex-direction:row!important;align-items:center;gap:7px!important;font-size:13px!important;color:var(--ax-txt)!important;cursor:pointer}
+@container (max-width:1180px){.rf-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (max-width:980px){.rf-top{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.rf-top>:first-child{grid-column:1/-1}}
+@container (max-width:640px){.rf-top{grid-template-columns:minmax(0,1fr)}.rf-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rf-hd{flex-wrap:wrap}.rf-h1{font-size:26px}.rf-ch-sum{margin-left:0;width:100%}.rf-ls-hd{flex-wrap:wrap}.rf-search{width:100%}.rf-share .rf-mute{display:none}}

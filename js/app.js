@@ -1287,32 +1287,71 @@ async function sbRefresh() {
   if (data) { sbApply(Object.assign(freshProfile(), data.data || {})); if (data.luck != null) st.user.luck = +data.luck; }
 }
 addEventListener('visibilitychange', () => { if (document.hidden) sbPush(); });
-/* ---------- реферальная программа (supabase/referral.sql): ссылка ?ref=<ID>, 5% от пополнений друга, другу — бонус к первому пополнению ---------- */
-const REF_DEF = { pct: 5, friend_pct: 10, days: 30 };
-// пришёл по ссылке друга: запоминаем ID до входа и убираем его из адреса; после входа — привязка на сервере (только новые аккаунты)
-(() => { try { const r = new URLSearchParams(location.search).get('ref'); if (r && /^\d{1,12}$/.test(r)) { localStorage.setItem('rc.ref', r); const u = new URL(location.href); u.searchParams.delete('ref'); history.replaceState(null, '', u.pathname + u.search + u.hash); } } catch (e) { /* приватный режим */ } })();
-async function refClaim() {
-  let r; try { r = localStorage.getItem('rc.ref'); } catch (e) { return; }
-  if (!r || !sb || !st.user || !st.user.sb) return;
-  const { data, error } = await sb.rpc('set_ref', { p_ref: r });
+/* ---------- рефералка v2 (supabase/referral2.sql, владелец 15.11): ссылка ?ref=<код или ID>; пригласившему — % от каждого
+   пополнения друга навсегда, в реферальный кошелёк (забрать на баланс; вывод на карту — позже); другу — подарок (+% к первому
+   пополнению, у стримеров ещё ₽ и кейс). Страница #/invite (pageInvite), вкладка админки «Рефералы» (admRef) ---------- */
+Object.assign(SRV_ERR, { 'ref lock': 'Вывод скинов откроется после первого пополнения — вы получили подарок по реферальной ссылке', 'ref no gift': 'Подарочный кейс уже открыт',
+  'ref empty': 'В реферальном кошельке пока пусто', 'ref frozen': 'Кошелёк заморожен — напишите в поддержку', 'ref min': 'Сумма меньше минимальной',
+  'ref bad code': 'Код: 3–16 латинских букв, цифр или «_», хотя бы одна буква', 'ref code taken': 'Этот код уже занят', 'ref code wait': 'Код можно менять раз в сутки',
+  'ref bad pct': 'Процент вне вашего лимита', 'ref bad bal': 'Сумма вне вашего лимита', 'ref bad case': 'Этот кейс нельзя подарить', 'ref bad n': 'Подарков больше, чем разрешено' });
+const REF_RX = /^[A-Za-z0-9_]{1,16}$/;
+let refNew = null; // код из адреса этой загрузки — для окна «Вас пригласил…» (гостю)
+// пришёл по ссылке друга: запоминаем код до входа и убираем его из адреса; после входа — привязка на сервере (только новые аккаунты)
+(() => { try { const r = new URLSearchParams(location.search).get('ref'); if (r && REF_RX.test(r)) { localStorage.setItem('rc.ref', r); refNew = r; const u = new URL(location.href); u.searchParams.delete('ref'); history.replaceState(null, '', u.pathname + u.search + u.hash); } } catch (e) { /* приватный режим */ } })();
+let refGiftCase = null; // кейс в подарок по ссылке, ещё не открыт (id) — на странице кейса кнопка «Открыть бесплатно»
+const REF_WHY = { device: 'Реферальная ссылка не сработала: вход с того же устройства или сети, что и у пригласившего', old: 'Реферальная ссылка действует только для новых аккаунтов', 'not found': 'Реферальная ссылка устарела — такого кода нет' };
+// при каждом входе: сервер запоминает IP и устройство (защита от мультиаккаунтов); пришёл по ссылке — привязка и подарок
+async function refHello() {
+  if (!sb || !st.user || !st.user.sb) return;
+  let r = null; try { r = localStorage.getItem('rc.ref'); } catch (e) { /* */ }
+  const { data, error } = await sb.rpc('ref_hello', { p_sid: SID, p_ref: r });
   if (error) return; // нет связи — попробуем при следующем входе
-  try { localStorage.removeItem('rc.ref'); } catch (e) { /* */ }
-  if (data && data.ok) toast(`Вас пригласил <b>${esc(data.name)}</b> — бонус к первому пополнению`);
+  if (r) try { localStorage.removeItem('rc.ref'); } catch (e) { /* */ }
+  const b = data && data.bind, was = refGiftCase;
+  if (b && b.data) sbApply(b.data);
+  refGiftCase = (data && data.gift_case) || null;
+  if (b && b.ok) refGiftWin(b);
+  else if (b && REF_WHY[b.why]) toast(REF_WHY[b.why], 'err');
+  if (refGiftCase !== was) refCaseRedraw();
 }
-const refIntro = c => `<b>${c.pct}%</b> от пополнений друзей в течение ${c.days} дней после их регистрации — сразу вам на баланс. Друг получает <b>+${c.friend_pct}%</b> к первому пополнению.`;
-async function drawRef() {
-  const box = $('#refCard'); if (!box) return;
-  const head = c => `<header class="bn-h"><span class="bn-ic">${ic.users}</span><div><h3>Пригласи друга</h3><p>${refIntro(c)}</p></div></header>`;
-  if (!sb || !st.user || !st.user.sb) { box.innerHTML = head(REF_DEF) + `<button class="btn btn-primary" data-act="login">Войти и получить ссылку</button>`; return; }
-  const { data: R, error } = await sb.rpc('my_referrals'); if (!$('#refCard')) return;
-  if (error || !R) { box.innerHTML = head(REF_DEF) + '<p class="bn-note">Реферальная программа скоро заработает.</p>'; return; }
-  const link = `${location.origin}${location.pathname}?ref=${R.pid}`, active = R.friends.filter(f => f.left > 0).length;
-  box.innerHTML = head(R) + `
-    ${R.by ? `<div class="ref-by">${ic.users}<span>Вас пригласил <b>${esc(R.by)}</b>${R.bonus ? ` — <em>+${R.friend_pct}% к первому пополнению</em>` : ''}</span></div>` : ''}
-    <div class="ref-link"><input class="inp" readonly value="${esc(link)}" onclick="this.select()"><button class="btn btn-primary" data-act="copy" data-copy="${esc(link)}">${ic.copy}Копировать</button></div>
-    <div class="ref-stats"><div><span>Приглашено</span><b>${fmt(R.count)}</b></div><div><span>Приносят доход</span><b>${fmt(active)}</b></div><div><span>Заработано</span><b>${money(+R.earned)}</b></div></div>
-    ${R.friends.length ? `<div class="ref-list">${R.friends.map(f => `<div class="ref-f">${ava({ name: f.name, ava: f.ava }, 'xs')}<b>${plink(f.pid, esc(f.name))}</b><small>${f.left > 0 ? `ещё ${f.left} ${plural(f.left, 'день', 'дня', 'дней')}` : 'срок вышел'}</small><i>${+f.earned ? '+' + money(+f.earned) : '—'}</i></div>`).join('')}</div>`
-      : '<p class="bn-note">Отправьте ссылку друзьям — они появятся здесь после регистрации. Начисления — с онлайн-пополнений.</p>'}`;
+function refCaseRedraw() { // на странице подарочного кейса — перерисовать кнопки
+  const id = (location.hash.match(/^#\/case\/([^/?#]+)/) || [])[1], c = id && caseById(decodeURIComponent(id));
+  if (c && $('#cc') && !spinning) ccIdle(c);
+  if ($('#rf') && st.user) rfLoad();
+}
+const refPct = v => '+' + String(+v).replace('.', ',') + '%';
+const refCaseName = id => { const c = caseById(id); return c ? c.name : id; };
+const refAva = u => `<span class="rf-ava">${u && u.ava ? `<img src="${esc(u.ava)}" alt="" loading="lazy" decoding="async">` : esc(((u && u.name) || '?')[0].toUpperCase())}</span>`;
+// список подарка: {pct, bal, case}; st — подписи состояния (получен / ждёт)
+function refGiftList(g, s = {}) {
+  const li = [];
+  if (+g.pct) li.push([ic.wallet, refPct(g.pct), 'к первому пополнению', s.pct]);
+  if (+g.bal) li.push([ic.coins, prc(+g.bal), 'на баланс', s.bal]);
+  if (g.case) li.push([ic.box, `Кейс «${esc(refCaseName(g.case))}»`, 'открыть бесплатно', s.case]);
+  return `<ul class="rf-gl">${li.map(([i, b, t, x]) => `<li><i>${i}</i><b>${b}</b><span>${t}</span>${x ? `<em class="${x[1] || ''}">${x[0]}</em>` : ''}</li>`).join('')}</ul>`;
+}
+// сразу после привязки: «Вас пригласил … — ваш подарок»
+function refGiftWin(b) {
+  const m = modal(`<div class="ga-mod" style="--gl:#5be38f"><header class="ga-mh"><small>Реферальная программа</small><h3>Вас пригласил ${esc(b.name)}</h3></header>
+    <div class="rf-mb"><p class="rf-mt">Ваш подарок</p>${refGiftList(b, { bal: +b.bal ? ['зачислено', 'ok'] : null })}
+      ${+b.bal || b.case ? '<p class="rf-mn">Вывод скинов откроется после первого пополнения.</p>' : ''}
+      ${b.steam === false ? '<p class="rf-mn">Подарок деньгами и кейсом получают только «живые» аккаунты Steam: не новые, с CS2 и открытым профилем.</p>' : ''}
+      <div class="rf-mbtn">${b.case ? `<a class="ga-go" id="rfGo" href="#/case/${encodeURIComponent(b.case)}">Открыть кейс</a>` : ''}<button class="ga-go${b.case ? ' rf-ghost' : ''}" id="rfDep">Пополнить</button></div></div></div>`, 'm-ga m-rf');
+  const go = $('#rfGo', m); if (go) go.onclick = () => closeModal();
+  $('#rfDep', m).onclick = () => { closeModal(); openDeposit(); };
+  Snd.coin(); burst(30);
+}
+// гость пришёл по ссылке: кто пригласил и что подарит после входа
+async function refWelcome() {
+  const code = refNew; refNew = null;
+  if (!code || !sb || st.user) return;
+  const { data: R } = await sb.rpc('ref_info', { p_ref: code });
+  if (!R || st.user || $('#modal-root .modal-ov')) return;
+  const m = modal(`<div class="ga-mod" style="--gl:#84d9fd"><header class="ga-mh"><small>Приглашение на RUSH CASE</small><h3>Вас пригласил ${esc(R.name)}</h3></header>
+    <div class="rf-mb"><div class="rf-who">${refAva(R)}<div><b>${esc(R.name)}</b><span>дарит вам после входа через Steam</span></div></div>${refGiftList(R)}
+      ${R.partner && (+R.bal || R.case) ? `<p class="rf-mn">Осталось подарков: <b>${fmt(R.left)}</b>. Деньги и кейс — для аккаунтов Steam${R.steam_days ? ` старше ${R.steam_days} ${plural(R.steam_days, 'дня', 'дней', 'дней')}` : ''} с CS2 и открытым профилем.</p>` : ''}
+      <button class="ga-go rf-mgo" id="rfLogin">${ic.steam}Войти через Steam</button></div></div>`, 'm-ga m-rf');
+  $('#rfLogin', m).onclick = () => openAuth('login');
 }
 /* журнал для статистики админки: пульс онлайна (раз в 2 мин с открытой вкладки), пополнения, выводы, открытия кейсов */
 // SID — номер устройства (хранится в браузере постоянно): посетитель = устройство, а не вкладка
@@ -2839,11 +2878,231 @@ function mnAgent() {
     };
   }).catch(() => { if (S.alive) pic(); });
 }
-// «Пригласить друзей» (плюс слева от агента на главной) — пока заглушка. ПЛАН (владелец 11.11): отдельная страница со статистикой
-// по рефералам — кто зашёл по ссылке, сколько потратил, сколько получил пригласивший (сейчас реф-блок только на «Бонусах», drawRef)
+// «Пригласить друзей» (#/invite; плюс слева от агента на главной): ссылка, реферальный кошелёк, подарок друзьям (стримерам — настройка),
+// итоги, график по дням, список приглашённых. Данные — supabase/referral2.sql (ref_page, ref_friends). Новый стиль CS2, стили .rf-*
+const RF = { days: 30, metric: 'earn', sort: 'reg', q: '', rows: [], n: 0, D: null, seq: 0 };
 function pageInvite() {
-  return `<section class="krp"><div class="krp-box ivp"><span class="ivp-plus">${INVITE_SVG}</span><h1 class="krp-h">Пригласить друзей</h1><p class="ivp-soon">Скоро</p>
-    <p class="krp-t">Здесь будет статистика по приглашённым друзьям: кто зашёл по вашей ссылке, сколько потратил и сколько получили вы.</p><a class="krp-go" href="#/">На главную</a></div></section>`;
+  if (!st.user || !st.user.sb) return `<section class="rf rf-guest"><div class="rf-card rf-hero"><span class="rf-plus">${INVITE_SVG}</span>
+    <h1 class="rf-h1">Пригласить друзей</h1>
+    <p class="rf-lead">Получайте <b id="rfGP">5%</b> от каждого пополнения друзей — навсегда. Друзьям — <b id="rfGF">+10%</b> к первому пополнению.</p>
+    <ol class="rf-steps"><li><b>1</b><span>Войдите через Steam и скопируйте свою ссылку</span></li><li><b>2</b><span>Друг входит по ссылке и получает подарок</span></li><li><b>3</b><span>С каждого его пополнения вам процент в реферальный кошелёк</span></li></ol>
+    <button class="ga-go rf-mgo" data-act="login">${ic.steam}Войти через Steam</button></div></section>`;
+  return `<section class="rf" id="rf"><div class="rf-load"><span class="spinner"></span>Загружаем статистику…</div></section>`;
+}
+async function mountInvite() {
+  if (!sb) return;
+  if (!st.user || !st.user.sb) { // гость: проценты из настроек (ref_cfg открыт для чтения)
+    const { data } = await sb.from('ref_cfg').select('pct, friend_pct').eq('id', 1).maybeSingle();
+    if (data && $('#rfGP')) { $('#rfGP').textContent = String(+data.pct).replace('.', ',') + '%'; $('#rfGF').textContent = refPct(data.friend_pct); }
+    return;
+  }
+  RF.sort = 'reg'; RF.q = '';
+  rfLoad();
+}
+async function rfLoad() {
+  const box = $('#rf'); if (!box) return;
+  const my = ++RF.seq;
+  const { data: D, error } = await sb.rpc('ref_page', { p_days: RF.days });
+  if (my !== RF.seq || !$('#rf')) return;
+  if (error || !D) return (box.innerHTML = `<div class="rf-card rf-err">${ic.alert}<span>Не удалось загрузить статистику${error ? ': ' + esc(error.message) : ''}. Обновите страницу.</span></div>`);
+  RF.D = D; rfDraw(); rfList(true);
+}
+const rfLink = D => `${location.origin}${location.pathname}?ref=${D.code}`;
+const rfZ = (v, f = prc) => +v ? f(+v) : '<i class="rf-0">—</i>';
+// подарок, который сейчас получает новый друг
+function rfGiftNow(D) {
+  const p = D.partner, c = D.cfg;
+  if (p && p.used < Math.min(p.g_n, p.max_gifts)) return { pct: Math.max(+c.friend_pct, Math.min(p.g_pct != null ? +p.g_pct : +c.friend_pct, +p.max_pct)), bal: Math.min(+p.g_bal, +p.max_bal), case: p.g_case && caseById(p.g_case) ? p.g_case : null };
+  return { pct: +c.friend_pct, bal: 0, case: null };
+}
+function rfDraw() {
+  const box = $('#rf'), D = RF.D; if (!box || !D) return;
+  const T = D.tot, W = D.wallet, P = D.partner, link = rfLink(D), shown = link.replace(/^https?:\/\//, ''), forever = !(+D.cfg.days);
+  const left = P ? Math.max(0, Math.min(P.g_n, P.max_gifts) - P.used) : 0, total = P ? Math.min(P.g_n, P.max_gifts) : 0;
+  const canClaim = +W.bal > 0 && +W.bal >= +D.cfg.min_claim && !W.frozen;
+  const conv = +T.friends ? Math.round(T.deps / T.friends * 100) : 0;
+  const mine = D.mine, by = D.by;
+  const share = encodeURIComponent(link), stext = encodeURIComponent('Заходи на RUSH CASE по моей ссылке — подарок к первому пополнению');
+  box.innerHTML = `
+  <header class="rf-hd"><div class="rf-hd-t"><span class="rf-plus">${INVITE_SVG}</span><div><h1 class="rf-h1">Пригласить друзей${P ? '<i class="rf-badge">Партнёр</i>' : ''}</h1>
+    <p class="rf-lead"><b>${String(+D.pct).replace('.', ',')}%</b> от каждого пополнения друзей ${forever ? '— навсегда' : `— ${D.cfg.days} ${plural(+D.cfg.days, 'день', 'дня', 'дней')} после их регистрации`}, в реферальный кошелёк</p></div></div>
+    <button class="rf-btn" id="rfRules">${ic.help}Как это работает</button></header>
+  ${by ? `<div class="rf-card rf-by">${refAva(by)}<span class="rf-by-t">Вас пригласил ${plink(by.pid, `<b>${esc(by.name)}</b>`)}</span>
+    ${mine ? `<span class="rf-by-g">${refGiftList(mine, { pct: mine.dep ? ['получен', 'ok'] : ['ждёт первого пополнения', 'wait'], bal: +mine.bal ? ['зачислено', 'ok'] : null, case: mine.case ? (mine.case_used ? ['открыт', 'ok'] : ['ждёт', 'wait']) : null })}</span>` : ''}
+    ${refGiftCase ? `<a class="ga-go rf-sm" href="#/case/${encodeURIComponent(refGiftCase)}">${ic.box}Открыть кейс</a>` : ''}</div>` : ''}
+  <div class="rf-top">
+    <article class="rf-card rf-c">
+      <h2 class="rf-h">Ваша ссылка</h2>
+      <div class="rf-url"><span class="rf-url-t" title="${esc(link)}">${esc(shown.slice(0, -D.code.length))}<b>${esc(D.code)}</b></span><button class="rf-go" data-act="copy" data-copy="${esc(link)}">${ic.copy}Копировать</button></div>
+      <div class="rf-row"><span class="rf-lbl">Код в ссылке</span><b class="rf-code">${esc(D.code)}</b><button class="rf-mini" id="rfCode">${ic.edit}Изменить</button></div>
+      <div class="rf-share"><a class="rf-sq" href="https://t.me/share/url?url=${share}&text=${stext}" target="_blank" rel="noopener" title="Отправить в Telegram">${ic.tg}</a><a class="rf-sq" href="https://vk.com/share.php?url=${share}" target="_blank" rel="noopener" title="Поделиться ВКонтакте">${ic.vk}</a>
+        <span class="rf-mute">Старая ссылка с вашим ID ${D.pid} тоже работает</span></div>
+    </article>
+    <article class="rf-card rf-c">
+      <h2 class="rf-h">Реферальный кошелёк</h2>
+      <div class="rf-big">${prc(+W.bal)}</div>
+      <dl class="rf-dl"><div><dt>Начислено всего</dt><dd>${prc(+W.earned)}</dd></div><div><dt>Забрано на баланс</dt><dd>${prc(+W.claimed)}</dd></div>
+        <div title="Пополнения скинами зачисляются через 7 дней — после проверки обмена"><dt>Ждёт зачисления ${ic.clock}</dt><dd>${prc(+T.pending)}</dd></div></dl>
+      <button class="ga-go rf-claim" id="rfClaim"${canClaim ? '' : ' disabled'}>Забрать на баланс</button>
+      <p class="rf-mute">${W.frozen ? `<span class="rf-neg">${ic.shield}Кошелёк заморожен — напишите в поддержку</span>` : 'Вывод на карту — скоро'}</p>
+    </article>
+    <article class="rf-card rf-c">
+      <h2 class="rf-h">Подарок друзьям</h2>
+      ${refGiftList(rfGiftNow(D))}
+      ${P ? `<div class="rf-meter"><span>Подарков осталось</span><b>${fmt(left)} из ${fmt(total)}</b><i style="--p:${total ? left / total : 0}"></i></div>
+        ${!left ? '<p class="rf-mute">Подарки закончились — друзья получают обычный бонус. Добавьте ещё в настройке.</p>' : ''}
+        <button class="rf-btn rf-btn-w" id="rfGiftEd">${ic.gift}Настроить подарок</button>`
+      : '<p class="rf-mute">Друг получает подарок, когда входит по вашей ссылке через Steam (только новый аккаунт).</p>'}
+      <div class="rf-row rf-row-b"><span class="rf-lbl">Ваш процент</span><b>${String(+D.pct).replace('.', ',')}%</b>${P && P.pct != null ? '<i class="rf-tag">личный</i>' : ''}</div>
+    </article>
+  </div>
+  <div class="rf-kpis">
+    ${rfKpi('Приглашено', fmt(+T.friends), +T.today ? `сегодня <b class="rf-pos">+${fmt(+T.today)}</b>` : 'сегодня 0')}
+    ${rfKpi('Пополнили', fmt(+T.deps), `конверсия <b>${conv}%</b>`)}
+    ${rfKpi('Пополнения друзей', prc(+T.depAll), `7 дн <b>${prc(+T.dep7)}</b> · 30 дн <b>${prc(+T.dep30)}</b>`)}
+    ${rfKpi('Ваш доход', prc(+T.earnAll), `7 дн <b>${prc(+T.earn7)}</b> · 30 дн <b>${prc(+T.earn30)}</b>`, 'rf-pos')}
+    ${rfKpi('Открыли кейсов', fmt(+T.opens), `потратили <b>${prc(+T.spent)}</b>`)}
+    ${rfKpi('Средний чек', prc(+T.depN ? T.depAll / T.depN : 0), `пополнений <b>${fmt(+T.depN)}</b>`)}
+  </div>
+  <section class="rf-card rf-ch">
+    <header class="rf-ch-hd"><h2 class="rf-h">Динамика</h2>
+      <div class="rf-seg" id="rfMetric">${[['earn', 'Ваш доход'], ['dep', 'Пополнения друзей'], ['r', 'Регистрации']].map(([k, n]) => `<button data-k="${k}" class="${RF.metric === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="rf-seg" id="rfDays">${[[7, '7 дн'], [30, '30 дн'], [90, '90 дн'], [365, 'Год']].map(([k, n]) => `<button data-k="${k}" class="${RF.days === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <span class="rf-ch-sum" id="rfSum"></span></header>
+    <div class="rf-plot" id="rfPlot"></div>
+  </section>
+  <section class="rf-card rf-ls">
+    <header class="rf-ls-hd"><h2 class="rf-h">Приглашённые <span class="rf-n" id="rfN"></span></h2>
+      <label class="rf-search">${ic.search}<input id="rfQ" type="search" placeholder="Ник или ID" maxlength="32" value="${esc(RF.q)}" autocomplete="off"></label></header>
+    <div class="rf-tw"><table class="rf-t"><thead><tr><th>Игрок</th>${[['reg', 'Регистрация'], ['dep7', 'Пополнил · 7 дн'], ['dep30', '30 дн'], ['dep', 'Всего'], ['opens', 'Открыл кейсов'], ['earn', 'Вам начислено']]
+      .map(([k, n]) => `<th class="rf-s${RF.sort === k ? ' on' : ''}" data-s="${k}">${n}${ic.chev}</th>`).join('')}<th title="5% от пополнений скинами, которые ещё проверяются (7 дней)">Ждёт</th></tr></thead><tbody id="rfRows"></tbody></table></div>
+    <div class="rf-more" id="rfMore"></div>
+  </section>`;
+  $('#rfRules').onclick = () => rfRules(D);
+  $('#rfCode').onclick = () => rfCodeWin(D);
+  const ge = $('#rfGiftEd'); if (ge) ge.onclick = () => rfGiftEd(D);
+  const cl = $('#rfClaim'); if (cl) cl.onclick = async () => {
+    cl.disabled = true;
+    const r = await srv('ref_claim');
+    if (r && +r.amount) { toast(`<b>+${money(+r.amount)}</b> — на ваш баланс`); Snd.coin(); burst(30); rfLoad(); } else cl.disabled = false;
+  };
+  $$('#rfMetric [data-k]').forEach(b => b.onclick = () => { RF.metric = b.dataset.k; $$('#rfMetric [data-k]').forEach(x => x.classList.toggle('on', x === b)); rfChart(); });
+  $$('#rfDays [data-k]').forEach(b => b.onclick = async () => {
+    RF.days = +b.dataset.k; $$('#rfDays [data-k]').forEach(x => x.classList.toggle('on', x === b));
+    const { data } = await sb.rpc('ref_page', { p_days: RF.days }); if (data && $('#rfPlot')) { RF.D.series = data.series; rfChart(); }
+  });
+  $$('.rf-t th[data-s]').forEach(th => th.onclick = () => { RF.sort = th.dataset.s; $$('.rf-t th[data-s]').forEach(x => x.classList.toggle('on', x === th)); rfList(true); });
+  let qt; $('#rfQ').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { RF.q = e.target.value.trim(); rfList(true); }, 300); };
+  rfChart();
+}
+const rfKpi = (l, v, sub, cls = '') => `<div class="rf-card rf-kpi"><span class="rf-lbl">${l}</span><b class="rf-kv ${cls}">${v}</b><small>${sub}</small></div>`;
+// список приглашённых: по 50, «Показать ещё»
+async function rfList(reset) {
+  const body = $('#rfRows'); if (!body) return;
+  if (reset) { RF.rows = []; body.innerHTML = '<tr><td colspan="8" class="rf-tl"><span class="spinner"></span></td></tr>'; }
+  const my = ++RF.seq;
+  const { data, error } = await sb.rpc('ref_friends', { p_sort: RF.sort, p_q: RF.q, p_limit: 50, p_offset: RF.rows.length });
+  if (my !== RF.seq || !$('#rfRows')) return;
+  if (error || !data) return (body.innerHTML = `<tr><td colspan="8" class="rf-tl">Не удалось загрузить список${error ? ': ' + esc(error.message) : ''}</td></tr>`);
+  RF.rows = RF.rows.concat(data.rows); RF.n = data.n;
+  $('#rfN').textContent = fmt(RF.n);
+  const dt = s => { const d = new Date(s); return `${d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' })}<small>${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</small>`; };
+  body.innerHTML = RF.rows.length ? RF.rows.map(r => `<tr>
+      <td><a class="rf-pl" href="#/u/${r.pid}">${refAva(r)}<b>${esc(r.name)}</b></a>${+r.g_bal || r.g_case ? `<i class="rf-gi" title="Получил подарок: ${[+r.g_bal ? money(+r.g_bal) : '', r.g_case ? 'кейс «' + esc(refCaseName(r.g_case)) + '»' : ''].filter(Boolean).join(', ')}">${ic.gift}</i>` : ''}</td>
+      <td class="rf-d">${dt(r.ref_at)}</td><td>${rfZ(r.d7)}</td><td>${rfZ(r.d30)}</td><td><b>${rfZ(r.dall)}</b>${+r.dn ? `<small>${fmt(+r.dn)} ${plural(+r.dn, 'платёж', 'платежа', 'платежей')}</small>` : ''}</td>
+      <td>${rfZ(r.opens, fmt)}</td><td class="rf-pos">${+r.earned ? '+' + prc(+r.earned) : '<i class="rf-0">—</i>'}</td><td>${rfZ(r.pend)}</td></tr>`).join('')
+    : `<tr><td colspan="8" class="rf-tl">${RF.q ? 'Никого не нашли' : 'Пока никого — отправьте ссылку друзьям. Они появятся здесь сразу после входа через Steam.'}</td></tr>`;
+  const more = $('#rfMore');
+  more.innerHTML = RF.rows.length < RF.n ? `<button class="rf-btn">Показать ещё ${fmt(Math.min(50, RF.n - RF.rows.length))}</button>` : '';
+  if (more.firstChild) more.firstChild.onclick = () => { more.innerHTML = '<span class="spinner"></span>'; rfList(false); };
+}
+// график по дням (год — по неделям): один показатель, голубые столбики, подсказка при наведении
+function rfChart() {
+  const box = $('#rfPlot'), D = RF.D; if (!box || !D) return;
+  const k = RF.metric, isMoney = k !== 'r';
+  let pts = D.series.map(s => ({ d: s.d, v: +s[k] || 0, to: s.d }));
+  if (pts.length > 120) { const w = []; for (let i = 0; i < pts.length; i += 7) { const g = pts.slice(i, i + 7); w.push({ d: g[0].d, to: g[g.length - 1].d, v: g.reduce((a, x) => a + x.v, 0) }); } pts = w; }
+  const sum = D.series.reduce((a, s) => a + (+s[k] || 0), 0);
+  $('#rfSum').innerHTML = `За период: <b>${isMoney ? prc(sum) : fmt(sum)}</b>`;
+  const Wd = Math.max(280, box.clientWidth), H = 230, L = 52, R = 8, Tp = 12, B = 26, iw = Wd - L - R, ih = H - Tp - B;
+  const mx = Math.max(...pts.map(p => p.v)), nice = v => { if (v <= 0) return isMoney ? 100 : 4; const e = 10 ** Math.floor(Math.log10(v)), f = v / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e; };
+  const top = nice(mx), y = v => Tp + ih - v / top * ih, step = iw / pts.length, bw = Math.max(1, step - 2);
+  const short = v => v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 1).replace('.', ',') + ' млн' : v >= 1e3 ? (v / 1e3).toFixed(v >= 1e4 ? 0 : 1).replace('.', ',') + ' тыс' : fmt(v);
+  const dlab = s => { const [Y, M, Dd] = s.split('-'); return `${Dd}.${M}`; };
+  const every = Math.max(1, Math.ceil(pts.length / Math.floor(iw / 64)));
+  const bar = (x, v, i) => { const yt = y(v), h = Tp + ih - yt; if (h < .5) return ''; const r = Math.min(3, bw / 2, h); return `<path data-i="${i}" d="M${x},${Tp + ih}V${yt + r}Q${x},${yt} ${x + r},${yt}H${x + bw - r}Q${x + bw},${yt} ${x + bw},${yt + r}V${Tp + ih}Z"/>`; };
+  box.innerHTML = `<svg class="rf-svg" width="${Wd}" height="${H}" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="${esc(['Ваш доход', 'Пополнения друзей', 'Регистрации'][['earn', 'dep', 'r'].indexOf(k)])} по дням">
+    <g class="rf-grid">${[0, .25, .5, .75, 1].map(f => `<line x1="${L}" x2="${Wd - R}" y1="${y(top * f)}" y2="${y(top * f)}"/><text x="${L - 8}" y="${y(top * f) + 4}" text-anchor="end">${short(top * f)}</text>`).join('')}</g>
+    <g class="rf-bars">${pts.map((p, i) => bar(L + i * step + 1, p.v, i)).join('')}</g>
+    <g class="rf-xl">${pts.map((p, i) => i % every === 0 ? `<text x="${L + i * step + step / 2}" y="${H - 7}" text-anchor="middle">${dlab(p.d)}</text>` : '').join('')}</g>
+    <g class="rf-hit">${pts.map((p, i) => `<rect data-i="${i}" x="${L + i * step}" y="${Tp}" width="${step}" height="${ih}"/>`).join('')}</g></svg>
+    ${mx <= 0 ? '<p class="rf-ch-0">За этот период пока пусто</p>' : ''}<div class="rf-tip" id="rfTip" hidden></div>`;
+  const tip = $('#rfTip', box), bars = $$('.rf-bars path', box);
+  $$('.rf-hit rect', box).forEach(r => {
+    r.onmouseenter = () => {
+      const p = pts[+r.dataset.i];
+      tip.innerHTML = `<small>${p.to !== p.d ? `${dlab(p.d)} — ${dlab(p.to)}` : new Date(p.d + 'T12:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', weekday: 'short' })}</small><b>${isMoney ? prc(p.v) : fmt(p.v) + ' ' + plural(p.v, 'игрок', 'игрока', 'игроков')}</b>`;
+      tip.hidden = false;
+      const x = L + (+r.dataset.i) * step + step / 2, tw = tip.offsetWidth;
+      tip.style.left = clamp(x - tw / 2, 0, Wd - tw) + 'px'; tip.style.top = Math.max(0, y(p.v) - tip.offsetHeight - 8) + 'px';
+      box.classList.add('hov'); bars.forEach(b => b.classList.toggle('on', b.dataset.i === r.dataset.i));
+    };
+    r.onmouseleave = () => { tip.hidden = true; box.classList.remove('hov'); bars.forEach(b => b.classList.remove('on')); };
+  });
+}
+let rfRz; addEventListener('resize', () => { clearTimeout(rfRz); rfRz = setTimeout(() => { if ($('#rfPlot')) rfChart(); }, 150); });
+// «Как это работает»
+function rfRules(D) {
+  const c = D.cfg, pct = String(+D.pct).replace('.', ',') + '%';
+  modal(`<div class="ga-mod" style="--gl:#84d9fd"><header class="ga-mh"><small>Реферальная программа</small><h3>Как это работает</h3></header>
+    <div class="rf-mb rf-rules"><ol>
+      <li><b>Делитесь ссылкой.</b> Друг переходит по ней и входит через Steam — он навсегда становится вашим рефералом. Засчитываются только новые аккаунты.</li>
+      <li><b>Вы получаете ${pct}</b> от каждого его пополнения (СБП, карта, скины)${+c.days ? ` в течение ${c.days} ${plural(+c.days, 'дня', 'дней', 'дней')} после регистрации` : ' — навсегда'}. Деньги приходят в реферальный кошелёк, забрать их на баланс можно в любой момент. Пополнения скинами учитываются через 7 дней — после проверки обмена.</li>
+      <li><b>Друг получает подарок</b> — ${refPct(c.friend_pct)} к первому пополнению. У партнёров сайта подарок бывает больше: деньги на баланс и бесплатный кейс.</li>
+      <li><b>Не засчитываются:</b> приглашение самого себя, второй аккаунт с того же устройства или сети, старые аккаунты. За накрутку кошелёк замораживается.</li>
+      <li><b>Вывод на карту</b> из реферального кошелька — скоро.</li></ol></div></div>`, 'm-ga m-rf');
+}
+// смена кода ссылки
+function rfCodeWin(D) {
+  const pre = rfLink(D).replace(/^https?:\/\//, '').slice(0, -D.code.length);
+  const m = modal(`<div class="ga-mod" style="--gl:#84d9fd"><header class="ga-mh"><small>Реферальная ссылка</small><h3>Код в ссылке</h3></header>
+    <form class="stf-f" id="rfCF" novalidate><label class="stf-fl"><span>Новый код</span><div class="stf-in"><input id="rfCI" value="${esc(D.code)}" maxlength="16" autocomplete="off" spellcheck="false"></div></label>
+      <p class="rf-prev">${esc(pre)}<b id="rfCP">${esc(D.code)}</b></p>
+      <p class="rf-mn">3–16 символов: латинские буквы, цифры и «_». Менять можно раз в сутки. Ссылки с прежним кодом перестанут работать, ссылка с вашим ID — работает всегда.</p>
+      <p class="stf-msg" id="rfCM" role="alert"></p><button class="bw-go stf-go" type="submit">Сохранить</button></form></div>`, 'm-ga m-rf');
+  const inp = $('#rfCI', m); inp.focus(); inp.select();
+  inp.oninput = () => { inp.value = inp.value.replace(/[^A-Za-z0-9_]/g, ''); $('#rfCP', m).textContent = inp.value.toLowerCase(); };
+  $('#rfCF', m).onsubmit = async e => {
+    e.preventDefault();
+    const v = inp.value.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,16}$/.test(v) || !/[a-z]/.test(v)) return ($('#rfCM', m).textContent = SRV_ERR['ref bad code']);
+    const { error } = await sb.rpc('ref_set_code', { p_code: v });
+    if (error) { const k = Object.keys(SRV_ERR).find(x => error.message.includes(x)); return ($('#rfCM', m).textContent = k ? SRV_ERR[k] : 'Ошибка: ' + error.message); }
+    closeModal(); toast(`Новый код: <b>${esc(v)}</b>`); rfLoad();
+  };
+}
+// стример: подарок друзьям (в пределах лимитов администрации)
+function rfGiftEd(D) {
+  const P = D.partner, c = D.cfg, minP = +c.friend_pct, maxP = Math.max(+P.max_pct, minP);
+  const cases = CASES.filter(x => !x.rc && !x.bcid && !x.disabled && x.price <= +P.max_case).sort((a, b) => a.price - b.price);
+  const g = { pct: P.g_pct != null ? +P.g_pct : minP, bal: +P.g_bal || 0, case: P.g_case || '', n: +P.g_n || 0 };
+  const m = modal(`<div class="ga-mod" style="--gl:#5be38f"><header class="ga-mh"><small>Партнёрская программа</small><h3>Подарок друзьям</h3></header>
+    <form class="stf-f rf-ge" id="rfGF" novalidate>
+      <label class="stf-fl"><span>Бонус к первому пополнению, %</span><div class="rf-rg"><input type="range" id="rfGPr" min="${minP}" max="${maxP}" step="1" value="${g.pct}"><div class="stf-in"><input id="rfGPn" type="number" min="${minP}" max="${maxP}" step="1" value="${g.pct}"></div></div></label>
+      ${+P.max_bal > 0 ? `<label class="stf-fl"><span>Деньги на баланс сразу после входа, ₽ (до ${money(+P.max_bal)})</span><div class="stf-in"><input id="rfGB" type="number" min="0" max="${+P.max_bal}" step="1" value="${g.bal}"></div></label>` : ''}
+      ${+P.max_case > 0 ? `<label class="stf-fl"><span>Кейс в подарок (до ${money(+P.max_case)})</span><div class="stf-in"><select id="rfGC"><option value="">Без кейса</option>${cases.map(x => `<option value="${esc(x.id)}"${x.id === g.case ? ' selected' : ''}>${esc(x.name)} — ${money(x.price)}</option>`).join('')}</select></div></label>` : ''}
+      <label class="stf-fl"><span>Скольким друзьям (уже выдано ${fmt(P.used)}, максимум ${fmt(P.max_gifts)})</span><div class="stf-in"><input id="rfGN" type="number" min="0" max="${P.max_gifts}" step="1" value="${g.n}"></div></label>
+      <p class="rf-mn">Подарок получают первые друзья по вашей ссылке, пока не закончится количество. Деньги и кейс — только «живым» аккаунтам Steam${c.steam_check ? ` (старше ${c.steam_days} ${plural(+c.steam_days, 'дня', 'дней', 'дней')}, с CS2 и открытым профилем)` : ''}; вывести скины друг сможет после первого пополнения.</p>
+      <p class="stf-msg" id="rfGM" role="alert"></p><button class="bw-go stf-go" type="submit">Сохранить подарок</button></form></div>`, 'm-ga m-rf');
+  const pr = $('#rfGPr', m), pn = $('#rfGPn', m);
+  pr.oninput = () => { pn.value = pr.value; }; pn.oninput = () => { pr.value = pn.value; };
+  $('#rfGF', m).onsubmit = async e => {
+    e.preventDefault();
+    const v = id => { const el = $('#' + id, m); return el ? el.value : ''; };
+    const { error } = await sb.rpc('ref_partner_gift', { p: { pct: v('rfGPn'), bal: v('rfGB') || 0, case: v('rfGC'), n: v('rfGN') } });
+    if (error) { const k = Object.keys(SRV_ERR).find(x => error.message.includes(x)); return ($('#rfGM', m).textContent = k ? SRV_ERR[k] : 'Ошибка: ' + error.message); }
+    closeModal(); toast('Подарок для друзей сохранён'); rfLoad();
+  };
 }
 // режим «КРОТ» (#/krot): сама игра — js/krot.js + css/krot.css, грузятся только на этой странице (сервер — supabase/krot.sql)
 // «Крот» пока закрыт для игроков (владелец 15.11: «не готов на 100%») — открыт только админам и на localhost (разработка, демо).
@@ -3377,6 +3636,7 @@ function ccIdle(c) {
   let main;
   if (c.disabled) main = `<button class="btn btn-primary btn-xl btn-cham" disabled>${ic.lock || ic.shield}Кейс временно закрыт</button>`;
   else if (!st.user) main = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`;
+  else if (refGiftCase === c.id) main = `<button class="rf-gbtn" id="giftBtn">${ic.gift}Открыть бесплатно<small>подарок по приглашению</small></button>`;
   else if (c.rc) main = (st.rcoin || 0) >= cost ? `<button class="btn btn-primary btn-xl btn-cham btn-rc" id="openBtn">Открыть за ${casePrice(c, cost)}</button>` : `<a class="btn btn-primary btn-xl btn-cham btn-rc" href="#/profile">Не хватает ${casePrice(c, cost - (st.rcoin || 0))}</a>`;
   else if (st.balance >= cost) main = `<button class="btn btn-primary btn-xl btn-cham" id="openBtn">Открыть за ${prc(cost)}</button>`;
   else main = `<button class="btn btn-primary btn-xl btn-cham" data-act="deposit" data-need="${cost - st.balance}">${ic.wallet}Пополнить на ${money(cost - st.balance)}</button>`;
@@ -3389,6 +3649,7 @@ function ccIdle(c) {
   $('#fastChk').onchange = e => { st.fast = e.target.checked; save(); };
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
   const db = $('#demoBtn'); if (db) db.onclick = () => openCase(c, true);
+  const gb = $('#giftBtn'); if (gb) gb.onclick = () => { caseN = 1; openCase(c, false, true, true); };
 }
 /* купленный кейс «Собери сам» (#/case/b-<id>): уже оплачен — только «Открыть»; после открытия — купить такой же */
 function bcIdle(c) {
@@ -3416,11 +3677,12 @@ function rollDemo(c) {
   let r = Math.random() * sw; for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) return pool[i]; }
   return pool[0];
 }
-async function openCase(c, demo, ok) { // ok — подтверждено в окне CS2 CASE
+async function openCase(c, demo, ok, gift) { // ok — подтверждено в окне CS2 CASE; gift — бесплатный кейс по реферальной ссылке (ref_gift_open)
   if (spinning) return;
-  const c2 = c2On(c); if (c2) caseN = 1;
+  const c2 = c2On(c); if (c2 || gift) caseN = 1;
   const n = caseN, cost = c.price * n;
-  if (!demo) {
+  if (gift && (demo || refGiftCase !== c.id)) gift = false;
+  if (!demo && !gift) {
     if (c.disabled) return toast('Кейс временно закрыт администрацией', 'err');
     if (!st.user) return openAuth('login');
     if (c.rc) { if ((st.rcoin || 0) < cost) return toast(`Не хватает ${rc(cost - (st.rcoin || 0))} R-COIN — они начисляются за открытия кейсов`, 'err'); }
@@ -3432,8 +3694,9 @@ async function openCase(c, demo, ok) { // ok — подтверждено в о�
   else {
     // выпадение решает сервер: он же списывает деньги, выдаёт предметы, R-COIN и статистику
     spinning = true;
-    const r = c.bcid ? await srv('build_open', { p_id: c.bcid }) : await srv('open_case', { p_case: c.id, p_n: n });
+    const r = gift ? await srv('ref_gift_open', { p_case: c.id }) : c.bcid ? await srv('build_open', { p_id: c.bcid }) : await srv('open_case', { p_case: c.id, p_n: n });
     spinning = false;
+    if (gift && r) refGiftCase = null; // подарок открыт — кнопку «бесплатно» больше не показываем
     if (!r) return;
     wins = r.drops.map(d => SK[d.n]).filter(Boolean);
     if (wins.length !== n) return toast('Ошибка выдачи — обновите страницу', 'err');
@@ -3802,12 +4065,14 @@ function cs2Idle(c) {
   let main;
   if (c.disabled) main = `<button class="c2-btn" disabled>Кейс временно закрыт</button>`;
   else if (!st.user) main = `<button class="c2-btn" data-act="login">Войти и открыть</button>`;
+  else if (refGiftCase === c.id) main = `<button class="c2-btn rf-c2g" id="giftBtn">Открыть бесплатно<small>подарок</small></button>`;
   else if (st.balance >= c.price) main = `<button class="c2-btn" id="openBtn">Открыть кейс<small>${prc(c.price)}</small></button>`;
   else main = `<button class="c2-btn" data-act="deposit" data-need="${c.price - st.balance}">Пополнить на ${money(c.price - st.balance)}</button>`;
   // вместо «Демо» — «Правила» (просьба владельца, 08.11); слева — шкала гаранта; «Быстрого открытия» здесь нет (владелец, 08.11)
   cc.innerHTML = `${c.pity ? c2PityHtml(c) : ''}<span style="flex:1"></span>
     <a class="c2-btn c2-ghost" id="c2Back" href="#/cases">${ic.left}Все кейсы</a><button class="c2-btn c2-ghost" id="c2Rules">${C2_IC_RULES}Правила</button>${main}`; // «Все кейсы» — внизу рядом с «Правилами» (владелец 11.11)
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
+  const gb = $('#giftBtn'); if (gb) gb.onclick = () => openCase(c, false, true, true);
   $('#c2Rules').onclick = () => cs2Rules(c);
   $('#c2Back').onclick = () => { try { sessionStorage.setItem('rc.backTo', c.id); } catch (e) { /* */ } }; // витрина прокрутит к этому кейсу
   const pw = $('.c2-pity', cc); if (pw) pw.onclick = () => cs2Rules(c, 'pity');
@@ -5820,7 +6085,7 @@ async function sbLoadProfile(session) {
   if (p.is_admin) try { localStorage.setItem('rc.adm', '1'); } catch (e) { /* */ }
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
   renderUser(); route();
-  tutSync(); jpClaim(false); jpResolveMine(); claimGrants(); refClaim(); supInit(); supAdmInit();
+  tutSync(); jpClaim(false); jpResolveMine(); claimGrants(); refHello(); supInit(); supAdmInit();
   return true;
 }
 // начисления от администратора: забираем при входе, раз в 30 с и при возврате на вкладку
@@ -5924,7 +6189,7 @@ function sbInit() {
   loadCaseCfg().then(loadCustomCases).then(loadCaseSettings);
   sb.auth.getSession().then(({ data }) => {
     if (data.session) sbLoadProfile(data.session);
-    else if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); }
+    else { if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); } if (!stTok) refWelcome(); } // гость по реферальной ссылке — «Вас пригласил…»
   });
   sb.auth.onAuthStateChange((ev, session) => {
     // ссылка «новый пароль» из письма — только для команды (#/staff); игрока по почте не впускаем
@@ -6932,7 +7197,7 @@ const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
 const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash', 'build'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'promo', 'tours', 'staff'], 'globe']];
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['shop', 'Управление витриной'], ['news', 'Новости'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['ref', 'Рефералы'], ['shop', 'Управление витриной'], ['news', 'Новости'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -7407,6 +7672,88 @@ async function admStaff(box) {
   });
 }
 /* ---------- промокоды: создать (общий или персональный), % к пополнению или ₽ на баланс, срок, лимит активаций, вкл/выкл ---------- */
+/* ---------- админка: «Рефералы» (supabase/referral2.sql, только владелец): настройки, стримеры и их лимиты, подозрительные, топ, журнал ---------- */
+const REF_LOG = { bind: 'привязка', block: 'отказ: одно устройство/IP', case: 'открыл подарочный кейс', claim: 'забрал из кошелька', code: 'сменил код', freeze: 'кошелёк заморожен',
+  unfreeze: 'кошелёк разморожен', writeoff: 'списано из кошелька', partner: 'права стримера', earn: 'начислено с пополнения' };
+async function admRef(box) {
+  box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем…</div>';
+  const { data: A, error } = await sb.rpc('admin_ref');
+  if (!box.isConnected || admTab !== 'ref') return;
+  if (error || !A) return (box.innerHTML = admErr(error || { message: 'нет данных' }) + '<p class="ax-foot">Выполните supabase/referral2.sql.</p>');
+  const c = A.cfg, T = A.tot, pl = p => p ? plink(p.pid, esc(p.name)) + ` <i class="ax-tag">#${p.pid}</i>` : '—';
+  const who = r => plink(r.pid, esc(r.name)) + ` <i class="ax-tag">#${r.pid}</i>${r.code ? ` <small class="ax-mute">?ref=${esc(r.code)}</small>` : ''}`;
+  const wal = r => `${money(+r.bal)}${r.frozen ? ' <b class="neg">заморожен</b>' : ''}`;
+  const acts = r => `<span class="ax-acts">${r.frozen ? `<button class="ax-btn ax-sm" data-rw="unfreeze" data-pid="${r.pid}">Разморозить</button>` : `<button class="ax-btn ax-sm" data-rw="freeze" data-pid="${r.pid}">Заморозить</button>`}${+r.bal > 0 ? `<button class="ax-btn ax-sm" data-rw="writeoff" data-pid="${r.pid}">Списать</button>` : ''}</span>`;
+  const gift = p => [p.g_pct != null ? `+${+p.g_pct}%` : '', +p.g_bal ? money(+p.g_bal) : '', p.g_case ? 'кейс «' + esc(refCaseName(p.g_case)) + '»' : ''].filter(Boolean).join(' · ') || '—';
+  const chk = (id, on, t) => `<label class="ax-chk"><input type="checkbox" id="${id}"${on ? ' checked' : ''}> ${t}</label>`;
+  box.innerHTML = `<div class="ax-kpis">
+      ${axKpi('Приглашено', fmt(+T.friends), `пригласивших: ${fmt(+T.refs)}`)}${axKpi('Пополнили', fmt(+T.deps), `на ${money(+T.dep)}`)}
+      ${axKpi('Начислено пригласившим', money(+T.earned), `в кошельках: ${money(+T.bal)}`)}${axKpi('Забрано на баланс', money(+T.claimed))}
+      ${axKpi('Подарки друзьям', money(+T.gift_bal), `кейсов: ${fmt(+T.gift_case)} (открыто на ${money(+T.case_used)})`)}${axKpi('Отказов за 30 дней', fmt(+T.blocked), 'одно устройство / IP', +T.blocked ? 'neg' : '')}</div>
+    ${axCard('Настройки', `<div class="pr-form">
+      <label>Пригласившему, % от пополнений<input class="ax-inp" id="rcPct" type="number" min="0" max="50" step="0.5" value="${+c.pct}"></label>
+      <label>Другу, % к первому пополнению<input class="ax-inp" id="rcFp" type="number" min="0" max="200" step="1" value="${+c.friend_pct}"></label>
+      <label>Сколько дней действует (0 — навсегда)<input class="ax-inp" id="rcDays" type="number" min="0" max="3650" step="1" value="${+c.days}"></label>
+      <label>Забрать из кошелька — от, ₽<input class="ax-inp" id="rcMin" type="number" min="0" step="1" value="${+c.min_claim}"></label>
+      <label>Steam: аккаунту не меньше, дней<input class="ax-inp" id="rcSd" type="number" min="0" max="3650" step="1" value="${+c.steam_days}"></label>
+      <label>Steam: часов в CS2 не меньше<input class="ax-inp" id="rcCh" type="number" min="0" step="1" value="${+c.cs2_hours}"></label>
+      <div class="rf-axchk">${chk('rcOn', c.active, 'Программа включена')}${chk('rcIp', c.ip_check, 'Проверка устройства и IP')}${chk('rcSt', c.steam_check, 'Деньги/кейс — только «живым» Steam')}</div>
+      <button class="ax-btn pr-save" id="rcSave">Сохранить</button></div>
+      <p class="ax-foot">Проверка Steam работает, когда в Supabase задан секрет STEAM_API_KEY и обновлена функция steam-auth. Закрытый профиль Steam — без подарка деньгами и кейсом (% к пополнению остаётся).</p>`)}
+    ${axCard('Стримеры и партнёры', `<div class="pr-form" id="rpForm">
+      <label>ID игрока<input class="ax-inp" id="rpPid" placeholder="100123"></label>
+      <label>Личный % себе (пусто — общий)<input class="ax-inp" id="rpPct" type="number" min="0" max="50" step="0.5" placeholder="${+c.pct}"></label>
+      <label>Другу: % к пополнению, до<input class="ax-inp" id="rpMp" type="number" min="0" max="200" step="1" value="20"></label>
+      <label>Другу: ₽ на баланс, до<input class="ax-inp" id="rpMb" type="number" min="0" step="1" value="0"></label>
+      <label>Другу: кейс ценой до, ₽ (0 — нет)<input class="ax-inp" id="rpMc" type="number" min="0" step="1" value="0"></label>
+      <label>Подарков всего, до<input class="ax-inp" id="rpMg" type="number" min="0" step="1" value="100"></label>
+      <label>Код ссылки (необязательно)<input class="ax-inp" id="rpCode" placeholder="nickname" maxlength="16"></label>
+      <label>Заметка<input class="ax-inp" id="rpNote" placeholder="канал, договорённость"></label>
+      <button class="ax-btn pr-save" id="rpSave">${ic.plus}Сохранить</button></div>
+      <p class="ax-foot">Стример сам выбирает подарок в этих пределах на странице «Пригласить друзей». Подарки — за счёт сайта.</p>
+      ${axTable([['Стример', who], ['Себе', r => r.pct != null ? `<b>${+r.pct}%</b>` : `${+c.pct}% (общий)`],
+        ['Лимиты другу', r => `до +${+r.max_pct}% · до ${money(+r.max_bal)} · кейс до ${money(+r.max_case)}`], ['Выбрал', gift],
+        ['Подарков', r => `${fmt(+r.used)} из ${fmt(Math.min(+r.g_n, +r.max_gifts))}<small class="ax-mute" style="display:block">лимит ${fmt(+r.max_gifts)}</small>`, num],
+        ['Друзей', r => `${fmt(+r.friends)}<small class="ax-mute" style="display:block">пополнили ${fmt(+r.deps)}</small>`, num], ['Пополнения', r => money(+r.dep), num],
+        ['Начислено', r => money(+r.earned), num], ['Кошелёк', wal, num],
+        ['', r => `<span class="ax-acts"><button class="ax-btn ax-sm" data-rpe="${r.pid}">Изменить</button><button class="ax-btn ax-sm" data-rpd="${r.pid}">Убрать</button></span>${r.note ? `<small class="ax-mute" style="display:block">${esc(r.note)}</small>` : ''}`]], A.partners)}`)}
+    ${axCard('Подозрительные', axTable([['Пригласивший', who], ['Отказов (30 дн)', r => +r.blocked ? `<b class="neg">${fmt(+r.blocked)}</b>` : '0', num],
+        ['Друзья с одного устройства', r => +r.dev ? `<b class="neg">${fmt(+r.dev)}</b>` : '0', num], ['С общих IP', r => fmt(+r.ip), num],
+        ['Подарок без пополнения', r => fmt(+r.nodep), num], ['Друзей', r => fmt(+r.friends), num], ['Пополнения', r => money(+r.dep), num], ['Кошелёк', wal, num], ['', acts]], A.sus),
+      '<span class="ax-mute">общий IP бывает у соседей и мобильного интернета — смотрите вместе с остальным</span>')}
+    ${axCard('Топ пригласивших', axTable([['Игрок', who], ['Друзей', r => fmt(+r.friends), num], ['Пополнили', r => fmt(+r.deps), num], ['Пополнения друзей', r => money(+r.dep), num],
+        ['Начислено', r => money(+r.earned), num], ['Забрано', r => money(+r.claimed), num], ['Кошелёк', wal, num], ['', acts]], A.top))}
+    ${axCard('Журнал', axTable([['Когда', r => new Date(r.ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })],
+        ['Событие', r => REF_LOG[r.kind] || esc(r.kind)], ['Игрок', r => pl(r.u)], ['Пригласивший', r => pl(r.r)],
+        ['Сумма', r => +r.amount ? money(+r.amount) : '', num],
+        ['Подробно', r => { const i = r.info || {}; return r.kind === 'earn' ? `${+i.pct || ''}% от пополнения ${money(+i.dep || 0)}` : r.kind === 'bind' ? [+i.pct ? `+${+i.pct}%` : '', +i.bal ? money(+i.bal) : '', i.case ? 'кейс «' + esc(refCaseName(i.case)) + '»' : '', i.steam === false ? 'Steam не прошёл' : ''].filter(Boolean).join(' · ') : r.kind === 'block' ? ({ ip: 'тот же IP, что у пригласившего', sid: 'то же устройство, что у пригласившего', friend: 'устройство другого его друга' }[i.why] || '') : r.kind === 'code' ? `${esc(i.from || '')} → ${esc(i.to || '')}` : r.kind === 'case' ? esc(refCaseName(i.case || '')) : ''; }]], A.log.slice(0, 120)))}`;
+  const v = id => $('#' + id, box).value.trim();
+  const err = e => { const k = Object.keys(SRV_ERR).find(x => e.message.includes(x)); toast({ 'bad value': 'Проверьте числа', 'player not found': 'Игрок с таким ID не найден' }[['bad value', 'player not found'].find(x => e.message.includes(x))] || (k ? SRV_ERR[k] : 'Ошибка: ' + e.message), 'err'); };
+  $('#rcSave', box).onclick = async () => {
+    const { error } = await sb.rpc('admin_ref_cfg', { p: { pct: v('rcPct'), friend_pct: v('rcFp'), days: v('rcDays'), min_claim: v('rcMin'), steam_days: v('rcSd'), cs2_hours: v('rcCh'),
+      active: $('#rcOn', box).checked, ip_check: $('#rcIp', box).checked, steam_check: $('#rcSt', box).checked } });
+    if (error) return err(error); toast('Настройки рефералки сохранены'); admRef(box);
+  };
+  $('#rpSave', box).onclick = async () => {
+    const { data, error } = await sb.rpc('admin_ref_partner', { p: { pid: v('rpPid'), pct: v('rpPct'), max_pct: v('rpMp'), max_bal: v('rpMb'), max_case: v('rpMc'), max_gifts: v('rpMg'), code: v('rpCode'), note: v('rpNote'), active: true } });
+    if (error) return err(error); toast(`Права стримера: <b>${esc(data.name)}</b>`); admRef(box);
+  };
+  $$('[data-rpe]', box).forEach(b => b.onclick = () => {
+    const p = A.partners.find(x => String(x.pid) === b.dataset.rpe); if (!p) return;
+    const set = (id, val) => { $('#' + id, box).value = val == null ? '' : val; };
+    set('rpPid', p.pid); set('rpPct', p.pct); set('rpMp', +p.max_pct); set('rpMb', +p.max_bal); set('rpMc', +p.max_case); set('rpMg', +p.max_gifts); set('rpCode', p.code || ''); set('rpNote', p.note || '');
+    $('#rpForm', box).scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  $$('[data-rpd]', box).forEach(b => b.onclick = async () => {
+    if (!confirm('Убрать права стримера? Уже выданные подарки останутся.')) return;
+    const { error } = await sb.rpc('admin_ref_partner_del', { p_pid: +b.dataset.rpd }); if (error) return err(error); admRef(box);
+  });
+  $$('[data-rw]', box).forEach(b => b.onclick = async () => {
+    if (b.dataset.rw === 'writeoff' && !confirm('Списать всё из реферального кошелька игрока? Отменить нельзя.')) return;
+    const { error } = await sb.rpc('admin_ref_wallet', { p_pid: +b.dataset.pid, p_act: b.dataset.rw }); if (error) return err(error);
+    toast({ freeze: 'Кошелёк заморожен', unfreeze: 'Кошелёк разморожен', writeoff: 'Кошелёк обнулён' }[b.dataset.rw]); admRef(box);
+  });
+}
 async function admPromo(box) {
   box.innerHTML = `<section class="ax-card"><header class="ax-ch"><h3>Новый промокод</h3><span class="ax-mute">тот же код — изменить существующий</span></header>
     <div class="pr-form">
@@ -7469,6 +7816,7 @@ function admDraw() {
   if (admTab === 'news') return admNews(box);
   if (admTab === 'support') return admSupport(box);
   if (admTab === 'promo') return admPromo(box);
+  if (admTab === 'ref') return admRef(box);
   if (admTab === 'build') return admBuild(box);
   if (admTab === 'tower') return admTower(box);
   admTabData(box, R[admTab] || axDash);
@@ -10297,7 +10645,7 @@ function tutPlace(anim) {
   else ar.style.top = Math.max(22, Math.min(ch - 22, y + h / 2 - cy)) + 'px', ar.style.left = '';
 }
 const ROUTES = {
-  '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, null], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
+  '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, mountInvite], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, null], privacy: [pagePrivacy, null], payment: [pagePayment, null], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer],
   staff: [pageStaff, mountStaff], // вход для админов и сотрудников по почте (ссылок на неё нет)
@@ -10325,6 +10673,7 @@ function route() {
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
   document.body.classList.toggle('pg-home', key === '' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite' || key === 'profile' || key === 'upgrade');
   document.body.classList.toggle('pg-upgrade', key === 'upgrade'); // апгрейд — фон владельца 12.11 (ночные руины, assets/bg-upgrade.webp), слегка размыт
+  document.body.classList.toggle('pg-invite', key === 'invite'); // «Пригласить друзей» — размытый снимок главного экрана, как профиль
   document.body.classList.toggle('pg-profile', key === 'profile'); // профиль — размытый снимок главного экрана (assets/bg-home.webp), как на образце владельца 12.11 // «Крот», «Пригласить друзей» — тот же новый фон, что у «Кейсов» // главный экран и витрина кейсов — свой фон (assets/bg-home.webp)
   document.body.classList.toggle('pg-main', key === ''); // на главном экране тот же снимок, но чёткий (assets/bg-main.webp)
   document.body.classList.toggle('pg-cases', key === 'cases');
