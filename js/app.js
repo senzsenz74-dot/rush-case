@@ -792,6 +792,38 @@ const CASES = [
     ],
   },
   {
+    // «ВСЕМИРНАЯ ЭЛИТА» (15.11.2026, владелец): 3D-кейс из Blender (ветка blender: blender/scenes/case-elite.blend → assets/cs2case/case-elite.glb,
+    // выгрузка blender/scripts/case_export_glb_elite.py; знак — case_elite_emblem.py, лавры на корпусе — case_elite_laurels.py), сцена как у MAJOR
+    id: 'elite', name: 'ВСЕМИРНАЯ ЭЛИТА', price: 999, tag: 'Новый', tagIc: 'star', rtp: 0.8, ui: 'cs2',
+    pity: true, // гарант 75/150, как у MAJOR (владелец 15.11); шансы пересчитаны с гарантом (pityEv) — окупаемость 80%
+    c2glb: 'case-elite.glb', c2p: { sun: 8.4, env: .58, exposure: 1.01, contrast: 1.12, saturate: 1.6, shadow: 1, fill: 2, dust: 6 }, // свет сцены — как у MAJOR (настройки владельца)
+    sub: 'Ивентовый кейс с гарантом: скины про-игроков, 43 позиции от 230 ₽. 75-е открытие подряд — шанс на «Засекреченное», 150-е — точно «Засекреченное» или нож/перчатки. Про-скины — USP-S Printstream, M4A1-S Player Two, AK-47 Nightwish. Джекпоты — бабочки Doppler, Karambit Lore, Золотая арабеска, Dragon Lore, Gungnir',
+    th: { a: '#4aa3ff' }, img: 'assets/case-elite.webp', // рендер 3D-модели (чёрный глянец, золото, синий глобус, лавры)
+    exact: [
+      // дешёвые, до цены кейса (от 230 ₽)
+      ['AWP | Duality', 'FT', 0.06], ['AWP | Mortis', 'FT', 0.06], ['M4A1-S | Black Lotus', 'FT', 0.06],
+      ['AK-47 | Ледяной уголь', 'FT', 0.06], ['AWP | Duality', 'MW', 0.06], ['AK-47 | Phantom Disruptor', 'FT', 0.06],
+      ['M4A1-S | Black Lotus', 'MW', 0.06], ['AK-47 | Ледяной уголь', 'MW', 0.06], ['AK-47 | Phantom Disruptor', 'MW', 0.06],
+      ['M4A1-S | Leaded Glass', 'FT', 0.06],
+      // около цены и дешёвые «Засекреченные» (их же даёт гарант)
+      ['AWP | Mortis', 'FN', 0.03], ['M4A1-S | Leaded Glass', 'MW', 0.03], ['M4A1-S | Black Lotus', 'FN', 0.03],
+      ['AK-47 | Ледяной уголь', 'FN', 0.03], ['AK-47 | Phantom Disruptor', 'FN', 0.03], ['AWP | Chromatic Aberration', 'BS', 0.03],
+      ['USP-S | The Traitor', 'BS', 0.03], ['Glock-18 | Неонуар', 'BS', 0.03], ['M4A4 | Temukau', 'BS', 0.03],
+      ['AK-47 | Head Shot', 'BS', 0.03],
+      // скины про-игроков
+      ['AK-47 | Head Shot', 'FT', 0.008], ['USP-S | Printstream', 'FT', 0.008], ['AWP | Wildfire', 'FT', 0.008],
+      ['AWP | Неонуар', 'FT', 0.008], ['M4A1-S | Player Two', 'FT', 0.008], ['AWP | Containment Breach', 'FT', 0.008],
+      ['Desert Eagle | Ocean Drive', 'FT', 0.008], ['AK-47 | Nightwish', 'FT', 0.008],
+      // дорогие
+      ['Glock-18 | Gamma Doppler', 'FT', 0.002], ['USP-S | Printstream', 'FN', 0.002], ['USP-S | Неонуар', 'FT', 0.002],
+      ['AK-47 | Императрица', 'FT', 0.002], ['AWP | Азимов', 'FT', 0.002], ['AK-47 | Leet Museo', 'FT', 0.002],
+      // джекпоты — перчатки, ножи, легенды (Золотая арабеска, Dragon Lore, Gungnir)
+      ['★ Specialist Gloves | Marble Fade', 'FT', 0.0002], ['★ Specialist Gloves | Fade', 'FT', 0.0002], ['★ Karambit | Lore', 'FT', 0.0002],
+      ['AK-47 | Золотая арабеска', 'FT', 0.0002], ['★ Butterfly Knife | Gamma Doppler', 'FN', 0.0002], ['★ Butterfly Knife | Doppler', 'FN', 0.0002],
+      ["★ Sport Gloves | Pandora's Box", "FT", 0.0002], ['AWP | История о драконе', 'FT', 0.0002], ['AWP | Gungnir', 'FT', 0.0002],
+    ],
+  },
+  {
     id: 'rushb', name: 'RUSH B', price: 249, tag: 'Мемный', tagIc: 'bolt', rtp: 0.8,
     sub: 'GO GO GO!!! 45 граффити-скинов в красно-оранжевом стиле от 25 ₽ до 85 тыс., ~23% открытий окупаются. Джекпоты — Karambit | Slaughter, Autotronic и Crimson Web',
     th: { a: '#ea580c' }, img: 'assets/case-rushb.webp',
@@ -1687,7 +1719,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-major2.webp':1.5101,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
+const CASE_AR = {'assets/case-elite.webp':1.5101,'assets/case-major2.webp':1.5101,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
 // картинки из админки (хранилище Supabase) весят 2–3 МБ: для уже загруженных — лёгкие копии в assets/cc (900 px и 440 px для витрины);
 // новые загрузки админка сама сжимает в *.opt.webp + *.opt-s.webp (admImgPack). Неизвестная картинка — как есть.
@@ -2303,7 +2335,7 @@ const casePrice = (c, v) => c.rc ? `<span class="prc prc-rc">${rc(v)}<i class="p
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
-  { id: 'bmw5dfjvu', wm: 'NEW', t: 'CS2 CASE', sub: '', ic: 'star', a: '#f3c14f', ids: ['cs2', 'major'] },
+  { id: 'bmw5dfjvu', wm: 'NEW', t: 'CS2 CASE', sub: '', ic: 'star', a: '#f3c14f', ids: ['cs2', 'major', 'elite'] },
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
   { id: 'guns', wm: 'GUNS', t: 'Оружейные кейсы', sub: 'Кейс одного оружия — все его скины, от ширпа до легенд', ic: 'trophy', a: '#22d3ee', ids: ['awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps'] },
@@ -2318,7 +2350,7 @@ const CASE_BLOCKS = [
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
+const NEW_CASES = ['elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
 /* раздел, порядок и метки кейса: по умолчанию — из кода (CASE_BLOCKS, NEW_CASES, HOME_POP); админ-панель может поменять (site_cfg) */
 const DEF_BLOCK = {}, DEF_ORD = {};
 CASE_BLOCKS.forEach(b => b.ids.forEach((id, i) => { DEF_BLOCK[id] = b.id; DEF_ORD[id] = i; }));
@@ -2859,7 +2891,7 @@ function mountNews(id) {
    справа выезжает кейс), дальше остальные разделы. Над блоками строка вкладок (не уезжает при прокрутке), поиск, цена, «По балансу».
    Плитка: серая картинка, под ней тёмная полоса с названием и ценой (цена — числом и значком баланса). */
 const IX_NEW_MAX = 10;                       // «Новые кейсы» — не больше двух рядов
-const IX_SPEC_CASES = ['cs2', 'major'];               // особые кейсы (кроме раздела «Всё или ничего»); они же первыми в «Новых»
+const IX_SPEC_CASES = ['cs2', 'major', 'elite'];               // особые кейсы (кроме раздела «Всё или ничего»); они же первыми в «Новых»
 const IX_SPEC_BLOCK = 'allin', IX_AUTH_BLOCK = 'pro';
 const IX_RC = { common: '#b0c3d9', uncommon: '#5e98d9', milspec: '#4b69ff', restricted: '#8847ff', classified: '#d32ce6', covert: '#eb4b4b', rare: '#e4ae39' };
 const ixTab = b => String(b.t || '').replace(/\s+кейс(ы|ов)$/i, '') || b.t; // «Оружейные кейсы» → «Оружейные»
