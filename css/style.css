@@ -4984,8 +4984,7 @@ body.pg-contracts .dos{max-width:1120px}
 .c2-rl.c2-close{--lr:0px;transition-duration:.3s;transition-timing-function:ease-in}
 .c2-case{position:absolute;left:50%;top:var(--cy);height:min(48%,390px);aspect-ratio:1.18;transform:translate(-50%,-50%);transition:transform .6s cubic-bezier(.5,0,.2,1),opacity .5s,filter .5s}
 .c2-case .case-art{width:100%;height:100%}
-.c2-case .ca-img{filter:drop-shadow(0 30px 40px rgba(0,0,0,.65));animation:c2float 5s ease-in-out infinite}
-@keyframes c2float{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-50%,calc(-50% - 10px)) rotate(-1deg)}}
+.c2-case .ca-img{filter:drop-shadow(0 30px 40px rgba(0,0,0,.65))} /* без покачивания — владелец 15.11 */
 .c2-rl.unlocking .c2-case .ca-img{animation:lockShake .85s cubic-bezier(.36,.07,.19,.97) both}
 .c2-rl.spinning .c2-case,.c2-rl.revealed .c2-case{opacity:.18;filter:blur(10px);transform:translate(-50%,-50%) scale(1.15)}
 /* лента: снаружи лупы — размыта и темнее, в лупе — крупно и чётко */
