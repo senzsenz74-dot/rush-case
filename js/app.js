@@ -5301,7 +5301,6 @@ const bonusReady = () => (st.user && !dailyLeft() ? 1 : 0) + SOCIALS.filter(x =>
 /* ---------- еженедельный набор (supabase/weekly_drop.sql): каждую среду 4 скина на выбор, забрать один; нужно 20 кейсов за неделю ---------- */
 const WK_ART = '<img src="assets/cs2case/care_package.svg" alt="">';
 const wkLeft = ms => { const m = Math.max(0, Math.ceil(ms / 6e4)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60); return d ? d + ' д ' + h + ' ч' : h ? h + ' ч ' + (m % 60) + ' мин' : m + ' мин'; };
-const wkCases = n => n % 10 === 1 && n % 100 !== 11 ? 'кейс' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'кейса' : 'кейсов';
 var wkS = null, wkAutoBusy = false; // состояние набора для значка в шапке
 async function wkLoad() { if (!sb || !st.user || !st.user.sb) return null; const { data, error } = await sb.rpc('weekly_status'); if (error) return null; wkS = data; wkHeadDraw(); return data; }
 const wkIsReady = () => !!(st.user && wkS && !wkS.got && wkS.opened >= wkS.need);
@@ -5322,42 +5321,58 @@ async function wkAuto(key) {
     openWeekly(d);
   } finally { wkAutoBusy = false; }
 }
+// окно набора и карточка на «Бонусах» — один вид (владелец 16.11, по образцу карточки): те же плитки, лента, тексты и кнопка
+const wkTxt = d => {
+  const wait = wkLeft(d.next - d.now), ready = !d.got && d.opened >= d.need;
+  return { ready, open: ready || !!d.got,
+    rib: d.got ? 'Награда получена' : ready ? 'Набор готов' : 'Разблокируй награды',
+    p: d.got ? 'Новый набор через ' + wait + '.' : ready ? 'Выберите 1 скин из 4 — он сразу попадёт в инвентарь. Набор обновится через ' + wait + '.' : 'Откройте кейсы от 50 ₽: ' + d.opened + ' из ' + d.need + ' за неделю. Набор обновится через ' + wait + '.',
+    prog: d.got || ready ? '' : '<i style="width:' + Math.min(100, d.opened / d.need * 100).toFixed(1) + '%"></i>' };
+};
+// плитка: набор закрыт — «?», открыт — скин; «i» в углу — подсказка (название, износ, редкость, цена); btn — плитку можно выбрать
+const wkTile = (o, open, on, off, btn) => {
+  const s = SK[o.n]; if (!open || !s) return '<i class="bw-c"><b>?</b></i>';
+  const m = / \(([^)]+)\)$/.exec(s.name), title = m ? s.name.slice(0, m.index) : s.name, R = RAR[s.r], cls = 'bw-c r-' + s.r + (on ? ' on' : '') + (off ? ' off' : '');
+  const tip = '<span class="bw-tip" role="tooltip"><span class="bw-tn">' + esc(title) + '</span>' + (m ? '<span>' + esc(m[1]) + '</span>' : '') + (R ? '<span class="bw-tr">' + esc(R.n) + '</span>' : '') + prc(o.p) + '</span>';
+  const inner = '<img src="' + imgUrl(s, 'm') + '" alt=""><span class="bw-i" aria-hidden="true">i</span>' + tip;
+  return btn ? '<button class="' + cls + '" type="button" data-n="' + esc(o.n) + '" aria-label="' + esc(s.name + ' — ' + money(o.p)) + '">' + inner + '</button>' : '<i class="' + cls + '">' + inner + '</i>';
+};
 async function wkCardDraw() {
   const L = $('#wkCardL'); if (!L) return;
   const go = $('#wkOpen'), rib = $('#wkRib'), p = $('#wkCardP'), pr = $('#wkProg');
-  const ribT = t => { rib.innerHTML = WK_ART + t; };
   if (!st.user) { go.textContent = 'Войти и участвовать'; go.disabled = false; go.onclick = () => openAuth('login'); return; }
   const d = await wkLoad(); if (!d || !$('#wkCardL')) return;
-  const wait = wkLeft(d.next - d.now), ready = !d.got && d.opened >= d.need, open = ready || d.got;
-  // пока набор закрыт — четыре «?», открыт — сами скины (выбранный подсвечен)
-  L.innerHTML = d.offers.map(o => { const k = SK[o.n]; return open && k ? '<i class="bw-c r-' + k.r + (d.got && d.got !== o.n ? ' off' : '') + (d.got === o.n ? ' on' : '') + '"><img src="' + imgUrl(k, 'm') + '" alt=""></i>' : '<i class="bw-c"><b>?</b></i>'; }).join('');
-  ribT(d.got ? 'Награда получена' : ready ? 'Набор готов' : 'Разблокируй награды');
-  p.textContent = d.got ? 'Новый набор через ' + wait + '.' : ready ? 'Выберите 1 скин из 4 — он сразу попадёт в инвентарь. Набор обновится через ' + wait + '.' : 'Откройте кейсы от 50 ₽: ' + d.opened + ' из ' + d.need + ' за неделю. Набор обновится через ' + wait + '.';
-  pr.innerHTML = d.got || ready ? '' : '<i style="width:' + Math.min(100, d.opened / d.need * 100).toFixed(1) + '%"></i>';
+  const t = wkTxt(d);
+  L.innerHTML = d.offers.map(o => wkTile(o, t.open, d.got === o.n, d.got && d.got !== o.n)).join('');
+  rib.innerHTML = WK_ART + esc(t.rib); p.textContent = t.p; pr.innerHTML = t.prog;
   go.disabled = !!d.got;
-  go.textContent = d.got ? 'Награда получена' : ready ? 'Выбрать награду' : 'Открыть кейсы';
-  go.onclick = () => d.got ? null : ready ? openWeekly(d) : (location.hash = '#/cases');
+  go.textContent = d.got ? 'Награда получена' : t.ready ? 'Выбрать награду' : 'Открыть кейсы';
+  go.onclick = () => d.got ? null : t.ready ? openWeekly(d) : (location.hash = '#/cases');
 }
-const wkItem = (o, pick, got) => { const s = SK[o.n]; if (!s) return ''; const on = got ? got === o.n : pick === o.n, m = / \(([^)]+)\)$/.exec(s.name), title = m ? s.name.slice(0, m.index) : s.name;
-  return '<button class="wk-it r-' + s.r + (on ? ' on' : '') + '" data-n="' + esc(o.n) + '"' + (got ? ' disabled' : '') + '><i class="wk-rb"></i>' + (got ? '' : '<em class="wk-new">Новое!</em>') + '<span class="wk-img"><img src="' + imgUrl(s, 'm') + '" alt=""></span><b class="wk-name">' + esc(title) + '</b><small class="wk-sm">' + (m ? esc(m[1]) + ' · ' : '') + money(o.p) + '</small><span class="wk-f"><span>' + (got === o.n ? 'Получено' : 'Бесплатно') + '</span><i title="' + esc(s.name + ' — ' + money(o.p)) + '">i</i></span></button>'; };
 async function openWeekly(pre) {
   if (!st.user) return openAuth('reg');
   const d = pre || await wkLoad(); if (!d) return toast('Набор сейчас недоступен — попробуйте позже', 'err');
   let pick = null, busy = false, hov = '';
-  const box = modal('<div class="wk" id="wkBox"></div>', 'm-wk');
+  const box = modal('<article class="bw bw-pop" id="wkBox"></article>', 'm-wk');
   Snd.wkOpen();
   const draw = () => {
     const el = $('#wkBox'); if (!el) return;
-    const left = Math.max(0, d.need - d.opened), label = d.got ? 'Награда получена' : left ? 'Откройте ещё ' + left + ' ' + wkCases(left) : pick ? 'Получить награду' : 'Выберите награду';
-    el.innerHTML = '<div class="wk-l">' + d.offers.map(o => wkItem(o, pick, d.got)).join('') + '</div><div class="wk-r"><i class="wk-art">' + WK_ART + '</i><h2>Еженедельный набор</h2><p class="wk-sub">' + (d.got ? 'Награда получена' : 'Выберите <b>1</b> награду') + '</p><p class="wk-txt">Эту награду можно получить до следующего обновления еженедельных наград — в среду, через ' + wkLeft(d.next - d.now) + '.</p>' + (d.got ? '' : '<div class="wk-prog"><span>Открыто кейсов от 50 ₽</span><b>' + Math.min(d.opened, d.need) + ' / ' + d.need + '</b></div>') + '<button class="wk-go" ' + (d.got || left || !pick || busy ? 'disabled' : '') + '>' + label + '</button><button class="wk-x">Закрыть</button></div>';
+    const t = wkTxt(d), sel = d.got || pick, can = t.ready && !busy;
+    const label = d.got ? 'Награда получена' : !t.ready ? 'Открыть кейсы' : busy ? 'Получаем…' : pick ? 'Получить награду' : 'Выберите награду';
+    el.innerHTML = '<i class="bw-crate" aria-hidden="true">' + WK_ART + '</i><div class="bw-cards">' + d.offers.map(o => wkTile(o, t.open, sel === o.n, d.got && d.got !== o.n, can)).join('') + '</div>'
+      + '<div class="bw-r"><h3>Еженедельный набор</h3><span class="bw-rib">' + WK_ART + esc(t.rib) + '</span><p>' + esc(t.p) + '</p><div class="bw-prog">' + t.prog + '</div>'
+      + '<button class="bw-go" type="button"' + (d.got || busy || (t.ready && !pick) ? ' disabled' : '') + '>' + label + '</button></div><button class="bw-x" type="button">Закрыть</button>';
   };
   draw();
-  box.addEventListener('pointerover', e => { const t = e.target.closest('.wk-it:not(:disabled),.wk-go:not(:disabled),.wk-x'), k = t ? t.dataset.n || t.className : ''; if (k && k !== hov) Snd.wkHover(); hov = k; });
+  box.addEventListener('pointerover', e => { const t = e.target.closest('button.bw-c,.bw-go:not(:disabled),.bw-x'), k = t ? t.dataset.n || t.className : ''; if (k && k !== hov) Snd.wkHover(); hov = k; });
   box.addEventListener('click', async e => {
-    if (e.target.closest('.wk-x')) { Snd.wkClose(); return closeModal(); }
-    const it = e.target.closest('.wk-it');
-    if (it && !d.got && !busy) { pick = it.dataset.n; Snd.wkPick(); draw(); return; }
-    if (!e.target.closest('.wk-go') || !pick || d.got || busy || d.opened < d.need) return;
+    if (e.target.closest('.bw-x')) { Snd.wkClose(); return closeModal(); }
+    if (e.target.closest('.bw-i') || d.got || busy) return; // «i» — только подсказка
+    const it = e.target.closest('button.bw-c');
+    if (it) { pick = it.dataset.n; Snd.wkPick(); draw(); return; }
+    if (!e.target.closest('.bw-go')) return;
+    if (d.opened < d.need) { closeModal(); location.hash = '#/cases'; return; }
+    if (!pick) return;
     busy = true; draw();
     const r = await srv('weekly_claim', { p_n: pick });
     busy = false;
