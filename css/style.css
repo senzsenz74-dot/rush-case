@@ -7214,3 +7214,59 @@ body:has(.ntc-ov) .ck{opacity:0;pointer-events:none}
 .at-ntc:hover{background:rgba(132,217,253,.18);color:#fff}
 .at-ntc svg{width:15px;height:15px}
 @media (max-width:1180px){.at-r{grid-template-columns:1fr 1fr}.at-acts{justify-content:flex-start}}
+
+/* ===== CS2 CASE: сцена «кабинет детектива» (Тайное и ножи, ПК) — c2Cutscene ===== */
+.c2d{position:absolute;inset:0;z-index:30;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;background:#07080a;opacity:0;transition:opacity .5s ease;cursor:none}
+.c2d.on{opacity:1}
+.c2d-foil,.c2d-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.c2d-foil{filter:brightness(.84) sepia(.14) drop-shadow(0 2px 1.5px rgba(0,0,0,.42));transition:opacity .9s ease .1s,filter .9s}
+.c2d-foil.gone{opacity:0;filter:brightness(.84) sepia(.14) blur(3px)}
+.c2d.used .c2d-hint{opacity:0}
+.c2d video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.c2d-np{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;will-change:transform}
+.c2d-ink{position:absolute;inset:0;box-sizing:border-box;padding:34px 46px;color:#1b1814;mix-blend-mode:multiply;}
+.c2d-ink header{text-align:center}
+.c2d-ink h2{margin:0;font:700 76px/1 Georgia,'Times New Roman',serif;letter-spacing:.02em;text-transform:uppercase}
+.c2d-ink header p{display:flex;justify-content:center;gap:34px;margin:12px 0 0;padding:6px 0;border-top:3px solid #1b1814;border-bottom:1px solid #1b1814;font:500 17px/1 'Oswald',var(--ff);letter-spacing:.08em;text-transform:uppercase}
+.c2d-ban{margin:16px 0 22px;padding:9px 0;background:#b0231c;color:#fff;text-align:center;font:500 36px/1.05 'Oswald',var(--ff);letter-spacing:.04em;text-transform:uppercase}
+.c2d-cols{display:grid;grid-template-columns:1fr 1fr;gap:58px}
+.c2d-ink figure{margin:0}
+.c2d-ph{display:grid;place-items:center;height:300px;border:3px solid #1b1814;background:#d6cfbf}
+.c2d-ph img{width:92%;height:88%;object-fit:contain;filter:grayscale(.55) sepia(.25) contrast(1.15)}
+.c2d-ink figcaption{margin-top:8px;font:italic 17px/1.3 Georgia,serif}
+.c2d-ink article{position:relative}
+.c2d-ink article small{display:block;font:500 18px/1 'Oswald',var(--ff);letter-spacing:.12em;text-transform:uppercase;color:#a01d17}
+.c2d-ink h3{margin:0;font:500 58px/1 'Oswald',var(--ff);text-transform:uppercase}
+.c2d-ink h4{margin:4px 0 12px;font:italic 700 32px/1.1 Georgia,serif}
+.c2d-price{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:20px 0 16px;padding:10px 14px;border:3px solid #1b1814}
+.c2d-price>span{font:500 16px/1 'Oswald',var(--ff);letter-spacing:.1em;text-transform:uppercase}
+.c2d-price b{font:500 42px/1 'Oswald',var(--ff)}
+.c2d-ink article p{margin:0;font:19px/1.38 Georgia,'Times New Roman',serif;text-align:justify;hyphens:auto}
+.c2d-hint{font:500 14px/1 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase}
+.c2d-hint{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);padding:10px 18px;border-radius:3px;color:#84d9fd;background:rgba(12,14,18,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);pointer-events:none;transition:opacity .4s}
+.c2d.ok .c2d-hint{opacity:0}
+.c2d.r-rare .c2d-ink article small{color:#7d520c}
+.c2d-coin{position:absolute;left:-17px;top:-17px;width:34px;height:34px;pointer-events:none;z-index:3;filter:drop-shadow(0 4px 5px rgba(0,0,0,.55));transition:opacity .15s,scale .12s,rotate .12s;will-change:translate}
+.c2d-coin svg{display:block;width:100%;height:100%}
+.c2d.press .c2d-coin{scale:.92;rotate:-20deg}
+.c2d.out .c2d-coin,.c2d.on-btn .c2d-coin,.c2d.ok .c2d-coin{opacity:0}
+.c2d.ok{cursor:default}
+.c2d.ok.on-btn{cursor:pointer}
+/* газета старая: печать местами стёрта (маска из шума), пятна, кольцо от кружки, сгиб */
+.c2d-ink{-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.045' numOctaves='5' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -3.4 2.85'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") 0 0/560px 400px repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.045' numOctaves='5' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -3.4 2.85'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") 0 0/560px 400px repeat}
+.c2d-ink::after{content:"";position:absolute;inset:0;pointer-events:none;background:
+  radial-gradient(circle at 84% 86%,transparent 50px,rgba(110,70,30,.22) 53px,rgba(110,70,30,.1) 57px,transparent 61px),
+  radial-gradient(ellipse 160px 110px at 12% 92%,rgba(120,85,40,.16),transparent 70%),
+  radial-gradient(ellipse 220px 140px at 70% 18%,rgba(120,85,40,.1),transparent 70%),
+  radial-gradient(ellipse 120px 90px at 38% 60%,rgba(120,85,40,.08),transparent 70%),
+  linear-gradient(90deg,transparent 49.4%,rgba(60,45,25,.16) 50%,transparent 50.6%)}
+.c2d-ph{position:relative}
+.c2d-stamp{position:absolute;right:14px;bottom:18px;padding:5px 14px;border:4px solid #b0231c;border-radius:3px;color:#b0231c;font:500 32px/1 'Oswald',var(--ff);font-style:normal;letter-spacing:.08em;text-transform:uppercase;transform:rotate(-9deg);opacity:.8}
+.c2d-acts{display:flex;gap:16px;margin-top:22px}
+.c2d-btn{display:inline-flex;align-items:center;justify-content:center;min-width:200px;height:60px;padding:0 22px;box-sizing:border-box;border:3px solid #1b1814;border-radius:3px;font:500 26px/1 'Oswald',var(--ff);letter-spacing:.1em;text-transform:uppercase;transition:background .15s,color .15s,border-color .15s}
+.c2d-btn.hov{background:#1b1814;color:#fff}
+.c2d-take{background:#2f7a3a;border-color:#2f7a3a;color:#fff}
+.c2d-take.hov{background:#1d5a27;border-color:#1d5a27}
+.c2d-ink article{padding-top:6px}.c2d-ink article small{font-size:22px}.c2d-ink article .c2d-price{margin-top:26px}.c2d-ink article p{margin-top:6px}
+.c2d-ink article .c2d-price{flex-direction:column;align-items:flex-start;gap:10px;padding:16px 20px 18px;border-width:4px}.c2d-ink article .c2d-price>span{font-size:24px;letter-spacing:.14em}.c2d-ink article .c2d-price b{font-size:78px}
+.c2d-ink article .c2d-price b{font-size:92px;white-space:nowrap}.c2d-ink article .c2d-price.c2d-long b{font-size:72px}.c2d-ink article .c2d-price>span{font-size:26px}

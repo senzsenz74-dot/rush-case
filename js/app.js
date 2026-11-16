@@ -4265,7 +4265,7 @@ async function c2Wind(on) {
    (кадр 15 анимации DROP = 0,47 с), поэтому звук стартует через 0,19 с после начала падения */
 function c2FallSnd() { setTimeout(() => Snd.playCtl(C2S.fall, C2S.vol), C2S.fallDelay * 1000); }
 /* сцена получения особого дропа — В ПЛАНАХ (владелец, 07.11): если выпал засекреченный (Тайное) или редкий предмет, рулетка
-   в какой-то момент прерывается и проигрывается своя сцена. Пока заглушка: ничего не делает, рулетка идёт как обычно.
+   в какой-то момент прерывается и проигрывается своя сцена. С 16.11 на ПК — «кабинет детектива» с газетой (c2Cutscene).
    В панели под кейсом эти предметы поэтому скрыты: «ЗАСЕКРЕЧЕНО» и «★ Редкий предмет» — только количество, без картинок,
    цен и списка по нажатию. */
 const c2Special = w => w && (w.r === 'covert' || w.r === 'rare');
@@ -4375,7 +4375,192 @@ function c2Fact(on) { // on: 'load' — заранее подгрузить, tru
   if (on === true) { p.classList.add('c2-fact'); v.currentTime = 0; const pr = v.play(); if (pr) pr.catch(() => {}); }
   if (!on) { p.classList.remove('c2-fact'); v.pause(); }
 }
-async function c2Cutscene(w) { /* сюда — сцена получения дропа w */ }
+/* сцена «кабинет детектива» для Тайного и ножей (владелец 16.11), только ПК: бесшовная видео-петля 4 с (Blender), на столе — пустая
+   газета-разворот; сведения о дропе печатаются на ней (перспектива по 4 углам из detective-news.json, кадр в кадр с видео).
+   Газета закрыта защитным слоем, как лотерейный билет: стирается монеткой (зажатая мышь); стёрто по половине слева и справа — кнопки «Осмотреть» (цех + 3D)
+   и «Забрать». Возвращает 'look' | 'take' | 'gone' (страницу закрыли). */
+const C2DET = { mp4: 'assets/cs2case/detective-news.mp4?v=1', poster: 'assets/cs2case/detective-news.webp?v=1', json: 'assets/cs2case/detective-news.json?v=1', W: 1120, H: 800 };
+let c2DetData = null;
+// монетка-курсор для стирания: золото, рифлёный гурт, выпуклая корона
+const C2COIN = `<svg viewBox="0 0 64 64"><defs>
+  <radialGradient id="c2dcg" cx=".34" cy=".28" r=".85"><stop offset="0" stop-color="#fff4c8"/><stop offset=".3" stop-color="#ebc25c"/><stop offset=".7" stop-color="#b17b20"/><stop offset="1" stop-color="#6a450e"/></radialGradient>
+  <linearGradient id="c2dcf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6d985"/><stop offset=".45" stop-color="#d6a23c"/><stop offset="1" stop-color="#94621a"/></linearGradient></defs>
+  <circle cx="32" cy="32" r="31" fill="url(#c2dcg)"/><circle cx="32" cy="32" r="29.6" fill="none" stroke="#7b5212" stroke-width="2.6" stroke-dasharray="1.1 1.25" opacity=".85"/>
+  <circle cx="32" cy="32" r="25.5" fill="url(#c2dcf)" stroke="#fff0c0" stroke-opacity=".55" stroke-width="1.1"/><circle cx="32" cy="32" r="22.5" fill="none" stroke="#7b5212" stroke-opacity=".45"/>
+  <g transform="translate(.8 .9)" fill="#fff3c9" opacity=".55"><path d="M19 38 17 25l7.5 6.5L32 20l7.5 11.5L47 25l-2 13Z"/><rect x="19" y="39.5" width="26" height="4.5" rx="1"/></g>
+  <g fill="#82560f"><path d="M19 38 17 25l7.5 6.5L32 20l7.5 11.5L47 25l-2 13Z"/><rect x="19" y="39.5" width="26" height="4.5" rx="1"/><circle cx="17" cy="23.6" r="2.2"/><circle cx="32" cy="18.4" r="2.3"/><circle cx="47" cy="23.6" r="2.2"/></g>
+  <g fill="#e9bf5c"><circle cx="26" cy="35" r="1.3"/><circle cx="32" cy="34" r="1.5"/><circle cx="38" cy="35" r="1.3"/></g>
+  <ellipse cx="24" cy="17" rx="10" ry="5" fill="#fff" opacity=".22" transform="rotate(-30 24 17)"/></svg>`;
+const c2DetLoad = () => c2DetData || (c2DetData = fetch(C2DET.json).then(r => r.json()).catch(e => { c2DetData = null; throw e; }));
+// матрица перспективы: прямоугольник w×h → четырёхугольник (tl, tr, br, bl), как 3×3 [a b c; d e f; g h 1]
+function c2Homo(w, h, q) {
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = q, dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2, sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
+  const den = dx1 * dy2 - dx2 * dy1, g = (sx * dy2 - dx2 * sy) / den, hh = (dx1 * sy - sx * dy1) / den;
+  const a = x1 - x0 + g * x1, b = x3 - x0 + hh * x3, d = y1 - y0 + g * y1, e = y3 - y0 + hh * y3;
+  return [a / w, b / h, x0, d / w, e / h, y0, g / w, hh / h, 1];
+}
+// звуки кабинета детектива (синтез, файлов нет): тихий фон — дождь за окном, гул города, часы; и удар штампа по бумаге
+function c2DetAmb() {
+  if (!st.sound) return () => {}; const a = Snd.a; if (!a || !Snd.nbuf) return () => {};
+  const t0 = a.currentTime, bus = a.createGain(); bus.gain.setValueAtTime(0, t0); bus.gain.linearRampToValueAtTime(Snd.kk * .5, t0 + 1.5); bus.connect(Snd.out);
+  const loop = (f1, f2, vol) => { const s = a.createBufferSource(), h = a.createBiquadFilter(), l = a.createBiquadFilter(), g = a.createGain();
+    s.buffer = Snd.nbuf; s.loop = true; s.loopStart = Math.random() * .5; h.type = 'highpass'; h.frequency.value = f1; l.type = 'lowpass'; l.frequency.value = f2; g.gain.value = vol;
+    s.connect(h); h.connect(l); l.connect(g); g.connect(bus); s.start(t0); return { s, g }; };
+  const rain = loop(500, 2600, .014), hum = loop(30, 160, .025), hiss = loop(5000, 9000, .002);
+  const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = .13; lg.gain.value = .004; lfo.connect(lg); lg.connect(rain.g.gain); lfo.start(t0); // дождь то тише, то сильнее
+  let n = 0; const clock = setInterval(() => { if (!st.sound) return; const tk = n++ % 2 === 0; // тик-так
+    Snd.noise(.022, .02 * .5, 0, tk ? 3900 : 3100, 7); Snd.tone(tk ? 2300 : 1900, .025, 'sine', .005 * .5); }, 1000);
+  const drops = setInterval(() => { if (st.sound && Math.random() < .5) Snd.noise(.012, (.008 + Math.random() * .01) * .5, Math.random() * .3, 1800 + Math.random() * 3000, 5); }, 450); // капли по стеклу
+  return () => { clearInterval(clock); clearInterval(drops); const t = a.currentTime; bus.gain.cancelScheduledValues(t); bus.gain.setValueAtTime(bus.gain.value, t); bus.gain.linearRampToValueAtTime(0, t + .6);
+    setTimeout(() => { [rain.s, hum.s, hiss.s, lfo].forEach(x => { try { x.stop(); } catch (e) {} }); bus.disconnect(); }, 700); };
+}
+function c2Stamp() { Snd.noise(.14, .3, 0, 170, .9, 'lowpass'); Snd.tone(110, .16, 'sine', .14, 0, 45); Snd.noise(.05, .1, .005, 1300, 1.4); Snd.noise(.09, .05, .03, 600, .8); }
+async function c2Cutscene(w, demo) {
+  const p = $('.c2p'); if (!p) return 'gone';
+  let data; try { data = await c2DetLoad(); } catch (e) { return 'look'; } // нет данных — сразу обычный экран цеха
+  const m = / \(([^)]+)\)$/.exec(w.name), wear = m ? C2WEAR[m[1]] || m[1] : '', skin = m ? w.f.replace(/ \([^)]+\)$/, '') : w.f;
+  const knife = w.r === 'rare', d = new Date(), date = d.toLocaleDateString('ru-RU'), W = C2DET.W, Hh = C2DET.H;
+  const el = document.createElement('div'); el.className = 'c2d r-' + w.r; el.innerHTML = `
+    <video muted loop playsinline preload="auto" poster="${C2DET.poster}" src="${C2DET.mp4}"></video>
+    <div class="c2d-np" style="width:${W}px;height:${Hh}px"><div class="c2d-ink">
+      <header><h2>RUSH CASE ВЕСТНИК</h2><p><span>${date}</span><span>Выпуск № ${100 + (d.getDate() * 7 + d.getMonth()) % 900}</span><span>Цена: 0 ₽</span></p></header>
+      <div class="c2d-ban">Оперативники нашли утерянный дроп</div>
+      <div class="c2d-cols">
+        <article><small>${RAR[w.r].n}${wear ? ' · ' + esc(wear) : ''}</small>
+          <div class="c2d-price${w.p >= 1e5 ? ' c2d-long' : ''}"><span>Оценка эксперта</span><b>${prc(w.p)}</b></div>
+          <p>Предмет класса «${RAR[w.r].n}» найден при вскрытии кейса. Подлинность установлена, владелец — вы.</p>
+          <div class="c2d-acts"><b class="c2d-btn" data-c2d="look">Осмотреть</b><b class="c2d-btn c2d-take" data-c2d="take">${demo ? 'Закрыть' : 'Забрать'}</b></div></article>
+        <figure><h3>${esc(w.w)}</h3><h4>«${esc(skin)}»</h4><div class="c2d-ph"><img src="${imgUrl(w, 'l')}" alt=""><i class="c2d-stamp">${knife ? '★ Редкий' : 'Засекречено'}</i></div><figcaption>Улика № 1. Изъята из кейса при вскрытии.</figcaption></figure>
+      </div></div>
+      <canvas class="c2d-foil" width="${W}" height="${Hh}"></canvas><canvas class="c2d-fx" width="${W}" height="${Hh}"></canvas></div>
+    <i class="c2d-coin" aria-hidden="true">${C2COIN}</i>
+    <div class="c2d-hint">Зажмите кнопку мыши и сотрите защитный слой</div>`;
+  p.appendChild(el); const amb = c2DetAmb();
+  const v = $('video', el), np = $('.c2d-np', el), foil = $('.c2d-foil', el), fx = $('.c2d-fx', el), coin = $('.c2d-coin', el);
+  const fc = foil.getContext('2d', { willReadFrequently: true }), xc = fx.getContext('2d');
+  const pr = v.play(); if (pr) pr.catch(() => {});
+  // защитный слой — как на лотерейном билете: серебро с зерном, узор «СЕКРЕТНО», штамп и рамка; закрывает всё ниже шапки газеты
+  const Z = { x: 26, y: 136, w: W - 52, h: Hh - 156 };
+  await Promise.race([document.fonts.load("500 40px 'Oswald'"), sleep(800)]).catch(() => {});
+  (() => {
+    const { x, y, w: zw, h: zh } = Z, g = fc.createLinearGradient(x, y, x + zw, y + zh);
+    g.addColorStop(0, '#7d8188'); g.addColorStop(.28, '#c9cdd3'); g.addColorStop(.5, '#959aa1'); g.addColorStop(.74, '#d3d6db'); g.addColorStop(1, '#80848b');
+    fc.save(); fc.beginPath(); fc.roundRect(x, y, zw, zh, 4); fc.clip(); fc.fillStyle = g; fc.fillRect(x, y, zw, zh);
+    const id = fc.getImageData(x, y, zw, zh), px = id.data; // зерно фольги
+    for (let i = 0; i < px.length; i += 4) { const n = (Math.random() - .5) * 26; px[i] += n; px[i + 1] += n; px[i + 2] += n; }
+    fc.putImageData(id, x, y);
+    fc.translate(x + zw / 2, y + zh / 2); fc.rotate(-.32); fc.font = "500 22px 'Oswald',sans-serif"; fc.textAlign = 'center'; fc.textBaseline = 'middle';
+    for (let r = -14; r <= 14; r++) for (let c = -6; c <= 6; c++) { fc.fillStyle = (r + c) % 2 ? 'rgba(255,255,255,.16)' : 'rgba(30,34,40,.11)'; fc.fillText('СЕКРЕТНО · RUSH CASE', c * 260 + (r % 2) * 130, r * 48); }
+    fc.setTransform(1, 0, 0, 1, 0, 0);
+    fc.strokeStyle = 'rgba(255,255,255,.55)'; fc.lineWidth = 2; fc.setLineDash([10, 7]); fc.strokeRect(x + 16, y + 16, zw - 32, zh - 32); fc.setLineDash([]);
+    fc.translate(x + zw / 2, y + zh / 2 - 26); fc.rotate(-.07);
+    fc.strokeStyle = fc.fillStyle = knife ? '#a8740f' : '#b3241c'; fc.globalAlpha = .9; fc.lineWidth = 7;
+    fc.font = "500 92px 'Oswald',sans-serif"; const t = knife ? '★ РЕДКИЙ' : 'ЗАСЕКРЕЧЕНО', tw = fc.measureText(t).width;
+    fc.strokeRect(-tw / 2 - 30, -66, tw + 60, 132); fc.fillText(t, 0, 4);
+    fc.setTransform(1, 0, 0, 1, 0, 0); fc.globalAlpha = 1; fc.font = "500 26px 'Oswald',sans-serif"; fc.fillStyle = 'rgba(25,28,33,.72)';
+    fc.fillText('СОТРИТЕ МОНЕТКОЙ', x + zw / 2, y + zh / 2 + 92);
+    fc.restore();
+    fc.strokeStyle = 'rgba(255,255,255,.35)'; fc.lineWidth = 1.5; fc.beginPath(); fc.roundRect(x + .75, y + .75, zw - 1.5, zh - 1.5, 4); fc.stroke();
+    // слой старый, «закоцанный»: царапины, потёртости, грязь и выбитые кусочки по краям
+    const R = Math.random;
+    for (let i = 0; i < 70; i++) { const sx = x + R() * zw, sy = y + R() * zh, a = R() * 6.28, l = 8 + R() * 70; fc.strokeStyle = R() < .5 ? `rgba(255,255,255,${.12 + R() * .25})` : `rgba(40,42,46,${.1 + R() * .2})`; fc.lineWidth = .6 + R() * 1.3; fc.beginPath(); fc.moveTo(sx, sy); fc.quadraticCurveTo(sx + Math.cos(a + .3) * l * .5, sy + Math.sin(a + .3) * l * .5, sx + Math.cos(a) * l, sy + Math.sin(a) * l); fc.stroke(); }
+    for (let i = 0; i < 26; i++) { const sx = x + R() * zw, sy = y + R() * zh, r = 14 + R() * 60, gr = fc.createRadialGradient(sx, sy, 0, sx, sy, r); gr.addColorStop(0, `rgba(70,58,40,${.08 + R() * .12})`); gr.addColorStop(1, 'rgba(70,58,40,0)'); fc.fillStyle = gr; fc.fillRect(sx - r, sy - r, r * 2, r * 2); }
+    fc.globalCompositeOperation = 'destination-out'; fc.fillStyle = '#000';
+    for (let i = 0; i < 90; i++) { const e = R() * 4 | 0, t = R(), sx = e < 2 ? x + t * zw : x + (e === 2 ? 0 : zw), sy = e < 2 ? y + (e ? zh : 0) : y + t * zh; for (let k = 0; k < 4; k++) { fc.beginPath(); fc.arc(sx + (R() - .5) * 14, sy + (R() - .5) * 14, 1 + R() * 4.5, 0, 6.283); fc.fill(); } }
+    for (let i = 0; i < 9; i++) { const sx = x + 40 + R() * (zw - 80), sy = y + 40 + R() * (zh - 80); for (let k = 0; k < 6; k++) { fc.beginPath(); fc.arc(sx + (R() - .5) * 12, sy + (R() - .5) * 8, .8 + R() * 2.6, 0, 6.283); fc.fill(); } }
+    fc.globalCompositeOperation = 'source-over';
+  })();
+  requestAnimationFrame(() => el.classList.add('on'));
+  // где газета на экране: видео растянуто «cover» на всю сцену; газета «дышит» вместе с камерой (углы — по кадрам)
+  let H = null;
+  const place = () => {
+    const r = el.getBoundingClientRect(), s = Math.max(r.width / data.w, r.height / data.h), ox = (r.width - data.w * s) / 2, oy = (r.height - data.h * s) / 2;
+    const fr = data.f[Math.floor((v.currentTime || 0) * data.fps + 1e-3) % data.n], q = fr.map((t, i) => i % 2 ? t * data.h * s + oy : t * data.w * s + ox);
+    H = c2Homo(W, Hh, q);
+    np.style.transform = `matrix3d(${H[0]},${H[3]},0,${H[6]},${H[1]},${H[4]},0,${H[7]},0,0,1,0,${H[2]},${H[5]},0,1)`;
+  };
+  const local = (x, y) => { // точка экрана → точка на газете (обратная перспектива)
+    const [a, b, c, dd, e, f, g, h] = H, A = [e - f * h, c * h - b, b * f - c * e, f * g - dd, a - c * g, c * dd - a * f, dd * h - e * g, b * g - a * h, a * e - b * dd];
+    const z = A[6] * x + A[7] * y + A[8]; return [(A[0] * x + A[1] * y + A[2]) / z, (A[3] * x + A[4] * y + A[5]) / z];
+  };
+  // шорох монетки: шум через полосовой фильтр, громкость — от скорости
+  let au = null;
+  const sndOn = () => {
+    if (au || !st.sound) return; const a = Snd.a; if (!a || !Snd.nbuf) return;
+    const src = a.createBufferSource(), bp = a.createBiquadFilter(), hp = a.createBiquadFilter(), gn = a.createGain();
+    src.buffer = Snd.nbuf; src.loop = true; bp.type = 'bandpass'; bp.frequency.value = 2600; bp.Q.value = .9; hp.type = 'highpass'; hp.frequency.value = 900; gn.gain.value = 0;
+    src.connect(bp); bp.connect(hp); hp.connect(gn); gn.connect(Snd.out); src.start(); au = { a, src, bp, gn };
+  };
+  const sndVol = k => { if (!au) return; const t = au.a.currentTime; au.gn.gain.setTargetAtTime(Math.min(.32, k) * .3 * Snd.kk, t, .025); au.bp.frequency.setTargetAtTime(2000 + Math.min(1, k * 3) * 1800, t, .05); };
+  const sndOff = () => { if (!au) return; const t = au.a.currentTime; au.gn.gain.setTargetAtTime(0, t, .04); const s = au.src; au = null; setTimeout(() => { try { s.stop(); } catch (e) {} }, 300); };
+  // стирание: неровная кромка (мазок + мелкие «сколы» вокруг), крошки фольги
+  const flakes = [];
+  const flake = (x, y, vx, vy) => flakes.push({ x, y, vx, vy, s: 1.5 + Math.random() * 3.5, r: Math.random() * 6.28, vr: (Math.random() - .5) * .4, l: 1, c: 150 + Math.random() * 80 | 0 });
+  const scratch = (x0, y0, x1, y1) => {
+    const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(L / 6));
+    fc.globalCompositeOperation = 'destination-out'; fc.lineCap = fc.lineJoin = 'round'; fc.strokeStyle = fc.fillStyle = '#000'; fc.globalAlpha = 1;
+    fc.lineWidth = 54 + Math.random() * 10; fc.beginPath(); fc.moveTo(x0, y0); fc.lineTo(x1, y1); fc.stroke();
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+      for (let k = 0; k < 3; k++) { const a = Math.random() * 6.283, r = 25 + Math.random() * 14; fc.beginPath(); fc.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, 2 + Math.random() * 7, 0, 6.283); fc.fill(); }
+      if (Math.random() < .55 && flakes.length < 220 && x > Z.x && x < Z.x + Z.w && y > Z.y && y < Z.y + Z.h) flake(x, y, (Math.random() - .5) * 2.4, .6 + Math.random() * 2.2);
+    }
+    fc.globalCompositeOperation = 'source-over';
+  };
+  const drawFx = () => {
+    if (!flakes.length && !xc.dirty) return; xc.clearRect(0, 0, W, Hh); xc.dirty = flakes.length > 0;
+    for (let i = flakes.length - 1; i >= 0; i--) {
+      const f = flakes[i]; f.x += f.vx; f.y += f.vy; f.vy += .18; f.r += f.vr; f.l -= .022;
+      if (f.l <= 0 || f.y > Hh + 20) { flakes.splice(i, 1); continue; }
+      xc.save(); xc.globalAlpha = Math.min(1, f.l * 1.4); xc.translate(f.x, f.y); xc.rotate(f.r); xc.fillStyle = `rgb(${f.c},${f.c + 4},${f.c + 10})`; xc.fillRect(-f.s, -f.s * .6, f.s * 2, f.s * 1.2); xc.restore();
+    }
+  };
+  // сколько стёрто (по сетке точек в зоне слоя); больше 55% — остаток осыпается сам, появляются кнопки
+  let lastChk = 0, done = false;
+  const cleared = () => {
+    const id = fc.getImageData(Z.x, Z.y, Z.w, Z.h).data, n = [0, 0], c = [0, 0]; // отдельно левая половина (сведения) и правая (фото)
+    for (let y = 6; y < Z.h; y += 14) for (let x = 6; x < Z.w; x += 14) { const k = x < Z.w / 2 ? 0 : 1; n[k]++; if (id[(y * Z.w + x) * 4 + 3] < 40) c[k]++; }
+    return Math.min(c[0] / n[0], c[1] / n[1]);
+  };
+  const finish = () => {
+    if (done) return; done = true; sndOff(); foil.classList.add('gone'); el.classList.add('ok');
+    for (let i = 0; i < 90; i++) flake(Z.x + Math.random() * Z.w, Z.y + Math.random() * Z.h, (Math.random() - .5) * 3, Math.random() * 2);
+    if (st.sound) Snd.noise(.35, .05, 0, 3200, .7);
+  };
+  // кнопки напечатаны на газете (под слоем): куда нажали — считаем в координатах газеты, с учётом перспективы
+  const btns = $$('[data-c2d]', el).map(b => { let x = 0, y = 0, n = b; while (n && n !== np) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; } return { b, x, y, w: b.offsetWidth, h: b.offsetHeight }; });
+  const btnAt = (u, t) => done && btns.find(o => u >= o.x - 4 && u <= o.x + o.w + 4 && t >= o.y - 4 && t <= o.y + o.h + 4);
+  let down = false, lp = null, lt = 0, hov = null;
+  const pos = e => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  el.addEventListener('pointermove', e => {
+    const [sx, sy] = pos(e); coin.style.translate = `${sx}px ${sy}px`;
+    if (!H) return;
+    const q = local(sx, sy), hb = btnAt(q[0], q[1]) || null;
+    if (hb !== hov) { if (hov) hov.b.classList.remove('hov'); hov = hb; if (hb) hb.b.classList.add('hov'); el.classList.toggle('on-btn', !!hb); }
+    if (!down || done) return;
+    const now = performance.now();
+    if (lp) { scratch(lp[0], lp[1], q[0], q[1]); sndVol(Math.hypot(q[0] - lp[0], q[1] - lp[1]) / Math.max(8, now - lt) * .25); }
+    lp = q; lt = now; el.classList.add('used');
+    if (now - lastChk > 220) { lastChk = now; if (cleared() > .5) finish(); }
+  });
+  el.addEventListener('pointerdown', e => {
+    if (e.button || !H) return; e.preventDefault();
+    if (done) { const [sx, sy] = pos(e), q = local(sx, sy), hb = btnAt(q[0], q[1]); if (hb) { c2Stamp(); fin(hb.b.dataset.c2d); } return; } getSelection().removeAllRanges(); down = true; el.setPointerCapture(e.pointerId); el.classList.add('press');
+    const [sx, sy] = pos(e); lp = local(sx, sy); lt = performance.now(); scratch(lp[0], lp[1], lp[0] + .1, lp[1]); sndOn();
+  });
+  const up = () => { down = false; lp = null; el.classList.remove('press'); sndOff(); };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  el.addEventListener('pointerleave', () => el.classList.add('out')); el.addEventListener('pointerenter', () => el.classList.remove('out'));
+  let alive = true, fin = () => {};
+  const tick = () => { if (!alive) return; if (!el.isConnected) return fin('gone'); place(); if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(tick); };
+  (function raf() { if (!alive) return; if (!el.isConnected) return fin('gone'); if (!v.requestVideoFrameCallback || v.paused || v.readyState < 2) place(); drawFx(); requestAnimationFrame(raf); })();
+  tick();
+  const res = await new Promise(ok => { fin = ok; });
+  alive = false; sndOff(); amb();
+  if (res === 'gone') return res;
+  el.classList.remove('on'); setTimeout(() => { v.pause(); v.removeAttribute('src'); v.load(); el.remove(); }, 500);
+  return res;
+}
 /* звуки CS2 CASE должны успеть скачаться до открытия: иначе playCtl молча подставляет стандартные звуки сайта
    («старый» замок и щелчки) — так было в Chrome владельца при открытии сразу после загрузки страницы */
 async function c2Need(ms = 2500) {
@@ -4389,7 +4574,7 @@ async function cs2Spin(c, wins, given, demo) {
   if (st.sound) await c2Need(C2_FAST ? 1500 : 2500);
   resetRoulette();
   const w = wins[0]; new Image().src = imgUrl(w, 'l');
-  const fact = c2FactOn(w); if (fact) { c2Fact('load'); const id3 = c2X3DId(w); if (id3) c2X3DLoad(id3).catch(() => {}); } // фон завода и 3D-модель грузятся, пока крутится лента
+  const fact = c2FactOn(w); if (fact) { c2Fact('load'); const id3 = c2X3DId(w); if (id3) c2X3DLoad(id3).catch(() => {}); if (c2Special(w)) { c2DetLoad().catch(() => {}); fetch(C2DET.mp4).catch(() => {}); } } // фон завода и 3D-модель грузятся, пока крутится лента
   spinning = true;
   const my = ++spinId, rl = $('#rl'), box = $('#strips');
   $('.c2p').classList.add('c2-go'); // ряд предметов плавно убирается, лупа — по центру экрана
@@ -4441,8 +4626,6 @@ async function cs2Spin(c, wins, given, demo) {
   // 3) доводка к центру предмета, предмет подсвечивается
   set('transform .5s cubic-bezier(.3,1.3,.5,1)', -base);
   await sleep(520);
-  // засекреченный (красный) или редкий дроп — здесь встанет отдельная сцена получения (в планах)
-  if (c2Special(w)) { await c2Cutscene(w); if (!alive()) { c2WindQuiet(false); return track && track.stop(.2); } }
   // финальный звук: дороже кейса — финал полного трека (с 7,6 с); дешевле — свой звук дропа (начало чуть обрезано)
   const rich = w.p > c.price;
   if (track) track.stop(.15);
@@ -4451,9 +4634,18 @@ async function cs2Spin(c, wins, given, demo) {
   await sleep(650);
   if (!alive()) { c2WindQuiet(false); return track && track.stop(.2); }
   // 4) лупа схлопывается — экран выигрыша
-  rl.classList.add('c2-close'); c2WindQuiet(false); if (fact) c2Fact(true);
+  // Тайное и ножи на ПК — сначала сцена «кабинет детектива» с газетой (c2Cutscene); «Осмотреть» → цех + 3D, «Забрать» → к кейсу
+  const det = fact && c2Special(w);
+  if (det) c2DetLoad().catch(() => {});
+  rl.classList.add('c2-close'); c2WindQuiet(false); if (fact && !det) c2Fact(true);
   await sleep(320);
   if (!alive()) return track && track.stop(.2);
+  if (det) {
+    const r = await c2Cutscene(w, demo);
+    if (!alive() || r === 'gone') { spinning = false; return; }
+    if (r === 'take') { showReveal(c, wins, given, demo); resetRoulette(); ccIdle(c); spinning = false; if (!demo) toast(`<b>${esc(w.name)}</b> — в инвентаре`); return; }
+    c2Fact(true);
+  }
   showReveal(c, wins, given, demo);
   spinning = false;
 }
