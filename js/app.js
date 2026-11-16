@@ -2657,7 +2657,9 @@ function mountMain() {
    assets/main/agent.glb — «Профессионал» (tm_professional_varf2) из файлов игры: сетка, скелет модели и 7 клипов меню
    (ui_anims/main_menu/t/t_main_menu_rifle02_*_awp_galil), картинки WebP. assets/main/awp-dragon-lore.glb — AWP | Dragon Lore,
    висит на кости wpn (её двигают сами клипы). Первый показ во вкладке — выход (walkup), дальше idle по кругу и раз в 6–14 с
-   случайное движение. Зажал мышь на агенте — поворот, отпустил — плавно назад. Телефон / нет WebGL — картинка agent.webp. */
+   случайное движение. Зажал мышь на агенте — поворот, отпустил — плавно назад. Нажал без поворота — брейк-данс один раз
+   (assets/main/breakdance.glb — Mixamo «Breakdance Freeze Var 2», перенесён на скелет агента; AWP на время танца прячется).
+   Телефон / нет WebGL — картинка agent.webp. */
 const MNA = { v: 3, dir: 'assets/main/', s: null, seen: false, gl: null,
   moves: [['weightshift', 3], ['lookaround', 3], ['lookback', 2], ['lookback02', 2], ['lookbatgun', 1]] };
 window.rcMNA = MNA; // для проверки из браузера
@@ -2665,7 +2667,7 @@ const mnaStop = () => { if (MNA.s) { MNA.s.kill(); MNA.s = null; } };
 function mnaLoad() { // модели держим в памяти вкладки (без видеокарты): при возврате на главную не качаем заново
   if (!MNA.gl) MNA.gl = c2Lib().then(([THREE, { GLTFLoader }]) => {
     const ld = u => new Promise((ok, bad) => new GLTFLoader().load(MNA.dir + u + '?v=' + MNA.v, ok, undefined, bad));
-    return Promise.all([ld('agent.glb'), ld('awp-dragon-lore.glb')]);
+    return Promise.all([ld('agent.glb'), ld('awp-dragon-lore.glb'), ld('breakdance.glb').catch(() => null)]); // без танца агент всё равно показывается
   }).catch(e => { MNA.gl = null; throw e; });
   return MNA.gl;
 }
@@ -2765,7 +2767,7 @@ function mnAgent() {
   const hasGL = (() => { try { const g = document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl'); const x = g && g.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); return !!g; } catch (e) { return false; } })();
   if (document.documentElement.classList.contains('phone') || !hasGL) return pic(); // без WebGL модели не качаем; узкое окно (до 1024 px) — агент спрятан стилями, отрисовка стоит
   const S = MNA.s = { alive: true, kill: () => { S.alive = false; } };
-  Promise.all([c2Lib(), import('three/addons/environments/RoomEnvironment.js'), mnaLoad()]).then(([[THREE], { RoomEnvironment }, [ag, wp]]) => {
+  Promise.all([c2Lib(), import('three/addons/environments/RoomEnvironment.js'), mnaLoad()]).then(([[THREE], { RoomEnvironment }, [ag, wp, bd]]) => {
     if (!S.alive || !host.isConnected) return;
     const canvas = document.createElement('canvas');
     let renderer; try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' }); } catch (e) { return pic(); }
@@ -2797,8 +2799,8 @@ function mnAgent() {
     gun.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1));
     gun.position.set(-5.29, 0.19, -8.99).multiplyScalar(0.0254); // корневая кость AWP «weapon» (из модели игры) совпадает с wpn, а не начало сетки
     gun.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
-    if (wpn) wpn.add(gun);
-    let yaw = -0.32, vYaw = 0, drag = false, lx = 0, dirty = false;
+    if (wpn) wpn.add(gun); gun.visible = true; // модель общая для заходов: могли уйти посреди танца
+    let yaw = -0.32, vYaw = 0, drag = false, lx = 0, dirty = false, px = 0, py = 0, pt = 0, moved = false;
     try { const v = parseFloat(localStorage.getItem('rc.agentYaw')); if (isFinite(v)) yaw = v; } catch (e) { /* */ }
     const saveYaw = () => { dirty = false; try { localStorage.setItem('rc.agentYaw', yaw.toFixed(3)); } catch (e) { /* */ } };
     // анимации: idle по кругу, раз в 6–14 с — случайное движение (не одно и то же дважды), переходы 0,35–0,5 с
@@ -2814,14 +2816,18 @@ function mnAgent() {
       const m = L.find(([, w]) => (r -= w) < 0) || L[0]; lastMove = m[0];
       const a = A[m[0]]; a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; to(a, 0.35 + Math.random() * 0.15);
     };
-    mixer.addEventListener('finished', e => { if (e.action === A.walkup) MNA.seen = true; if (e.action !== idle && e.action === cur) { to(idle, 0.45); plan(); } });
+    // брейк-данс по нажатию: пока танцует, нажатия не перебивают; крутить можно; AWP прячется и возвращается, когда руки снова в позе idle
+    const dance = bd && bd.animations[0] ? mixer.clipAction(bd.animations[0]) : null; let gunAt = 0;
+    if (dance) { dance.setLoop(THREE.LoopOnce, 1); dance.clampWhenFinished = true; }
+    const startDance = () => { if (!dance || cur === dance) return; MNA.seen = true; gun.visible = false; gunAt = 0; to(dance, 0.3); nextAt = Infinity; };
+    mixer.addEventListener('finished', e => { if (e.action === A.walkup) MNA.seen = true; if (e.action !== idle && e.action === cur) { const d = e.action === dance ? 0.6 : 0.45; to(idle, d); plan(); if (e.action === dance) gunAt = t + d; } });
     const kref = new THREE.Vector3(), pelvis = agent.getObjectByName('pelvis');
     idle.play(); mixer.update(0); scene.updateMatrixWorld(true); if (pelvis) pivot.worldToLocal(pelvis.getWorldPosition(kref)); idle.stop();
     if (!MNA.seen && !calm && A.walkup) { const w = A.walkup; w.setLoop(THREE.LoopOnce, 1); w.clampWhenFinished = true; w.play(); cur = w; nextAt = Infinity; }
     else { idle.play(); plan(); }
     if (calm || !A.walkup) MNA.seen = true; // выход засчитываем, только когда он доигран (страница могла перерисоваться посреди него)
     // камера как в меню CS2: узкий угол, чуть снизу, ноги у низа; агент ~ 76% высоты
-    const hit = document.createElement('div'); hit.className = 'mna-hit'; hit.setAttribute('aria-label', 'Агент — поверните мышкой');
+    const hit = document.createElement('div'); hit.className = 'mna-hit'; hit.setAttribute('aria-label', 'Агент — нажмите, чтобы станцевать, или поверните мышкой');
     const nw = $('#nwCol'), mn = host.parentElement;
     // карточка КРОТ идёт за агентом (выход, переминание), но не за поворотом мышью: сдвиг таза от позы покоя, повёрнутый вместе с агентом
     const kr = $('#mnKrot'), kv = new THREE.Vector3(), YA = new THREE.Vector3(0, 1, 0), kg = { w: 1, h: 1, l: 0, b: 0 }; let kLast = '';
@@ -2845,9 +2851,10 @@ function mnAgent() {
       Object.assign(hit.style, { left: x0 + 'px', top: y0 + 'px', width: (x1 - x0) + 'px', height: (y1 - y0) + 'px' });
       if (mn) { const mr = mn.getBoundingClientRect(); Object.assign(kg, { w, h, l: r.left - mr.left, b: mr.bottom - r.top }); kLast = ''; placeCard(); }
     };
-    hit.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; vYaw = 0; hit.setPointerCapture(e.pointerId); hit.classList.add('drag'); });
-    hit.addEventListener('pointermove', e => { if (!drag) return; vYaw = (e.clientX - lx) * 0.01; yaw += vYaw; lx = e.clientX; });
-    const up = () => { if (drag) dirty = true; drag = false; hit.classList.remove('drag'); };
+    // нажатие = сдвиг меньше 5 px и короче 0,5 с; иначе это поворот, и танец не запускается
+    hit.addEventListener('pointerdown', e => { if (e.button) return; drag = true; lx = px = e.clientX; py = e.clientY; pt = performance.now(); moved = false; vYaw = 0; hit.setPointerCapture(e.pointerId); hit.classList.add('drag'); });
+    hit.addEventListener('pointermove', e => { if (!drag) return; if (Math.hypot(e.clientX - px, e.clientY - py) > 5) moved = true; vYaw = (e.clientX - lx) * 0.01; yaw += vYaw; lx = e.clientX; });
+    const up = e => { if (!drag) return; dirty = true; drag = false; hit.classList.remove('drag'); if (e.type === 'pointerup' && !moved && performance.now() - pt < 500) startDance(); };
     hit.addEventListener('pointerup', up); hit.addEventListener('pointercancel', up);
     host.append(canvas, hit); fit();
     const ro = new ResizeObserver(fit); ro.observe(host); ro.observe(document.documentElement);
@@ -2857,6 +2864,7 @@ function mnAgent() {
       if (!host.offsetWidth) { last = now; return; } // спрятан (узкое окно) — не рисуем
       const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now; t += dt; S.frames++; // метка кадра бывает чуть раньше запуска: без max(0) разовое движение «кончается» сразу
       if (!calm && cur === idle && t >= nextAt) pickMove();
+      if (gunAt && t >= gunAt) { gunAt = 0; gun.visible = true; }
       if (!drag) { yaw += vYaw; vYaw *= 0.86; yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw)); if (dirty && Math.abs(vYaw) < 4e-4) saveYaw(); } // отпустил — чуть докручивается по инерции и остаётся
       if (wind) wind.update(dt);
       if (lampB) { const fl = parseFloat(getComputedStyle(lampB).getPropertyValue('--f')); rim.intensity = RIM * (0.25 + 0.75 * (isNaN(fl) ? 1 : fl)); }
@@ -2865,10 +2873,10 @@ function mnAgent() {
     const vis = () => { if (!S.alive) return; if (document.hidden) renderer.setAnimationLoop(null); else { last = performance.now(); renderer.setAnimationLoop(loop); } };
     document.addEventListener('visibilitychange', vis); vis();
     requestAnimationFrame(() => host.classList.add('on'));
-    S.cur = () => cur.getClip().name; S.card = () => kLast; S.wind = () => wind; S.yaw = () => yaw; S.renderer = renderer;
+    S.cur = () => cur.getClip().name; S.act = () => ({ clip: cur.getClip().name, time: +cur.time.toFixed(2), w: +cur.getEffectiveWeight().toFixed(2), run: cur.isRunning(), gun: gun.visible, dance: !!dance }); S.card = () => kLast; S.wind = () => wind; S.yaw = () => yaw; S.renderer = renderer;
     S.kill = () => {
       S.alive = false; renderer.setAnimationLoop(null); ro.disconnect(); document.removeEventListener('visibilitychange', vis);
-      mixer.stopAllAction(); mixer.uncacheRoot(agent); if (wpn) wpn.remove(gun); pivot.remove(agent);
+      mixer.stopAllAction(); mixer.uncacheRoot(agent); gun.visible = true; if (wpn) wpn.remove(gun); pivot.remove(agent);
       const done = new Set();
       [agent, gun, ground, blob].forEach(r => r.traverse(o => {
         if (o.geometry && !done.has(o.geometry)) { done.add(o.geometry); o.geometry.dispose(); }
