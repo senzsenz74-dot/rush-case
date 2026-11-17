@@ -11183,7 +11183,7 @@ function tutPlace(anim) {
   const hb = $('#header'), tb = hb ? Math.max(0, hb.getBoundingClientRect().bottom) : 0;
   const x = Math.max(6, r.left - pad), y = Math.max(tb + 6, r.top - pad);
   const w = Math.min(W - 6, r.right + pad) - x, h = Math.min(H - 6, r.bottom + pad) - y;
-  const rad = Math.min(22, parseFloat(getComputedStyle(el).borderTopLeftRadius) + pad || 16);
+  const rad = Math.min(4, (parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0) + 2); // новый стиль CS2: углы подсветки 2–4 px
   hole.style.cssText = `left:${x}px;top:${y}px;width:${Math.max(0, w)}px;height:${Math.max(0, h)}px;border-radius:${rad}px`;
   // палец — в центр видимой части элемента (на телефоне чуть ниже, чтобы не закрывать)
   const spin = tut.T.steps[tut.i] && tut.T.steps[tut.i].spin;

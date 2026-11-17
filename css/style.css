@@ -4735,6 +4735,52 @@ body.pg-crash #app{padding-bottom:0}
   .tut-skip{max-width:120px;font-size:11px}
 }
 @media (prefers-reduced-motion:reduce){.tut-hole::before,.tut-hole i::after,.tut-finger svg,.tut-finger b,.tut-finger i,.tut-lit{animation:none!important}}
+/* ===== обучение — новый стиль CS2 (владелец 17.11): тёмное стекло, тонкая светлая рамка, углы 2–4 px, Oswald, голубой — активное, зелёная — «Далее» ===== */
+.tut-hole{border-radius:3px;box-shadow:0 0 0 200vmax rgba(5,7,10,.74);outline:1.5px solid #84d9fd}
+.tut-hole::before{inset:-5px;border-radius:4px;border-color:rgba(132,217,253,.4)}
+.tut-hole i::after{background:linear-gradient(100deg,transparent,rgba(190,236,255,.14),transparent)}
+.tut-card{border-radius:3px;color:#e6e9ee;background:linear-gradient(180deg,rgba(38,42,51,.95),rgba(19,21,26,.97) 120px);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.12),inset 0 1px 0 rgba(255,255,255,.08)}
+.tut.on .tut-card{animation:tutPop .5s cubic-bezier(.2,1.1,.3,1) both}
+.tut.on .tut-card.nudge{animation:tutNudge .4s}
+.tut-card::before{display:none}
+.tut-fx{display:none}
+.tut-arrow{width:14px;height:14px;background:#262a33;border:1px solid rgba(255,255,255,.12)}
+.tut-arrow.top{background:#14161b}
+.tut-top{gap:14px}
+.tut-med{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.035);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.tut-mbg{stroke:rgba(255,255,255,.08)}
+.tut-mpr{stroke:#84d9fd;stroke-linecap:butt}
+.tut-n{font:500 22px/1 'Oswald',var(--ff);color:#fff;text-shadow:none}
+.tut-n small{font:500 8px/1 'Oswald',var(--ff);letter-spacing:.12em;color:#8b929c}
+.tut-tag{gap:8px;font:500 12px/1 'Oswald',var(--ff);letter-spacing:.12em;color:#84d9fd}
+.tut-tag::before{width:6px;height:6px;border-radius:1px;background:#84d9fd;box-shadow:none;animation:none}
+.tut-hd h3{margin:6px 0 0;font:500 24px/1.1 'Oswald',var(--ff);letter-spacing:.02em;background:none;-webkit-background-clip:border-box;background-clip:border-box;color:#fff}
+.tut-body p{color:#c3c8d0;font-size:14px;line-height:1.55}
+.tut-dots{gap:5px;margin:16px 0 14px}
+.tut-dots i{height:3px;border-radius:1px;background:rgba(255,255,255,.1)}
+.tut-dots i.was{background:rgba(132,217,253,.45)}
+.tut-dots i.on{background:#84d9fd;box-shadow:0 0 8px rgba(132,217,253,.45)}
+.tut-skip{border-radius:2px;border:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);background:rgba(16,18,22,.5);color:#9aa0a8;font:500 11.5px/1.2 var(--ff)}
+.tut-skip:hover{color:#d3d7dc;box-shadow:inset 0 0 0 1px rgba(255,93,115,.4)}
+.tut-skip.hold{color:#fff;box-shadow:inset 0 0 0 1px rgba(255,93,115,.65)}
+.tut .btn.tut-back,.tut .btn.tut-next{height:36px;border:0;border-radius:2px;backdrop-filter:none;font:500 15px/1 'Oswald',var(--ff);text-transform:uppercase;letter-spacing:.02em;transform:none;filter:none;transition:background .15s,color .15s,box-shadow .15s}
+.tut .btn.tut-back{padding:0 14px;background:rgba(16,18,22,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);color:#d3d7dc}
+.tut .btn.tut-back:hover{background:rgba(255,255,255,.14);color:#fff}
+.tut .btn.tut-next{min-width:112px;padding:0 18px;background:linear-gradient(180deg,rgba(46,178,98,.5),rgba(20,116,60,.55));box-shadow:inset 0 0 0 1px #33c873,0 0 14px rgba(51,200,115,.18);color:#8af5b0}
+.tut .btn.tut-next:hover{background:linear-gradient(180deg,rgba(52,196,108,.66),rgba(24,134,68,.66));box-shadow:inset 0 0 0 1px #4be08a,0 0 20px rgba(51,200,115,.3);color:#c2ffd8}
+.tut .btn.tut-next::after{background:linear-gradient(100deg,transparent,rgba(200,255,220,.22),transparent)}
+.tut .btn.tut-back:focus-visible,.tut .btn.tut-next:focus-visible,.tut-skip:focus-visible{outline:2px solid #84d9fd;outline-offset:2px}
+.tut-finger svg{filter:drop-shadow(0 3px 5px rgba(0,0,0,.75)) drop-shadow(0 0 6px rgba(132,217,253,.45))}
+.tut-finger b{border-color:#84d9fd;box-shadow:0 0 10px rgba(132,217,253,.55),inset 0 0 8px rgba(132,217,253,.3)}
+.tut-finger i{background:radial-gradient(circle,rgba(210,242,255,.85),rgba(132,217,253,.25) 45%,transparent 70%)}
+.tut-lit{animation:tutLit2 1.5s ease-in-out infinite}
+@keyframes tutLit2{0%,45%{box-shadow:none}55%{box-shadow:0 0 0 2px #84d9fd,0 0 22px rgba(132,217,253,.5)}100%{box-shadow:0 0 0 2px rgba(132,217,253,0)}}
+/* кнопка «?» у заголовков — квадратик тёмного стекла (на «Контрактах» и в «Краше» свои) */
+.tut-q{width:28px;height:28px;padding:1px 0 0;border:0;border-radius:2px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:#c9ced8;font:500 16px/1 'Oswald',var(--ff);animation:none;transition:color .2s,box-shadow .2s,background .2s}
+.tut-q:hover{transform:none;color:#84d9fd;background:rgba(132,217,253,.08);box-shadow:inset 0 0 0 1px rgba(132,217,253,.55)}
+@media (max-width:700px){.tut-card{border-radius:3px}.tut-hd h3{font-size:19px}.tut-q{width:24px;height:24px;font-size:14px}}
+@media (prefers-reduced-motion:reduce){.tut-lit{animation:none!important}}
 
 /* ===== кейс «Ножевое ранение» (OVERLAYS.knife): блики на клинках, искры ===== */
 .kn-glint{position:absolute;z-index:5;width:9%;aspect-ratio:1;transform:translate(-50%,-50%) scale(0);pointer-events:none;mix-blend-mode:screen;
