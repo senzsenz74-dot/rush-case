@@ -7400,7 +7400,7 @@ async function supAdmList() {
   supAdm.view = supAdm.view || 'active';
   const L = supAdm.view === 'arch' ? arch : act;
   el.innerHTML = `<div class="sup-seg"><button data-v="active" class="${supAdm.view === 'active' ? 'on' : ''}">Активные <i>${act.length}</i></button><button data-v="arch" class="${supAdm.view === 'arch' ? 'on' : ''}">Архив <i>${arch.length}</i></button></div>` + (L.length ? L.map(t => { const p = supAdm.P[t.uid] || {}; const nm = t.uid ? p.name || 'Игрок' : t.tg_name || 'Telegram';
-    return `<button class="sup-th${t.id === supAdm.cur ? ' on' : ''}${t.unread_admin ? ' new' : ''}" data-th="${t.id}">${t.uid ? ava({ name: nm, ava: p.ava }, 'xs') : `<span class="sup-tgava">${ic.tg}</span>`}
+    return `<button class="sup-th${t.id === supAdm.cur ? ' on' : ''}${t.unread_admin ? ' new' : ''}" data-th="${t.id}">${t.uid ? axAva({ name: nm, ava: p.ava }, 'xs') : `<span class="sup-tgava">${ic.tg}</span>`}
       <span class="sup-th-t"><b>${esc(nm)}</b><small>${t.uid ? (p.pid ? '#' + p.pid : 'сайт') : t.tg_user ? '@' + esc(t.tg_user) : 'Telegram'} · ${supTime(t.last_at)}</small><em>${esc(t.last_text || '')}</em>${supAdm.K[t.id] && !supAdm.K[t.id].closed_at && supAdm.K[t.id].owner ? `<span class="sup-own${supAdm.K[t.id].owner === st.user.id ? ' me' : ''}">${supAdm.K[t.id].owner === st.user.id ? 'у вас' : 'у ' + esc(supAdm.K[t.id].owner_name || 'админа')}</span>` : ''}</span>${supAdm.K[t.id] && !supAdm.K[t.id].closed_at ? '<i class="sup-open" title="Обращение открыто"></i>' : ''}${t.unread_admin ? `<i class="sup-n">${t.unread_admin}</i>` : ''}</button>`; }).join('')
     : `<div class="sup-empty sm">${ic.chat}<span>${supAdm.view === 'arch' ? 'В архиве пока пусто.' : 'Открытых обращений нет — все ответили 👍'}</span></div>`);
   $$('[data-th]', el).forEach(b => b.onclick = () => supAdmOpen(+b.dataset.th));
@@ -7425,7 +7425,7 @@ async function supAdmOpen(id) {
   if (!supAdm.admins) { const { data: A } = await sb.from('profiles').select('id, name').eq('is_admin', true); supAdm.admins = A || []; }
   $$('#supList [data-th]').forEach(b => b.classList.toggle('on', +b.dataset.th === id));
   const t = supAdm.T[id] || {}, p = supAdm.P[t.uid] || {}, d = p.data || {};
-  const who = t.uid ? `${ava({ name: p.name || 'Игрок', ava: p.ava }, 'sm')}<div><b>${plink(p.pid, esc(p.name || 'Игрок'))}${p.pid ? ` <i class="ax-tag">#${p.pid}</i>` : ''}</b><small>Сайт · баланс ${money(+d.balance || 0)} · предметов ${(d.inv || []).filter(x => x.st === 'own').length}${p.steamid ? ` · <a href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steamid)}" target="_blank" rel="noopener">Steam</a>` : ''}</small></div>`
+  const who = t.uid ? `${axAva({ name: p.name || 'Игрок', ava: p.ava }, 'sm')}<div><b>${plink(p.pid, esc(p.name || 'Игрок'))}${p.pid ? ` <i class="ax-tag">#${p.pid}</i>` : ''}</b><small>Сайт · баланс ${money(+d.balance || 0)} · предметов ${(d.inv || []).filter(x => x.st === 'own').length}${p.steamid ? ` · <a href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steamid)}" target="_blank" rel="noopener">Steam</a>` : ''}</small></div>`
     : `<span class="sup-tgava">${ic.tg}</span><div><b>${esc(t.tg_name || 'Telegram')}</b><small>Telegram${t.tg_user ? ` · <a href="https://t.me/${esc(t.tg_user)}" target="_blank" rel="noopener">@${esc(t.tg_user)}</a>` : ''} · ответ уйдёт от имени бота</small></div>`;
   const k = supAdm.K[id];
   const arch = !(k && !k.closed_at); supAdm.shownArch = arch;
@@ -7485,13 +7485,20 @@ let admTab = (() => { try { return localStorage.getItem('rc.admTab') || 'dash'; 
 const pctS = v => (v * 100).toFixed(v < .1 ? 2 : 1).replace('.', ',') + '%';
 function pageAdmin() {
   if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
-  return `<section class="container cases-wide ax" id="adm">
-    <header class="ax-top"><div class="ax-ttl"><span>Админ-панель</span><h1>RUSH CASE</h1></div><div class="ax-period" id="axPeriod"></div></header>
-    <div class="ax-feed" id="axFeed"></div>
-    <div class="ax-lay"><nav class="ax-tabs ax-side" id="admTabs"></nav>
-    <div id="admBody"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div></div>
-  </section>`;
+  // слева — все вкладки по разделам, в центре — открытая вкладка, справа — лента «Сейчас на сайте» (только владельцу)
+  return `<section class="container cases-wide ax" id="adm"><div class="ax-lay">
+    <nav class="ax-nav" id="admTabs"></nav>
+    <main class="ax-main">
+      <header class="ax-top"><div class="ax-ttl"><span>Админ-панель · RUSH CASE</span><h1 id="axTitle">Админка</h1></div><div class="ax-period" id="axPeriod"></div></header>
+      <div id="admBody"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div>
+    </main>
+    <aside class="ax-feed" id="axFeed"></aside>
+  </div></section>`;
 }
+/* аватарка в админке — квадрат тёмного стекла (новый стиль), буква ника или картинка */
+const axAva = (u, sz = '') => !u ? '' : u.ava ? `<span class="ax-ava ${sz}"><img src="${esc(u.ava)}" alt="" loading="lazy"></span>` : `<span class="ax-ava ${sz}">${esc(((u.name || '?')[0] || '?').toUpperCase())}</span>`;
+// вкладки без выбора периода (настройки, списки) — полоску дат прячем
+const ADM_NOPER = ['shop', 'news', 'promo', 'ref', 'ga', 'staff', 'tours', 'build', 'tower'];
 /* роль в админке: владелец — всё; сотрудник — только вкладки, отмеченные владельцем (права проверяет и сервер, supabase/roles.sql) */
 let admMe = null;
 async function admRole() {
@@ -7530,17 +7537,15 @@ async function mountAdmin() {
   const tabs = admTabs();
   if (sb && admOwner()) admSync();
   if (!tabs.some(([k]) => k === admTab)) admTab = tabs.length ? tabs[0][0] : '';
-  // боковое меню: вкладки по разделам (всё влезает при любом числе вкладок)
-  const btn = ([k, t]) => `<button data-t="${k}" class="${k === admTab ? 'on' : ''}">${t}${k === 'support' ? '<i class="ax-badge" id="admSupBadge" hidden></i>' : ''}</button>`;
+  // боковое меню: все вкладки видны сразу, по разделам (Деньги, Игры, Игроки, Сайт); на телефоне — строка с прокруткой
+  const btn = ([k, t]) => `<button type="button" data-t="${k}" class="${k === admTab ? 'on' : ''}"><span>${t}</span>${k === 'support' ? '<i class="ax-badge" id="admSupBadge" hidden></i>' : ''}</button>`;
   const inG = new Set(ADM_GROUPS.flatMap(g => g[1]));
-  $('#admTabs').innerHTML = ADM_GROUPS.map(([g, ks, icn]) => { const list = tabs.filter(([k]) => ks.includes(k)); return list.length ? `<div class="ax-sg"><button class="ax-sgh" type="button" title="${g}" aria-label="${g}">${ic[icn]}</button><div class="ax-fly"><b>${g}</b>${list.map(btn).join('')}</div></div>` : ''; }).join('')
-    + (tabs.some(([k]) => !inG.has(k)) ? `<div class="ax-sg"><button class="ax-sgh" type="button" title="Другое" aria-label="Другое">${ic.star}</button><div class="ax-fly"><b>Другое</b>${tabs.filter(([k]) => !inG.has(k)).map(btn).join('')}</div></div>` : '');
+  const grp = (g, icn, list) => list.length ? `<div class="ax-ng"><b class="ax-ngh">${ic[icn] || ''}<span>${g}</span></b>${list.map(btn).join('')}</div>` : '';
+  $('#admTabs').innerHTML = ADM_GROUPS.map(([g, ks, icn]) => grp(g, icn, tabs.filter(([k]) => ks.includes(k)))).join('') + grp('Другое', 'star', tabs.filter(([k]) => !inG.has(k)));
   if (!tabs.length) return ($('#admBody').innerHTML = `<div class="empty">${ic.shield}Владелец ещё не открыл вам разделы админки.</div>`);
   admPeriodBar();
   admLiveInit(); // лента событий онлайн (только владельцу)
-  // разделы: наведение открывает список вкладок; нажатие — для телефона; после выбора вкладки список закрывается
-  $$('#admTabs .ax-sg').forEach(g => { $('.ax-sgh', g).onclick = () => { const o = !g.classList.contains('open'); $$('#admTabs .ax-sg').forEach(x => x.classList.remove('open', 'shut')); g.classList.toggle('open', o); }; g.onmouseleave = () => g.classList.remove('shut', 'open'); });
-  $$('#admTabs [data-t]').forEach(b => b.onclick = () => { const g = b.closest('.ax-sg'); if (g) { g.classList.remove('open'); g.classList.add('shut'); } admTab = b.dataset.t; try { localStorage.setItem('rc.admTab', admTab); } catch (e) { /* */ } admDraw(); });
+  $$('#admTabs [data-t]').forEach(b => b.onclick = () => { admTab = b.dataset.t; try { localStorage.setItem('rc.admTab', admTab); } catch (e) { /* */ } admDraw(); if (innerWidth > 900) window.scrollTo(0, 0); });
   admDraw();
 }
 const admErr = e => `<div class="empty">${ic.shield}Ошибка: ${esc(e.message || String(e))}. Проверьте, что запущен supabase/admin.sql и ваш аккаунт — админ.</div>`;
@@ -7679,7 +7684,7 @@ function admPeriodBar() {
   const [f, t] = admRangeDates();
   box.innerHTML = `<div class="ax-seg">${[['today', 'Сегодня'], ['yest', 'Вчера'], ['7d', '7 дней'], ['30d', '30 дней'], ['90d', '90 дней'], ['all', 'Всё время']].map(([k, n]) => `<button data-k="${k}" class="${admRange.k === k ? 'on' : ''}">${n}</button>`).join('')}</div>
     <div class="ax-dates"><input type="date" id="axFrom" value="${admIso(f)}"><i>—</i><input type="date" id="axTo" value="${admIso(new Date(+t - 864e5))}"><button class="ax-btn" id="axGo">Показать</button></div>
-    <button class="ax-btn" id="axRe" title="Обновить данные">${ic.history || '↻'}</button>${admOwner() ? '<button class="ax-btn ax-btn-p" id="axXls">Excel</button>' : ''}`;
+    <button class="ax-btn" id="axRe" title="Обновить данные">${ic.history || '↻'}</button>${admOwner() ? '<button class="ax-btn" id="axXls" title="Выгрузить статистику за период в Excel">Excel</button>' : ''}`;
   $$('.ax-seg [data-k]', box).forEach(b => b.onclick = () => { admRange = { k: b.dataset.k }; admPeriodBar(); admDraw(); });
   $('#axGo', box).onclick = () => { const a = $('#axFrom', box).value, b = $('#axTo', box).value; if (!a || !b || a > b) return toast('Проверьте даты', 'err'); admRange = { k: 'custom', from: a, to: b }; admPeriodBar(); admDraw(); };
   $('#axRe', box).onclick = () => { admData = null; admDraw(); };
@@ -7906,7 +7911,7 @@ function axPlayers(box, D) {
 async function admDayView(t0) {
   const f = new Date(t0), t = new Date(+f + 864e5), args = { p_from: f.toISOString(), p_to: t.toISOString() };
   const ttl = `${pad(f.getUTCDate())}.${pad(f.getUTCMonth() + 1)}.${f.getUTCFullYear()}`;
-  const m = modal(`<div class="ax ax-day"><h2>${ttl}</h2><div id="axDayB"><div class="ax-load"><span class="spinner"></span>Считаем день…</div></div></div>`, 'm-axday');
+  const m = modal(`<div class="ax ax-day"><h2>${ttl}</h2><div id="axDayB"><div class="ax-load"><span class="spinner"></span>Считаем день…</div></div></div>`, 'm-ax m-axday');
   const [per, upg, bets, cp, top] = await Promise.all([sb.rpc('admin_period', { ...args, p_bucket: 'hour' }), sb.rpc('admin_upg', { ...args, p_bucket: 'hour' }), sb.rpc('admin_bets', { ...args, p_bucket: 'hour' }), sb.rpc('admin_cases_period', args), sb.rpc('admin_day_top', args)]);
   const box = $('#axDayB', m); if (!box) return;
   if (per.error) return (box.innerHTML = admErr(per.error));
@@ -8038,7 +8043,7 @@ async function axBooks(box, D) {
   const del = r => r.id ? `<button class="ax-btn ax-sm" data-fdel="${r.id}">Удалить</button>` : '<i class="ax-tag">авто</i>';
   const form = (k, sel) => `<div class="mk-cfg fin-form" data-kind="${k}">${sel ? `<label>Статья<select class="ax-inp" data-c>${Object.entries(FIN_CAT).map(([c, n]) => `<option value="${c}">${n}</option>`).join('')}</select></label>` : ''}
     <label>Дата<input class="ax-inp" type="date" data-d value="${admIso(new Date())}"></label><label>Сумма, ₽<input class="ax-inp" type="number" min="0.01" step="0.01" data-a></label>
-    <label class="fin-note">Заметка<input class="ax-inp" data-n maxlength="300" placeholder="${k === 'cashout' ? 'например: с кассы на Сбер' : k === 'market' ? 'например: СБП' : 'кому, за что'}"></label><button class="ax-btn ax-btn-p" data-add>Добавить</button></div>`;
+    <label class="fin-note">Заметка<input class="ax-inp" data-n maxlength="300" placeholder="${k === 'cashout' ? 'например: с кассы на Сбер' : k === 'market' ? 'например: СБП' : 'кому, за что'}"></label><button class="ax-ok" data-add>Добавить</button></div>`;
   box.innerHTML = `
     ${F.opsErr ? '<p class="ax-foot neg">Выполните supabase/finance.sql в Supabase — без него ручные записи не сохраняются.</p>' : ''}
     <div class="ax-kpis">
@@ -8109,15 +8114,15 @@ async function admStaff(box) {
   if (!box.isConnected) return;
   if (error) return (box.innerHTML = admErr(error) + '<p class="ax-foot">Выполните supabase/roles.sql в Supabase.</p>');
   const L = data || [], owners = L.filter(s => s.role === 'owner'), staff = L.filter(s => s.role === 'staff');
-  const who = s => `<span class="at-u">${ava({ name: s.name || '?', ava: s.ava }, 'xs')}<span><b><i class="at-id">#${s.pid}</i>${plink(s.pid, esc(s.name || '?'))}</b><small>в команде с ${new Date(s.since).toLocaleDateString('ru-RU')}</small></span></span>`;
+  const who = s => `<span class="at-u">${axAva({ name: s.name || '?', ava: s.ava }, 'xs')}<span><b><i class="at-id">#${s.pid}</i>${plink(s.pid, esc(s.name || '?'))}</b><small>в команде с ${new Date(s.since).toLocaleDateString('ru-RU')}</small></span></span>`;
   const row = s => { const sc = s.schedule || {}, days = sc.days || [], P = s.perms || []; return `<div class="sf-row" data-pid="${s.pid}" data-uid="${s.uid}">
       <div class="sf-who">${who(s)}</div>
       <div class="sf-perms">${STAFF_PERMS.map(([k, n]) => `<label class="sf-chk"><input type="checkbox" data-p="${k}" ${P.includes(k) ? 'checked' : ''}>${n}</label>`).join('')}</div>
       <div class="sf-sch"><span class="sf-days">${WDAYS.map((d, i) => `<label class="sf-day"><input type="checkbox" data-d="${i + 1}" ${days.includes(i + 1) ? 'checked' : ''}><i>${d}</i></label>`).join('')}</span>
         <span class="sf-time"><input type="time" class="ax-inp" data-f value="${esc(sc.from || '10:00')}"><i>—</i><input type="time" class="ax-inp" data-to value="${esc(sc.to || '22:00')}"><small>по Москве</small></span></div>
-      <div class="sf-acts"><input class="ax-inp sf-note" data-n placeholder="Заметка" maxlength="200" value="${esc(s.note || '')}"><button class="ax-btn ax-btn-p ax-sm" data-save>Сохранить</button><button class="ax-btn ax-sm" data-del>Снять права</button></div></div>`; };
+      <div class="sf-acts"><input class="ax-inp sf-note" data-n placeholder="Заметка" maxlength="200" value="${esc(s.note || '')}"><button class="ax-ok ax-sm" data-save>Сохранить</button><button class="ax-btn ax-sm" data-del>Снять права</button></div></div>`; };
   box.innerHTML = `
-    ${axCard('Добавить сотрудника', `<div class="sf-add"><input class="ax-inp" id="sfPid" type="number" min="1" placeholder="ID игрока, например 100123"><button class="ax-btn ax-btn-p" id="sfAdd">Добавить</button></div>
+    ${axCard('Добавить сотрудника', `<div class="sf-add"><input class="ax-inp" id="sfPid" type="number" min="1" placeholder="ID игрока, например 100123"><button class="ax-ok" id="sfAdd">Добавить</button></div>
       <p class="ax-foot">Игрок получит доступ в админку без разделов — отметьте галочками, что ему можно, задайте график и нажмите «Сохранить». Права действуют сразу; сотруднику достаточно обновить страницу.</p>`)}
     ${axCard(`Сотрудники <small class="ax-mute">${staff.length}</small>`, staff.length ? `<div class="sf-list">${staff.map(row).join('')}</div>` : '<p class="ax-mute">Сотрудников пока нет.</p>')}
     ${axCard('Владельцы', `<div class="sf-own">${owners.map(who).join('')}</div>
@@ -8328,6 +8333,9 @@ function admDraw() {
   supAdmBadge(); // счётчик новых обращений на вкладке «Поддержка»
   box.classList.remove('ax-quiet'); delete box.dataset.dirty; admLive.sig = ''; // вкладку рисуем заново — снова с анимацией
   $$('#admTabs [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === admTab));
+  const tt = ADM_TABS.find(([k]) => k === admTab), per = $('#axPeriod');
+  if ($('#axTitle')) $('#axTitle').textContent = tt ? tt[1] : 'Админка';
+  if (per) per.hidden = ADM_NOPER.includes(admTab);
   if (!sb) return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
   const R = { dash: axDash, money: axMoney, books: axBooks, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, crash: axCrash, out: axOut, players: axPlayers };
   if (!admTabs().some(([k]) => k === admTab)) return;
@@ -8379,11 +8387,12 @@ function admFeedDraw() {
   const tm = v => { const d = new Date(v); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
   const who = e => { const p = admLive.names[e.uid]; return e.uid ? (p ? plink(p.pid, esc(p.name || '?')) : esc(e.name || 'игрок')) + ' · ' : ''; };
   const list = admLive.feed.map(e => `<div class="axf-i axf-${e.k}${e.fresh && Date.now() - e.at < 5000 ? ' new' : ''}"><time>${tm(e.ts)}</time><span>${who(e)}${e.html}</span></div>`).join('');
-  const sc = $('.axf-l', box), x = sc ? sc.scrollLeft : 0;
+  const sc = $('.axf-l', box), x = sc ? sc.scrollLeft : 0, y = sc ? sc.scrollTop : 0;
   box.innerHTML = `<div class="axf-h"><i class="axf-dot${admLive.on ? ' on' : ''}" title="${admLive.on ? 'онлайн: события приходят сами' : 'подключаемся…'}"></i><b>Сейчас на сайте</b>
     <button class="ax-btn ax-sm" id="axSnd" title="Звук на пополнение и вывод">${admLive.snd ? '🔔 Звук' : '🔕 Без звука'}</button></div>
     <div class="axf-l">${list || `<span class="ax-mute">Пока тихо — пополнения, выводы, обращения и выигрыши от ${fmt(ADM_WIN)} ₽ появятся здесь сами</span>`}</div>`;
   if (x) $('.axf-l', box).scrollLeft = x;
+  if (y) $('.axf-l', box).scrollTop = y;
   $('#axSnd', box).onclick = () => { admLive.snd = !admLive.snd; try { localStorage.setItem('rc.admSnd', admLive.snd ? '1' : '0'); } catch (e) { /* */ } admFeedDraw(); admBeep('dep'); };
 }
 function admBeep(k) {
@@ -8582,7 +8591,7 @@ async function shopReqs(el) {
   const dt = v => new Date(v).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const row = r => `<div class="sr-row" data-id="${r.id}"><div class="sr-h"><b>№${r.id}</b><span>${esc(r.name || '')} · ${dt(r.created_at)}</span><b class="${(ST[r.status] || [])[1] || ''}">${(ST[r.status] || [r.status])[0]}</b>${r.status !== 'pending' && r.decided_name ? `<small class="ax-mute">${esc(r.decided_name)}${r.decided_at ? ', ' + dt(r.decided_at) : ''}</small>` : ''}</div>
     <ul>${(r.lines || []).map(l => `<li>${esc(l)}</li>`).join('')}</ul>${r.err ? `<small class="neg">${esc(r.err)}</small>` : ''}
-    ${own && r.status === 'pending' ? '<div class="sr-acts"><button class="ax-btn ax-btn-p ax-sm" data-ok="1">Одобрить</button><button class="ax-btn ax-sm" data-ok="0">Отклонить</button></div>' : ''}</div>`;
+    ${own && r.status === 'pending' ? '<div class="sr-acts"><button class="ax-ok ax-sm" data-ok="1">Одобрить</button><button class="ax-btn ax-sm" data-ok="0">Отклонить</button></div>' : ''}</div>`;
   const list = own ? pend.concat(L.filter(r => r.status !== 'pending').slice(0, 5)) : L;
   el.innerHTML = `<div class="adm-panel sr"><div class="adm-ph"><h3>${own ? 'Заявки сотрудников' : 'Мои заявки'}${pend.length ? `<i class="sr-n">${pend.length}</i>` : ''}</h3></div>${list.map(row).join('')}</div>`;
   $$('[data-ok]', el).forEach(b => b.onclick = async () => {
@@ -8620,11 +8629,11 @@ function admCases(box) {
       <div class="ac-m"><span>Дороже кейса</span><b class="ac-win">${pctS(caseWin(c))}</b></div>
       <div class="ac-luck"${admOwner() ? '' : ' style="display:none"'}><span>Удача <b class="ac-lv">×${l.toFixed(2)}</b></span><input type="range" min="0.5" max="3" step="0.05" value="${l}" class="ac-r"></div>
       <label class="switch ac-sw"><input type="checkbox" class="ac-open"${c.disabled ? '' : ' checked'}><i></i><span>${c.disabled ? 'Закрыт' : 'Открыт'}</span></label>
-      <button class="btn btn-primary btn-sm ac-save" disabled>Сохранить</button>
+      <button class="ax-ok ax-sm ac-save" disabled>Сохранить</button>
     </div>`;
   };
   const groups = CASE_BLOCKS.map(b => ({ b, list: blockCases(b) }));
-  box.innerHTML = `<div id="shopReq"></div><div id="bnAdm"></div>${admOwner() ? "" : `<p class="ax-foot sr-note">Вы — сотрудник: любые правки витрины уходят владельцу на подтверждение (Telegram и админка) и появятся на сайте после одобрения. Удачу кейсов меняет только владелец.</p>`}<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="btn btn-ghost btn-sm" id="acBlocks">${ic.menu || ''}Разделы</button><button class="btn btn-ghost btn-sm" id="acCloseAll">Закрыть все</button><button class="btn btn-ghost btn-sm" id="acOpenAll">Открыть все</button><button class="btn btn-primary btn-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Изменить» — название, цена, картинка, раздел и наполнение любого кейса. Стрелки — порядок внутри раздела. «Новое» и «Хит» — метки на карточке (хиты показываются в популярных на главной). «Удача» умножает шанс всех предметов дороже кейса. Изменения у игроков — после обновления страницы.</p></div>
+  box.innerHTML = `<div id="shopReq"></div><div id="bnAdm"></div>${admOwner() ? "" : `<p class="ax-foot sr-note">Вы — сотрудник: любые правки витрины уходят владельцу на подтверждение (Telegram и админка) и появятся на сайте после одобрения. Удачу кейсов меняет только владелец.</p>`}<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="ax-btn ax-sm" id="acBlocks">${ic.menu || ''}Разделы</button><button class="ax-btn ax-sm" id="acCloseAll">Закрыть все</button><button class="ax-btn ax-sm" id="acOpenAll">Открыть все</button><button class="ax-ok ax-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Изменить» — название, цена, картинка, раздел и наполнение любого кейса. Стрелки — порядок внутри раздела. «Новое» и «Хит» — метки на карточке (хиты показываются в популярных на главной). «Удача» умножает шанс всех предметов дороже кейса. Изменения у игроков — после обновления страницы.</p></div>
     ${groups.map(({ b, list }) => `<div class="ac-grp" style="--bc:${b.a}"><div class="ac-gh"><b>${esc(b.t)}</b><span>${list.length} ${plural(list.length, 'кейс', 'кейса', 'кейсов')}</span></div>
       <div class="adm-cases">${list.length ? list.map((c, i) => row(c, i, list.length)).join('') : '<div class="empty">Пусто — перенесите сюда кейс через «Изменить»</div>'}</div></div>`).join('')}</div>`;
   shopReqs($('#shopReq', box)); admBanners($('#bnAdm', box));
@@ -8699,7 +8708,7 @@ function admBlocks(done) {
   const B = CASE_BLOCKS.map(b => ({ id: b.id, t: b.t, sub: b.sub || '', wm: b.wm || '', ic: b.ic || 'box', a: b.a || '#f3c14f', ...(b.rc ? { rc: true } : {}) }));
   const m = modal(`<div class="ced abl"><h2>Разделы витрины</h2><p class="abl-note">Порядок — как на главной и на странице «Кейсы». Кейсы удалённого раздела переходят в первый раздел. Бонусный раздел (R-COIN) удалить нельзя.</p>
     <div class="abl-list" id="ablList"></div>
-    <div class="ced-foot"><button class="btn btn-ghost" id="ablAdd">${ic.plus}Добавить раздел</button><span style="flex:1"></span><button class="btn btn-ghost" id="ablCancel">Отмена</button><button class="btn btn-primary btn-lg" id="ablSave">Сохранить</button></div></div>`, 'm-ced');
+    <div class="ced-foot"><button class="ax-btn" id="ablAdd">${ic.plus}Добавить раздел</button><span style="flex:1"></span><button class="ax-btn" id="ablCancel">Отмена</button><button class="ax-ok" id="ablSave">Сохранить</button></div></div>`, 'm-ax m-ced');
   const draw = () => {
     $('#ablList', m).innerHTML = B.map((b, i) => `<div class="abl-row" data-i="${i}" style="--bc:${b.a}">
       <span class="ac-ord"><button data-mv="-1"${i ? '' : ' disabled'}>▲</button><button data-mv="1"${i < B.length - 1 ? '' : ' disabled'}>▼</button></span>
@@ -8754,9 +8763,9 @@ function admBanners(el) {
   const draw = () => {
     const now = Date.now();
     el.innerHTML = `<div class="adm-panel bn"><div class="adm-ph"><h3>Баннеры на главной</h3><span class="adm-ph-acts">
-        <label class="btn btn-primary btn-sm bn-up">${ic.plus}Добавить баннер<input type="file" id="bnFile" accept="image/png,image/jpeg,image/webp" hidden></label>
-        <button class="btn btn-ghost btn-sm" id="bnReset">Вернуть стандартные</button>
-        <button class="btn btn-primary btn-sm" id="bnSave"${changed ? '' : ' disabled'}>${admOwner() ? 'Сохранить' : 'Отправить на подтверждение'}</button></span></div>
+        <label class="ax-ok ax-sm bn-up">${ic.plus}Добавить баннер<input type="file" id="bnFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+        <button class="ax-btn ax-sm" id="bnReset">Вернуть стандартные</button>
+        <button class="ax-ok ax-sm" id="bnSave"${changed ? '' : ' disabled'}>${admOwner() ? 'Сохранить' : 'Отправить на подтверждение'}</button></span></div>
       <p class="bn-req"><b>Размер баннера: 2000 × 800 px</b> (пропорции 2,5 : 1) · PNG, JPG или WebP до 12 МБ.
         Важное — текст и кнопки — держите ближе к центру: на телефоне края чуть подрезаются. Картинку других пропорций сайт обрежет по центру до 2,5 : 1.</p>
       <div class="bn-list">${L.length ? L.map((x, i) => { const exp = now > bannerUntil(x.until), stt = x.off ? 'скрыт' : exp ? 'срок вышел' : 'на главной'; return `<div class="bn-row${x.off || exp ? ' off' : ''}" data-i="${i}">
@@ -8766,7 +8775,7 @@ function admBanners(el) {
           ${x.b ? '<small class="ax-mute">Стандартный — кнопки и ссылки уже есть на баннере</small>' : `<input class="inp" data-f="link" value="${esc(x.link || '')}" placeholder="Куда ведёт нажатие: #/upgrade, #/case/medkit или https://t.me/…">`}</div>
         <label class="bn-d">Показывать до<input class="inp" type="date" data-f="until" value="${esc(x.until || '')}"></label>
         <b class="bn-st ${x.off || exp ? 'neg' : 'pos'}">${stt}</b>
-        <span class="bn-acts"><button class="btn btn-ghost btn-sm" data-off>${x.off ? 'Показать' : 'Скрыть'}</button><button class="btn btn-ghost btn-sm bn-del" data-del>Удалить</button></span></div>`; }).join('')
+        <span class="bn-acts"><button class="ax-btn ax-sm" data-off>${x.off ? 'Показать' : 'Скрыть'}</button><button class="ax-btn ax-sm ax-del" data-del>Удалить</button></span></div>`; }).join('')
       : '<p class="ax-mute">Баннеров нет — на главной будет стандартный «Открывай. Собирай. Побеждай».</p>'}</div></div>`;
     const set = () => { changed = true; draw(); };
     $$('.bn-row', el).forEach(r => {
@@ -8837,17 +8846,17 @@ function admNews(el) {
   let L = newsList().map(x => ({ ...x })), changed = false;
   const draw = () => {
     el.innerHTML = `<div class="adm-panel nwa"><div class="adm-ph"><h3>Новости на главном экране</h3><span class="adm-ph-acts">
-        <a class="btn btn-ghost btn-sm" href="#/news" target="_blank" rel="noopener">Страница «Новости»</a>
-        <button class="btn btn-ghost btn-sm" id="nwReset">Вернуть как было</button>
-        <button class="btn btn-primary btn-sm" id="nwSave"${changed ? '' : ' disabled'}>Сохранить</button></span></div>
+        <a class="ax-btn ax-sm" href="#/news" target="_blank" rel="noopener">Страница «Новости»</a>
+        <button class="ax-btn ax-sm" id="nwReset">Вернуть как было</button>
+        <button class="ax-ok ax-sm" id="nwSave"${changed ? '' : ' disabled'}>Сохранить</button></span></div>
       <p class="bn-req">Четыре карточки слева на главном экране, как в меню CS2. Нажатие на карточку открывает страницу «Новости» сразу на этой новости.
         Фон карточки — картинка (PNG, JPG, WebP до 12 МБ) или видео (MP4 или WebM до 25 МБ; звук не играет, видео идёт по кругу).</p>
       <div class="nwa-list">${L.map((x, i) => `<div class="nwa-row${x.off ? ' off' : ''}" data-i="${i}">
-        <div class="nwa-hd"><b>${i + 1}. ${NEWS_SLOTS[x.kind]}</b><span class="bn-st ${x.off ? 'neg' : 'pos'}">${x.off ? 'скрыта' : 'на главной'}</span><button class="btn btn-ghost btn-sm" data-off>${x.off ? 'Показать' : 'Скрыть'}</button></div>
+        <div class="nwa-hd"><b>${i + 1}. ${NEWS_SLOTS[x.kind]}</b><span class="bn-st ${x.off ? 'neg' : 'pos'}">${x.off ? 'скрыта' : 'на главной'}</span><button class="ax-btn ax-sm" data-off>${x.off ? 'Показать' : 'Скрыть'}</button></div>
         <div class="nwa-body">${x.kind === 'feed' ? '' : `<div class="nwa-media">${newsMedia(x, 'nwa-prev') || '<i class="nwa-prev"></i>'}<div class="nwa-mb">
-            <label class="btn btn-ghost btn-sm">Картинка<input type="file" data-up="img" accept="image/png,image/jpeg,image/webp" hidden></label>
-            <label class="btn btn-ghost btn-sm">Видео<input type="file" data-up="video" accept="video/mp4,video/webm" hidden></label>
-            ${x.video ? '<button class="btn btn-ghost btn-sm" data-novid>Убрать видео</button>' : ''}</div></div>`}
+            <label class="ax-btn ax-sm">Картинка<input type="file" data-up="img" accept="image/png,image/jpeg,image/webp" hidden></label>
+            <label class="ax-btn ax-sm">Видео<input type="file" data-up="video" accept="video/mp4,video/webm" hidden></label>
+            ${x.video ? '<button class="ax-btn ax-sm" data-novid>Убрать видео</button>' : ''}</div></div>`}
           <div class="nwa-f">${NEWS_FIELDS[x.kind].map(([f, n, ph, area]) => `<label class="${area ? 'wide' : ''}"><span>${n}</span>${area
             ? `<textarea class="inp" data-f="${f}" rows="3" placeholder="${esc(ph || '')}">${esc(x[f] || '')}</textarea>`
             : `<input class="inp" data-f="${f}" value="${esc(x[f] || '')}" placeholder="${esc(ph || '')}" maxlength="${f === 'sub' ? 140 : 80}">`}</label>`).join('')}</div></div></div>`).join('')}</div></div>`;
@@ -8944,8 +8953,8 @@ function admCaseEditor(row, done, base) {
       <div class="ced-list" id="cedList"></div>
       <div class="ced-sum" id="cedSum"></div>
     </div>
-    <div class="ced-foot">${base && caseCfg[base.id] ? '<button class="btn btn-ghost" id="cedReset">Вернуть как было</button><span style="flex:1"></span>' : ''}<button class="btn btn-ghost" id="cedCancel">Отмена</button><button class="btn btn-primary btn-lg" id="cedSave">${edit ? 'Сохранить изменения' : 'Создать кейс'}</button></div>
-  </div>`, 'm-ced');
+    <div class="ced-foot">${base && caseCfg[base.id] ? '<button class="ax-btn" id="cedReset">Вернуть как было</button><span style="flex:1"></span>' : ''}<button class="ax-btn" id="cedCancel">Отмена</button><button class="ax-ok" id="cedSave">${edit ? 'Сохранить изменения' : 'Создать кейс'}</button></div>
+  </div>`, 'm-ax m-ced');
   const v = id => $('#' + id, m);
   const price = () => +v('cedPrice').value || 0;
   // поиск скинов по каталогу: по названию и/или цене «от — до»
@@ -8971,7 +8980,7 @@ function admCaseEditor(row, done, base) {
     const tot = E.items.reduce((a, x) => a + x.ch, 0), p = price();
     const ev = tot ? E.items.reduce((a, x) => a + x.ch / tot * SK[x.n].p, 0) : 0, win = tot ? E.items.reduce((a, x) => a + (SK[x.n].p >= p ? x.ch / tot : 0), 0) : 0;
     const rtp = p ? ev / p : 0;
-    v('cedSum').innerHTML = `<div class="ced-auto"><span>Окупаемость</span><input class="inp" id="cedRtp" type="number" min="10" max="150" step="1" value="${E.rtp}"><span>%</span><button class="btn btn-dark btn-sm" id="cedCalc">Рассчитать шансы</button></div>
+    v('cedSum').innerHTML = `<div class="ced-auto"><span>Окупаемость</span><input class="inp" id="cedRtp" type="number" min="10" max="150" step="1" value="${E.rtp}"><span>%</span><button class="ax-btn ax-sm" id="cedCalc">Рассчитать шансы</button></div>
       <div class="ced-m"><span>Сумма шансов</span><b class="${Math.abs(tot - 100) > .01 ? 'warn' : ''}">${tot.toFixed(3).replace('.', ',')}%</b></div>
       <div class="ced-m"><span>Окупаемость</span><b class="${rtp > 1 ? 'neg' : ''}">${tot ? pctS(rtp) : '—'}</b></div>
       <div class="ced-m"><span>Дороже кейса</span><b>${tot ? pctS(win) : '—'}</b></div>`;
@@ -9077,9 +9086,9 @@ async function admPlayers(box) {
     const ago = ts => { const m = (Date.now() - Date.parse(ts)) / 60000; return m < 10 ? '<em class="on">онлайн</em>' : m < 60 ? Math.round(m) + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : new Date(ts).toLocaleDateString('ru-RU'); };
     list.innerHTML = `<div class="adm-tbl"><div class="at-h"><span>Игрок</span><span>Баланс</span><span>Открыто</span><span>Потрачено</span><span>Удача</span><span>Был</span><span></span></div>
       ${data.map(p => `<div class="at-r" data-uid="${p.id}" data-name="${esc(p.name)}" data-luck="${+p.luck || 1}" data-pid="${p.pid || ''}">
-        <span class="at-u">${ava({ name: p.name }, 'xs')}<span><b>${p.pid ? `<i class="at-id">#${p.pid}</i>` : ''}${plink(p.pid, esc(p.name))}${p.is_admin ? ' <i class="at-adm">админ</i>' : ''}</b><small>${esc(p.email || '')} · с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</small></span></span>
+        <span class="at-u">${axAva({ name: p.name }, 'xs')}<span><b>${p.pid ? `<i class="at-id">#${p.pid}</i>` : ''}${plink(p.pid, esc(p.name))}${p.is_admin ? ' <i class="at-adm">админ</i>' : ''}</b><small>${esc(p.email || '')} · с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</small></span></span>
         <span class="at-bal">${money(+p.balance)}<small>R ${rc(+p.rcoin)}</small></span><span>${fmt(+p.opened)}</span><span>${money(+p.spent)}</span><span><button class="at-luck${(+p.luck || 1) > 1 ? ' up' : (+p.luck || 1) < 1 ? ' dn' : ''}"${own ? '' : ' disabled'}>×${(+p.luck || 1).toFixed(2).replace('.', ',')}</button></span><span>${ago(p.last_seen)}</span>
-        <span class="at-acts"><button class="at-ntc" title="Написать уведомление игроку">${ic.chat}Уведомление</button>${own ? `<button class="btn btn-dark btn-sm at-give">${ic.plus}Начислить</button>` : ''}</span></div>`).join('')}</div>`;
+        <span class="at-acts"><button class="at-ntc" title="Написать уведомление игроку">${ic.chat}Уведомление</button>${own ? `<button class="ax-btn ax-sm at-give">${ic.plus}Начислить</button>` : ''}</span></div>`).join('')}</div>`;
     $$('.at-ntc', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admNotice(r.dataset.uid, r.dataset.name, r.dataset.pid); }); // уведомление — и сотруднику с вкладкой «Игроки»
     if (!own) return; // сотрудник: только поиск, просмотр и уведомления
     $$('.at-give', list).forEach(b => b.onclick = () => { const r = b.closest('.at-r'); admGive(r.dataset.uid, r.dataset.name, load); });
@@ -9089,13 +9098,13 @@ async function admPlayers(box) {
 }
 /* личная удача игрока: ×шанс дорогого дропа в кейсах и ×шанс апгрейда; применяется у игрока в течение 30 с */
 function admLuck(uid, name, pid, cur, done) {
-  const m = modal(`<div class="dep adm-give"><h2>Удача <em>${esc(name)}</em>${pid ? ` <small class="at-id">#${pid}</small>` : ''}</h2>
-    <p class="dep-sub">Множитель шансов игрока: в кейсах — шанс предметов дороже кейса, в апгрейде — шанс победы (игрок видит изменённый шанс на колесе). ×1 — как у всех. Применится у игрока в течение 30 секунд.</p>
+  const m = modal(`<div class="ax-mod adm-give"><h2>Удача <em>${esc(name)}</em>${pid ? ` <small class="at-id">#${pid}</small>` : ''}</h2>
+    <p class="ax-msub">Множитель шансов игрока: в кейсах — шанс предметов дороже кейса, в апгрейде — шанс победы (игрок видит изменённый шанс на колесе). ×1 — как у всех. Применится у игрока в течение 30 секунд.</p>
     <div class="al-val"><b id="alV">×${cur.toFixed(2).replace('.', ',')}</b><span id="alHint"></span></div>
     <input type="range" id="alR" min="0.1" max="5" step="0.05" value="${cur}" class="ac-r">
     <div class="al-prev" id="alPrev"></div>
-    <div class="amounts">${[0.25, 0.5, 1, 1.5, 2, 3, 5].map(a => `<button data-a="${a}">×${String(a).replace('.', ',')}</button>`).join('')}</div>
-    <button class="btn btn-primary btn-xl btn-block" id="alGo" style="margin-top:16px">Сохранить</button></div>`, 'm-dep');
+    <div class="ax-amts">${[0.25, 0.5, 1, 1.5, 2, 3, 5].map(a => `<button data-a="${a}">×${String(a).replace('.', ',')}</button>`).join('')}</div>
+    <button class="ax-ok ax-wide" id="alGo" style="margin-top:16px">Сохранить</button></div>`, 'm-ax m-axs');
   const r = $('#alR', m), upd = () => { const v = +r.value; $('#alV', m).textContent = '×' + v.toFixed(2).replace('.', ','); $('#alV', m).className = v > 1 ? 'up' : v < 1 ? 'dn' : '';
     admLuckPrev(m, v); $('#alHint', m).textContent = v === 1 ? 'обычные шансы' : v > 1 ? `шансы выше в ${v.toFixed(2).replace('.', ',')} раза` : `шансы ниже в ${(1 / v).toFixed(2).replace('.', ',')} раза`; };
   r.oninput = upd; $$('[data-a]', m).forEach(b => b.onclick = () => { r.value = b.dataset.a; upd(); }); upd();
@@ -9117,12 +9126,12 @@ function admLuckPrev(m, L) {
     + `<div class="alp-n">Апгрейд: шанс ×${L.toFixed(2).replace('.', ',')} (например, x2: 46% → ${pctS(Math.min(.8, .46 * L))}). Это вероятности — на одном-двух открытиях эффект может быть не виден.</div>`;
 }
 function admGive(uid, name, done) {
-  const m = modal(`<div class="dep adm-give"><h2>Начислить <em>${esc(name)}</em></h2>
-    <p class="dep-sub">Сумма поступит игроку в течение 30 секунд (или при следующем входе). Отрицательная сумма — списание.</p>
-    <div class="dep-amt"><input class="inp" id="agAmt" type="number" step="1" value="100"><span>₽</span></div>
-    <div class="amounts">${[50, 100, 500, 1000, 5000].map(a => `<button data-a="${a}">+${fmt(a)} ₽</button>`).join('')}</div>
+  const m = modal(`<div class="ax-mod adm-give"><h2>Начислить <em>${esc(name)}</em></h2>
+    <p class="ax-msub">Сумма поступит игроку в течение 30 секунд (или при следующем входе). Отрицательная сумма — списание.</p>
+    <div class="ax-amt"><input class="inp" id="agAmt" type="number" step="1" value="100"><span>₽</span></div>
+    <div class="ax-amts">${[50, 100, 500, 1000, 5000].map(a => `<button data-a="${a}">+${fmt(a)} ₽</button>`).join('')}</div>
     <div class="field" style="margin-top:12px"><input class="inp" id="agNote" maxlength="120" placeholder="Комментарий (увидит игрок), например: компенсация"></div>
-    <button class="btn btn-primary btn-xl btn-block" id="agGo" style="margin-top:16px">Начислить</button></div>`, 'm-dep');
+    <button class="ax-ok ax-wide" id="agGo" style="margin-top:16px">Начислить</button></div>`, 'm-ax m-axs');
   $$('[data-a]', m).forEach(b => b.onclick = () => { $('#agAmt', m).value = b.dataset.a; });
   $('#agGo', m).onclick = async () => {
     const amount = +$('#agAmt', m).value, note = $('#agNote', m).value.trim();
@@ -9447,7 +9456,7 @@ async function mountJoin(code) {
 
 /* ---------- админ → турниры ---------- */
 async function admTours(box) {
-  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Турниры</h3><button class="btn btn-primary btn-sm" id="atNew">${ic.plus}Создать турнир</button><p>Черновик видят только админы. «Регистрация открыта» — турнир на сайте, капитаны регистрируют команды. После закрытия регистрации составы заморожены.</p></div><div id="atList"><div class="top-load"><span class="spinner"></span></div></div></div>`;
+  box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Турниры</h3><button class="ax-ok ax-sm" id="atNew">${ic.plus}Создать турнир</button><p>Черновик видят только админы. «Регистрация открыта» — турнир на сайте, капитаны регистрируют команды. После закрытия регистрации составы заморожены.</p></div><div id="atList"><div class="top-load"><span class="spinner"></span></div></div></div>`;
   $('#atNew').onclick = () => admTourEditor(null, () => admTours(box));
   const { data, error } = await sb.from('tournaments').select('*').order('created_at', { ascending: false });
   if (error) { $('#atList').innerHTML = admErr(error); return; }
@@ -9457,7 +9466,7 @@ async function admTours(box) {
     <span class="at-ban"${t.banner ? ` style="background-image:url('${esc(t.banner)}')"` : ''}></span>
     <div class="at-n"><b>${esc(t.title)}</b><span>${fmtName(t.format)} · старт ${tourDate(t.starts_at)} · ${esc(t.prize_pool || 'без призового')}</span></div>
     <span class="trn-st ${s[1]}">${s[0]}</span><span class="at-cnt">${cnt[t.id] || 0} / ${t.max_teams}</span>
-    <div class="at-a"><button class="btn btn-dark btn-sm" data-teams="${t.id}">${ic.users}Команды</button><button class="btn btn-dark btn-sm" data-edit="${t.id}">${ic.edit}Изменить</button><a class="btn btn-ghost btn-sm" href="#/tournament/${t.id}">${ic.eye}</a><button class="btn btn-ghost btn-sm tm-kick" data-del="${t.id}">Удалить</button></div></div>`; }).join('')}</div>`
+    <div class="at-a"><button class="ax-btn ax-sm" data-teams="${t.id}">${ic.users}Команды</button><button class="ax-btn ax-sm" data-edit="${t.id}">${ic.edit}Изменить</button><a class="ax-btn ax-sm" href="#/tournament/${t.id}">${ic.eye}</a><button class="ax-btn ax-sm ax-del" data-del="${t.id}">Удалить</button></div></div>`; }).join('')}</div>`
     : `<div class="trn-none">Турниров ещё нет — создайте первый.</div>`;
   $$('[data-edit]', box).forEach(b => b.onclick = () => admTourEditor(data.find(x => x.id === +b.dataset.edit), () => admTours(box)));
   $$('[data-teams]', box).forEach(b => b.onclick = () => admTourTeams(data.find(x => x.id === +b.dataset.teams), () => admTours(box)));
@@ -9479,12 +9488,12 @@ function admTourEditor(t, done) {
       <label class="at-f"><small>Конец регистрации</small><input class="inp" id="aeReg" type="datetime-local" value="${dtLocal(E.reg_end)}"></label>
       <label class="at-f wide"><small>Призовой фонд (кратко, для карточки)</small><input class="inp" id="aePool" maxlength="80" value="${esc(E.prize_pool)}" placeholder="50 000 ₽ + скины"></label>
       <label class="at-f wide"><small>Призы по местам — каждое место с новой строки</small><textarea class="inp" id="aePrizes" rows="4" placeholder="AWP | Dragon Lore&#10;10 000 ₽&#10;Нож на выбор">${esc((E.prizes || []).join('\n'))}</textarea></label>
-      <div class="at-f wide"><small>Пул карт — нажмите, чтобы включить или выключить</small><div class="at-maps" id="aeMaps"></div><div class="inp-row"><input class="inp" id="aeMapAdd" maxlength="30" placeholder="Своя карта"><button class="btn btn-dark" id="aeMapBtn">${ic.plus}Добавить</button></div></div>
+      <div class="at-f wide"><small>Пул карт — нажмите, чтобы включить или выключить</small><div class="at-maps" id="aeMaps"></div><div class="inp-row"><input class="inp" id="aeMapAdd" maxlength="30" placeholder="Своя карта"><button class="ax-btn" id="aeMapBtn">${ic.plus}Добавить</button></div></div>
       <label class="at-f wide"><small>Описание</small><textarea class="inp" id="aeDesc" rows="4">${esc(E.description)}</textarea></label>
       <label class="at-f wide"><small>Правила</small><textarea class="inp" id="aeRules" rows="6">${esc(E.rules)}</textarea></label>
       <label class="at-f wide"><small>Античит</small><input class="inp" id="aeAc" maxlength="400" value="${esc(E.anticheat)}" placeholder="Обязателен FACEIT AC"></label>
     </div>
-    <div class="ced-foot"><button class="btn btn-ghost" id="aeCancel">Отмена</button><button class="btn btn-primary btn-lg" id="aeSave">${t ? 'Сохранить' : 'Создать турнир'}</button></div></div>`, 'm-dep at-modal');
+    <div class="ced-foot"><button class="ax-btn" id="aeCancel">Отмена</button><button class="ax-ok" id="aeSave">${t ? 'Сохранить' : 'Создать турнир'}</button></div></div>`, 'm-ax at-modal');
   const v = id => $('#' + id, m);
   const pool = new Set(E.map_pool || []);
   const drawMaps = () => { const all = [...new Set([...TOUR_MAPS, ...pool])]; v('aeMaps').innerHTML = all.map(x => `<button class="${pool.has(x) ? 'on' : ''}" data-map="${esc(x)}">${esc(x)}</button>`).join(''); $$('[data-map]', m).forEach(b => b.onclick = () => { const k = b.dataset.map; pool.has(k) ? pool.delete(k) : pool.add(k); drawMaps(); }); };
@@ -9508,15 +9517,15 @@ function admTourEditor(t, done) {
   };
 }
 async function admTourTeams(t, done) {
-  const m = modal(`<div class="dpx at-tm"><div class="dpx-head"><span class="dpx-ico">${ic.users}</span><div><h2>${esc(t.title)}</h2><p>Зарегистрированные команды</p></div></div><div id="atTeams"><div class="top-load"><span class="spinner"></span></div></div></div>`, 'm-dep at-modal');
+  const m = modal(`<div class="dpx at-tm"><div class="dpx-head"><span class="dpx-ico">${ic.users}</span><div><h2>${esc(t.title)}</h2><p>Зарегистрированные команды</p></div></div><div id="atTeams"><div class="top-load"><span class="spinner"></span></div></div></div>`, 'm-ax at-modal');
   const { data, error } = await sb.rpc('admin_tour_teams', { p_tour: t.id });
   if (error) { $('#atTeams', m).innerHTML = admErr(error); return; }
   const P = await players((data || []).flatMap(x => [...x.roster, ...x.subs]));
-  const row = (u, sub) => { const p = P[u] || { name: '?' }; return `<span class="at-pl${sub ? ' sub' : ''}">${ava(p, 'xs')}${plink(p.pid || u, esc(p.name))}${p.steamid ? ` <a href="${steamUrl(p.steamid)}" target="_blank" rel="noopener">${ic.steam}</a>` : ''}${sub ? ' <i>замена</i>' : ''}</span>`; };
+  const row = (u, sub) => { const p = P[u] || { name: '?' }; return `<span class="at-pl${sub ? ' sub' : ''}">${axAva(p, 'xs')}${plink(p.pid || u, esc(p.name))}${p.steamid ? ` <a href="${steamUrl(p.steamid)}" target="_blank" rel="noopener">${ic.steam}</a>` : ''}${sub ? ' <i>замена</i>' : ''}</span>`; };
   $('#atTeams', m).innerHTML = (data || []).length ? data.map(x => `<div class="at-team">${teamLogo(x)}<div class="at-team-b"><b>${esc(x.name)} <small>[${esc(x.tag)}]</small></b>
       <span class="at-tg">${x.tg ? `${ic.tg}<a href="https://t.me/${esc(x.tg.replace(/^@/, ''))}" target="_blank" rel="noopener">${esc(x.tg)}</a>` : 'Telegram капитана не указан'}${x.roster.length < t.format ? ' · <b class="bad">неполный состав</b>' : ''}</span>
       <div class="at-pls">${x.roster.map(u => row(u)).join('')}${x.subs.map(u => row(u, true)).join('')}</div></div>
-      <button class="btn btn-ghost btn-sm tm-kick" data-kick="${x.team}">Снять</button></div>`).join('') : `<div class="trn-none">Пока никто не зарегистрировался.</div>`;
+      <button class="ax-btn ax-sm ax-del" data-kick="${x.team}">Снять</button></div>`).join('') : `<div class="trn-none">Пока никто не зарегистрировался.</div>`;
   $$('[data-kick]', m).forEach(b => b.onclick = async () => { if (!confirm('Снять команду с турнира?')) return; const { error: e } = await sb.rpc('admin_tour_kick', { p_tour: t.id, p_team: b.dataset.kick }); if (e) return toast('Ошибка: ' + e.message, 'err'); toast('Команда снята'); admTourTeams(t, done); done(); });
 }
 
@@ -9810,7 +9819,7 @@ function admBuild(box) {
   box.innerHTML = axCard('Собери сам — настройки', `<div class="ax-bd">
     <label class="ax-bd-f">Окупаемость, %<input class="inp" id="abRtp" type="number" min="30" max="98" step="1" value="${Math.round(BUILD.rtp * 100)}" inputmode="numeric"></label>
     <label class="switch"><input type="checkbox" id="abOff"${BUILD.off ? ' checked' : ''}><i></i>Режим закрыт</label>
-    <button class="btn btn-primary btn-sm" id="abSave">${ic.check}Сохранить</button></div>
+    <button class="ax-ok ax-sm" id="abSave">${ic.check}Сохранить</button></div>
     <p class="ax-foot">Окупаемость — сколько в среднем возвращается игроку от цены кейса (80% = сайт оставляет себе 20%). Цена кейса = средняя стоимость дропа / окупаемость. Шансы: вес скина ~ 1/цена, каждый не меньше 0,01%. Статистика открытий — во вкладке «Кейсы» (кейс «Собери сам»).</p>`);
   $('#abSave').onclick = async () => {
     const v = Math.round(+$('#abRtp').value);
@@ -10384,7 +10393,7 @@ function admTower(box) {
     <label class="ax-bd-f">Окупаемость, %<input class="inp" id="atRtp" type="number" min="30" max="98" step="1" value="${Math.round(TOWER.rtp * 100)}" inputmode="numeric"></label>
     ${[1, 2, 3].map(b => `<label class="ax-bd-f">Вершина, ${b} ${plural(b, 'бомба', 'бомбы', 'бомб')}<input class="inp" id="atTop${b}" type="number" min="1.1" max="1000" step="0.1" value="${TOWER.top[b - 1]}" inputmode="decimal"></label>`).join('')}
     <label class="switch"><input type="checkbox" id="atOff"${TOWER.off ? ' checked' : ''}><i></i>Режим закрыт</label>
-    <button class="btn btn-primary btn-sm" id="atSave">${ic.check}Сохранить</button></div>
+    <button class="ax-ok ax-sm" id="atSave">${ic.check}Сохранить</button></div>
     <p class="ax-foot">Вершина — множитель 8-го (верхнего) этажа. Этажи ниже растут к ней плавно, но никогда не выше честного расчёта при заданной окупаемости (на высоких этажах сайт оставляет себе больше). Изменения действуют на игры, начатые после сохранения.</p>
     <div class="ax-tw" id="atStats"><span class="spinner"></span></div>`);
   $('#atSave').onclick = async () => {
@@ -11240,6 +11249,7 @@ function route() {
   document.body.classList.toggle('pg-build', key === 'build');
   document.body.classList.toggle('pg-doc', DOC_KEYS.includes(key)); // документы — размытый фон «Кейсов», как «Бонусы»
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
+  document.body.classList.toggle('pg-admin', key === 'admin'); // админка — размытый фон владельца 17.11 (assets/bg-admin.webp), без пыли и виньетки
   document.body.classList.toggle('pg-home', key === '' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite' || key === 'profile' || key === 'upgrade' || DOC_KEYS.includes(key));
   document.body.classList.toggle('pg-upgrade', key === 'upgrade'); // апгрейд — фон владельца 12.11 (ночные руины, assets/bg-upgrade.webp), слегка размыт
   document.body.classList.toggle('pg-invite', key === 'invite'); // «Пригласить друзей» — размытый снимок главного экрана, как профиль
