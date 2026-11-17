@@ -2456,6 +2456,7 @@ async function loadCaseCfg() {
   NEWS = nw && Array.isArray(nw.v) ? nw.v : null;
   try { if (NEWS) localStorage.setItem('rc.news', JSON.stringify(NEWS)); else localStorage.removeItem('rc.news'); } catch (e) { /* */ }
   if (JSON.stringify(NEWS) !== nwWas && $('#nwCol')) { $('#nwCol').innerHTML = newsCol(); nwFeed(); }
+  const an = data.find(r => r.k === 'announce'); ANN = an && an.v && typeof an.v === 'object' ? an.v : null; annMaybe(); // объявление при входе (вкладка «Объявление»)
   const tc = data.find(r => r.k === 'tower'); if (tc && tc.v) { if (+tc.v.rtp >= .3 && +tc.v.rtp <= .98) TOWER.rtp = +tc.v.rtp; TOWER.off = !!tc.v.off; if (Array.isArray(tc.v.top) && tc.v.top.length === 3) TOWER.top = tc.v.top.map(Number); if ($('#twTower') && !tw.game) drawTower(); }
   const sk = data.find(r => r.k === 'skins'); if (sk && sk.v && sk.v.hold != null) SK_HOLD = Math.max(0, +sk.v.hold || 0);
   const bc = data.find(r => r.k === 'build'); if (bc && bc.v) { if (+bc.v.rtp >= .3 && +bc.v.rtp <= .98) BUILD.rtp = +bc.v.rtp; BUILD.off = !!bc.v.off; if ($('#bdSet')) drawBuild(); }
@@ -6652,6 +6653,44 @@ async function logout() {
   Object.assign(st, freshProfile(), { user: null }); save();
   renderUser(); if (location.hash.length > 2) location.hash = '#/'; else route(); toast('Вы вышли из аккаунта', 'info');
 }
+/* ---------- объявление для всех (как «Приглашение на ограниченный тест» в CS2): сверху фото или видео, ниже плашка-заголовок, текст и кнопки.
+   site_cfg 'announce' (вкладка «Объявление» в админке). Показ — один раз: увидел — больше нет, пока админ не поменяет объявление (новый ver) ---------- */
+let ANN = null, annDone = false;
+const ANN_DEF = { off: true, tag: 'Приглашение на ограниченный тест', color: '#f0a43a', text: '', b1: 'Начать', l1: '', b2: '', l2: '', b3: 'Закрыть', img: '', video: '', ver: 0 };
+const annColor = c => /^#[0-9a-f]{6}$/i.test(c || '') ? c : ANN_DEF.color;
+const annText = t => esc(t || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+function annOpen(a) {
+  const media = newsMedia(a, 'ann-bg');
+  const btn = (label, link, cls) => { const l = bannerLink(link); return l ? `<a class="${cls}" href="${esc(l)}"${l[0] === '#' ? '' : ' target="_blank" rel="noopener"'} data-go>${esc(label)}</a>` : `<button class="${cls}" type="button" data-go>${esc(label)}</button>`; };
+  const m = modal(`<div class="ann${media ? '' : ' ann-nm'}" style="--ac:${annColor(a.color)}">
+    <div class="ann-body">${media ? `<div class="ann-media">${media}</div>` : ''}
+      <div class="ann-tx">${a.tag ? `<h3 class="ann-tag">${esc(a.tag)}</h3>` : ''}${annText(a.text)}</div></div>
+    <div class="ann-ft">${a.b1 ? btn(a.b1, a.l1, 'c2-btn c2-green ann-go') : ''}${a.b2 && bannerLink(a.l2) ? btn(a.b2, a.l2, 'ann-lk') : ''}<button class="ann-lk" type="button" data-go>${esc(a.b3 || 'Закрыть')}</button></div>
+  </div>`, 'm-ann');
+  $$('[data-go]', m).forEach(b => b.addEventListener('click', () => closeModal()));
+  return m;
+}
+// показать при входе: когда загрузились настройки сайта и не открыто другое окно; не в админке
+function annMaybe() {
+  const a = ANN, root = $('#modal-root');
+  if (annDone || !a || a.off || !a.ver || !root || /^#\/(admin|staff)/.test(location.hash)) return;
+  try { if (localStorage.getItem('rc.ann') === String(a.ver)) return void (annDone = true); } catch (e) { /* */ }
+  annDone = true;
+  const show = () => {
+    if ($('.modal-ov', root)) return false;
+    const ov = annOpen(a).parentNode;
+    try { localStorage.setItem('rc.ann', String(a.ver)); } catch (e) { /* */ }
+    // другое окно (выигрыш, «Вас пригласил»…) вытеснило объявление, не дав его закрыть, — покажем снова, когда то закроют
+    const mo = new MutationObserver(() => {
+      if (ov.isConnected) return; mo.disconnect();
+      if (ov.classList.contains('in')) { try { localStorage.removeItem('rc.ann'); } catch (e) { /* */ } wait(); }
+    });
+    mo.observe(root, { childList: true });
+    return true;
+  };
+  const wait = () => { if (show()) return; const mo = new MutationObserver(() => { if (!$('.modal-ov', root) && show()) mo.disconnect(); }); mo.observe(root, { childList: true }); };
+  setTimeout(wait, 900);
+}
 // при загрузке сайта: восстанавливаем вход; старый локальный аккаунт (без базы) — выходим из него
 function sbInit() {
   if (!sb) return;
@@ -7500,7 +7539,7 @@ function pageAdmin() {
 /* аватарка в админке — квадрат тёмного стекла (новый стиль), буква ника или картинка */
 const axAva = (u, sz = '') => !u ? '' : u.ava ? `<span class="ax-ava ${sz}"><img src="${esc(u.ava)}" alt="" loading="lazy"></span>` : `<span class="ax-ava ${sz}">${esc(((u.name || '?')[0] || '?').toUpperCase())}</span>`;
 // вкладки без выбора периода (настройки, списки) — полоску дат прячем
-const ADM_NOPER = ['shop', 'news', 'promo', 'ref', 'ga', 'staff', 'tours', 'build', 'tower'];
+const ADM_NOPER = ['shop', 'news', 'ann', 'promo', 'ref', 'ga', 'staff', 'tours', 'build', 'tower'];
 /* роль в админке: владелец — всё; сотрудник — только вкладки, отмеченные владельцем (права проверяет и сервер, supabase/roles.sql) */
 let admMe = null;
 async function admRole() {
@@ -7679,8 +7718,8 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
-const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash', 'build'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'promo', 'tours', 'staff'], 'globe']];
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['ga', 'Розыгрыши'], ['ref', 'Рефералы'], ['shop', 'Управление витриной'], ['news', 'Новости'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
+const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash', 'build'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'ann', 'promo', 'tours', 'staff'], 'globe']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['ga', 'Розыгрыши'], ['ref', 'Рефералы'], ['shop', 'Управление витриной'], ['news', 'Новости'], ['ann', 'Объявление'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -8346,6 +8385,7 @@ function admDraw() {
   if (admTab === 'tours') return admTours(box);
   if (admTab === 'shop') return admCases(box);
   if (admTab === 'news') return admNews(box);
+  if (admTab === 'ann') return admAnn(box);
   if (admTab === 'support') return admSupport(box);
   if (admTab === 'promo') return admPromo(box);
   if (admTab === 'ref') return admRef(box);
@@ -8899,6 +8939,73 @@ function admNews(el) {
       const e = await cfgSave([{ k: 'news', v }]); if (e) return cfgErr(e);
       NEWS = v; try { localStorage.setItem('rc.news', JSON.stringify(v)); } catch (er) { /* */ }
       changed = false; draw(); toast('Новости сохранены — на главной сразу после обновления страницы');
+    };
+  };
+  draw();
+}
+/* ---------- вкладка «Объявление» (только владелец): окно для всех при входе на сайт, как «Приглашение на ограниченный тест» в CS2.
+   site_cfg 'announce'; картинка или видео — в хранилище case-img. Изменили содержимое — ver новый, и каждый увидит окно ещё раз ---------- */
+const ANN_FIELDS = [['tag', 'Заголовок на плашке', 'Приглашение на ограниченный тест', 80], ['color', 'Цвет заголовка'], ['text', 'Текст — абзацы через пустую строку', 'Вы приглашены…', 0, 1],
+  ['b1', 'Зелёная кнопка — надпись', 'Начать', 30], ['l1', 'Зелёная кнопка ведёт (пусто — просто закрывает)', '#/crash или https://…', 300],
+  ['b2', 'Вторая кнопка — надпись (пусто — нет кнопки)', 'Подробнее', 30], ['l2', 'Вторая кнопка ведёт', '#/faq или https://…', 300], ['b3', 'Кнопка закрытия — надпись', 'Закрыть', 30]];
+function admAnn(el) {
+  if (!el) return;
+  const sig = x => JSON.stringify(['tag', 'color', 'text', 'b1', 'l1', 'b2', 'l2', 'b3', 'img', 'video'].map(f => x[f] || ''));
+  let A = { ...ANN_DEF, ...(ANN || {}) }, sig0 = sig(A), changed = false, again = false;
+  const draw = () => {
+    const on = !A.off;
+    el.innerHTML = `<div class="adm-panel nwa ana"><div class="adm-ph"><h3>Объявление при входе на сайт</h3><span class="adm-ph-acts">
+        <button class="ax-btn ax-sm" id="anView">Посмотреть</button>
+        <button class="ax-ok ax-sm" id="anSave"${changed ? '' : ' disabled'}>Сохранить</button></span></div>
+      <p class="bn-req">Окно как «Приглашение на ограниченный тест» в CS2: сверху картинка или видео, ниже заголовок на плашке, текст и кнопки.
+        Видят <b>все посетители</b> сразу при открытии сайта, <b>один раз</b>: закрыл — больше не видит. Поменяли текст, картинку или кнопки и сохранили — каждый увидит новое объявление ещё раз.</p>
+      <div class="nwa-row${on ? '' : ' off'}">
+        <div class="nwa-hd"><b>Окно</b><span class="bn-st ${on ? 'pos' : 'neg'}">${on ? 'показывается' : 'выключено'}</span>
+          ${A.ver && on ? `<button class="ax-btn ax-sm" id="anAgain"${again ? ' disabled' : ''}>${again ? 'Покажем всем после сохранения' : 'Показать всем ещё раз'}</button>` : ''}
+          <button class="${on ? 'ax-btn' : 'ax-ok'} ax-sm" id="anOn">${on ? 'Выключить' : 'Включить'}</button></div>
+        <div class="nwa-body"><div class="nwa-media">${newsMedia(A, 'nwa-prev ana-prev') || '<i class="nwa-prev ana-prev"></i>'}<div class="nwa-mb">
+            <label class="ax-btn ax-sm">Картинка<input type="file" data-up="img" accept="image/png,image/jpeg,image/webp" hidden></label>
+            <label class="ax-btn ax-sm">Видео<input type="file" data-up="video" accept="video/mp4,video/webm" hidden></label>
+            ${A.img || A.video ? '<button class="ax-btn ax-sm" id="anNoMedia">Убрать</button>' : ''}</div>
+            <p class="bn-req">Картинка PNG, JPG, WebP до 12 МБ или видео MP4/WebM до 25 МБ (без звука, по кругу). Лучше горизонтальная или квадратная, главное — в верхней половине.</p></div>
+          <div class="nwa-f">${ANN_FIELDS.map(([f, n, ph, max, area]) => `<label class="${area ? 'wide' : ''}"><span>${n}</span>${f === 'color'
+            ? `<input class="inp ana-color" type="color" data-f="color" value="${annColor(A.color)}">`
+            : area ? `<textarea class="inp" data-f="${f}" rows="7" placeholder="${esc(ph)}">${esc(A[f] || '')}</textarea>`
+            : `<input class="inp" data-f="${f}" value="${esc(A[f] || '')}" placeholder="${esc(ph)}" maxlength="${max}">`}</label>`).join('')}</div></div></div></div>`;
+    const dirty = () => { changed = true; $('#anSave', el).disabled = false; };
+    $$('[data-f]', el).forEach(inp => inp.onchange = () => {
+      const f = inp.dataset.f, v = inp.value.trim();
+      if ((f === 'l1' || f === 'l2') && v && !bannerLink(v)) { toast('Ссылка: раздел сайта (#/crash, #/case/…) или https://…', 'err'); inp.value = A[f] || ''; return; }
+      A[f] = v; dirty();
+    });
+    $('#anOn', el).onclick = () => { A.off = !A.off; changed = true; draw(); };
+    if ($('#anAgain', el)) $('#anAgain', el).onclick = () => { again = true; changed = true; draw(); };
+    if ($('#anNoMedia', el)) $('#anNoMedia', el).onclick = () => { A.img = ''; A.video = ''; changed = true; draw(); };
+    $('#anView', el).onclick = () => annOpen(A);
+    $$('[data-up]', el).forEach(inp => inp.onchange = async e => {
+      const file = e.target.files[0]; if (!file) return;
+      const vid = inp.dataset.up === 'video';
+      if (file.size > (vid ? 25e6 : 12e6)) return toast(vid ? 'Видео больше 25 МБ' : 'Картинка больше 12 МБ', 'err');
+      const lab = inp.closest('label'); lab.classList.add('busy');
+      let blob = file, ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (vid) { if (!['mp4', 'webm'].includes(ext)) ext = file.type === 'video/webm' ? 'webm' : 'mp4'; }
+      else { blob = await newsImgPack(file).catch(() => null); ext = blob && blob.type === 'image/webp' ? 'webp' : 'jpg'; }
+      if (!blob) { lab.classList.remove('busy'); return toast('Не удалось прочитать картинку', 'err'); }
+      const p = `announce-${Date.now()}.${ext}`, stg = sb.storage.from('case-img');
+      const { error } = await stg.upload(p, blob, { upsert: true, contentType: blob.type || (ext === 'webm' ? 'video/webm' : 'video/mp4') });
+      lab.classList.remove('busy');
+      if (error) return toast('Не загружено: ' + error.message, 'err');
+      const url = stg.getPublicUrl(p).data.publicUrl;
+      if (vid) { A.video = url; A.img = ''; } else { A.img = url; A.video = ''; }
+      changed = true; draw();
+    });
+    $('#anSave', el).onclick = async () => {
+      if (!A.off && !A.tag && !A.text && !A.img && !A.video) return toast('Пустое объявление: добавьте заголовок, текст или картинку', 'err');
+      const v = { ...A, color: annColor(A.color) };
+      if (again || sig(v) !== sig0 || !v.ver) v.ver = Date.now(); // новое содержимое — покажем всем ещё раз
+      const e = await cfgSave([{ k: 'announce', v }]); if (e) return cfgErr(e);
+      ANN = A = v; sig0 = sig(v); changed = false; again = false; draw();
+      toast(v.off ? 'Объявление выключено' : 'Объявление сохранено — игроки увидят его при следующем открытии сайта');
     };
   };
   draw();
