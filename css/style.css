@@ -2484,9 +2484,24 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 body.pg-contracts .fx{display:none}
 .dos{--tw:'PT Mono','Courier New',ui-monospace,monospace;--hand:'Caveat','Segoe Print',cursive;--doc:'Old Standard TT',Georgia,'Times New Roman',serif;--stp:'Oswald','Arial Narrow',sans-serif;
   --mono:var(--tw);--serif:var(--doc);--ink:#241a12;--rd:#a8231b;--pen:#1d3778;--typed:0 0 .6px rgba(36,26,18,.5);font-synthesis:none}
-/* шапка над делом */
-.dos-eye{font:400 12px var(--tw);letter-spacing:.2em;color:#e3b85c}
-.dos-sub{color:#d2c3a3;font-size:15px;line-height:1.6}
+/* шапка — бумажная наклейка на обложке папки: машинка, «ДЕЛО» и красный штамп «КОНТРАКТ», «?» — картонный ярлык (владелец 17.11) */
+.dos-mast{margin:30px 0 30px;align-items:flex-start}
+.dos-cover{max-width:800px;padding:22px 34px 24px;transform:rotate(-.5deg);--px:-180px;--py:-120px;--eh:10px}
+.dos-tape{position:absolute;top:-8px;z-index:3;width:104px;height:26px;pointer-events:none;background:linear-gradient(90deg,rgba(255,250,235,0),rgba(255,250,235,.6) 7%,rgba(246,236,210,.6) 93%,rgba(255,250,235,0));box-shadow:0 1px 3px rgba(0,0,0,.25);
+  -webkit-mask:linear-gradient(90deg,transparent 0 3px,#000 3px calc(100% - 3px),transparent 0);mask:linear-gradient(90deg,transparent 0 3px,#000 3px calc(100% - 3px),transparent 0)}
+.dos-tape.l{left:-30px;transform:rotate(-34deg)}.dos-tape.r{right:-30px;transform:rotate(31deg)}
+.dos-eye{font:400 12.5px var(--tw);letter-spacing:.16em;color:#5a4530;text-shadow:var(--typed)}
+.dos-eye span{color:var(--rd)}
+.dos-title{display:flex;align-items:center;flex-wrap:wrap;gap:8px 24px;margin:14px 0 6px;font:700 54px/1 var(--doc);letter-spacing:.05em;text-transform:uppercase;color:#1f1710;text-shadow:var(--typed)}
+.dos-title em{position:relative;display:inline-block;padding:7px 20px 6px;border:4px solid currentColor;border-radius:4px;font:500 46px/1 var(--stp);font-style:normal;letter-spacing:.12em;color:#a8231b;background:rgba(168,35,27,.04);
+  text-shadow:0 0 1px currentColor;transform:rotate(-3deg);mix-blend-mode:multiply;-webkit-mask:url(../assets/dos/ink.webp) 40px 16px/260px;mask:url(../assets/dos/ink.webp) 40px 16px/260px}
+.dos-title em::after{content:"";position:absolute;inset:4px;border:1.5px solid currentColor;border-radius:2px;pointer-events:none}
+.dos-sub{max-width:none;margin:14px 0 0;font:400 14.5px/1.6 var(--tw);color:#3a2a1c;text-shadow:var(--typed)}
+.dos .tut-q{position:relative;flex:none;width:52px;height:36px;margin:0;padding:0 0 0 12px;border:0;border-radius:0;box-shadow:none;animation:none;color:var(--ink);font:400 21px/36px var(--tw);text-shadow:var(--typed);
+  background:radial-gradient(circle at 14px 50%,#2a1a0c 0 2.6px,#8a6a34 3px,#e4c98a 4.2px,#9b7a40 5.4px,transparent 5.8px),linear-gradient(rgba(255,240,205,.18),rgba(110,70,25,.12)),url(../assets/dos/paper.webp) -90px -40px/512px 512px,#d4b77c;background-blend-mode:normal,normal,multiply;
+  clip-path:polygon(10px 0,100% 0,100% 100%,10px 100%,0 50%);transform:rotate(5deg);transition:transform .15s}
+.dos .tut-q:hover{transform:rotate(-3deg) translateY(-2px);box-shadow:none}
+.dos .tut-q:focus-visible{outline:none;color:var(--rd)}
 /* рваные края: маска из 4 полос + середина; глубина --eh, шаг рисунка --ew */
 .dpaper::before,.dslot::before,.dcard::before,.dos-note::before,.dos .dbtn.dark::before,.dos .dmini::before{
   -webkit-mask:url(../assets/dos/edge-t.png) 0 0/var(--ew,192px) var(--eh,12px) repeat-x,url(../assets/dos/edge-b.png) 0 100%/var(--ew,192px) var(--eh,12px) repeat-x,url(../assets/dos/edge-l.png) 0 0/var(--eh,12px) var(--ew,192px) repeat-y,url(../assets/dos/edge-r.png) 100% 0/var(--eh,12px) var(--ew,192px) repeat-y,linear-gradient(#000 0 0) 50% 50%/calc(100% - 2 * var(--eh,12px) + 2px) calc(100% - 2 * var(--eh,12px) + 2px) no-repeat;
