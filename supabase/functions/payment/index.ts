@@ -6,6 +6,7 @@
 //   POST /functions/v1/payment?action=webhook  (касса)  уведомление → проверка подписи → pay_credit
 //   POST /functions/v1/payment?action=fk_hook  (FreeKassa, через pay.rush-case.online) уведомление → подпись → перепроверка заказа → pay_credit → YES
 //   POST /functions/v1/payment?action=prime_hook (Prime Payments) уведомление → подпись → перепроверка заказа → pay_credit → OK
+//   POST /functions/v1/payment?action=brpay_hook (Black Rabbit) уведомление (без подписи) → перепроверка заказа по ключу → pay_credit
 //   POST /functions/v1/payment?action=skins_create (игрок) {promo?} → {url} — пополнение скинами через SkinsMoney
 //   POST /functions/v1/payment?action=skins     (SkinsMoney) уведомление о депозите → подпись → pay_skins (supabase/skins_pay.sql)
 //   POST /functions/v1/payment?action=skinslink_create (игрок) {promo?} → {url} — пополнение скинами через Skinslink
@@ -34,11 +35,34 @@ const md5 = async (msg: string) => hex(await crypto.subtle.digest('MD5', enc.enc
 const safeEq = (a: string, b: string) => { if (a.length !== b.length) return false; let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0; };
 
 type Pay = { id: string; amount: number; method: string };
-type Note = { id: string; ext: string; amount: number; paid: boolean; skip?: boolean; ok: (r: unknown) => Response }; // skip — промежуточный статус: ничего не делаем
+type Note = { id: string; ext: string; amount: number; paid: boolean; skip?: boolean; raw?: unknown; ok: (r: unknown) => Response }; // skip — промежуточный статус: ничего не делаем; raw — что сохранить (иначе тело уведомления)
 type Provider = {
-  createUrl: (p: Pay) => Promise<string>;                       // ссылка на страницу оплаты кассы
-  parse: (req: Request, raw: string) => Promise<Note | null>;   // разобрать уведомление; null — подпись неверна
+  createUrl: (p: Pay) => Promise<string | { url: string; ext?: string }>; // ссылка на страницу оплаты кассы (+ номер заказа у кассы)
+  parse: (req: Request, raw: string, db: ReturnType<typeof createClient>) => Promise<Note | null>; // разобрать уведомление; null — подпись неверна
 };
+
+// Black Rabbit (brpay.digital, документация: https://brpay.digital/docs). Заголовки Accept + Access-Token, тело — JSON, сумма — целые рубли.
+const brApi = async (method: string, path: string, body?: unknown) => {
+  const r = await fetch((env('BRPAY_API') || 'https://brpay.digital') + path, {
+    method, headers: { accept: 'application/json', 'access-token': env('BRPAY_TOKEN'), ...(body ? { 'content-type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return { code: r.status, j: await r.json().catch(() => ({})) };
+};
+// лимиты сумм у Black Rabbit (у каждого способа свои min_limit/max_limit) — для окна пополнения; держим 10 минут
+let brLim: { t: number; min: number; max: number } | null = null;
+async function brLimits() {
+  if (brLim && Date.now() - brLim.t < 600000) return brLim;
+  let min = 0, max = 0;
+  try {
+    const { j } = await brApi('GET', '/api/payment-gateways');
+    const list = ([j?.data?.data, j?.data, j].find(Array.isArray) || []) as Record<string, unknown>[];
+    const rub = list.filter(g => { const c = g.currency as { code?: string } | string | undefined; return !c || /rub/i.test(String(typeof c === 'object' ? c?.code : c)); });
+    const lo = rub.map(g => +(g.min_limit as string)).filter(x => x > 0), hi = rub.map(g => +(g.max_limit as string)).filter(x => x > 0);
+    if (lo.length) min = Math.min(...lo); if (hi.length) max = Math.max(...hi);
+  } catch (_) { /* касса не ответила — окно покажет обычные 100 ₽ … 1 000 000 ₽ */ }
+  brLim = { t: Date.now(), min, max }; return brLim;
+}
 
 // Prime Payments: подпись — md5 полей, склеенных подряд; запросы к API v2 — формой
 const primeMd5 = (...a: string[]) => createHash('md5').update(a.join('')).digest('hex');
@@ -149,6 +173,46 @@ const PROVIDERS: Record<string, Provider> = {
       const action = 'getOrderInfo', { code, j } = await primeApi({ action, project, orderID, sign: primeMd5(env('PRIME_SECRET1'), action, project, orderID) }), o = j?.result;
       if (j?.status !== 'OK' || !o || String(o.order_id) !== orderID || String(o.innerID) !== id || +o.pay_status !== 1) { console.log('prime not confirmed', code, JSON.stringify(j).slice(0, 300)); throw new Error('not confirmed'); }
       return { id, ext: orderID, amount: +o.sum, paid: true, ok: () => new Response('OK', { status: 200 }) };
+    },
+  },
+  // Black Rabbit (brpay.digital). Секреты: BRPAY_TOKEN (ключ из раздела «Интеграция»), BRPAY_MERCHANT (ID мерчанта, uuid из настроек).
+  // Основной кассой — PAY_PROVIDER=brpay, PAY_METHODS=sbp,card. Обработчик платежей в кабинете: …/functions/v1/payment?action=brpay_hook
+  // (его же передаём в каждом заказе как callback_url). Подписи у уведомлений нет — поэтому уведомлению не верим: берём из него только
+  // номер заказа и спрашиваем заказ у Black Rabbit по своему ключу (GET /api/merchant/order/{order_id}); зачисляем только status 'success'.
+  // Сумма у них может вырасти на комиссию игрока (1000 → 1040) — зачисляем сумму нашего заказа, если оплачено не меньше.
+  brpay: {
+    async createUrl(p) {
+      const base = { external_id: p.id, amount: Math.round(+p.amount), merchant_id: env('BRPAY_MERCHANT'), currency: 'rub',
+        callback_url: `${env('SUPABASE_URL')}/functions/v1/payment?action=brpay_hook`, success_url: SITE + '?pay=ok', fail_url: SITE + '?pay=fail' };
+      const type = p.method === 'sbp' ? 'phone' : p.method === 'card' ? 'card' : '';
+      let r = await brApi('POST', '/api/merchant/order', type ? { ...base, payment_detail_type: type } : base);
+      if (!r.j?.success && type) { console.log('brpay create', type, r.code, JSON.stringify(r.j).slice(0, 300)); r = await brApi('POST', '/api/merchant/order', base); } // нет реквизитов этого вида — пусть выберет касса
+      const d = r.j?.data, link = String(d?.payment_link || '');
+      if (!r.j?.success || !/^https?:\/\//.test(link)) {
+        console.log('brpay create failed', r.code, JSON.stringify(r.j).slice(0, 300));
+        throw new Error(/метод|method|лимит|limit|сумм|amount/i.test(JSON.stringify(r.j)) ? 'limits' : 'brpay create failed');
+      }
+      return { url: link, ext: String(d.order_id || '') };
+    },
+    async parse(_req, raw, db) {
+      let j: Record<string, unknown> = {};
+      try { j = JSON.parse(raw); } catch (_) { j = Object.fromEntries(new URLSearchParams(raw)); }
+      const w = (j?.data && typeof j.data === 'object' ? j.data : j) as Record<string, unknown>, uuid = /^[0-9a-f-]{36}$/i;
+      const id = String(w.external_id || '');
+      if (!uuid.test(id)) return null;
+      const { data: pay } = await db.from('payments').select('id, amount, ext_id, provider').eq('id', id).maybeSingle();
+      if (!pay || pay.provider !== 'brpay') return null;
+      const oid = String(pay.ext_id || w.order_id || '');
+      if (!uuid.test(oid)) return null;
+      const { code, j: o } = await brApi('GET', `/api/merchant/order/${oid}`), d = o?.data;
+      if (!o?.success || !d || String(d.order_id) !== oid || String(d.external_id) !== id || (d.merchant_id && String(d.merchant_id) !== env('BRPAY_MERCHANT'))) {
+        console.log('brpay not confirmed', code, JSON.stringify(o).slice(0, 300)); throw new Error('not confirmed');
+      }
+      const ok = () => json({ ok: true });
+      if (d.status === 'pending') return { id, ext: oid, amount: 0, paid: false, skip: true, raw: d, ok };
+      if (d.status !== 'success') return { id, ext: oid, amount: 0, paid: false, raw: d, ok };   // fail — платёж не прошёл
+      const got = +d.amount, want = +pay.amount;
+      return { id, ext: oid, amount: got >= want ? want : got, paid: true, raw: d, ok };            // меньше заказа — pay_credit не зачислит (amount mismatch)
     },
   },
   // Enot (enot.io, документация: https://docs.enot.io/e/new). Секреты: PAY_PROVIDER=enot, ENOT_SHOP (id кассы), ENOT_KEY (секретный ключ),
@@ -385,7 +449,9 @@ Deno.serve(async (req) => {
   if (action === 'status') {
     let rate = 0; if (smOn()) { const { data } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle(); rate = +(data?.v?.rate ?? 90) || 90; }
     if (!rate && slOn()) { const { data } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle(); rate = +(data?.v?.rate ?? 90) || 90; }
-    return json({ live: !!P, methods: METHODS, skins: smOn(), skinslink: slOn(), skinsRate: rate });
+    const lim = env('PAY_PROVIDER') === 'brpay' ? await brLimits() : null; // сумма в окне — в пределах лимитов кассы
+    const min = lim?.min ? Math.max(100, Math.ceil(lim.min)) : 100, max = lim?.max ? Math.min(1000000, Math.floor(lim.max)) : 1000000;
+    return json({ live: !!P, methods: METHODS, skins: smOn(), skinslink: slOn(), skinsRate: rate, min, max: max >= min ? max : 1000000 });
   }
   // пополнение скинами работает независимо от основной кассы
   if (action === 'release') return release(admin);
@@ -399,7 +465,10 @@ Deno.serve(async (req) => {
   // то же для Prime Payments: уведомления работают независимо от основной кассы
   const primeOn = !!(env('PRIME_PROJECT') && env('PRIME_SECRET1') && env('PRIME_SECRET2'));
   if (action === 'prime_hook' && !primeOn) return new Response('disabled', { status: 503 });
-  const H = action === 'fk_hook' ? PROVIDERS.freekassa : action === 'prime_hook' ? PROVIDERS.prime : P;
+  // и для Black Rabbit
+  const brOn = !!(env('BRPAY_TOKEN') && env('BRPAY_MERCHANT'));
+  if (action === 'brpay_hook' && !brOn) return new Response('disabled', { status: 503 });
+  const H = action === 'fk_hook' ? PROVIDERS.freekassa : action === 'prime_hook' ? PROVIDERS.prime : action === 'brpay_hook' ? PROVIDERS.brpay : P;
   if (!H) return json({ error: 'payments disabled' }, 503);
 
   // 1) игрок создаёт платёж
@@ -413,17 +482,21 @@ Deno.serve(async (req) => {
     const promo = typeof b.promo === 'string' && /^[A-Za-z0-9]{2,24}$/.test(b.promo) ? b.promo.toUpperCase() : null;
     const { data: pay, error } = await admin.from('payments').insert({ uid: u.user.id, amount, method, promo, provider: env('PAY_PROVIDER') }).select('id, amount, method').single();
     if (error || !pay) return json({ error: 'db error' }, 500);
-    try { return json({ url: await P.createUrl(pay as Pay), id: pay.id }); }
-    catch (_) { await admin.rpc('pay_fail', { p_id: pay.id }); return json({ error: 'provider unavailable' }, 502); }
+    try {
+      const c = await P.createUrl(pay as Pay), u = typeof c === 'string' ? c : c.url;
+      if (typeof c !== 'string' && c.ext) await admin.from('payments').update({ ext_id: c.ext }).eq('id', pay.id); // номер заказа у кассы — для перепроверки
+      return json({ url: u, id: pay.id });
+    } catch (e) { await admin.rpc('pay_fail', { p_id: pay.id }); return json({ error: (e as Error)?.message === 'limits' ? 'limits' : 'provider unavailable' }, 502); }
   }
 
   // 2) уведомление кассы
-  if (action === 'webhook' || action === 'fk_hook' || action === 'prime_hook') {
+  if (action === 'webhook' || action === 'fk_hook' || action === 'prime_hook' || action === 'brpay_hook') {
     const raw = await req.text();
     let n: Note | null;
-    try { n = await H.parse(req, raw); } catch (_) { return json({ error: 'not confirmed yet' }, 409); } // касса не подтвердила оплату — пусть пришлёт уведомление ещё раз
+    try { n = await H.parse(req, raw, admin); } catch (_) { return json({ error: 'not confirmed yet' }, 409); } // касса не подтвердила оплату — пусть пришлёт уведомление ещё раз
     if (!n) return json({ error: 'bad signature' }, 403);
     let rawJson: unknown = raw; try { rawJson = JSON.parse(raw); } catch (_) { /* форма */ }
+    if (n.raw !== undefined) rawJson = n.raw;
     if (n.skip) return n.ok({ ok: true });
     if (!n.paid) { await admin.rpc('pay_fail', { p_id: n.id, p_raw: rawJson }); return n.ok({ ok: true }); }
     const { data, error } = await admin.rpc('pay_credit', { p_id: n.id, p_ext: n.ext, p_amount: n.amount, p_raw: rawJson });
