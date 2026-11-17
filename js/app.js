@@ -6312,7 +6312,7 @@ const LEGAL_DOCS = {
     <h3>8. Контакты</h3>${legalReq()}` },
   payment: { t: 'Оплата и возврат', body: () => `
     <h3>1. Пополнение баланса</h3>
-    <ul><li>Баланс пополняется банковскими картами и через Систему быстрых платежей (СБП). Минимальная сумма — 100 ₽.</li>
+    <ul><li>Баланс пополняется банковскими картами и через Систему быстрых платежей (СБП). Минимальная сумма — 500 ₽.</li>
       <li>Оплата проходит на защищённой странице платёжного сервиса. Сайт не получает данные карты.</li>
       <li>Баланс зачисляется автоматически после подтверждения платежа платёжным сервисом, обычно в течение нескольких минут.</li>
       <li>Услуги оказываются в рублях. При оплате картой другой страны курс и комиссию определяет банк Пользователя.</li></ul>
@@ -6713,8 +6713,8 @@ async function payStatus() {
   try {
     const r = await fetch(SB_URL + '/functions/v1/payment?action=status', { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: '{}' });
     const j = await r.json().catch(() => ({}));
-    payStat = { live: !!(r.ok && j.live), methods: Array.isArray(j.methods) && j.methods.length ? j.methods : PAY_METHODS.map(x => x.k), skins: !!(r.ok && j.skins), skinslink: !!(r.ok && j.skinslink), skinsRate: +j.skinsRate || 0, min: +j.min || 100, max: +j.max || 1000000 };
-  } catch (e) { payStat = { live: false, methods: PAY_METHODS.map(x => x.k), skins: false, skinslink: false, skinsRate: 0, min: 100, max: 1000000 }; }
+    payStat = { live: !!(r.ok && j.live), methods: Array.isArray(j.methods) && j.methods.length ? j.methods : PAY_METHODS.map(x => x.k), skins: !!(r.ok && j.skins), skinslink: !!(r.ok && j.skinslink), skinsRate: +j.skinsRate || 0, min: +j.min || 500, max: +j.max || 1000000 };
+  } catch (e) { payStat = { live: false, methods: PAY_METHODS.map(x => x.k), skins: false, skinslink: false, skinsRate: 0, min: 500, max: 1000000 }; }
   payStatT = Date.now(); return payStat;
 }
 async function payStart(amount, method, promo, btn) {
@@ -6744,7 +6744,7 @@ const PAY_TABS = [{ k: 'cards', t: 'Карты', i: 'card', m: ['sbp', 'card', '
 async function openDeposit(need = 0, promo = null) {
   if (!st.user) return openAuth('login');
   let amount = 0, tab = 'cards', method = 'sbp', code = promo, refPct = 0;
-  let S = { live: false, methods: PAY_METHODS.map(x => x.k), skins: false, skinslink: false, skinsRate: 0, min: 100, max: 1000000 };
+  let S = { live: false, methods: PAY_METHODS.map(x => x.k), skins: false, skinslink: false, skinsRate: 0, min: 500, max: 1000000 };
   const isSk = k => k === 'skins' || k === 'skinslink', skOn = k => k === 'skins' ? S.skins : k === 'skinslink' ? S.skinslink : false;
   const soon = x => isSk(x.k) ? !skOn(x.k) : x.soon; // скины работают отдельно от основной кассы
   const bonusPct = () => Math.max(st.depBonus || 0, refPct);
@@ -6756,8 +6756,8 @@ async function openDeposit(need = 0, promo = null) {
     <div class="dpn-body">
       <div class="dpn-methods" id="dpnM"></div>
       <div class="dpn-form">
-        <label class="dpn-l" for="depAmt">Сумма:<small id="depMin">Мин. 100 ₽</small></label>
-        <div class="dpn-in"><input class="inp" id="depAmt" type="number" min="100" step="50" placeholder="${need ? fmt(Math.max(100, Math.ceil(need / 50) * 50)) : 'Введите сумму'}" inputmode="numeric"><span>₽</span></div>
+        <label class="dpn-l" for="depAmt">Сумма:<small id="depMin">Мин. 500 ₽</small></label>
+        <div class="dpn-in"><input class="inp" id="depAmt" type="number" min="500" step="50" placeholder="${need ? fmt(Math.max(500, Math.ceil(need / 50) * 50)) : 'Введите сумму'}" inputmode="numeric"><span>₽</span></div>
         <div class="dpn-chips">${[500, 1000, 2500, 5000].map(a => `<button data-a="${a}">${fmt(a)} ₽</button>`).join('')}</div>
         <label class="dpn-l dpn-tr" for="depTrade">Ссылка на обмен:<small><a href="https://steamcommunity.com/my/tradeoffers/privacy#trade_offer_access_url" target="_blank" rel="noopener">где взять?</a></small></label>
         <div class="dpn-in dpn-tr"><input class="inp" id="depTrade" value="${esc(st.trade || '')}" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" autocomplete="off" spellcheck="false"></div>
@@ -6790,7 +6790,7 @@ async function openDeposit(need = 0, promo = null) {
   const draw = (note = '') => {
     if (isSk(method) && skOn(method)) return drawSkins(note);
     $('.dpn-form', m).classList.remove('sk');
-    const lo = S.min || 100, hi = S.max || 1000000, ok = amount >= lo && amount <= hi, b = bonusPct(); // лимиты кассы — из ?action=status
+    const lo = S.min || 500, hi = S.max || 1000000, ok = amount >= lo && amount <= hi, b = bonusPct(); // лимиты кассы — из ?action=status
     $('#depMin', m).textContent = `Мин. ${fmt(lo)} ₽`;
     $$('.dpn-chips button', m).forEach(e => e.classList.toggle('on', +e.dataset.a === amount));
     $('#depTotal', m).innerHTML = ok ? prc(Math.round(amount * (1 + b / 100))) : '—';
@@ -6820,7 +6820,7 @@ async function openDeposit(need = 0, promo = null) {
   $('#depAmt', m).oninput = e => { amount = Math.max(0, Math.round(+e.target.value || 0)); draw(); };
   $('#depPromo', m).oninput = e => { const c = e.target.value.trim().toUpperCase(); code = /^[A-Z0-9]{2,24}$/.test(c) ? c : null; draw(); };
   $('#dpnSup', m).onclick = () => closeModal();
-  if (need > 0) { amount = Math.min(1000000, Math.max(100, Math.ceil(need / 50) * 50)); $('#depAmt', m).value = amount; } // сразу сумма, которой не хватает
+  if (need > 0) { amount = Math.min(1000000, Math.max(500, Math.ceil(need / 50) * 50)); $('#depAmt', m).value = amount; } // сразу сумма, которой не хватает
   [$('#depAmt', m), $('#depPromo', m), $('#depTrade', m)].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') $('#depGo', m).click(); }));
   if (matchMedia('(pointer:fine)').matches) setTimeout(() => { const i = $('#depAmt', m); if (i && i.offsetParent) i.focus(); }, 120);
   $('#depGo', m).onclick = async e => {

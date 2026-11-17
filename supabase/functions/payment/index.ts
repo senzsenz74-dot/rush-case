@@ -22,6 +22,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { createHash, createHmac } from 'node:crypto';
 
 const SITE = 'https://rush-case.online/';
+// минимальное пополнение деньгами (владелец 17.11: 500 ₽); поменять без кода — секрет PAY_MIN
+const PAY_MIN = () => Math.max(100, +(Deno.env.get('PAY_MIN') || '') || 500);
 const env = (k: string) => Deno.env.get(k) || '';
 const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type, apikey', 'access-control-allow-methods': 'POST, OPTIONS' };
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...cors, 'content-type': 'application/json' } });
@@ -450,7 +452,7 @@ Deno.serve(async (req) => {
     let rate = 0; if (smOn()) { const { data } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle(); rate = +(data?.v?.rate ?? 90) || 90; }
     if (!rate && slOn()) { const { data } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle(); rate = +(data?.v?.rate ?? 90) || 90; }
     const lim = env('PAY_PROVIDER') === 'brpay' ? await brLimits() : null; // сумма в окне — в пределах лимитов кассы
-    const min = lim?.min ? Math.max(100, Math.ceil(lim.min)) : 100, max = lim?.max ? Math.min(1000000, Math.floor(lim.max)) : 1000000;
+    const min = Math.max(PAY_MIN(), lim?.min ? Math.ceil(lim.min) : 0), max = lim?.max ? Math.min(1000000, Math.floor(lim.max)) : 1000000;
     return json({ live: !!P, methods: METHODS, skins: smOn(), skinslink: slOn(), skinsRate: rate, min, max: max >= min ? max : 1000000 });
   }
   // пополнение скинами работает независимо от основной кассы
@@ -478,7 +480,7 @@ Deno.serve(async (req) => {
     if (!u?.user) return json({ error: 'not authenticated' }, 401);
     const b = await req.json().catch(() => ({}));
     const amount = Math.round(+b.amount), method = METHODS.includes(b.method) ? b.method : METHODS[0] || 'sbp';
-    if (!(amount >= 100 && amount <= 1000000)) return json({ error: 'bad amount' }, 400);
+    if (!(amount >= PAY_MIN() && amount <= 1000000)) return json({ error: 'bad amount' }, 400);
     const promo = typeof b.promo === 'string' && /^[A-Za-z0-9]{2,24}$/.test(b.promo) ? b.promo.toUpperCase() : null;
     const { data: pay, error } = await admin.from('payments').insert({ uid: u.user.id, amount, method, promo, provider: env('PAY_PROVIDER') }).select('id, amount, method').single();
     if (error || !pay) return json({ error: 'db error' }, 500);
