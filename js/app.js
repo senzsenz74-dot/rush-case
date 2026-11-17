@@ -2024,7 +2024,7 @@ function renderFooter() {
     <div class="ft-col"><h4>Поддержка</h4><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a><a href="https://t.me/rushcasse" target="_blank" rel="noopener">Telegram-канал</a>
       <div class="pay"><span>СБП</span><span>МИР</span><span>VISA</span><span>MC</span></div></div>
   </div>
-  <div class="container ft-bottom"><span class="age">18+</span><p>© ${new Date().getFullYear()} RUSH CASE. ${LEGAL.name}, ИНН ${LEGAL.inn}, ОГРНИП ${LEGAL.ogrnip}. Сайт не аффилирован с Valve Corporation. Counter-Strike 2 и Steam — товарные знаки Valve Corporation. Все изображения предметов принадлежат их правообладателям.<br><span class="ft-req"><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span><br><span class="ft-req">Кодовое слово: пейпинг</span></p></div>`;
+  <div class="container ft-bottom"><span class="age">18+</span><p class="ft-legal">© ${new Date().getFullYear()} RUSH CASE. ${LEGAL.name}, ИНН ${LEGAL.inn}, ОГРНИП ${LEGAL.ogrnip}. Сайт не аффилирован с Valve Corporation. Counter-Strike 2 и Steam — товарные знаки Valve Corporation. Все изображения предметов принадлежат их правообладателям.</p><p class="ft-req"><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a><span>Кодовое слово: пейпинг</span></p></div>`;
 }
 
 /* ---------- live feed ---------- */
@@ -6250,15 +6250,15 @@ const FAQ = [
 ];
 function pageFaq() {
   return `<section class="container">
-    <div class="page-head"><h1>Вопросы и ответы</h1><p>Всё, что нужно знать об открытии кейсов, выводе и бонусах.</p></div>
-    <div class="faq">
-      <div class="acc">${FAQ.map(([q, a], i) => `<details${i === 0 ? ' open' : ''}><summary><span class="q">${i + 1}</span>${q}</summary><div class="a">${a}</div></details>`).join('')}</div>
-      <aside class="support sp2">
-        <div class="sp2-head"><span class="sp2-ic">${ic.chat}</span><div><h3>Нужна помощь?</h3><span class="sp2-on"><i></i>Поддержка на связи</span></div></div>
+    <div class="page-head fq-head"><h1>Вопросы и ответы</h1><p>Всё, что нужно знать об открытии кейсов, выводе и бонусах.</p></div>
+    <div class="fq">
+      <div class="fq-acc">${FAQ.map(([q, a], i) => `<details${i === 0 ? ' open' : ''}><summary><span class="q">${i + 1}</span>${q}</summary><div class="a">${a}</div></details>`).join('')}</div>
+      <aside class="fq-sup">
+        <div class="fq-sh"><span class="fq-ic">${ic.chat}</span><div><h3>Нужна помощь?</h3><span class="fq-on"><i></i>Поддержка на связи</span></div></div>
         <p>${SUP_TIME}. Напишите в чат на сайте или в Telegram — ответит живой человек, не бот.</p>
-        <button class="btn btn-primary btn-block" id="chatBtn">${ic.chat}Написать в чат</button>
-        <a class="btn btn-tg btn-block" id="supTgBtn" href="#" target="_blank" rel="noopener" hidden>${ic.tg}Написать в Telegram</a>
-        <div class="sp2-links"><a href="#/terms">Пользовательское соглашение</a><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></div>
+        <button class="fq-btn fq-chat" type="button" id="chatBtn">${ic.chat}Написать в чат</button>
+        <a class="fq-btn fq-tg" id="supTgBtn" href="#" target="_blank" rel="noopener" hidden>${ic.tg}Написать в Telegram</a>
+        <div class="fq-links"><a href="#/terms">Пользовательское соглашение</a><a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></div>
       </aside>
     </div>
   </section>`;
@@ -11252,10 +11252,11 @@ function route() {
   document.body.classList.toggle('pg-doc', DOC_KEYS.includes(key)); // документы — размытый фон «Кейсов», как «Бонусы»
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
   document.body.classList.toggle('pg-admin', key === 'admin'); // админка — размытый фон владельца 17.11 (assets/bg-admin.webp), без пыли и виньетки
-  document.body.classList.toggle('pg-home', key === '' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite' || key === 'profile' || key === 'upgrade' || DOC_KEYS.includes(key));
+  document.body.classList.toggle('pg-home', key === '' || key === 'faq' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite' || key === 'profile' || key === 'upgrade' || DOC_KEYS.includes(key));
   document.body.classList.toggle('pg-upgrade', key === 'upgrade'); // апгрейд — фон владельца 12.11 (ночные руины, assets/bg-upgrade.webp), слегка размыт
   document.body.classList.toggle('pg-invite', key === 'invite'); // «Пригласить друзей» — размытый снимок главного экрана, как профиль
   document.body.classList.toggle('pg-profile', key === 'profile'); // профиль — размытый снимок главного экрана (assets/bg-home.webp), как на образце владельца 12.11 // «Крот», «Пригласить друзей» — тот же новый фон, что у «Кейсов» // главный экран и витрина кейсов — свой фон (assets/bg-home.webp)
+  document.body.classList.toggle('pg-faq', key === 'faq'); // FAQ — фон главного экрана (assets/bg-main.webp), без эффектов (владелец 17.11)
   document.body.classList.toggle('pg-main', key === ''); // на главном экране тот же снимок, но чёткий (assets/bg-main.webp)
   document.body.classList.toggle('pg-cases', key === 'cases');
   document.body.classList.toggle('pg-bonus', key === 'bonus'); // «Бонусы» — тот же размытый снимок, что у «Кейсов» (как на образце владельца) // страница «Кейсы» — тот же снимок, слегка размытый (assets/bg-cases.webp)
