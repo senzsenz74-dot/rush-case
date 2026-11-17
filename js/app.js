@@ -4323,7 +4323,7 @@ function c2X3D(host, s) {
     const L = (c, i, x, y, z) => { const l = new THREE.DirectionalLight(c, i); l.position.set(x, y, z); scene.add(l); };
     L(0xffe2b8, 2.6, -3, 3.2, 2); L(0x9fb4d8, 0.6, 3, 0.5, 2.5); L(0xffffff, 1.4, 1.5, 2, -3); scene.add(new THREE.AmbientLight(0xffffff, 0.15));
     const pivot = new THREE.Group(); scene.add(pivot);
-    let len = 1, alive = true, ro = null;
+    let len = 1, alive = true, ro = null, hold = null, t0 = 0; // hold — модель, t0 — когда появилась (для влёта и покачивания)
     const kill = () => { alive = false; if (ro) ro.disconnect(); renderer.setAnimationLoop(null); renderer.dispose(); pm.dispose(); };
     const fit = () => {
       const r = host.getBoundingClientRect(), w = Math.max(1, r.width), h = Math.max(1, r.height);
@@ -4343,24 +4343,40 @@ function c2X3D(host, s) {
       const holder = new THREE.Group(); holder.add(m); holder.quaternion.setFromRotationMatrix(m4);
       if (!C2_3D_NOFLIP.has(id)) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
       if (knife) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2));
-      len = size[ax[0]]; pivot.add(holder);
+      len = size[ax[0]]; pivot.add(holder); hold = holder; t0 = performance.now();
       host.appendChild(canvas); host.classList.add('c2x-has3d'); host.classList.remove('c2x-wait3d'); clearTimeout(tFail); fit();
       ro = new ResizeObserver(fit); ro.observe(host);
     }).catch(() => { kill(); showImg(); });
     // крутится мышкой: по горизонтали — вокруг вертикали, по вертикали — наклон (с ограничением), мягкая инерция
     let yaw = 0, pitch = 0, vy = 0, vp = 0, drag = false, lx = 0, ly = 0, lt = 0, last = performance.now();
-    canvas.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; ly = e.clientY; lt = performance.now(); vy = vp = 0; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); });
+    // само движется (владелец 17.11): влёт с поворотом ~1,2 с, потом лёгкое покачивание и «дыхание». Взяли мышкой — покачивание
+    // вливается в поворот (без рывка) и гаснет; отпустили и 2 с не трогают — модель плавно возвращается и снова покачивается
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches; // в системе выключена анимация — стоит, как раньше
+    let sw = 1, sy = 0, sp = 0, rel = -1e9; // sw — сила покачивания, sy/sp — текущий отклон, rel — когда отпустили мышку
+    canvas.addEventListener('pointerdown', e => { drag = true; yaw += sy; pitch += sp; sw = sy = sp = 0; lx = e.clientX; ly = e.clientY; lt = performance.now(); vy = vp = 0; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); });
     canvas.addEventListener('pointermove', e => {
       if (!drag) return; const dx = e.clientX - lx, dy = e.clientY - ly, now = performance.now(), dt = Math.max(1, now - lt);
       yaw += dx * 0.008; pitch = THREE.MathUtils.clamp(pitch + dy * 0.006, -0.9, 0.9); vy = dx * 0.008 / dt * 16; vp = dy * 0.006 / dt * 16; lx = e.clientX; ly = e.clientY; lt = now;
     });
-    const up = () => { drag = false; canvas.classList.remove('drag'); };
+    const up = () => { if (drag) rel = performance.now(); drag = false; canvas.classList.remove('drag'); };
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
     renderer.setAnimationLoop(now => {
       if (!alive) return; if (!host.isConnected) return kill(); // экран закрыли — освобождаем видеокарту
       const k = Math.min(3, (now - last) / 16.67); last = now;
       if (!drag) { yaw += vy * k; pitch = THREE.MathUtils.clamp(pitch + vp * k, -0.9, 0.9); vy *= Math.pow(0.92, k); vp *= Math.pow(0.92, k); }
-      pivot.rotation.set(pitch, yaw, 0, 'YXZ'); renderer.render(scene, camera);
+      let iy = 0, ip = 0, is = 1, fy = 0, fr = 0;
+      if (t0 && !still) {
+        const t = (now - t0) / 1000, o = Math.pow(1 - Math.min(1, t / 1.2), 3); // o: 1 → 0, к концу влёта медленнее
+        iy = -0.9 * o; ip = 0.22 * o; is = 1 - 0.16 * o; fy = -0.1 * o; // влёт: из поворота, чуть снизу и чуть меньше
+        if (!drag && now - rel > 2000 && Math.abs(vy) + Math.abs(vp) < 0.003) { // не трогают — плавно домой, покачивание возвращается
+          yaw -= Math.round(yaw / (2 * Math.PI)) * 2 * Math.PI; const f = 1 - Math.pow(0.975, k);
+          yaw -= yaw * f; pitch -= pitch * f; sw += (1 - sw) * f;
+        }
+        sy = sw * 0.17 * Math.sin(t * 0.75); sp = sw * 0.05 * Math.sin(t * 1.1 + 0.6); // покачивание влево-вправо и чуть вверх-вниз
+        fy += 0.02 * Math.sin(t * 1.4); fr = 0.025 * Math.sin(t * 0.95); // «дыхание»: всплывает и слегка клюёт носом
+      }
+      pivot.rotation.set(pitch + sp + ip, yaw + sy + iy, fr, 'YXZ'); pivot.position.y = fy; if (hold) hold.scale.setScalar(is);
+      renderer.render(scene, camera);
     });
   }).catch(showImg);
 }
