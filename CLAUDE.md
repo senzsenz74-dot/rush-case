@@ -45,6 +45,7 @@
 - Рефералы `#/invite` (pageInvite/mountInvite, rfDraw, rfChart, rfList; стили `.rf-*`), админка `admRef` — сервер supabase/referral2.sql (кошелёк, стримеры, защита), см. ЖУРНАЛ.md 15.11
 - Админка: `pageAdmin` ~4931, `ADM_TABS` ~5101, `admDraw`, `admCases` (витрина), `admBlocks`, `admBanners`, `admPlayers`,
   `axCrash` (краш), `admLuck`, `admGive`, `admPromo`, `admStaff`, `admSupport`, `admXls`, `admSync`
+- Объявление при входе (как «Приглашение на тест» CS2): annOpen/annMaybe, окно .m-ann; админка admAnn (вкладка «Объявление»); хранение site_cfg 'announce', «показано» — localStorage rc.ann = ver
 - Роутер: `const ROUTES` + `route()` (~6550), адреса вида `#/case/<id>`, `#/admin`
 
 ## Сервер (Supabase)
