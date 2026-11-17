@@ -2477,6 +2477,203 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
 .dos-thr{z-index:8}
 .dos-slots .dslot:hover{z-index:6}
 
+/* ===================== ДОСЬЕ v5 (17.11): настоящая бумага, машинка и рука, канцелярские кнопки =====================
+   Текстуры — assets/dos/ (делает tools/dos-paper.js): paper — старая бумага, kraft — картон папки, edge-* — рваные края (маска),
+   ink — непрокрас краски штампа (маска), stains — разводы и «лисьи» пятна. Шрифты: PT Mono — машинка, Caveat — от руки,
+   Old Standard TT — текст документов, Oswald — штампы. Фон страницы без «золотой пыли». */
+body.pg-contracts .fx{display:none}
+.dos{--tw:'PT Mono','Courier New',ui-monospace,monospace;--hand:'Caveat','Segoe Print',cursive;--doc:'Old Standard TT',Georgia,'Times New Roman',serif;--stp:'Oswald','Arial Narrow',sans-serif;
+  --mono:var(--tw);--serif:var(--doc);--ink:#241a12;--rd:#a8231b;--pen:#1d3778;--typed:0 0 .6px rgba(36,26,18,.5);font-synthesis:none}
+/* шапка над делом */
+.dos-eye{font:400 12px var(--tw);letter-spacing:.2em;color:#e3b85c}
+.dos-sub{color:#d2c3a3;font-size:15px;line-height:1.6}
+/* рваные края: маска из 4 полос + середина; глубина --eh, шаг рисунка --ew */
+.dpaper::before,.dslot::before,.dcard::before,.dos-note::before,.dos .dbtn.dark::before,.dos .dmini::before{
+  -webkit-mask:url(../assets/dos/edge-t.png) 0 0/var(--ew,192px) var(--eh,12px) repeat-x,url(../assets/dos/edge-b.png) 0 100%/var(--ew,192px) var(--eh,12px) repeat-x,url(../assets/dos/edge-l.png) 0 0/var(--eh,12px) var(--ew,192px) repeat-y,url(../assets/dos/edge-r.png) 100% 0/var(--eh,12px) var(--ew,192px) repeat-y,linear-gradient(#000 0 0) 50% 50%/calc(100% - 2 * var(--eh,12px) + 2px) calc(100% - 2 * var(--eh,12px) + 2px) no-repeat;
+  mask:url(../assets/dos/edge-t.png) 0 0/var(--ew,192px) var(--eh,12px) repeat-x,url(../assets/dos/edge-b.png) 0 100%/var(--ew,192px) var(--eh,12px) repeat-x,url(../assets/dos/edge-l.png) 0 0/var(--eh,12px) var(--ew,192px) repeat-y,url(../assets/dos/edge-r.png) 100% 0/var(--eh,12px) var(--ew,192px) repeat-y,linear-gradient(#000 0 0) 50% 50%/calc(100% - 2 * var(--eh,12px) + 2px) calc(100% - 2 * var(--eh,12px) + 2px) no-repeat}
+/* стол → раскрытая картонная папка */
+.dos-desk{background:radial-gradient(120% 80% at 50% 0%,rgba(255,226,170,.1),transparent 60%),linear-gradient(rgba(38,20,6,.34),rgba(22,11,3,.52)),url(../assets/dos/kraft.webp) 0 0/512px 512px,#7a5530;
+  border:0;border-radius:2px 6px 6px 6px;box-shadow:0 0 0 1px rgba(18,9,2,.7),inset 0 1px 0 rgba(255,222,170,.14),inset 0 0 90px rgba(18,9,2,.5),0 30px 60px -12px rgba(0,0,0,.85)}
+.dos-desk::before{inset:0;border:0;border-radius:inherit;background:linear-gradient(90deg,rgba(0,0,0,.2),transparent 2.5%,transparent 97.5%,rgba(0,0,0,.2)),linear-gradient(transparent 92%,rgba(0,0,0,.25))}
+.dos-lamp{background:radial-gradient(closest-side,rgba(255,220,160,.13),transparent)}
+/* вкладки — ярлыки картонной папки с наклейкой */
+.dos-tabs{gap:2px;padding-left:20px;margin-bottom:0;align-items:flex-end}
+.dos-tabs button{position:relative;isolation:isolate;height:44px;margin-top:0;padding:0 28px;border:0;border-radius:0;color:var(--ink);cursor:pointer;
+  background:linear-gradient(rgba(38,20,6,.34),rgba(38,20,6,.34)),url(../assets/dos/kraft.webp) 0 0/512px 512px,#7a5530;clip-path:polygon(9px 0,calc(100% - 9px) 0,100% 100%,0 100%);
+  font:400 13px var(--tw);letter-spacing:.08em;text-transform:uppercase;filter:brightness(.62) saturate(.85);transition:filter .15s,height .15s}
+.dos-tabs button::before{content:"";position:absolute;inset:9px 17px 8px;z-index:-1;background:linear-gradient(rgba(255,252,240,.5),rgba(255,252,240,.5)),url(../assets/dos/paper.webp) 0 0/512px 512px,#eadfc4;box-shadow:0 1px 1px rgba(20,10,3,.45);transform:rotate(-.6deg)}
+.dos-tabs button:nth-child(2)::before{transform:rotate(.5deg)}.dos-tabs button:nth-child(3)::before{transform:rotate(-.3deg)}
+.dos-tabs button i{font:400 12px var(--tw);color:var(--rd)}
+.dos-tabs button:hover{filter:brightness(.8) saturate(.9)}
+.dos-tabs button.on{height:52px;filter:none;background:radial-gradient(120% 80% at 50% 0%,rgba(255,226,170,.1),transparent 60%),linear-gradient(rgba(38,20,6,.34),rgba(38,20,6,.34)),url(../assets/dos/kraft.webp) 0 0/512px 512px,#7a5530}
+.dos-tabs button.on i{color:var(--rd)}
+.dos-tabs button.lock{opacity:1;filter:brightness(.5) saturate(.6) grayscale(.3);cursor:not-allowed}
+.dos-tabs button:focus-visible{outline:none}.dos-tabs button:focus-visible::before{box-shadow:0 0 0 2px var(--rd)}
+/* лист: бумага + пятна + сгиб + потемневшие края; под листом — тень */
+.dpaper::before{filter:none;border-radius:0;
+  background:var(--fold,none),var(--stn,none) var(--sx,0) var(--sy,0)/var(--ss,560px) no-repeat,radial-gradient(130% 100% at 50% 45%,transparent 58%,rgba(124,78,28,.2) 100%),url(../assets/dos/paper.webp) var(--px,0) var(--py,0)/512px 512px,#e4d6b2;
+  box-shadow:inset 0 0 34px rgba(128,82,32,.24),inset 0 0 6px rgba(110,70,26,.28)}
+.dpaper::after{content:"";position:absolute;inset:10px;z-index:-2;width:auto;height:auto;transform:none;background:none;border-radius:0;box-shadow:0 1px 3px 7px rgba(26,12,3,.38),0 18px 28px 2px rgba(0,0,0,.5)}
+.dos-board{--px:-120px;--py:-40px;--stn:url(../assets/dos/stains.webp);--sx:112%;--sy:118%;--ss:520px;
+  --fold:linear-gradient(90deg,transparent calc(50% - 70px),rgba(90,58,22,.07) calc(50% - 2px),rgba(78,50,18,.26) 50%,rgba(255,250,236,.55) calc(50% + 1px),rgba(255,250,236,.12) calc(50% + 5px),transparent calc(50% + 70px))}
+.dos-sum{--px:-300px;--py:-200px}.dos-arch{--px:-60px;--py:-330px}.dos-slip{--px:-200px;--py:-90px}.dos-sign{--px:-410px;--py:-20px}
+.dos-agr{--px:-30px;--py:-260px;
+  --fold:linear-gradient(180deg,transparent calc(33.3% - 50px),rgba(90,58,22,.06) calc(33.3% - 2px),rgba(78,50,18,.24) 33.3%,rgba(255,250,236,.5) calc(33.3% + 1px),transparent calc(33.3% + 50px)),linear-gradient(180deg,transparent calc(66.6% - 50px),rgba(255,250,236,.12) calc(66.6% - 2px),rgba(255,250,236,.45) 66.6%,rgba(78,50,18,.22) calc(66.6% + 1px),rgba(90,58,22,.06) calc(66.6% + 3px),transparent calc(66.6% + 50px))}
+.dos-prot .dst.big{top:4px;right:24px}
+.dos-prot{background-image:none;--px:-250px;--py:-150px;--stn:url(../assets/dos/stains.webp);--sx:-150px;--sy:-170px;--ss:600px;
+  --fold:linear-gradient(180deg,transparent calc(50% - 60px),rgba(90,58,22,.07) calc(50% - 2px),rgba(78,50,18,.25) 50%,rgba(255,250,236,.5) calc(50% + 1px),transparent calc(50% + 60px))}
+.dpaper:hover{transform:none!important}
+/* машинопись */
+.dp-head{padding:15px 22px;background:none;border-bottom:3px double rgba(60,40,20,.32);font:400 12px var(--tw);letter-spacing:.1em;color:#3a2a1c;text-shadow:var(--typed)}
+.dp-head em{font:400 11.5px var(--tw);letter-spacing:.06em;color:#6a523a}
+.dpaper .dp-head,.dpaper h2,.dpaper h3,.dos-board-h h3{text-shadow:var(--typed)}
+.dos-board-h{flex-direction:column;align-items:flex-start;gap:2px;padding:20px 26px 2px}
+.dos-board-h h3{font:700 24px/1.1 var(--doc);letter-spacing:.05em;color:#2a1f16}
+.dos-board-h span{max-width:calc(100% - 200px);font:600 19px/1.25 var(--hand);letter-spacing:0;color:#5b4632}
+/* штампы: краска с непрокрасом, двойная рамка */
+.dst{position:relative;font:500 15px/1.1 var(--stp);letter-spacing:.16em;border:3px solid currentColor;border-radius:3px;background:rgba(168,35,27,.04);padding:8px 15px;color:#a8231b;mix-blend-mode:multiply;text-shadow:0 0 .8px currentColor;
+  -webkit-mask:url(../assets/dos/ink.webp) 0 0/220px;mask:url(../assets/dos/ink.webp) 0 0/220px}
+.dst::after{content:"";position:absolute;inset:3px;border:1.5px solid currentColor;border-radius:1px;pointer-events:none}
+.dst.big{font-size:19px;padding:10px 18px}
+.dst.big.open{left:auto;right:34px;top:64px;font-size:17px;padding:8px 15px;color:#1d7a37;border-color:currentColor;background:rgba(29,122,55,.05);-webkit-mask-position:60px 30px;mask-position:60px 30px}
+.dseal{filter:none;-webkit-mask:url(../assets/dos/ink.webp) 0 0/200px;mask:url(../assets/dos/ink.webp) 0 0/200px;mix-blend-mode:multiply}
+.dseal b{font:400 10px/1.3 var(--tw)}
+/* правило отдела */
+.dos-next{padding:8px 26px 24px}
+.dos-next p{font:400 13px/1.55 var(--tw);color:#3d2d1f;text-shadow:var(--typed);max-width:430px}.dos-next p b{font-weight:400;color:var(--rd)}
+
+/* ---------- кнопки досье ---------- */
+/* главная — резиновый штамп: красная двойная рамка, краска с непрокрасом; нажатие «вдавливает» и пропечатывает ярче */
+.dos .dbtn{position:relative;height:auto;min-height:52px;padding:11px 26px;border:3px solid currentColor;border-radius:4px;background:rgba(168,35,27,.04);color:#a8231b;box-shadow:none;filter:none;
+  font:500 16px/1.15 var(--stp);letter-spacing:.14em;text-transform:uppercase;text-shadow:0 0 .8px currentColor;white-space:normal;transform:rotate(-1.2deg);transition:transform .12s,color .15s,background-color .15s;
+  -webkit-mask:url(../assets/dos/ink.webp) 0 0/240px;mask:url(../assets/dos/ink.webp) 0 0/240px}
+.dos .dbtn::after{content:"";position:absolute;inset:4px;border:1.5px solid currentColor;border-radius:2px;pointer-events:none}
+.dos .dbtn svg{width:18px;height:18px}
+.dos .dbtn:hover:not(:disabled){filter:none;color:#86170f;background-color:rgba(168,35,27,.09);transform:rotate(-1.2deg) translateY(-1px)}
+.dos .dbtn:active:not(:disabled){transform:rotate(-1.2deg) scale(.965);background-color:rgba(168,35,27,.17);text-shadow:0 0 1.4px currentColor}
+.dos .dbtn:focus-visible{outline:none;background-color:rgba(168,35,27,.12)}.dos .dbtn:focus-visible::after{border-width:2.5px}
+.dos .dbtn:disabled{opacity:1;color:rgba(96,76,54,.5);border-style:dashed;background:transparent;text-shadow:none;cursor:not-allowed}
+.dos .dbtn:disabled::after{border-style:dashed;opacity:.6}
+.dos .dbtn .spinner{width:15px;height:15px;border-color:rgba(168,35,27,.25);border-top-color:currentColor}
+/* другие чернила: «Новое дело» — сине-чёрные, «В апгрейд» — фиолетовые (химический карандаш) */
+.dos .dbtn.gold{color:#22366a;background:rgba(34,54,106,.04);transform:rotate(1deg)}
+.dos .dbtn.gold:hover:not(:disabled){color:#15244d;background-color:rgba(34,54,106,.09);transform:rotate(1deg) translateY(-1px)}
+.dos .dbtn.gold:active:not(:disabled){transform:rotate(1deg) scale(.965);background-color:rgba(34,54,106,.16)}
+.dos .dbtn.upg{color:#5b2b93;background:rgba(91,43,147,.04);transform:rotate(-.6deg)}
+.dos .dbtn.upg:hover:not(:disabled){color:#43196f;background-color:rgba(91,43,147,.09);transform:rotate(-.6deg) translateY(-1px)}
+.dos .dbtn.upg:active:not(:disabled){transform:rotate(-.6deg) scale(.965);background-color:rgba(91,43,147,.16)}
+#dosDoSign.ready{animation:dosInk 1.6s ease-in-out infinite}
+@keyframes dosInk{50%{background-color:rgba(168,35,27,.15);color:#86170f}}
+/* второстепенные — картонный ярлык с латунным люверсом, надпись на машинке */
+.dos .dbtn.dark,.dos .dmini{isolation:isolate;border:0;background:none;color:var(--ink);text-shadow:var(--typed);-webkit-mask:none;mask:none;filter:drop-shadow(0 2px 2px rgba(20,10,3,.4))}
+.dos .dbtn.dark{min-height:48px;padding:10px 24px 10px 40px;font:400 14px/1.2 var(--tw);letter-spacing:.08em;transform:rotate(.7deg)}
+.dos .dbtn.dark::after,.dos .dmini::after{display:none}
+.dos .dbtn.dark::before,.dos .dmini::before{content:"";position:absolute;inset:0;z-index:-1;--eh:5px;--ew:96px;
+  background:radial-gradient(circle at 17px 50%,#2a1a0c 0 3px,#8a6a34 3.5px,#e4c98a 5px,#9b7a40 6.5px,transparent 7px),linear-gradient(rgba(255,240,205,.18),rgba(110,70,25,.12)),url(../assets/dos/paper.webp) 0 0/512px 512px,#d4b77c;background-blend-mode:normal,normal,multiply}
+.dos .dmini::before{background:radial-gradient(circle at 13px 50%,#2a1a0c 0 2.4px,#8a6a34 2.8px,#e4c98a 4px,#9b7a40 5.2px,transparent 5.6px),linear-gradient(rgba(255,240,205,.18),rgba(110,70,25,.12)),url(../assets/dos/paper.webp) 0 0/512px 512px,#d4b77c;background-blend-mode:normal,normal,multiply}
+.dos .dbtn.dark:hover:not(:disabled){color:#000;background:none;transform:rotate(0deg) translateY(-2px)}
+.dos .dbtn.dark:active:not(:disabled){transform:rotate(0deg) translateY(0) scale(.98)}
+.dos .dbtn.dark:disabled{color:rgba(36,26,18,.45);border:0}
+.dos .dbtn.dark:focus-visible::before,.dos .dmini:focus-visible::before{outline:2px dashed var(--rd);outline-offset:-5px}
+.dos .dmini{position:relative;height:34px;margin-left:8px;padding:0 13px 0 28px;font:400 12.5px var(--tw);letter-spacing:.06em;text-transform:uppercase;transform:rotate(-.8deg);transition:transform .12s;cursor:pointer}
+.dos .dmini+.dmini{transform:rotate(.9deg)}
+.dos .dmini:hover{background:none;color:#000;transform:translateY(-2px)}
+.dos .dmini:active{transform:scale(.97)}
+.dos-arch-h .cnt{margin-left:8px;padding:2px 7px;background:none;border:1.5px solid var(--rd);color:var(--rd);font:400 12px var(--tw)}
+/* «Стереть» подпись — красным карандашом */
+.dpad-clr{height:auto;padding:0 4px;border:0;background:none;color:var(--rd);font:700 19px/1 var(--hand);text-transform:none;letter-spacing:0;text-decoration:underline wavy rgba(168,35,27,.45);text-underline-offset:4px}
+
+/* ---------- улики ---------- */
+.dslot{--eh:7px;--ew:128px}
+.dslot::before,.dslot.f::before,.dslot.next::before{filter:none;background:linear-gradient(rgba(255,252,240,.32),rgba(255,252,240,.32)),radial-gradient(140% 100% at 50% 40%,transparent 55%,rgba(124,78,28,.18)),url(../assets/dos/paper.webp) var(--px,0) var(--py,0)/512px 512px,#e9dcbc}
+.dslot:nth-child(2){--px:-140px;--py:-260px}.dslot:nth-child(3){--px:-300px;--py:-80px}.dslot:nth-child(4){--px:-40px;--py:-380px}.dslot:nth-child(5){--px:-420px;--py:-190px}
+.dslot.next::before{background:linear-gradient(rgba(255,250,232,.5),rgba(255,250,232,.5)),url(../assets/dos/paper.webp) var(--px,0) var(--py,0)/512px 512px,#efe3c4}
+.dslot{filter:drop-shadow(0 5px 5px rgba(30,14,4,.38))}
+/* рамка под «фото» с чёрными уголками */
+.dslot::after,.dslot.f::after,.dslot.next::after{inset:10px 9px;border:1px dashed rgba(70,48,24,.3);box-shadow:none;
+  background:linear-gradient(135deg,rgba(38,28,20,.85) 0 50%,transparent 52%) 0 0/13px 13px no-repeat,linear-gradient(225deg,rgba(38,28,20,.85) 0 50%,transparent 52%) 100% 0/13px 13px no-repeat,linear-gradient(45deg,rgba(38,28,20,.85) 0 50%,transparent 52%) 0 100%/13px 13px no-repeat,linear-gradient(315deg,rgba(38,28,20,.85) 0 50%,transparent 52%) 100% 100%/13px 13px no-repeat}
+.dslot.f::after{border:0;box-shadow:inset 0 -3px 0 var(--rc)}
+.dslot.next::after{border-color:rgba(168,35,27,.55)}
+.dslot .dn{left:14px;top:14px;font:400 11px var(--tw);letter-spacing:.06em;color:#3d2d1f;text-shadow:var(--typed)}
+.dslot>b{position:relative;width:46px;height:46px;margin-bottom:4px;border:0;background:none;box-shadow:none;color:var(--rd);font:700 34px/46px var(--hand);text-align:center}
+.dslot>b::before{content:"";position:absolute;inset:1px;border:2px solid rgba(168,35,27,.6);border-radius:50% 44% 53% 47%/46% 54% 45% 55%;transform:rotate(-12deg)}
+.dslot.next>b{animation:dosPlus 1.6s ease-in-out infinite}
+@keyframes dosPlus{50%{transform:scale(1.12) rotate(-4deg)}}
+.dslot small{font:600 18px/1.1 var(--hand);color:#6a5640;text-transform:none;letter-spacing:0}
+.dslot.next small{color:var(--rd)}
+.dslot .dw{font:400 10.5px var(--tw);color:#5a4530}
+.dslot .df{font:700 14px/1.2 var(--doc);color:#2a1f16}
+.dslot .dpz{font:400 13px var(--tw);color:var(--rd);text-shadow:var(--typed)}
+.dx{top:8px;right:8px;width:26px;height:26px;border-radius:0;background:none;color:var(--rd);font:700 24px/26px var(--hand);opacity:.7;transition:opacity .15s,transform .15s}
+.dx:hover{opacity:1;transform:scale(1.15) rotate(8deg)}
+/* сводка: машинописные строки с точками-выносками */
+.dm{padding:12px 0;border-bottom:0}
+.dm span{flex:1;display:flex;align-items:baseline;font:400 13.5px var(--tw);color:#3a2a1c;text-shadow:var(--typed)}
+.dm span::after{content:"";flex:1;min-width:14px;margin:0 8px;border-bottom:2px dotted rgba(60,40,20,.35)}
+.dm b{font:400 16px var(--tw);color:var(--ink);text-shadow:var(--typed)}
+.dm b.g{color:#24603a}.dm b.r{color:var(--rd)}
+.drange{border:1.5px dashed rgba(168,35,27,.55);background:rgba(168,35,27,.04)}
+.drange small{font:400 11px var(--tw);letter-spacing:.1em;color:#5a4530}
+.drange strong{font:400 18px var(--tw);color:var(--rd);text-shadow:var(--typed)}
+.dos-slip h3{font:700 21px var(--doc);border-bottom:3px double rgba(60,40,20,.32)}
+/* пометка на полях — листок из блокнота, от руки */
+.dos-note{--eh:9px;--ew:160px;padding:26px 20px 18px 44px;transform:rotate(-1.1deg)}
+.dos-note::before{filter:none;background:linear-gradient(90deg,transparent 32px,rgba(196,58,48,.5) 32px 33.5px,transparent 33.5px),repeating-linear-gradient(180deg,rgba(64,104,160,.28) 0 1px,transparent 1px 27px) 0 81px/100% 27px,linear-gradient(rgba(255,252,238,.35),rgba(255,252,238,.35)),url(../assets/dos/paper.webp) -200px -300px/512px 512px,#ece2c6}
+.dos-note::after{content:"";position:absolute;inset:10px;z-index:-2;box-shadow:0 1px 3px 6px rgba(26,12,3,.32),0 16px 24px rgba(0,0,0,.45)}
+.dos-note h4{margin:0 0 4px;font:700 26px/32px var(--hand);letter-spacing:0;text-transform:none;color:var(--rd);text-decoration:underline rgba(168,35,27,.45);text-underline-offset:5px}
+.dos-note p{margin:0;font:500 21px/27px var(--hand);color:#2b2a4a}.dos-note p.red{font-weight:700;color:var(--rd)}
+/* архив */
+.dcard{--eh:6px;--ew:128px;filter:drop-shadow(0 3px 4px rgba(30,14,4,.3))}
+.dcard::before{box-shadow:none;border-radius:0;background:linear-gradient(rgba(255,252,240,.3),rgba(255,252,240,.3)),url(../assets/dos/paper.webp) var(--px,0) var(--py,0)/512px 512px,#e8dab8}
+.dcard:nth-child(3n+1){--px:-170px;--py:-90px}.dcard:nth-child(3n+2){--px:-330px;--py:-270px}.dcard:nth-child(4n){--px:-60px;--py:-410px}
+.dcard::after{left:8px;right:8px;bottom:6px;height:3px}
+.dcard .dr{font:400 10px var(--tw);letter-spacing:.06em;color:var(--rd)}
+.dcard .dw{font:400 10.5px var(--tw);color:#5a4530}
+.dcard .df{font:700 14px/1.2 var(--doc);color:#2a1f16}
+.dcard .db{border-top:1px dashed rgba(70,48,24,.35);padding:8px 12px 12px}
+.dcard .db b{font:400 13.5px var(--tw);color:var(--ink);text-shadow:var(--typed)}
+.dcard .db em{padding:3px 7px;border:1.5px solid currentColor;border-radius:2px;background:rgba(168,35,27,.05);color:var(--rd);font:500 11px/1 var(--stp);letter-spacing:.1em;transform:rotate(-3deg);mix-blend-mode:multiply;
+  -webkit-mask:url(../assets/dos/ink.webp) 0 0/160px;mask:url(../assets/dos/ink.webp) 0 0/160px}
+.dcard.used .db em{background:rgba(36,96,58,.06);color:#24603a}
+.dcard.used{opacity:.6;filter:sepia(.25) drop-shadow(0 2px 3px rgba(30,14,4,.25))}
+.dos-empty{font:600 22px/1.3 var(--hand);color:#4a3826}
+/* соглашение */
+.dos-agr-b h2{font:700 clamp(24px,2.9vw,34px)/1.12 var(--doc);letter-spacing:.05em;color:#241a12}
+.dos-agr-s{font:400 12px var(--tw);letter-spacing:.18em;color:var(--rd)}
+.dos-pre{font:italic 400 16.5px/1.7 var(--doc);color:#3d2d1f}
+.dcl{grid-template-columns:52px 1fr}
+.dcl>b{width:44px;height:34px;border:1.5px solid rgba(168,35,27,.55);background:none;font:400 13px var(--tw);color:var(--rd)}
+.dcl p{font:400 16.5px/1.7 var(--doc);color:#2c2118}.dcl p strong{font-weight:700;color:#7a1d16}
+.dos-items>span{font:400 12px var(--tw);color:#3d2d1f}
+.dos-items>b{font:400 18px var(--tw);color:var(--rd)}
+.dos-warn{font:400 12px/1.6 var(--tw);letter-spacing:.03em;color:#8a1e17}
+.dsc label{font:400 12px var(--tw);letter-spacing:.1em;color:#3d2d1f}
+.dinp{height:46px;padding:0 4px;border-bottom:1.5px solid rgba(60,40,20,.5);background:transparent;color:var(--pen);font:600 28px/46px var(--hand)}
+.dinp:focus{background:rgba(255,250,232,.35)}
+.dinp::placeholder{color:rgba(60,40,20,.38)}
+.dpad-hint{font:600 23px var(--hand);color:rgba(80,58,34,.45)}
+.ddate{font:400 12.5px var(--tw);color:#4a3826}
+.ddate b{font-weight:400}
+.dsigned{font:400 12px/1.5 var(--tw);color:#24603a;border-color:rgba(36,96,58,.5);background:rgba(36,96,58,.07)}
+.dreg{font:400 12px/1.75 var(--tw);color:#4a3826}.dreg b{font-weight:400;color:var(--ink)}
+/* протокол */
+.dos-prot-b h2{font:700 clamp(28px,3.6vw,42px)/1.04 var(--doc);color:#241a12}
+.dos-prot-s{font:400 12px var(--tw);letter-spacing:.14em;color:#4a3826;border-bottom:3px double rgba(60,40,20,.35)}
+.dreward{background:rgba(255,251,238,.45);border:1px solid rgba(90,60,25,.35);box-shadow:inset 0 -4px 0 var(--rc),0 1px 2px rgba(60,35,10,.2)}
+.drw-m{font:400 12px/1.8 var(--tw);color:#4a3826}
+.drw-n{font:700 28px/1.15 var(--doc);color:#1f1710}.drw-n span{font:400 13px var(--tw);color:#5a4530}
+.drw-p{font:400 30px var(--tw);color:#24603a;text-shadow:var(--typed)}
+.drw-p em{font:400 14px var(--tw);border-width:1.5px}
+.dnote{font:italic 400 16.5px/1.65 var(--doc);color:#3d2d1f}
+.dprot-sig{font:400 12px/1.9 var(--tw);color:#4a3826}.dprot-sig b{font:700 30px var(--hand);color:var(--pen)}
+@media (max-width:720px){
+  .dos-tabs{padding-left:4px}.dos-tabs button{padding:0 12px;font-size:11px;clip-path:polygon(6px 0,calc(100% - 6px) 0,100% 100%,0 100%)}.dos-tabs button::before{inset:8px 9px 7px}
+  .dst.big.open{position:static;margin:0 0 6px 22px}
+  .dos .dbtn{font-size:15px;transform:none}.dos .dbtn:hover:not(:disabled),.dos .dbtn:active:not(:disabled){transform:none}
+  .dos-board,.dos-agr,.dos-prot{--fold:none}
+}
+@media (prefers-reduced-motion:reduce){.dslot.next>b,#dosDoSign.ready{animation:none}}
+
 /* ===== главная: блок бонусов под баннером ===== */
 .hb-wrap{margin-top:22px}
 .hb-row{display:grid;grid-template-columns:1.05fr 1.1fr 1fr;gap:18px}
