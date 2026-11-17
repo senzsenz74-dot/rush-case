@@ -2959,7 +2959,8 @@ function rfDraw() {
       ${refGiftList(rfGiftNow(D))}
       ${P ? `<div class="rf-meter"><span>Подарков осталось</span><b>${fmt(left)} из ${fmt(total)}</b><i style="--p:${total ? left / total : 0}"></i></div>
         ${!left ? '<p class="rf-mute">Подарки закончились — друзья получают обычный бонус. Добавьте ещё в настройке.</p>' : ''}
-        <button class="rf-btn rf-btn-w" id="rfGiftEd">${ic.gift}Настроить подарок</button>`
+        <button class="rf-btn rf-btn-w" id="rfGiftEd">${ic.gift}Настроить подарок</button>
+        <button class="rf-btn rf-btn-w" id="rfGa">${ic.gift}Розыгрыш для зрителей</button>`
       : '<p class="rf-mute">Друг получает подарок, когда входит по вашей ссылке через Steam (только новый аккаунт).</p>'}
       <div class="rf-row rf-row-b"><span class="rf-lbl">Ваш процент</span><b>${String(+D.pct).replace('.', ',')}%</b>${P && P.pct != null ? '<i class="rf-tag">личный</i>' : ''}</div>
     </article>
@@ -2989,6 +2990,7 @@ function rfDraw() {
   $('#rfRules').onclick = () => rfRules(D);
   $('#rfCode').onclick = () => rfCodeWin(D);
   const ge = $('#rfGiftEd'); if (ge) ge.onclick = () => rfGiftEd(D);
+  const gz = $('#rfGa'); if (gz) gz.onclick = gaStrWin;
   const cl = $('#rfClaim'); if (cl) cl.onclick = async () => {
     cl.disabled = true;
     const r = await srv('ref_claim');
@@ -3110,6 +3112,65 @@ function rfGiftEd(D) {
     const { error } = await sb.rpc('ref_partner_gift', { p: { pct: v('rfGPn'), bal: v('rfGB') || 0, case: v('rfGC'), n: v('rfGN') } });
     if (error) { const k = Object.keys(SRV_ERR).find(x => error.message.includes(x)); return ($('#rfGM', m).textContent = k ? SRV_ERR[k] : 'Ошибка: ' + error.message); }
     closeModal(); toast('Подарок для друзей сохранён'); rfLoad();
+  };
+}
+// стример: свой розыгрыш для зрителей (supabase/giveaways.sql) — скин из своего инвентаря, сумма «от», длительность; один за раз
+Object.assign(SRV_ERR, { 'ga not partner': 'Розыгрыши доступны только стримерам-партнёрам', 'ga busy': 'У вас уже идёт розыгрыш — дождитесь итогов',
+  'ga bad time': 'Длительность — от 10 минут до 7 дней', 'ga bad min': 'Сумма пополнения — от 100 ₽', 'ga bad item': 'Этот предмет нельзя разыграть: нужен скин из инвентаря от 50 ₽',
+  'ga has players': 'Уже есть участники — отменить нельзя', 'ga not found': 'Розыгрыш не найден или уже закончился', 'ga no skins': 'В этом диапазоне цен нет скинов',
+  'ga bad price': 'Проверьте цены приза: «до» не меньше «от»', 'ga bad kind': 'Неизвестный вид розыгрыша' });
+const GA_DUR = [[10, '10 минут'], [30, '30 минут'], [60, '1 час'], [120, '2 часа'], [360, '6 часов'], [720, '12 часов'], [1440, '1 день'], [4320, '3 дня'], [10080, '7 дней']];
+const gaLeft = ms => { const s = Math.max(0, Math.floor(ms / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return d ? `${d} д ${h} ч` : h ? `${h} ч ${m} мин` : `${m} мин ${s % 60} с`; };
+const GA_ST = { done: 'разыгран', empty: 'без участников — скин вернулся', cancelled: 'отменён' };
+async function gaStrWin() {
+  const { data: D, error } = await sb.rpc('ga_str_me');
+  if (error || !D) return toast(error && /function|does not exist|schema cache/i.test(error.message) ? 'Розыгрыши ещё не включены на сервере' : 'Ошибка: ' + esc(error ? error.message : 'нет данных'), 'err');
+  if (!D.partner) return toast(SRV_ERR['ga not partner'], 'err');
+  const L = D.lim, G = D.live, off = D.now - Date.now();
+  let body;
+  if (G) {
+    const s = gaSk(G.item) || { w: G.item, f: '', r: 'common' };
+    body = `<div class="rf-mb gs-live">
+      <div class="gs-it r-${s.r}">${s.name ? `<img src="${imgUrl(s, 'm')}" alt="">` : ''}<div><span>${esc(s.w)}</span><b>${esc(s.f)}</b><em>${prc(+G.price)}</em></div></div>
+      <dl class="gs-dl"><div><dt>Участников</dt><dd>${fmt(+G.n)}</dd></div><div><dt>Пополнить от</dt><dd>${prc(+G.min)}</dd></div><div><dt>До конца</dt><dd id="gsLeft">${gaLeft(G.end - Date.now() - off)}</dd></div></dl>
+      <p class="rf-mn">Розыгрыш виден всем на странице «Бонусы» — с вашей аватаркой и ником. Если к концу никто не участвует, скин вернётся в инвентарь.</p>
+      <div class="rf-mbtn"><a class="ga-go" href="#/bonus">Открыть «Бонусы»</a>${+G.n ? '' : '<button class="ga-go rf-ghost" type="button" id="gsCancel">Отменить</button>'}</div></div>`;
+  } else {
+    const items = st.inv.filter(x => x.st === 'own' && SK[x.n] && !SK[x.n].cash && SK[x.n].p >= L.price).sort((a, b) => SK[b.n].p - SK[a.n].p);
+    body = items.length ? `<form class="stf-f gs-f" id="gsF" novalidate>
+      <div class="stf-fl"><span>Приз — скин из вашего инвентаря (от ${money(L.price)})</span><div class="gs-grid">${items.map(x => { const s = SK[x.n];
+        return `<button type="button" class="gs-o r-${s.r}" data-id="${esc(x.id)}" title="${esc(s.name)}"><img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><span>${esc(s.f)}</span><em>${prc(s.p)}</em></button>`; }).join('')}</div></div>
+      <label class="stf-fl"><span>Участвует, кто пополнит за время розыгрыша от, ₽</span><div class="stf-in"><input id="gsMin" type="number" min="${L.min}" step="50" value="${Math.max(L.min, 500)}"></div></label>
+      <label class="stf-fl"><span>Длительность</span><div class="stf-in"><select id="gsDur">${GA_DUR.filter(([v]) => v >= L.from && v <= L.to).map(([v, t]) => `<option value="${v}"${v === 60 ? ' selected' : ''}>${t}</option>`).join('')}</select></div></label>
+      <p class="rf-mn">Скин заморожен до итогов: продать или вывести его нельзя. Победителя выбирает сервер среди тех, кто пополнил баланс деньгами на эту сумму за время розыгрыша. Вы сами не участвуете. Нет участников — скин вернётся.</p>
+      <p class="stf-msg" id="gsM" role="alert"></p><button class="bw-go stf-go" type="submit">Запустить розыгрыш</button></form>`
+      : `<div class="rf-mb"><p class="rf-mn">В инвентаре нет скинов от ${money(L.price)}. Положите скин в инвентарь (откройте кейс или апгрейд) — и разыграйте его для зрителей.</p></div>`;
+  }
+  const hist = (D.past || []).length ? `<div class="gs-h"><h4 class="rf-mt">Прошлые розыгрыши</h4>${D.past.map(h => { const s = gaSk(h.item) || { w: h.item, f: '' };
+    return `<div class="gs-hr"><span>${esc(s.w)}${s.f ? ' | ' + esc(s.f) : ''}<small>${new Date(h.end).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${GA_ST[h.status] || ''}</small></span>
+      <b>${h.status === 'done' && h.win ? plink(h.win.pid, esc(h.win.name || 'Игрок')) + `<small>из ${fmt(+h.n || 0)}</small>` : '—'}</b></div>`; }).join('')}</div>` : '';
+  const m = modal(`<div class="ga-mod" style="--gl:#46c8ff"><header class="ga-mh"><small>Для стримеров</small><h3>Розыгрыш для зрителей</h3></header>${body}${hist}</div>`, 'm-ga m-rf');
+  if (G) {
+    const t = setInterval(() => { const e = $('#gsLeft', m); if (!e) return clearInterval(t); e.textContent = gaLeft(G.end - Date.now() - off); }, 1000);
+    const c = $('#gsCancel', m); if (c) c.onclick = async () => {
+      c.disabled = true; const r = await srv('ga_str_cancel', { p_id: G.id });
+      if (r) { closeModal(); toast('Розыгрыш отменён — скин вернулся в инвентарь'); GA = null; } else c.disabled = false;
+    };
+    return;
+  }
+  const f = $('#gsF', m); if (!f) return;
+  let pick = null;
+  $$('.gs-o', f).forEach(b => b.onclick = () => { pick = b.dataset.id; $$('.gs-o', f).forEach(x => x.classList.toggle('on', x === b)); $('#gsM', f).textContent = ''; });
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const msg = $('#gsM', f), min = +$('#gsMin', f).value, dur = +$('#gsDur', f).value;
+    if (!pick) return (msg.textContent = 'Выберите скин для розыгрыша');
+    if (!(min >= L.min)) return (msg.textContent = `Сумма пополнения — от ${money(L.min)}`);
+    const btn = $('.stf-go', f); btn.disabled = true;
+    const r = await srv('ga_str_create', { p_inv: pick, p_min: min, p_minutes: dur });
+    btn.disabled = false; if (!r) return;
+    closeModal(); GA = null; toast('Розыгрыш запущен — он уже на странице «Бонусы»'); location.hash = '#/bonus';
   };
 }
 // режим «КРОТ» (#/krot): сама игра — js/krot.js + css/krot.css, грузятся только на этой странице (сервер — supabase/krot.sql)
@@ -5598,61 +5659,79 @@ async function openWeekly(pre) {
 }
 /* ---------- страница «Бонусы» (владелец 11.11, по его образцу): сверху розыгрыши, дальше «Награды» — еженедельный набор
    и пояснения к нему, бонус за подписки, ниже ежедневный бонус, промокод и «Пригласи друга» (ранги со страницы убраны) ---------- */
-/* розыгрыши: каждый час / день / неделю + розыгрыши стримеров (на карточке их аватарка и ник). Участвует каждый, кто пополнил
-   баланс от суммы за время розыгрыша (выбор владельца). Стример запускает свой розыгрыш сам — вкладка в админке (будет).
-   ПОКА ТОЛЬКО ВИД: сервера розыгрышей ещё нет (следующий шаг — supabase/giveaways.sql: розыгрыши, участники по пополнениям,
-   выбор победителя по таймеру, приз в инвентарь). Поэтому блок с примером виден только в локальной копии (localhost),
-   на боевом сайте его нет, пока не готов сервер. */
-const GA_ON = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-const gaSk = (b, q) => { const v = Object.values(SK).filter(s => s.name.startsWith(b + ' (')); return v.find(x => x.q === q) || v[0] || null; }; // скин по названию и износу
-const gaEnd = k => { // конец текущего розыгрыша: час — до начала следующего часа, день — до полуночи, неделя — до понедельника
-  const d = new Date();
-  if (k === 'hour') d.setMinutes(60, 0, 0);
-  else { d.setHours(24, 0, 0, 0); if (k === 'week') d.setDate(d.getDate() + (8 - d.getDay()) % 7); }
-  return +d;
-};
-let GA_DEMO = null; // пример (ники стримеров вымышленные) — заменится данными сервера
-const gaList = () => GA_DEMO || (GA_DEMO = [
-  { k: 'hour', t: 'Каждый час', s: gaSk('MP7 | Nemesis', 'FN'), min: 600, n: 187, end: gaEnd('hour') },
-  { k: 'day', t: 'Каждый день', s: gaSk('★ Flip Knife | Slaughter', 'MW'), min: 2000, n: 3621, end: gaEnd('day') },
-  { k: 'week', t: 'Каждую неделю', s: gaSk('★ Skeleton Knife | Doppler', 'FN'), min: 5000, n: 3536, end: gaEnd('week') },
-  { k: 'str', t: 'Розыгрыш стримера', by: { name: 'NightOwl' }, s: gaSk('StatTrak™ AWP | Redline', 'FT'), min: 1000, n: 412, end: Date.now() + 47 * 6e4 },
-  { k: 'str', t: 'Розыгрыш стримера', by: { name: 'ShadowFox' }, s: gaSk('StatTrak™ AK-47 | Asiimov', 'FT'), min: 500, n: 958, end: Date.now() + 130 * 6e4 },
-].filter(g => g.s));
+/* розыгрыши (supabase/giveaways.sql, владелец 17.11): каждый час / день / неделю — приз случайный скин из диапазона цен
+   (задаётся в админке, вкладка «Розыгрыши»), + розыгрыши стримеров (свой скин из инвентаря, запускают на «Пригласить друзей»).
+   Участвует каждый, кто за время розыгрыша пополнил баланс деньгами (скины не считаются) на сумму от указанной на карточке.
+   Победителя выбирает сервер с проверкой честности: хэш секрета виден сразу, секрет — после итогов (окно «Проверить»).
+   Приз — сразу в инвентарь победителя; при заходе он видит окно «Вы выиграли!» (gaWinCheck). */
+const GA_T = { hour: 'Каждый час', day: 'Каждый день', week: 'Каждую неделю', str: 'Розыгрыш стримера' };
+const GA_GL = { hour: '#7c5cff', day: '#d64bd8', week: '#ff4d4d', str: '#46c8ff' }; // цвет черты окна — как у карточки
+let GA = null, gaOff = 0, gaBusy = null; // идущие розыгрыши с сервера; поправка часов браузера к серверу
+const gaNow = () => Date.now() + gaOff;
+const gaSk = n => SK[n] || SK[fixName(n)] || null;
+async function gaLoad() {
+  if (!sb) return GA;
+  if (gaBusy) return gaBusy;
+  gaBusy = (async () => {
+    const { data, error } = await sb.rpc('ga_list');
+    if (!error && data) { gaOff = data.now - Date.now(); GA = (data.live || []).filter(g => gaSk(g.item)); }
+    return GA;
+  })();
+  try { return await gaBusy; } finally { gaBusy = null; }
+}
 const GA_IC_INFO = sv('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.6v.4"/>');
-function gaCard(g, i) {
-  const s = g.s;
-  return `<article class="ga ga-${g.k}">
+function gaFoot(g) {
+  const me = g.me, min = +g.min, dep = me ? +me.dep : 0;
+  if (me && me.own) return `<span class="ga-st ga-st-own">${ic.gift || ''}Ваш розыгрыш</span><span class="ga-min"><small>При пополнении от:</small>${prc(min)}</span>`;
+  if (me && dep >= min) return `<span class="ga-st">${ic.check}Вы участвуете</span><span class="ga-min"><small>Пополнено:</small>${prc(dep)}</span>`;
+  if (dep > 0) return `<button class="ga-go" type="button" data-act="deposit" data-need="${Math.ceil(min - dep)}">Пополнить ещё</button><span class="ga-min"><small>Осталось пополнить:</small>${prc(min - dep)}</span>`;
+  return `<button class="ga-go" type="button" data-act="deposit">Пополнить</button><span class="ga-min"><small>При пополнении от:</small>${prc(min)}</span>`;
+}
+function gaCard(g) {
+  const s = gaSk(g.item);
+  return `<article class="ga ga-${g.k}" data-id="${g.id}">
     <div class="ga-top">
-      <h3>${esc(g.t)}</h3>
-      ${g.by ? `<div class="ga-by">${ava(g.by, 'ga-ava')}<span><small>Розыгрыш от</small><b>${esc(g.by.name)}</b></span></div>` : ''}
-      <div class="ga-it"><b>${esc(s.w)}</b><span>${esc(s.f)}</span><em>${prc(s.p)}</em></div>
+      <h3>${esc(GA_T[g.k] || 'Розыгрыш')}</h3>
+      ${g.by ? `<div class="ga-by">${ava({ name: g.by.name || 'Стример', ava: g.by.ava }, 'ga-ava')}<span><small>Розыгрыш от</small><b>${esc(g.by.name || 'Стример')}</b></span></div>` : ''}
+      <div class="ga-it"><b>${esc(s.w)}</b><span>${esc(s.f)}</span><em>${prc(+g.price || s.p)}</em></div>
       <img class="ga-img" src="${imgUrl(s, 'l')}" alt="${esc(s.name)}" loading="lazy" decoding="async">
-      <div class="ga-tm" data-i="${i}">${['дней', 'час.', 'мин.', 'сек.'].map(u => `<span><b>00</b><small>${u}</small></span>`).join('')}</div>
-      <span class="ga-n" title="Участников">${ic.users}${fmt(g.n)}</span>
+      <div class="ga-tm" data-end="${g.end}">${['дней', 'час.', 'мин.', 'сек.'].map(u => `<span><b>00</b><small>${u}</small></span>`).join('')}</div>
+      <span class="ga-n" title="Участников">${ic.users}${fmt(+g.n || 0)}</span>
     </div>
-    <div class="ga-ft"><button class="ga-go" type="button" data-act="deposit">Пополнить</button><span class="ga-min"><small>При пополнении от:</small>${prc(g.min)}</span></div>
-    <button class="ga-win" type="button" data-i="${i}">Последние победители</button>
+    <div class="ga-ft">${gaFoot(g)}</div>
+    <button class="ga-win" type="button" data-id="${g.id}">Последние победители</button>
   </article>`;
 }
+const gaSig = L => (L || []).map(g => [g.id, g.n, g.me ? g.me.dep : '', g.past.length ? g.past[0].id : ''].join(':')).join('|');
+const gaAgo = t => { const m = Math.max(1, Math.round((gaNow() - t) / 6e4)); return m < 60 ? m + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : Math.round(m / 1440) + ' д назад'; };
+function gaDraw() {
+  const sec = $('#gaSec'), grid = $('#gaGrid'); if (!sec || !grid) return;
+  sec.hidden = !(GA && GA.length);
+  grid.innerHTML = (GA || []).map(gaCard).join('');
+  grid.dataset.sig = gaSig(GA);
+}
 function gaMount() {
-  const L = gaList();
+  let next = 0; // когда можно снова спросить сервер (итоги подводятся в течение минуты после нуля)
+  const refresh = async () => { next = Date.now() + 5000; const before = gaSig(GA); await gaLoad(); if ($('#gaGrid') && gaSig(GA) !== before) gaDraw(); };
   const tick = () => {
+    let over = false;
     $$('.ga-tm').forEach(t => {
-      const g = L[+t.dataset.i]; if (!g) return;
-      if (g.end <= Date.now()) g.end = g.k === 'str' ? Date.now() + 60 * 6e4 : gaEnd(g.k); // в примере розыгрыш начинается заново
-      const s = Math.max(0, Math.floor((g.end - Date.now()) / 1000)), v = [Math.floor(s / 86400), Math.floor(s % 86400 / 3600), Math.floor(s % 3600 / 60), s % 60];
+      const s = Math.max(0, Math.floor((+t.dataset.end - gaNow()) / 1000)), v = [Math.floor(s / 86400), Math.floor(s % 86400 / 3600), Math.floor(s % 3600 / 60), s % 60];
+      if (!s) over = true;
+      t.classList.toggle('ga-tm-0', !s); t.title = s ? '' : 'Подводим итоги…';
       $$('b', t).forEach((b, k) => { const x = k ? String(v[k]).padStart(2, '0') : String(v[k]); if (b.textContent !== x) b.textContent = x; });
     });
+    if (over && Date.now() > next) refresh();
   };
-  tick(); every(tick, 1000);
-  // окна «Правила» и «Последние победители» — в новом стиле (как «Правила» BLAST): стекло, прямые углы, цветная черта сверху
-  const GA_GL = { hour: '#7c5cff', day: '#d64bd8', week: '#ff4d4d', str: '#46c8ff' };
+  gaDraw(); tick(); every(tick, 1000);
+  refresh().then(tick); every(() => { if (!document.hidden) refresh(); }, 30000); // участники и «Вы участвуете» — свежие
   const GA_RULES = [
-    'В розыгрыше участвует каждый, кто за время розыгрыша пополнил баланс на сумму не меньше указанной на карточке. Нажимать ничего не нужно.',
+    'В розыгрыше участвует каждый, кто за время розыгрыша пополнил баланс на сумму не меньше указанной на карточке (можно несколькими пополнениями). Нажимать ничего не нужно.',
+    'Считаются пополнения деньгами (СБП, карта, криптовалюта). Пополнения скинами в розыгрышах не участвуют.',
     'Одно участие на игрока в каждом розыгрыше, сколько бы раз он ни пополнял.',
-    'Когда таймер дойдёт до нуля, сервер случайно выберет победителя среди участников. Приз сразу попадёт в его инвентарь.',
-    'Розыгрыши стримеров проходят по тем же правилам. На их карточке — аватарка и ник стримера.',
+    'Когда таймер дойдёт до нуля, сервер выберет победителя среди участников. Приз сразу попадёт в его инвентарь.',
+    'Честность можно проверить: в начале розыгрыша сервер показывает хэш секретного кода, после итогов открывает сам код. По коду и списку участников победитель вычисляется заново — подменить его нельзя.',
+    'Розыгрыши стримеров проходят по тем же правилам, приз — скин стримера. Сам стример в своём розыгрыше не участвует.',
     'Сайт может менять призы и условия новых розыгрышей. Начатый розыгрыш проводится по тем условиям, с которыми он начался.',
   ];
   const r = $('#gaRules'); if (r) r.onclick = () => {
@@ -5661,21 +5740,73 @@ function gaMount() {
       <footer class="ga-mf"><button class="bw-go ga-ok" type="button">Понятно</button></footer></div>`, 'm-ga');
     $('.ga-ok', m).onclick = closeModal;
   };
-  $$('.ga-win').forEach(b => b.onclick = () => {
-    const g = L[+b.dataset.i]; if (!g) return;
-    const W = ['Kirill_77', 'xDanya', 'Mr.Bean', 'ezwin', 'Tima'].map((n, k) => ({ n, ago: [12, 73, 140, 260, 410][k] * (g.k === 'week' ? 168 : g.k === 'day' ? 24 : 1) }));
-    const ago = m => m < 60 ? m + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : Math.round(m / 1440) + ' д назад';
-    modal(`<div class="ga-mod" style="--gl:${GA_GL[g.k] || '#84d9fd'}"><header class="ga-mh"><small>${esc(g.t)}${g.by ? ' · ' + esc(g.by.name) : ''}</small><h3>Последние победители</h3><span class="ga-mh-n">пример</span></header>
-      <div class="ga-wl">${W.map(w => `<div class="ga-w">${ava({ name: w.n })}<div class="ga-w-u"><b>${esc(w.n)}</b><span>${esc(g.s.w)} | ${esc(g.s.f)}</span></div><div class="ga-w-p"><em>${prc(g.s.p)}</em><small>${ago(w.ago)}</small></div></div>`).join('')}</div></div>`, 'm-ga');
-  });
+  const grid = $('#gaGrid'); if (grid) grid.onclick = e => {
+    const b = e.target.closest('.ga-win'); if (!b) return;
+    const g = (GA || []).find(x => x.id === +b.dataset.id); if (g) gaWinners(g);
+  };
 }
+// «Последние победители» карточки + хэш текущего розыгрыша; у каждого итога — «Проверить»
+function gaWinners(g) {
+  const P = g.past || [];
+  const m = modal(`<div class="ga-mod" style="--gl:${GA_GL[g.k] || '#84d9fd'}"><header class="ga-mh"><small>${esc(GA_T[g.k] || 'Розыгрыш')}${g.by ? ' · ' + esc(g.by.name || '') : ''}</small><h3>Последние победители</h3></header>
+    ${P.length ? `<div class="ga-wl">${P.map(w => { const s = gaSk(w.item) || { w: w.item, f: '' }, u = w.win || { name: 'Игрок' };
+      return `<div class="ga-w">${ava({ name: u.name || 'Игрок', ava: u.ava })}<div class="ga-w-u"><b>${plink(u.pid, esc(u.name || 'Игрок'))}</b><span>${esc(s.w)}${s.f ? ' | ' + esc(s.f) : ''} · из ${fmt(+w.n || 0)}</span></div>
+        <div class="ga-w-p"><em>${prc(+w.price)}</em><small>${gaAgo(w.end)}</small><button class="ga-chk" type="button" data-id="${w.id}">Проверить</button></div></div>`; }).join('')}</div>`
+      : '<p class="ga-none">Здесь появятся победители, когда пройдёт первый розыгрыш. Станьте первым!</p>'}
+    <footer class="ga-fair"><span>Хэш текущего розыгрыша</span><code>${esc(g.hash)}</code><small>Секретный код откроется после итогов — по нему можно проверить выбор победителя.</small></footer></div>`, 'm-ga');
+  $$('.ga-chk', m).forEach(b => b.onclick = () => gaVerify(+b.dataset.id, g.k));
+}
+// проверка честности прямо в браузере: sha256(секрет) = хэш, номер победителя = sha256(секрет:ID участников) mod количество
+async function gaVerify(id, k) {
+  const { data: V, error } = await sb.rpc('ga_verify', { p_id: id });
+  if (error || !V) return toast('Не удалось загрузить данные проверки', 'err');
+  const hex = async s => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map(x => x.toString(16).padStart(2, '0')).join('');
+  const P = V.pids || [], n = P.length;
+  let ok1 = false, ok2 = false, idx = -1;
+  try {
+    ok1 = !!V.seed && (await hex(V.seed)) === V.hash;
+    if (n) { const h = await hex(V.seed + ':' + P.join(',')); idx = Number(BigInt('0x' + h.slice(0, 12)) % BigInt(n)); ok2 = idx === V.idx && V.win && P[idx] === V.win.pid; }
+  } catch (e) { /* старый браузер без crypto.subtle */ }
+  const row = (t, v, ok) => `<div class="ga-vr${ok === false ? ' bad' : ''}"><span>${t}</span><div>${v}</div>${ok == null ? '' : ok ? ic.check : '✕'}</div>`;
+  const s = gaSk(V.item) || { name: V.item };
+  modal(`<div class="ga-mod" style="--gl:${GA_GL[k] || GA_GL[V.k] || '#84d9fd'}"><header class="ga-mh"><small>Проверка честности · ${esc(s.name)}</small><h3>Розыгрыш №${V.id}</h3></header>
+    <div class="ga-vl">
+      ${row('Хэш (виден с начала)', `<code>${esc(V.hash)}</code>`)}
+      ${row('Секретный код', `<code>${esc(V.seed || '—')}</code>`, ok1)}
+      ${row(`Участники (${fmt(n)}), ID по возрастанию`, `<code class="ga-pids">${P.slice(0, 300).join(', ')}${n > 300 ? ` … и ещё ${fmt(n - 300)}` : ''}</code>`)}
+      ${row('Победитель', n && V.win ? `№${idx + 1} в списке — ID <b>${V.win.pid}</b> (${esc(V.win.name || 'Игрок')})` : 'участников не было', n ? ok2 : null)}
+    </div>
+    <p class="ga-vn">Как проверить самому: SHA-256 от секретного кода должен совпасть с хэшем. Затем SHA-256 от строки «код:ID,ID,…», первые 12 символов — число в шестнадцатеричной записи; остаток от деления на количество участников — номер победителя (с нуля).</p></div>`, 'm-ga');
+}
+// окно «Вы выиграли!» — при входе, раз в 30 с и при возврате на вкладку (после заставки и уведомлений администрации)
+let gaWinBusy = false;
+async function gaWinCheck() {
+  if (gaWinBusy || !sb || !st.user || !st.user.sb || $('#ntcOv') || document.getElementById('intro') || $('.m-ga-win')) return;
+  gaWinBusy = true;
+  try {
+    const { data, error } = await sb.rpc('ga_wins');
+    if (error || !data || !data.length) return;
+    await sb.rpc('ga_seen', { p_ids: data.map(w => w.id) });
+    await sbRefresh(); renderUser();
+    const W = data.filter(w => gaSk(w.item)), sum = W.reduce((a, w) => a + +w.price, 0), w0 = W[0]; if (!w0) return;
+    const m = modal(`<div class="ga-mod ga-wn" style="--gl:${GA_GL[w0.k] || '#5be38f'}"><header class="ga-mh"><small>${esc(GA_T[w0.k] || 'Розыгрыш')}${w0.by ? ' · ' + esc(w0.by.name || '') : ''}</small><h3>Вы выиграли!</h3></header>
+      <div class="ga-wn-l">${W.map(w => { const s = gaSk(w.item); return `<div class="ga-wn-i r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><div><span>${esc(s.w)}</span><b>${esc(s.f)}</b><em>${prc(+w.price)}</em><small>из ${fmt(+w.n || 0)} ${plural(+w.n || 0, 'участника', 'участников', 'участников')}</small></div></div>`; }).join('')}</div>
+      <p class="ga-wn-t">${W.length > 1 ? `Призы на ${money(sum)} уже` : 'Скин уже'} в вашем инвентаре.</p>
+      <footer class="ga-mf"><button class="ga-wn-x" type="button">Закрыть</button><button class="bw-go ga-wn-go" type="button">В инвентарь</button></footer></div>`, 'm-ga m-ga-win');
+    $('.ga-wn-x', m).onclick = closeModal;
+    $('.ga-wn-go', m).onclick = () => { closeModal(); pfTab = 'inv'; location.hash = '#/profile'; };
+    try { Snd.coin(); burst(40); } catch (e) { /* без звука */ }
+  } finally { gaWinBusy = false; }
+}
+setInterval(gaWinCheck, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) gaWinCheck(); });
 function pageBonus() {
   const dw = DAILY.reduce((a, d) => a + d.w, 0);
   return `<section class="container bonus bn bo">
-    ${GA_ON ? `<div class="bo-sec">
+    <div class="bo-sec" id="gaSec"${GA && GA.length ? '' : ' hidden'}>
       <div class="bo-sh"><h2>Розыгрыши</h2><button class="bo-rules" id="gaRules" type="button">${GA_IC_INFO}Правила</button></div>
-      <div class="ga-grid">${gaList().map(gaCard).join('')}</div>
-    </div>` : ''}
+      <div class="ga-grid" id="gaGrid"></div>
+    </div>
     <div class="bo-sec">
       <div class="bo-sh"><h2>Награды</h2><div class="bn-ready" id="bnReady"></div></div>
       <article class="bw" id="wkCard">
@@ -5701,7 +5832,7 @@ function pageBonus() {
 function pickDaily() { const t = DAILY.reduce((a, d) => a + d.w, 0); let r = Math.random() * t; for (const d of DAILY) { r -= d.w; if (r <= 0) return d; } return DAILY[0]; }
 const coinCard = (d, win) => `<div class="coin-card r-${d.r}${win ? ' is-win' : ''}"><span class="coin">₽</span><b>${d.v} ₽</b></div>`;
 function mountBonus() {
-  wkCardDraw(); if (GA_ON) gaMount(); // еженедельный набор и розыгрыши
+  wkCardDraw(); gaMount(); // еженедельный набор и розыгрыши
   // «Доступно сейчас» — то, что можно забрать на этой странице: неполученные подписки и готовый еженедельный набор
   const ready = () => { const n = SOCIALS.filter(x => !(st.socials || []).includes(x.k)).length + (wkIsReady() ? 1 : 0), e = $('#bnReady'); if (!e) return; e.innerHTML = n ? `<i></i>Доступно сейчас: <b>${n}</b>` : `${ic.check}Всё собрано`; e.classList.toggle('all', !n); };
   ready(); wkLoad().then(() => { if ($('#bnReady')) ready(); });
@@ -5732,7 +5863,7 @@ function mountBonus() {
    PROFILE
    ========================================================= */
 const STATUS = { own: ['В инвентаре', 'st-ok'], sold: ['Продан', 'st-mute'], out: ['Выведен в Steam', 'st-ok'], pend: ['Выводится в Steam…', 'st-warn'], upg: ['Сгорел в апгрейде', 'st-bad'], con: ['Использован в контракте', 'st-mute'], bet: ['В ставке', 'st-warn'], jp: ['Поставлен в ставки', 'st-mute'], tower: ['Поставлен в башне', 'st-mute'] };
-const fromName = f => f === 'weekly' ? 'Еженедельный набор' : f === 'tower' ? 'Башня' : f === 'jackpot' ? 'Ставки' : f === 'upgrade' ? 'Апгрейд' : f === 'contract' ? 'Контракт' : (caseById(f) ? 'Кейс «' + caseById(f).name + '»' : f);
+const fromName = f => f === 'weekly' ? 'Еженедельный набор' : f === 'giveaway' ? 'Розыгрыш' : f === 'tower' ? 'Башня' : f === 'jackpot' ? 'Ставки' : f === 'upgrade' ? 'Апгрейд' : f === 'contract' ? 'Контракт' : (caseById(f) ? 'Кейс «' + caseById(f).name + '»' : f);
 /* ---------- профиль (новый стиль CS2, по образцу владельца 12.11): три карточки, плашка, вкладки «Предметы / История / Апгрейды» ----------
    сервер: supabase/profile_v2.sql (my_upgrades, set_cmail); купон — use_promo (promo_admin.sql); выводы — my_withdrawals (market.sql) */
 const PF_IC = {
@@ -5865,7 +5996,7 @@ function pfBanner() {
 }
 /* ---------- вкладка «Предметы» ---------- */
 function pfInv(body) {
-  const list = st.inv.filter(x => (x.st === 'own' || x.st === 'pend') && SK[x.n]);
+  const list = st.inv.filter(x => (x.st === 'own' || x.st === 'pend' || x.st === 'ga') && SK[x.n]); // ga — скин стримера в его розыгрыше
   const owned = list.filter(x => x.st === 'own'), sum = owned.reduce((t, x) => t + SK[x.n].p, 0);
   const cur = PF_SORT.find(s => s[0] === pfSort) || PF_SORT[0];
   $('#pfTools').innerHTML = `<button class="pf2-btn pf2-sell" type="button" id="pfSellAll"${owned.length ? ` title="${owned.length} ${plural(owned.length, 'предмет', 'предмета', 'предметов')} на ${money(sum)}"` : ' disabled'}>Продать все</button>
@@ -5876,9 +6007,9 @@ function pfInv(body) {
   const by = { new: (a, b) => a.i - b.i, exp: (a, b) => SK[b.x.n].p - SK[a.x.n].p, cheap: (a, b) => SK[a.x.n].p - SK[b.x.n].p, rar: (a, b) => rar(b.x) - rar(a.x) || SK[b.x.n].p - SK[a.x.n].p }[cur[0]];
   const sorted = keyed.sort(by).map(k => k.x); if (pfRev) sorted.reverse();
   const card = x => {
-    const s = SK[x.n], pend = x.st === 'pend';
+    const s = SK[x.n], pend = x.st === 'pend' || x.st === 'ga';
     return `<div class="pf2-it r-${s.r}${pend ? ' pend' : ''}">
-      <div class="pf2-it-pic"><img src="${imgUrl(s, 'm')}" alt="" loading="lazy">${pend ? '<span class="pf2-it-st">Выводится</span>' : `<span class="pf2-it-acts"><button type="button" class="pf2-it-sell" data-sell="${x.id}">Продать</button><button type="button" class="pf2-it-wd" data-wd="${x.id}" title="Вывести в Steam" aria-label="Вывести в Steam">${ic.send}</button></span>`}</div>
+      <div class="pf2-it-pic"><img src="${imgUrl(s, 'm')}" alt="" loading="lazy">${pend ? `<span class="pf2-it-st">${x.st === 'ga' ? 'В розыгрыше' : 'Выводится'}</span>` : `<span class="pf2-it-acts"><button type="button" class="pf2-it-sell" data-sell="${x.id}">Продать</button><button type="button" class="pf2-it-wd" data-wd="${x.id}" title="Вывести в Steam" aria-label="Вывести в Steam">${ic.send}</button></span>`}</div>
       <div class="pf2-it-tx"><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>
     </div>`;
   };
@@ -6391,7 +6522,7 @@ async function sbLoadProfile(session) {
   if (p.is_admin) try { localStorage.setItem('rc.adm', '1'); } catch (e) { /* */ }
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
   renderUser(); route();
-  tutSync(); jpClaim(false); jpResolveMine(); claimGrants(); ntcCheck(); refHello(); supInit(); supAdmInit();
+  tutSync(); jpClaim(false); jpResolveMine(); claimGrants(); ntcCheck(); gaWinCheck(); refHello(); supInit(); supAdmInit();
   return true;
 }
 // начисления от администратора: забираем при входе, раз в 30 с и при возврате на вкладку
@@ -7542,7 +7673,7 @@ const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
 const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash', 'build'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'promo', 'tours', 'staff'], 'globe']];
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['ref', 'Рефералы'], ['shop', 'Управление витриной'], ['news', 'Новости'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['ga', 'Розыгрыши'], ['ref', 'Рефералы'], ['shop', 'Управление витриной'], ['news', 'Новости'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -8146,6 +8277,52 @@ async function admPromoList() {
     $('#prSave').innerHTML = `${ic.check}Сохранить`; $('#prCode').scrollIntoView({ block: 'center' });
   });
 }
+/* ---------- админка: розыгрыши (supabase/giveaways.sql) — час/день/неделя (вкл., диапазон цены случайного скина, сумма «от»),
+   идущие розыгрыши (отменить), итоги. Розыгрыши стримеров запускают сами стримеры на «Пригласить друзей» ---------- */
+async function admGa(box) {
+  box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем…</div>';
+  const { data: A, error } = await sb.rpc('admin_ga');
+  if (!box.isConnected || admTab !== 'ga') return;
+  if (error || !A) return (box.innerHTML = admErr(error || { message: 'нет данных' }) + '<p class="ax-foot">Выполните supabase/giveaways.sql в Supabase → SQL Editor.</p>');
+  const T = A.tot, nm = n => { const s = gaSk(n); return s ? `${esc(s.w)} | ${esc(s.f)}` : esc(n); };
+  const who = p => p ? plink(p.pid, esc(p.name || 'Игрок')) + ` <i class="ax-tag">#${p.pid}</i>` : '—';
+  const kind = r => esc(GA_T[r.k] || r.k) + (r.by ? `<small class="ax-mute" style="display:block">${who(r.by)}</small>` : '');
+  const when = t => new Date(t).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const cfg = c => `<div class="pr-form ga-ax" data-k="${c.k}">
+      <h4>${esc(GA_T[c.k])}</h4>
+      <label class="ax-chk"><input type="checkbox" data-f="active"${c.active ? ' checked' : ''}> Идёт</label>
+      <label>Приз: скин от, ₽<input class="ax-inp" data-f="p_min" type="number" min="1" step="1" value="${+c.p_min}"></label>
+      <label>до, ₽<input class="ax-inp" data-f="p_max" type="number" min="1" step="1" value="${+c.p_max}"></label>
+      <label>Участвует, кто пополнил от, ₽<input class="ax-inp" data-f="min_dep" type="number" min="1" step="1" value="${+c.min_dep}"></label>
+      <button class="ax-btn pr-save" data-save="${c.k}">Сохранить</button></div>`;
+  box.innerHTML = `<div class="ax-kpis">
+      ${axKpi('Идёт сейчас', fmt(A.live.length))}${axKpi('Разыграно за 30 дней', fmt(+T.n))}
+      ${axKpi('Призы от сайта, 30 дней', money(+T.sum_site))}${axKpi('Призы стримеров, 30 дней', money(+T.sum - +T.sum_site), `стримеров: ${fmt(A.streamers.length)}`)}</div>
+    ${axCard('Каждый час / день / неделю', `${A.cfg.map(cfg).join('')}
+      <p class="ax-foot">Приз — случайный скин в этом диапазоне цен, сервер выбирает его в начале каждого розыгрыша. Время — московское: час — с начала часа, день — с полуночи, неделя — с понедельника. Новые условия действуют со следующего розыгрыша; чтобы сменить приз сейчас — отмените идущий, начнётся новый. Участвуют пополнения деньгами за время розыгрыша (скины — нет).</p>`)}
+    ${axCard('Идут сейчас', axTable([['Вид', kind], ['Приз', r => `${nm(r.item)}<small class="ax-mute" style="display:block">${money(+r.price)}</small>`], ['Пополнить от', r => money(+r.min), num],
+        ['Участников', r => fmt(+r.n), num], ['Итоги', r => when(r.end), num], ['', r => `<button class="ax-btn ax-sm" data-gac="${r.id}">Отменить</button>`]], A.live))}
+    ${axCard('Итоги', axTable([['Когда', r => when(r.end)], ['Вид', kind], ['Приз', r => `${nm(r.item)}<small class="ax-mute" style="display:block">${money(+r.price)}</small>`],
+        ['Пополнить от', r => money(+r.min), num], ['Участников', r => r.n == null ? '—' : fmt(+r.n), num],
+        ['Победитель', r => r.status === 'done' ? who(r.win) : `<span class="ax-mute">${esc(GA_ST[r.status] || r.status)}</span>`]], A.past),
+      '<span class="ax-mute">последние 60</span>')}
+    <p class="ax-foot">Розыгрыши стримеров: стример сам запускает их на странице «Пригласить друзей» — свой скин из инвентаря, один розыгрыш за раз (10 минут – 7 дней, скин от 50 ₽, сумма от 100 ₽). Кто стример — вкладка «Рефералы».</p>`;
+  $$('[data-save]', box).forEach(b => b.onclick = async () => {
+    const f = b.closest('[data-k]'), v = k => $(`[data-f="${k}"]`, f);
+    b.disabled = true;
+    const { error: e } = await sb.rpc('admin_ga_cfg', { p: { k: f.dataset.k, active: v('active').checked, p_min: v('p_min').value, p_max: v('p_max').value, min_dep: v('min_dep').value } });
+    b.disabled = false;
+    if (e) { const k = Object.keys(SRV_ERR).find(x => e.message.includes(x)); return toast(k ? SRV_ERR[k] : 'Ошибка: ' + esc(e.message), 'err'); }
+    toast(`«${GA_T[f.dataset.k]}» сохранено`); GA = null; admGa(box);
+  });
+  $$('[data-gac]', box).forEach(b => b.onclick = async () => {
+    if (!confirm('Отменить розыгрыш? Приз никому не достанется (скин стримера вернётся ему). Час/день/неделя сразу начнутся заново с новым скином.')) return;
+    b.disabled = true;
+    const { error: e } = await sb.rpc('admin_ga_cancel', { p_id: +b.dataset.gac });
+    if (e) { b.disabled = false; return toast('Ошибка: ' + esc(e.message), 'err'); }
+    toast('Розыгрыш отменён'); GA = null; admGa(box);
+  });
+}
 function admDraw() {
   const box = $('#admBody'); if (!box) return;
   supAdmBadge(); // счётчик новых обращений на вкладке «Поддержка»
@@ -8162,6 +8339,7 @@ function admDraw() {
   if (admTab === 'support') return admSupport(box);
   if (admTab === 'promo') return admPromo(box);
   if (admTab === 'ref') return admRef(box);
+  if (admTab === 'ga') return admGa(box);
   if (admTab === 'build') return admBuild(box);
   if (admTab === 'tower') return admTower(box);
   admTabData(box, R[admTab] || axDash);

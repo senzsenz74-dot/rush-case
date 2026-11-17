@@ -7483,3 +7483,70 @@ body:has(.ntc-ov) .ck{opacity:0;pointer-events:none}
 .c2d-ink article{padding-top:6px}.c2d-ink article small{font-size:22px}.c2d-ink article .c2d-price{margin-top:26px}.c2d-ink article p{margin-top:6px}
 .c2d-ink article .c2d-price{flex-direction:column;align-items:flex-start;gap:10px;padding:16px 20px 18px;border-width:4px}.c2d-ink article .c2d-price>span{font-size:24px;letter-spacing:.14em}.c2d-ink article .c2d-price b{font-size:78px}
 .c2d-ink article .c2d-price b{font-size:92px;white-space:nowrap}.c2d-ink article .c2d-price.c2d-long b{font-size:72px}.c2d-ink article .c2d-price>span{font-size:26px}
+
+/* ===== розыгрыши с сервера (supabase/giveaways.sql, 17.11): метка участия, окна «Проверить», «Вы выиграли!», розыгрыш стримера, админка ===== */
+.ga-st{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1 1 0;max-width:240px;min-width:120px;height:48px;padding:0 14px;border-radius:2px;background:rgba(40,170,95,.14);box-shadow:inset 0 0 0 1px rgba(47,191,113,.55);color:#7ef0a8;font:500 18px/1 'Oswald',var(--ff);text-transform:uppercase;letter-spacing:.02em}
+.ga-st svg{width:18px;height:18px}
+.ga-st-own{background:rgba(70,200,255,.12);box-shadow:inset 0 0 0 1px rgba(70,200,255,.5);color:#9fe2ff}
+.ga-tm-0 b{animation:gaPulse 1s ease-in-out infinite}
+@keyframes gaPulse{50%{opacity:.35}}
+.ga-w-p .ga-chk{padding:0;border:0;background:none;color:#84d9fd;font-size:12px;cursor:pointer}
+.ga-w-p .ga-chk:hover{color:#fff;text-decoration:underline}
+.ga-w-u a.plink{color:#fff}
+.ga-none{margin:0;padding:22px 26px;font-size:14px;line-height:1.5;color:#aab1bc}
+.ga-fair{display:grid;gap:6px;padding:14px 26px 22px;border-top:1px solid rgba(255,255,255,.07)}
+.ga-fair span{font:500 12px/1 'Oswald',var(--ff);letter-spacing:.08em;text-transform:uppercase;color:#8a92a1}
+.ga-fair code,.ga-vr code{display:block;padding:8px 10px;border-radius:2px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);color:#cfe9ff;font:12px/1.45 ui-monospace,Consolas,monospace;word-break:break-all}
+.ga-fair small{font-size:12px;line-height:1.45;color:#8a92a1}
+.ga-vl{display:grid;gap:10px;padding:18px 26px 6px}
+.ga-vr{display:grid;grid-template-columns:1fr 22px;gap:6px 10px;align-items:start}
+.ga-vr>span{grid-column:1/-1;font:500 12px/1 'Oswald',var(--ff);letter-spacing:.08em;text-transform:uppercase;color:#8a92a1}
+.ga-vr>div{min-width:0;font-size:14px;color:#dfe3e8}
+.ga-vr>svg{width:20px;height:20px;margin-top:6px;color:#5be38f}
+.ga-vr.bad>div code{box-shadow:inset 0 0 0 1px #ff6b6b}
+.ga-vr .ga-pids{max-height:120px;overflow:auto}
+.ga-vn{margin:0;padding:12px 26px 22px;font-size:12.5px;line-height:1.5;color:#8a92a1}
+.ga-wn-l{display:grid;gap:10px;padding:20px 26px 6px}
+.ga-wn-i{display:flex;align-items:center;gap:18px;padding:14px 16px;border-radius:2px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 -3px 0 var(--rc,#5be38f)}
+.ga-wn-i img{flex:none;width:150px;height:100px;object-fit:contain;filter:drop-shadow(0 10px 14px rgba(0,0,0,.5))}
+.ga-wn-i div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ga-wn-i span{font-size:13px;color:#aab1bc}
+.ga-wn-i b{font:500 20px/1.15 'Oswald',var(--ff);color:#fff;text-transform:uppercase}
+.ga-wn-i em{font:500 20px/1 'Oswald',var(--ff);font-style:normal;color:#5be38f}
+.ga-wn-i small{font-size:12px;color:#8a92a1}
+.ga-wn-t{margin:0;padding:12px 26px 0;font-size:14px;color:#c9ced8}
+.m-ga-win .ga-mf{gap:10px}
+.ga-wn-x{height:50px;padding:0 22px;border:0;border-radius:2px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);color:#dfe3e8;font:500 18px/1 'Oswald',var(--ff);text-transform:uppercase;cursor:pointer}
+.ga-wn-x:hover{background:rgba(255,255,255,.1);color:#fff}
+.gs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;max-height:262px;overflow:auto;padding:2px}
+.gs-o{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px 8px;border:0;border-radius:2px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 -2px 0 var(--rc,transparent);color:#dfe3e8;cursor:pointer;transition:background .15s,box-shadow .15s}
+.gs-o:hover{background:rgba(255,255,255,.08)}
+.gs-o.on{background:rgba(132,217,253,.1);box-shadow:inset 0 0 0 2px #84d9fd}
+.gs-o img{width:100%;height:58px;object-fit:contain}
+.gs-o span{width:100%;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.gs-o em{font:500 14px/1 'Oswald',var(--ff);font-style:normal;color:#5be38f}
+.gs-o em .prc{color:inherit}
+.gs-it{display:flex;align-items:center;gap:16px;padding:12px 14px;border-radius:2px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.gs-it img{width:120px;height:80px;object-fit:contain}
+.gs-it div{display:flex;flex-direction:column;gap:4px}
+.gs-it span{font-size:13px;color:#aab1bc}
+.gs-it b{font:500 18px/1.15 'Oswald',var(--ff);color:#fff;text-transform:uppercase}
+.gs-it em{font:500 18px/1 'Oswald',var(--ff);font-style:normal;color:#5be38f}
+.gs-dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0}
+.gs-dl div{padding:10px 12px;border-radius:2px;background:rgba(0,0,0,.25);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.gs-dl dt{font:500 11px/1 'Oswald',var(--ff);letter-spacing:.08em;text-transform:uppercase;color:#8a92a1}
+.gs-dl dd{margin:6px 0 0;font:500 18px/1 'Oswald',var(--ff);color:#fff}
+.gs-h{display:grid;gap:6px;padding:4px 26px 24px}
+.gs-h h4{margin:0 0 4px}
+.gs-hr{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;border-radius:2px;background:rgba(255,255,255,.03);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);font-size:13px;color:#dfe3e8}
+.gs-hr span,.gs-hr b{display:flex;flex-direction:column;gap:3px;min-width:0}
+.gs-hr b{align-items:flex-end;font-weight:600}
+.gs-hr small{font-size:11.5px;font-weight:400;color:#8a92a1}
+.ga-ax{grid-template-columns:150px 80px repeat(3,minmax(0,1fr)) 130px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.ga-ax h4{margin:0;align-self:center;font-size:14px}
+.ga-ax .ax-chk{flex-direction:row;align-items:center;align-self:center;gap:6px}
+@media (max-width:760px){
+  .ga-ax{grid-template-columns:1fr 1fr}
+  .ga-wn-i{flex-direction:column;align-items:flex-start}
+  .gs-dl{grid-template-columns:1fr 1fr}
+}
