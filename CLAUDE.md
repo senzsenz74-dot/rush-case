@@ -23,13 +23,13 @@
 | `js/app.js` | весь сайт: страницы, админка, роутер (см. ниже) |
 | `js/skins.js` | `window.SKINS` — каталог скинов {r, p, i} |
 | `js/wears.js` | цены по износу (FN/MW/FT/WW/BS) |
-| `js/extra.js` | `window.EXTRA` — ножи, перчатки, StatTrak (цены Lis-Skins, `tools/lis-sync.js`) |
+| `js/extra.js` | `window.EXTRA` — ножи, перчатки, StatTrak (цены всего каталога — market.csgo × 1.1, `tools/market-sync.js`) |
 | `js/tac/` | движок «Тактики» (nav.js, sim.js, ui.dink.js) — на сайте ещё не подключён |
 | `css/style.css` | все стили; разделы помечены `/* ---------- name ---------- */` и `/* ===== name ===== */` |
 | `assets/` | картинки: `case-<id>.webp` + `case-<id>-s.webp` (маленькая), фоны `bg-*.webp`, скины `assets/skins/`, `assets/cc/` (лёгкие копии картинок кейсов из админки) |
 | `supabase/*.sql` | серверные функции/таблицы по темам (schema, server, admin*, roles, market, payments, support*, *_case.sql…) |
 | `supabase/functions/` | Edge Functions: market, payment, steam-auth, support-bot (Telegram) |
-| `tools/` | lis-sync.js (цены), market-names.js, rating-sheet.js, tac-calibrate.js, serve.js (локальный сервер) |
+| `tools/` | market-sync.js (цены с market.csgo × 1.1 + замена «поплывших» скинов в кейсах, SQL для кейсов из админки → supabase/market_swap.sql; lis-sync.js устарел), market-names.js, rating-sheet.js, tac-calibrate.js, serve.js (локальный сервер) |
 | `.github/workflows/deploy.yml` | выкладка на Beget при push в main |
 | `ЖУРНАЛ.md` | дневник разработки (новые записи сверху) |
 | `ПЛАН_ТАКТИКА.md`, `ПЛАН_РОЛИ.md`, `КАССА.md`, `ПРОГРЕСС.md` | планы и состояние отдельных направлений |

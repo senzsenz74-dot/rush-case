@@ -1,3 +1,4 @@
+/* УСТАРЕЛ с 18.11.2026: цены теперь с market.csgo × 1.1 — tools/market-sync.js. Этот скрипт вернёт цены Lis-Skins и сломает кейсы — не запускать. */
 /* Цены каталога с Lis-Skins + новые предметы. Запуск из корня проекта:  node tools/lis-sync.js
    1) качает цены Lis-Skins (USD), курс ЦБ, русские названия (market.csgo) и картинки/редкости (ByMykel CSGO-API) — кэш в tools/.cache
    2) обновляет цены в js/skins.js, js/wears.js, js/extra.js (то, чего нет на Lis-Skins, остаётся по старой цене)
