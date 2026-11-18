@@ -298,7 +298,9 @@ async function skinsCreate(req: Request, admin: ReturnType<typeof createClient>)
   const b = await req.json().catch(() => ({}));
   const promo = typeof b.promo === 'string' && /^[A-Za-z0-9]{2,24}$/.test(b.promo) ? b.promo.toUpperCase() : null;
   const { data: cfg } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle();
-  const min = Math.max(.1, +(cfg?.v?.min ?? 1) || 1);
+  // минимум скинов — в рублях (владелец 18.11: от 1 ₽; поменять без кода — site_cfg 'skins' → min_rub), SkinsMoney ждёт $: 1 ₽ / курс, вверх до цента
+  const rate = Math.max(.1, +(cfg?.v?.rate ?? 90) || 90), minRub = Math.max(1, +(cfg?.v?.min_rub ?? 1) || 1);
+  const min = Math.max(.01, Math.ceil(minRub / rate * 100) / 100);
   const { data: prof } = await admin.from('profiles').select('data').eq('id', u.user.id).maybeSingle();
   const tp = tradeParse(b.trade) || tradeParse(prof?.data?.trade); // ссылка из окна пополнения, иначе из профиля
   const { data: pay, error } = await admin.from('payments').insert({ uid: u.user.id, amount: 1, method: 'skins', promo, provider: 'skinsmoney' }).select('id').single();

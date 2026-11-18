@@ -6851,7 +6851,7 @@ async function openDeposit(need = 0, promo = null) {
     $('#depRc', m).textContent = `${Math.round(DEP_RC * 100)}%`;
     $('.dpn-get', m).classList.add('show');
     const g = $('#depGo', m); g.innerHTML = `${ic.steam}Пополнить скинами`; g.disabled = false;
-    $('#depHint', m).innerHTML = note || `Откроется страница ${method === 'skinslink' ? 'Skinslink' : 'SkinsMoney'}: выберите скины из своего Steam-инвентаря и отправьте обмен. Баланс пополнится по стоимости скинов ${SK_HOLD ? `через <b>${SK_HOLD} ${plural(SK_HOLD, 'день', 'дня', 'дней')}</b> после обмена — это защита от отката обмена Steam` : 'сразу после обмена'}.`;
+    $('#depHint', m).innerHTML = note || `Откроется страница ${method === 'skinslink' ? 'Skinslink' : 'SkinsMoney'}: выберите скины из своего Steam-инвентаря (от 1 ₽) и отправьте обмен. Баланс пополнится по стоимости скинов ${SK_HOLD ? `через <b>${SK_HOLD} ${plural(SK_HOLD, 'день', 'дня', 'дней')}</b> после обмена — это защита от отката обмена Steam` : 'сразу после обмена'}.`;
     $('#depHint', m).classList.remove('err');
   };
   $$('.dpn-rail [data-tab]', m).forEach(e => e.onclick = () => { tab = e.dataset.tab; drawMethods(); draw(); });
