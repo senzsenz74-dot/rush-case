@@ -128,6 +128,10 @@ end $$;
 
 -- ---------- группа поддержки в Telegram: каждое НОВОЕ обращение → сообщение в группу ----------
 alter table public.support_tickets add column if not exists tg_sent boolean;
+-- настройки бота (не секреты): группа, коды привязки — та же таблица, что в shop_requests.sql
+create table if not exists public.bot_cfg (k text primary key, v text, updated_at timestamptz not null default now());
+alter table public.bot_cfg enable row level security; -- политик нет: только функции и бот (service_role)
+grant all on public.bot_cfg to service_role;
 -- код привязки группы (как у чата владельцев, но другой ключ)
 create or replace function public.admin_sup_chat(p_new_code boolean default false) returns jsonb
 language plpgsql security definer set search_path = public as $$

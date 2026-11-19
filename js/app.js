@@ -8183,9 +8183,8 @@ async function admStaff(box) {
     ${axCard(`Сотрудники <small class="ax-mute">${staff.length}</small>`, staff.length ? `<div class="sf-list">${staff.map(row).join('')}</div>` : '<p class="ax-mute">Сотрудников пока нет.</p>')}
     ${axCard('Владельцы', `<div class="sf-own">${owners.map(who).join('')}</div>
       <p class="ax-foot">Каждая галочка открывает окно целиком — как у владельца: смотреть и менять. Начисления баланса и удачу игрокам и кейсам даёт только галочка «Начисления и удача». Окно «Сотрудники» — только владельцам. График смен нужен для отчётов.</p>`)}
-    ${axCard('Telegram — группа поддержки', '<div id="sfSup"><span class="ax-mute">Загружаем…</span></div>')}
-    ${axCard('Telegram — чат владельцев', '<div id="sfTg"><span class="ax-mute">Загружаем…</span></div>')}`;
-  sfTg($('#sfTg', box)); sfSup($('#sfSup', box));
+    ${axCard('Telegram — группа поддержки', '<div id="sfSup"><span class="ax-mute">Загружаем…</span></div>')}`;
+  sfSup($('#sfSup', box)); // чат владельцев (заявки на витрину) убран 19.11: сотрудник с галочкой правит витрину сам
   const err = e => STAFF_ERR[e.message] || 'Ошибка: ' + e.message;
   $('#sfAdd', box).onclick = async () => {
     const pid = +$('#sfPid', box).value;
