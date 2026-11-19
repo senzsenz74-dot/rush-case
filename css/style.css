@@ -7691,3 +7691,8 @@ body.pg-admin .live{display:none}
 /* реф. страница: «Баннеры — Скачать» (все одним архивом, 19.11) */
 .rf-bn .rf-bn-d{margin-left:auto;height:32px;padding:0 14px;border-radius:2px;font-size:13px;text-decoration:none}
 .rf-bn .rf-bn-d svg{width:15px;height:15px}
+
+/* админка: «Сдать смену» (отчёт смены, 19.11) */
+.ax-top .ax-shift{margin-left:auto;align-self:center;flex:none}
+.m-shift .sh-prev{max-height:300px;overflow:auto;margin:12px 0 10px;padding:12px 14px;border-radius:2px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font:12.5px/1.45 var(--ff);color:#dfe3e8;white-space:pre-wrap}
+.m-shift .sh-com{width:100%;resize:vertical;min-height:70px}

@@ -7531,7 +7531,7 @@ function pageAdmin() {
   return `<section class="container cases-wide ax" id="adm"><div class="ax-lay">
     <nav class="ax-nav" id="admTabs"></nav>
     <main class="ax-main">
-      <header class="ax-top"><div class="ax-ttl"><span>Админ-панель · RUSH CASE</span><h1 id="axTitle">Админка</h1></div><div class="ax-period" id="axPeriod"></div></header>
+      <header class="ax-top"><div class="ax-ttl"><span>Админ-панель · RUSH CASE</span><h1 id="axTitle">Админка</h1></div><button class="ax-ok ax-shift" id="axShift" hidden>Сдать смену</button><div class="ax-period" id="axPeriod"></div></header>
       <div id="admBody"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div>
     </main>
     <aside class="ax-feed" id="axFeed"></aside>
@@ -7573,12 +7573,37 @@ async function admSync(force) {
   }
   toast(`Сервер обновлён: ${fmt(cat.length)} предметов, ${cases.length} кейсов`);
 }
+/* ---------- отчёт смены (supabase/shift_report.sql): сотрудник сдаёт смену → бот шлёт отчёт в чат владельцев ---------- */
+let staffPingT = 0;
+function staffPing() { // раз в минуту, пока админка открыта и вкладка браузера видна — из этого считается время в админке
+  const go = () => { if (!document.hidden && /^#\/admin/.test(location.hash) && admMe && !admOwner()) sb.rpc('staff_ping', { p_tab: admTab || null }).then(() => {}, () => {}); };
+  go(); if (!staffPingT) staffPingT = setInterval(go, 60000);
+}
+async function admShift() {
+  const m = modal(`<div class="ax-mod"><h2>Сдать смену</h2>
+    <p class="ax-msub">Отчёт уйдёт владельцам в Telegram. Если забудете — он отправится сам через 30 минут после конца смены по графику.</p>
+    <pre class="sh-prev" id="shPrev"><span class="spinner"></span></pre>
+    <textarea class="ax-inp sh-com" id="shCom" maxlength="1000" rows="3" placeholder="Комментарий к смене: что важно знать владельцам"></textarea>
+    <button class="ax-ok ax-wide" id="shGo" style="margin-top:14px">Отправить отчёт</button></div>`, 'm-ax m-axs m-shift');
+  const { data, error } = await sb.rpc('staff_shift_preview');
+  const pv = $('#shPrev', m); if (!pv) return;
+  if (error) { pv.textContent = /forbidden/.test(error.message) ? 'Только для сотрудников' : 'Выполните supabase/shift_report.sql в Supabase.'; $('#shGo', m).disabled = true; return; }
+  pv.textContent = data.text;
+  if (!data.chat) pv.insertAdjacentHTML('afterend', '<p class="neg">Чат владельцев ещё не привязан — отчёт сохранится, но в Telegram не придёт.</p>');
+  $('#shGo', m).onclick = async e => {
+    e.target.disabled = true;
+    const { error: er } = await sb.rpc('staff_shift_submit', { p_comment: $('#shCom', m).value });
+    if (er) { e.target.disabled = false; return toast(/too often/.test(er.message) ? 'Отчёт уже отправлен — подождите 5 минут' : 'Ошибка: ' + er.message, 'err'); }
+    closeModal(); toast('Смена сдана — отчёт отправлен владельцам');
+  };
+}
 async function mountAdmin() {
   if (!$('#adm')) return;
   if (sb) await admRole();
   if (!$('#adm')) return;
   const tabs = admTabs();
   if (sb && admOwner()) admSync();
+  if (sb && !admOwner()) { const b = $('#axShift'); if (b) { b.hidden = false; b.onclick = admShift; } staffPing(); }
   if (!tabs.some(([k]) => k === admTab)) admTab = tabs.length ? tabs[0][0] : '';
   // боковое меню: все вкладки видны сразу, по разделам (Деньги, Игры, Игроки, Сайт); на телефоне — строка с прокруткой
   const btn = ([k, t]) => `<button type="button" data-t="${k}" class="${k === admTab ? 'on' : ''}"><span>${t}</span>${k === 'support' ? '<i class="ax-badge" id="admSupBadge" hidden></i>' : ''}</button>`;
@@ -8153,17 +8178,24 @@ async function sfTg(el, code) {
       : `<button class="ax-btn" id="sfTgCode">${data.chat ? 'Привязать другой чат' : 'Привязать чат'}</button>`}`;
   const b = $('#sfTgCode', el); if (b) b.onclick = () => sfTg(el, true);
 }
-// группа поддержки: бот присылает туда каждое НОВОЕ обращение (с сайта и из бота), чтобы никто не пропустил
-async function sfSup(el, code) {
+// привязка чатов Telegram кодом: группа поддержки (каждое новое обращение) и чат владельцев (отчёты смен)
+const SF_LINK = {
+  sup: { rpc: 'admin_sup_chat', on: 'сюда приходит каждое новое обращение', off: 'Группа не привязана — новые обращения видны только во вкладке «Поддержка».',
+    who: 'Создайте группу в Telegram и добавьте туда сотрудников поддержки.', ok: 'Группа поддержки привязана ✅' },
+  own: { rpc: 'admin_owner_chat', on: 'сюда приходят отчёты смен сотрудников', off: 'Чат не привязан — отчёты смен не приходят в Telegram.',
+    who: 'Создайте группу только для владельцев — сотрудников не добавляйте.', ok: 'Чат владельцев привязан ✅' }
+};
+async function sfLink(el, kind, code) {
   if (!el) return;
-  const [{ data, error }] = await Promise.all([sb.rpc('admin_sup_chat', { p_new_code: !!code }), supBotLoad()]);
+  const K = SF_LINK[kind];
+  const [{ data, error }] = await Promise.all([sb.rpc(K.rpc, { p_new_code: !!code }), supBotLoad()]);
   if (!el.isConnected) return;
-  if (error) return (el.innerHTML = '<p class="ax-foot">Выполните supabase/staff_perms.sql в Supabase.</p>');
+  if (error) return (el.innerHTML = `<p class="ax-foot">Выполните supabase/${kind === 'own' ? 'shift_report' : 'staff_perms'}.sql в Supabase.</p>`);
   const bot = esc(supBot || 'бот'), cmd = `/link@${bot} ${data.code}`;
-  el.innerHTML = `${data.chat ? `<p>Привязана группа <b>${esc(data.title || data.chat)}</b>${data.linked_at ? ` <small class="ax-mute">с ${new Date(data.linked_at).toLocaleDateString('ru-RU')}</small>` : ''} — сюда приходит каждое новое обращение.</p>` : '<p class="neg">Группа не привязана — новые обращения видны только во вкладке «Поддержка».</p>'}
-    ${data.code ? `<ol class="sf-tg-steps"><li>Создайте группу в Telegram и добавьте туда сотрудников поддержки.</li><li>Добавьте в неё @${bot}.</li><li>Отправьте в группе сообщение (код действует 30 минут):<br><button class="ax-btn ax-sm" data-act="copy" data-copy="${cmd}"><b>${cmd}</b> — копировать</button></li><li>Бот ответит «Группа поддержки привязана ✅». Потом обновите эту страницу.</li></ol>`
-      : `<button class="ax-btn" id="sfSupCode">${data.chat ? 'Привязать другую группу' : 'Привязать группу'}</button>`}`;
-  const b = $('#sfSupCode', el); if (b) b.onclick = () => sfSup(el, true);
+  el.innerHTML = `${data.chat ? `<p>Привязан чат <b>${esc(data.title || data.chat)}</b>${data.linked_at ? ` <small class="ax-mute">с ${new Date(data.linked_at).toLocaleDateString('ru-RU')}</small>` : ''} — ${K.on}.</p>` : `<p class="neg">${K.off}</p>`}
+    ${data.code ? `<ol class="sf-tg-steps"><li>${K.who}</li><li>Добавьте в неё @${bot}.</li><li>Отправьте в группе (в нужной теме, если они есть) сообщение — код действует 30 минут:<br><button class="ax-btn ax-sm" data-act="copy" data-copy="${cmd}"><b>${cmd}</b> — копировать</button></li><li>Бот ответит «${K.ok}». Потом обновите эту страницу.</li></ol>`
+      : `<button class="ax-btn" data-link>${data.chat ? 'Привязать другой чат' : 'Привязать чат'}</button>`}`;
+  const btn = $('[data-link]', el); if (btn) btn.onclick = () => sfLink(el, kind, true);
 }
 async function admStaff(box) {
   box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем сотрудников…</div>';
@@ -8184,8 +8216,9 @@ async function admStaff(box) {
     ${axCard(`Сотрудники <small class="ax-mute">${staff.length}</small>`, staff.length ? `<div class="sf-list">${staff.map(row).join('')}</div>` : '<p class="ax-mute">Сотрудников пока нет.</p>')}
     ${axCard('Владельцы', `<div class="sf-own">${owners.map(who).join('')}</div>
       <p class="ax-foot">Каждая галочка открывает окно целиком — как у владельца: смотреть и менять. Начисления баланса и удачу игрокам и кейсам даёт только галочка «Начисления и удача». Окно «Сотрудники» — только владельцам. График смен нужен для отчётов.</p>`)}
-    ${axCard('Telegram — группа поддержки', '<div id="sfSup"><span class="ax-mute">Загружаем…</span></div>')}`;
-  sfSup($('#sfSup', box)); // чат владельцев (заявки на витрину) убран 19.11: сотрудник с галочкой правит витрину сам
+    ${axCard('Telegram — группа поддержки', '<div id="sfSup"><span class="ax-mute">Загружаем…</span></div>')}
+    ${axCard('Telegram — чат владельцев (отчёты смен)', '<div id="sfOwn"><span class="ax-mute">Загружаем…</span></div>')}`;
+  sfLink($('#sfSup', box), 'sup'); sfLink($('#sfOwn', box), 'own'); // чат владельцев — для отчётов смен (supabase/shift_report.sql)
   const err = e => STAFF_ERR[e.message] || 'Ошибка: ' + e.message;
   $('#sfAdd', box).onclick = async () => {
     const pid = +$('#sfPid', box).value;

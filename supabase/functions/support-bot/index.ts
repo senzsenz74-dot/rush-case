@@ -10,6 +10,7 @@
 //   POST ?action=shop_new (админ)    {id} — заявка сотрудника на витрину → в чат владельцев с кнопками ✅ / ❌ (supabase/shop_requests.sql)
 //   POST ?action=shop_upd (админ)    {id} — решение принято на сайте → обновить сообщение в чате владельцев
 //   POST ?action=ticket   (база)     {ticket} — новое обращение → в группу поддержки (триггер supabase/staff_perms.sql, шлёт один раз)
+//   POST ?action=shift    (база)     {id} — отчёт смены сотрудника → в чат владельцев (supabase/shift_report.sql, шлёт один раз)
 //   В группе поддержки: «/link@бот КОД» (код — вкладка «Сотрудники», «Telegram — группа поддержки») привязывает её.
 //   В группе владельцев: «/link@бот КОД» (код — в админке, вкладка «Сотрудники») привязывает чат.
 //
@@ -76,6 +77,14 @@ ${String(t.text || '').slice(0, 3500)}
       return json({ ok: true });
     }
 
+    if (action === 'shift') { // отчёт смены → чат владельцев; база отдаёт его только один раз (bot_shift_take)
+      const b = await req.json().catch(() => ({}));
+      const { data: t } = await db.rpc('bot_shift_take', { p_id: Number(b.id) || 0 });
+      if (!t || !t.chat) return json({ ok: true });
+      await tg('sendMessage', { chat_id: Number(t.chat), ...(t.topic ? { message_thread_id: Number(t.topic) } : {}), text: String(t.text || '').slice(0, 4096), disable_web_page_preview: true });
+      return json({ ok: true });
+    }
+
     if (action === 'webhook') {
       if (req.headers.get('x-telegram-bot-api-secret-token') !== await hookSecret()) return json({ error: 'forbidden' }, 403);
       const u = await req.json().catch(() => ({}));
@@ -116,8 +125,8 @@ ${String(t.text || '').slice(0, 3500)}
         const topic = m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {}; // группа с темами — отвечаем в ту же тему
         const { data: sup } = await db.rpc('bot_link_sup', { p_code: lk[1], p_chat: m.chat.id, p_title: title, p_topic: topic.message_thread_id || null });
         if (sup) { await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: 'Группа поддержки привязана ✅ Сюда будут приходить новые обращения игроков.' }); return json({ ok: true }); }
-        const { data: ok } = await db.rpc('bot_link_chat', { p_code: lk[1], p_chat: m.chat.id, p_title: title });
-        await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: ok ? 'Чат владельцев привязан ✅ Сюда будут приходить заявки сотрудников на изменение витрины.' : 'Код неверный или устарел — возьмите новый в админке (вкладка «Сотрудники»).' });
+        const { data: ok } = await db.rpc('bot_link_chat', { p_code: lk[1], p_chat: m.chat.id, p_title: title, p_topic: topic.message_thread_id || null });
+        await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: ok ? 'Чат владельцев привязан ✅ Сюда будут приходить отчёты смен сотрудников.' : 'Код неверный или устарел — возьмите новый в админке (вкладка «Сотрудники»).' });
         return json({ ok: true });
       }
       if (!m || !m.chat || m.chat.type !== 'private') return json({ ok: true });
