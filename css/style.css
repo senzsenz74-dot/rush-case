@@ -59,7 +59,7 @@ p{margin:0}
 
 /* rarity colors (заливка карточек) */
 .r-common{--rc:var(--r-common);--rc-a:#7e8a9b;--rc-b:#22262f}.r-uncommon{--rc:var(--r-uncommon);--rc-a:#5a86b4;--rc-b:#1a2433}.r-milspec{--rc:var(--r-milspec);--rc-a:#4a5fc9;--rc-b:#181c45}.r-restricted{--rc:var(--r-restricted);--rc-a:#7a4ccc;--rc-b:#231842}
-.r-classified{--rc:var(--r-classified);--rc-a:#b043be;--rc-b:#35173f}.r-covert{--rc:var(--r-covert);--rc-a:#c04a62;--rc-b:#3c1626}.r-rare{--rc:var(--r-rare);--rc-a:#c4934f;--rc-b:#3b2b24}
+.r-classified{--rc:var(--r-classified);--rc-a:#b043be;--rc-b:#35173f}.r-covert{--rc:var(--r-covert);--rc-a:#c04a62;--rc-b:#3c1626}.r-rare{--rc:var(--r-rare);--rc-a:#c4934f;--rc-b:#3b2b24}.r-gift{--rc:#e8b04a;--rc-a:#d9433f;--rc-b:#3d1414} /* подарок: +2 открытия (GIFT_N) */
 
 /* ---------- logo (SVG) ---------- */
 .brand-logo{display:block;height:auto;max-width:none;user-select:none;-webkit-user-drag:none}
@@ -4693,6 +4693,7 @@ body.pg-contracts .dos{max-width:1120px}
 .c2-band .c2t img{position:relative;z-index:1}
 /* значки вместо скрытых предметов: золотой «?» в лаврах — редкий (нож), красный «ЗАСЕКРЕЧЕНО» — Тайное */
 .c2t-gold{--rc:#e4ae39;background:radial-gradient(ellipse at 50% 42%,#8a6a2c 0%,#4f3b17 55%,#2a1f0c 100%)}
+.c2t-gift{--rc:#e8b04a;background:radial-gradient(ellipse at 50% 42%,#8a2a24 0%,#4f1714 55%,#2a0c0a 100%)} /* подарок в ленте: красный с золотой полосой */
 .c2t-badge img{width:92%;height:84%;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5));margin-bottom:6px}
 .c2-band .c2t-badge img{width:94%;height:86%}
 /* панель снизу */

@@ -90,6 +90,7 @@ const RAR = {
   classified: { n: 'Засекреченное', o: 4 },
   covert: { n: 'Тайное', o: 5 },
   rare: { n: '★ Редкий предмет', o: 6 },
+  gift: { n: 'Подарок', o: 7 }, // +2 бесплатных открытия (GIFT_N)
 };
 
 /* ---------- skins ---------- */
@@ -114,6 +115,11 @@ for (const [name, d] of Object.entries(window.SKINS)) {
 }
 const CATALOG = ITEMS.slice().sort((a, b) => a.p - b.p);
 /* денежный дроп бонусных кейсов: сразу зачисляется на рублёвый баланс, в инвентарь не попадает */
+/* «Подарок» (владелец 20.11, кейс «КАРАМЕЛЬНОЕ ЯБЛОКО»): выпал — +2 бесплатных открытия этого кейса (сервер — supabase/gift_open.sql,
+   profiles.data → free). Цена — для расчёта окупаемости: 2 × (цена кейса × 0,8), тогда выдача вместе с бесплатными открытиями = 80%.
+   Шанс у подарка фиксированный (не наклоняется вместе со скинами). Цену кейса поменяли — поменять и p здесь. */
+const GIFT_N = 'Подарок: +2 открытия', GIFT_K = 2;
+SK[GIFT_N] = { name: GIFT_N, w: 'Подарок', f: '+2 бесплатных открытия', r: 'gift', p: 720, c: 'gift', img: 'assets/cs2case/gift.webp?v=1' };
 [50, 100, 200, 300].forEach(v => { SK[`${v} ₽ на баланс`] = { name: `${v} ₽ на баланс`, w: 'На баланс', f: `+${v} ₽`, r: v >= 300 ? 'rare' : v >= 200 ? 'covert' : v >= 100 ? 'classified' : 'restricted', p: v, c: 'cash', cash: v, img: `assets/cash-${v}.webp` }; });
 /* доп. предметы (цены Lis-Skins, tools/lis-sync.js): ножи, перчатки, StatTrak, наклейки, граффити, значки, нашивки, брелоки, музыка, агенты, ширп */
 const STEAM_IMG = 'https://community.steamstatic.com/economy/image/';
@@ -829,11 +835,11 @@ const CASES = [
     // корпус «карамельное яблоко» под лаком, ремни — зелёная крокодиловая кожа, золотой лавровый венок с рубинами, снежный налёт;
     // после приземления — снегопад и сугроб на крышке (SN_*), при открытии сугроб съезжает назад. Сцена как у MAJOR (ui: 'cs2').
     // Состав (владелец: 450 ₽, «дороже кейса» 30%): 49 позиций от 103 ₽ — Candy Apple, красные, золотые и «ледяные» скины;
-    // с гарантом окупаемость 80%, дороже кейса 30,1% (подобрано весом 0,072 у группы «чуть дороже кейса»).
+    // с гарантом и подарком (1 из 20, +2 открытия) окупаемость 80%; дороже кейса — 25,3% скинов + 5% подарков = 30,3%.
     id: 'apple', name: 'КАРАМЕЛЬНОЕ ЯБЛОКО', price: 450, tag: 'Новый год', tagIc: 'gift', rtp: 0.8, ui: 'cs2',
     pity: true, // гарант 75/150, как у MAJOR; шансы пересчитаны с гарантом (pityEv) — окупаемость 80%
     c2glb: 'case-apple.glb', c2p: { sun: 7, env: .18, exposure: .84, contrast: 1.01, saturate: 1.6, shadow: .79, fill: .1, dust: 4 }, // свет — подобран владельцем в пробе 20.11
-    sub: 'Новогодний кейс с гарантом: 49 позиций от 103 ₽, каждое третье открытие дороже кейса. Candy Apple, Ледяной уголь, Красная линия; за «Засекречено» — Золотой зубок, Wildfire, Код красный, Golden Coil. Джекпоты — ножи Crimson Web, Lore, Karambit | Doppler',
+    sub: 'Новогодний кейс с гарантом и подарками: 49 позиций от 103 ₽ и подарок — ещё 2 открытия бесплатно (1 из 20). Candy Apple, Ледяной уголь, Красная линия; за «Засекречено» — Золотой зубок, Wildfire, Код красный, Golden Coil. Джекпоты — ножи Crimson Web, Lore, Karambit | Doppler',
     th: { a: '#e23a3a' }, img: 'assets/case-apple.webp', // рендер 3D-модели (холст, ширина и поля как у CS2 CASE)
     exact: [
       // дешевле кейса (от 103 ₽)
@@ -859,6 +865,8 @@ const CASES = [
       ['★ Navaja Knife | Marble Fade', 'MW', 0.0002], ['★ Ursus Knife | Crimson Web', 'MW', 0.0002], ['★ Flip Knife | Lore', 'BS', 0.0002],
       ['★ Hand Wraps | Slaughter', 'FT', 0.0002], ['★ Karambit | Lore', 'WW', 0.0002], ['★ Butterfly Knife | Lore', 'FT', 0.0002],
       ['★ Karambit | Doppler', 'FN', 0.0002],
+      // подарок: +2 бесплатных открытия — 1 из 20 (владелец 20.11), в бесплатных открытиях тоже может выпасть
+      [GIFT_N, '', 0.05],
     ],
   },
   {
@@ -1179,7 +1187,8 @@ function pitySetApply(c, S) {
       c.items = [...new Set(c.items)];
       // цены меняются (синхронизация с Lis-Skins) — таблицу наклоняем (шанс × p^t), чтобы окупаемость осталась c.rtp
       const ps = c.items.map(n => SK[n].p), base = c.items.map(n => c.exactCh[n]);
-      const tilt = t => { const w = base.map((b, i) => b * ps[i] ** t), s = w.reduce((a, b) => a + b, 0); return w.map(x => x / s); };
+      const fx = c.items.map(n => SK[n].c === 'gift'), fm = base.reduce((a, b, i) => a + (fx[i] ? b : 0), 0); // подарок — шанс как задан
+      const tilt = t => { const w = base.map((b, i) => fx[i] ? 0 : b * ps[i] ** t), s = w.reduce((a, b) => a + b, 0); return w.map((x, i) => fx[i] ? base[i] : x / s * (1 - fm)); };
       // у кейса с гарантом считаем окупаемость вместе с гарантом — иначе он поднял бы её с 80% до ~97%
       const rs = c.items.map(n => c.exactR[n] || SK[n].r);
       const ev = c.pity ? t => pityEv(tilt(t), ps, rs) : t => tilt(t).reduce((a, w, i) => a + w * ps[i], 0);
@@ -1283,7 +1292,7 @@ try {
 /* ---------- база Supabase: аккаунты, профиль, общие ставки ---------- */
 const SB_URL = 'https://gkeexoyrxnsarosymdyp.supabase.co', SB_KEY = 'sb_publishable_oczOEZFsdpzmwq8FB4Of_Q_A_JSZ3zt'; // публичный ключ — ему место в коде
 const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
-const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'bc', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade', 'cmail', 'umults', 'pity'];
+const PROF_KEYS = ['balance', 'rcoin', 'rlog', 'inv', 'bc', 'stats', 'daily', 'promos', 'depBonus', 'socials', 'trade', 'cmail', 'umults', 'pity', 'free']; // free — бесплатные открытия из подарка (supabase/gift_open.sql)
 let sbSaveT = 0;
 // профиль пишется в базу с задержкой (пачкой), локально — сразу
 async function sbPush() {
@@ -3582,7 +3591,7 @@ async function drawTop() {
    ========================================================= */
 let caseN = 1, spinning = false, spinId = 0;
 const STRIP_LEN = 78, WIN_AT = 70;
-const itemCard = (s, extra = '') => `<div class="icard r-${s.r}">${extra}<img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="ic-w">${esc(s.w)}</div><div class="ic-f">${esc(s.f)}</div><div class="ic-p">${money(s.p)}</div></div>`;
+const itemCard = (s, extra = '') => `<div class="icard r-${s.r}">${extra}<img src="${imgUrl(s, 'm')}" alt="" loading="lazy"><div class="ic-w">${esc(s.w)}</div><div class="ic-f">${esc(s.f)}</div><div class="ic-p">${s.c === 'gift' ? `+${GIFT_K} открытия` : money(s.p)}</div></div>`;
 const rcard = (s, win) => `<div class="rcard r-${s.r}${win ? ' is-win' : ''}"><img src="${imgUrl(s, 'm')}" alt="" draggable="false"><div class="rc-w">${esc(s.w)}</div><div class="rc-f">${esc(s.f)}</div></div>`;
 function pageCase(id) {
   if (id === 'build') { setTimeout(() => { location.hash = '#/build'; }); return ''; }
@@ -3700,6 +3709,7 @@ function ccIdle(c) {
   if (c.disabled) main = `<button class="btn btn-primary btn-xl btn-cham" disabled>${ic.lock || ic.shield}Кейс временно закрыт</button>`;
   else if (!st.user) main = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и открыть</button>`;
   else if (refGiftCase === c.id) main = `<button class="rf-gbtn" id="giftBtn">${ic.gift}Открыть бесплатно<small>подарок по приглашению</small></button>`;
+  else if (freeN(c)) main = `<button class="rf-gbtn" id="freeBtn">${ic.gift}Открыть бесплатно (${freeN(c)})<small>подарок из кейса</small></button>`;
   else if (c.rc) main = (st.rcoin || 0) >= cost ? `<button class="btn btn-primary btn-xl btn-cham btn-rc" id="openBtn">Открыть за ${casePrice(c, cost)}</button>` : `<a class="btn btn-primary btn-xl btn-cham btn-rc" href="#/profile">Не хватает ${casePrice(c, cost - (st.rcoin || 0))}</a>`;
   else if (st.balance >= cost) main = `<button class="btn btn-primary btn-xl btn-cham" id="openBtn">Открыть за ${prc(cost)}</button>`;
   else main = `<button class="btn btn-primary btn-xl btn-cham" data-act="deposit" data-need="${cost - st.balance}">${ic.wallet}Пополнить на ${money(cost - st.balance)}</button>`;
@@ -3740,12 +3750,15 @@ function rollDemo(c) {
   let r = Math.random() * sw; for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) return pool[i]; }
   return pool[0];
 }
-async function openCase(c, demo, ok, gift) { // ok — подтверждено в окне CS2 CASE; gift — бесплатный кейс по реферальной ссылке (ref_gift_open)
+const freeN = c => Math.max(0, Math.floor(+((st.user && st.free && st.free[c.id]) || 0))); // бесплатные открытия из подарка (supabase/gift_open.sql)
+async function openCase(c, demo, ok, gift, free) { // ok — подтверждено в окне CS2 CASE; gift — бесплатный кейс по реферальной ссылке (ref_gift_open); free — открытие из подарка (open_case_free)
   if (spinning) return;
   const c2 = c2On(c); if (c2 || gift) caseN = 1;
   const n = caseN, cost = c.price * n;
   if (gift && (demo || refGiftCase !== c.id)) gift = false;
-  if (!demo && !gift) {
+  if (free && (demo || !freeN(c))) free = false;
+  if (free) caseN = 1;
+  if (!demo && !gift && !free) {
     if (c.disabled) return toast('Кейс временно закрыт администрацией', 'err');
     if (!st.user) return openAuth('login');
     if (c.rc) { if ((st.rcoin || 0) < cost) return toast(`Не хватает ${rc(cost - (st.rcoin || 0))} R-COIN — они начисляются за открытия кейсов`, 'err'); }
@@ -3757,13 +3770,13 @@ async function openCase(c, demo, ok, gift) { // ok — подтверждено 
   else {
     // выпадение решает сервер: он же списывает деньги, выдаёт предметы, R-COIN и статистику
     spinning = true;
-    const r = gift ? await srv('ref_gift_open', { p_case: c.id }) : c.bcid ? await srv('build_open', { p_id: c.bcid }) : await srv('open_case', { p_case: c.id, p_n: n });
+    const r = free ? await srv('open_case_free', { p_case: c.id }) : gift ? await srv('ref_gift_open', { p_case: c.id }) : c.bcid ? await srv('build_open', { p_id: c.bcid }) : await srv('open_case', { p_case: c.id, p_n: n });
     spinning = false;
     if (gift && r) refGiftCase = null; // подарок открыт — кнопку «бесплатно» больше не показываем
     if (!r) return;
     wins = r.drops.map(d => SK[d.n]).filter(Boolean);
     if (wins.length !== n) return toast('Ошибка выдачи — обновите страницу', 'err');
-    given = r.drops.map(d => d.cash ? { id: uid(), n: d.n, st: 'cash' } : d.sold != null ? { id: uid(), n: d.n, st: 'autosold' } : (st.inv.find(x => x.id === d.id) || { id: d.id, n: d.n, st: 'own' }));
+    given = r.drops.map(d => d.gift ? { id: uid(), n: d.n, st: 'gift' } : d.cash ? { id: uid(), n: d.n, st: 'cash' } : d.sold != null ? { id: uid(), n: d.n, st: 'autosold' } : (st.inv.find(x => x.id === d.id) || { id: d.id, n: d.n, st: 'own' }));
   }
   if (c2) return cs2Spin(c, wins, given, demo);
   if (n > MANY_N) return openMany(c, wins, given, demo);
@@ -3925,8 +3938,8 @@ const c2Sorted = c => c.items.slice().sort((a, b) => RAR[a.r].o - RAR[b.r].o || 
 // количество. И в рулетке они не видны (просьба владельца, 08.11): редкий (нож) — золотой значок «?» в лаврах (rare.webp),
 // Тайное — красный значок «ЗАСЕКРЕЧЕНО» (secret.webp); какой именно предмет выпал, видно только после остановки ленты
 // (позже — в особой сцене c2Cutscene, пока — на обычном экране выигрыша)
-const C2BADGE = { rare: 'assets/cs2case/rare.webp?v=2', covert: 'assets/cs2case/secret.webp?v=2' };
-const c2Badge = (r, cls = '') => `<div class="c2t c2t-badge ${r === 'rare' ? 'c2t-gold' : 'c2t-red'} ${cls}"><img src="${C2BADGE[r]}" alt="" draggable="false"></div>`;
+const C2BADGE = { rare: 'assets/cs2case/rare.webp?v=2', covert: 'assets/cs2case/secret.webp?v=2', gift: 'assets/cs2case/gift.webp?v=1' };
+const c2Badge = (r, cls = '') => `<div class="c2t c2t-badge ${r === 'rare' ? 'c2t-gold' : r === 'gift' ? 'c2t-gift' : 'c2t-red'} ${cls}"><img src="${C2BADGE[r]}" alt="" draggable="false"></div>`;
 const c2Secret = n => n ? `<div class="c2-it c2-secret">${c2Badge('covert')}<em>${n} ${plural(n, 'предмет', 'предмета', 'предметов')}</em><b>ЗАСЕКРЕЧЕНО</b><span>Тайное</span></div>` : '';
 const c2Tile = (s, cls = '') => C2BADGE[s.r] ? c2Badge(s.r, cls)
   : `<div class="c2t r-${s.r} ${cls}"><img src="${imgUrl(s, 'm')}" alt="" draggable="false" loading="lazy"></div>`;
@@ -4129,6 +4142,7 @@ function cs2Idle(c) {
   if (c.disabled) main = `<button class="c2-btn" disabled>Кейс временно закрыт</button>`;
   else if (!st.user) main = `<button class="c2-btn" data-act="login">Войти и открыть</button>`;
   else if (refGiftCase === c.id) main = `<button class="c2-btn rf-c2g" id="giftBtn">Открыть бесплатно<small>подарок</small></button>`;
+  else if (freeN(c)) main = `<button class="c2-btn rf-c2g" id="freeBtn">Открыть бесплатно (${freeN(c)})<small>подарок из кейса</small></button>`;
   else if (st.balance >= c.price) main = `<button class="c2-btn" id="openBtn">Открыть кейс<small>${prc(c.price)}</small></button>`;
   else main = `<button class="c2-btn" data-act="deposit" data-need="${c.price - st.balance}">Пополнить на ${money(c.price - st.balance)}</button>`;
   // вместо «Демо» — «Правила» (просьба владельца, 08.11); слева — шкала гаранта; «Быстрого открытия» здесь нет (владелец, 08.11)
@@ -4136,6 +4150,7 @@ function cs2Idle(c) {
     <a class="c2-btn c2-ghost" id="c2Back" href="#/cases">${ic.left}Все кейсы</a><button class="c2-btn c2-ghost" id="c2Rules">${C2_IC_RULES}Правила</button>${main}`; // «Все кейсы» — внизу рядом с «Правилами» (владелец 11.11)
   const ob = $('#openBtn'); if (ob) ob.onclick = () => openCase(c, false);
   const gb = $('#giftBtn'); if (gb) gb.onclick = () => openCase(c, false, true, true);
+  const fb = $('#freeBtn'); if (fb) fb.onclick = () => openCase(c, false, true, false, true);
   $('#c2Rules').onclick = () => cs2Rules(c);
   $('#c2Back').onclick = () => { try { sessionStorage.setItem('rc.backTo', c.id); } catch (e) { /* */ } }; // витрина прокрутит к этому кейсу
   const pw = $('.c2-pity', cc); if (pw) pw.onclick = () => cs2Rules(c, 'pity');
@@ -4435,7 +4450,7 @@ function c2X3D(host, s) {
   }).catch(showImg);
 }
 function c2XBar(price, acts) { // нижняя стеклянная полоса: цена и кнопки-значки слева (подпись — над кнопкой при наведении), «Закрыть» справа
-  return `<div class="c2x-bar"><div class="c2x-price"><small>Стоимость</small><b>${prc(price)}</b></div>
+  return `<div class="c2x-bar"><div class="c2x-price">${price == null ? `<small>Подарок</small><b>+${GIFT_K} открытия</b>` : `<small>Стоимость</small><b>${prc(price)}</b>`}</div>
     <div class="c2x-acts">${acts.map(([id, icon, t, extra]) => `<button class="c2x-ic" ${id}${extra || ''}>${icon}<span>${t}</span></button>`).join('')}</div>
     <button class="c2x-close" id="backBtn">Закрыть</button></div>`;
 }
@@ -4735,13 +4750,13 @@ function showReveal(c, wins, given, demo) {
       <div class="rv-imgw">${one ? rays : ''}<img src="${imgUrl(s, 'l')}" alt=""></div>
       <div class="rv-rar">${s.cash ? 'Зачислено на баланс' : given[i] && given[i].st === 'autosold' ? 'Продано автоматически' : RAR[s.r].n}</div>
       <div class="rv-name"><span>${esc(s.w)}</span>${esc(s.f)}</div>
-      <div class="rv-price">${money(s.p)}</div>
+      <div class="rv-price">${s.c === 'gift' ? `+${GIFT_K} открытия бесплатно` : money(s.p)}</div>
       ${!demo && !one && given[i].st === 'own' ? `<button class="btn btn-sm btn-dark" data-sellone="${given[i].id}">Продать</button>` : ''}
     </div>`).join('')}</div>`;
   if (one && c2X()) c2XReveal(wins[0], given[0]);
   $('#rl').classList.add('revealed');
   itemTilt($('#reveal'));
-  if (!demo && !c.rc) wins.filter((s, i) => !s.cash && given[i].st !== 'autosold').forEach(s => liveMine({ n: s.name, c: c.id }));
+  if (!demo && !c.rc) wins.filter((s, i) => !s.cash && s.c !== 'gift' && given[i].st !== 'autosold').forEach(s => liveMine({ n: s.name, c: c.id }));
   ccDone(c, wins, given, demo);
 }
 function ccDone(c, wins, given, demo) {
@@ -4766,7 +4781,9 @@ function ccDone(c, wins, given, demo) {
     const sum = () => live().reduce((a, g) => a + SK[g.n].p, 0);
     const draw = () => {
       const left = live().length;
-      if (x) cc.innerHTML = c2XBar(wins[0].p, [
+      const gf = wins.some(s => s.c === 'gift') && freeN(c); // выпал подарок — сразу кнопка «Открыть бесплатно»
+      if (x) cc.innerHTML = c2XBar(wins[0].c === 'gift' ? null : wins[0].p, [
+        ...(gf ? [['id="freeAgain"', ic.gift, `Открыть бесплатно (${freeN(c)})`]] : []),
         ...(left ? [['id="sellAll"', ic.coin, 'Продать'], ['id="toUpg"', ic.up, 'В апгрейд']] : []),
         ['id="againBtn"', ic.box, 'Открыть ещё']]);
       else cc.innerHTML = `<div class="cc-btns">
@@ -4779,6 +4796,7 @@ function ccDone(c, wins, given, demo) {
       if (sa) sa.onclick = async () => { sa.disabled = true; const t = await sellItems(live().map(g => g.id), true); if (t) { Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); } back(); };
       const tu = $('#toUpg'); if (tu) tu.onclick = () => { upg.sel = live().map(g => g.id); upg.bal = 0; upg.to = null; upg.mult = 0; upg.autoX2 = true; location.hash = '#/upgrade'; };
       $('#againBtn').onclick = again; const bb = $('#backBtn'); if (bb) bb.onclick = back;
+      const fa = $('#freeAgain'); if (fa) fa.onclick = () => { resetRoulette(); openCase(c, false, true, false, true); };
     };
     const markSold = () => given.forEach(g => { if (g.st !== 'own') { const el = $(`.rv-card[data-id="${g.id}"]`); if (el) { el.classList.add('rv-sold'); const b = $('[data-sellone]', el); if (b) b.outerHTML = '<div class="rv-rar" style="color:var(--txt3)">Продано</div>'; } } });
     $$('[data-sellone]').forEach(b => b.onclick = async () => { b.disabled = true; await sellItem(b.dataset.sellone); given.forEach(g => { const x = st.inv.find(y => y.id === g.id); if (x) g.st = x.st; }); if (!live().length) return back(); markSold(); draw(); });
