@@ -7722,3 +7722,5 @@ body:not(.pg-main) .mn-cfg,body:not(.pg-main) .mn-menu{display:none}
 @media (max-width:600px){.mn-cfg{right:14px;bottom:calc(14px + var(--s) + 10px)}.mn-menu{right:14px;bottom:calc(14px + var(--s) * 2 + 20px);width:min(300px,calc(100vw - 28px))}}
 .mm-list{max-height:min(460px,calc(100vh - 220px));overflow-y:auto;scrollbar-width:thin;scrollbar-color:#55575b transparent}
 .mm-list .mm-i{min-height:42px;padding:9px 22px}
+/* выбранный в меню главной фон — и на остальных страницах (кроме особых сцен: краш, контракты, кейс, админка), владелец 19.11 */
+body.mn-alt.pg-cases::before,body.mn-alt.pg-bonus::before,body.mn-alt.pg-profile::before,body.mn-alt.pg-upgrade::before,body.mn-alt.pg-invite::before,body.mn-alt.pg-doc::before,body.mn-alt.pg-faq::before{background-image:var(--mn-bg)}

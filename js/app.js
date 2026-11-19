@@ -11458,6 +11458,7 @@ function route() {
   document.body.classList.toggle('pg-profile', key === 'profile'); // профиль — размытый снимок главного экрана (assets/bg-home.webp), как на образце владельца 12.11 // «Крот», «Пригласить друзей» — тот же новый фон, что у «Кейсов» // главный экран и витрина кейсов — свой фон (assets/bg-home.webp)
   document.body.classList.toggle('pg-faq', key === 'faq'); // FAQ — фон главного экрана (assets/bg-main.webp), без эффектов (владелец 17.11)
   document.body.classList.toggle('pg-main', key === ''); // на главном экране тот же снимок, но чёткий (assets/bg-main.webp)
+  mnBgApply(); // выбранный фон — на всех страницах с обычным фоном
   document.body.classList.toggle('pg-cases', key === 'cases');
   document.body.classList.toggle('pg-bonus', key === 'bonus'); // «Бонусы» — тот же размытый снимок, что у «Кейсов» (как на образце владельца) // страница «Кейсы» — тот же снимок, слегка размытый (assets/bg-cases.webp)
   document.documentElement.classList.toggle('no-scroll', key === '' || (key === 'krot' && krotOpen()));
