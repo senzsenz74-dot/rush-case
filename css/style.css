@@ -7693,6 +7693,6 @@ body.pg-admin .live{display:none}
 .rf-bn .rf-bn-d svg{width:15px;height:15px}
 
 /* админка: «Сдать смену» (отчёт смены, 19.11) */
-.ax-top .ax-shift{margin-left:auto;align-self:center;flex:none}
+.ax-top .ax-shift{align-self:flex-end;flex:none;height:30px;padding:0 12px;font:500 12px/1 var(--ax-oz);letter-spacing:.04em;box-shadow:inset 0 0 0 1px rgba(51,200,115,.6)}
 .m-shift .sh-prev{max-height:300px;overflow:auto;margin:12px 0 10px;padding:12px 14px;border-radius:2px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font:12.5px/1.45 var(--ff);color:#dfe3e8;white-space:pre-wrap}
 .m-shift .sh-com{width:100%;resize:vertical;min-height:70px}
