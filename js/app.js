@@ -2768,7 +2768,7 @@ const MN_BG = [{ id: 'ancient', n: 'Ancient · сумерки', img: 'assets/bg-
   { id: 'de_overpass_2', n: 'Overpass', img: 'assets/main/bg/de_overpass_2.webp' },
   { id: 'de_vertigo_1', n: 'Vertigo', img: 'assets/main/bg/de_vertigo_1.webp' },
   { id: 'de_cache_4', n: 'Cache', img: 'assets/main/bg/de_cache_4.webp' },
-  { id: 'de_cbble', n: 'Cobblestone', img: 'assets/main/bg/de_cbble.webp' },
+  { id: 'de_cbble', n: 'Cobblestone', img: 'assets/main/bg/de_cbble.webp', props: [{ f: 'snowman.glb', p: [2.1, 0, -9], h: 1.5, r: -0.5 }] },
   { id: 'cs_office_1', n: 'Office · снег', img: 'assets/main/bg/cs_office_1.webp' },
   { id: 'rush_001_4', n: 'Rush', img: 'assets/main/bg/rush_001_4.webp' },
   { id: 'ar_shoots_night', n: 'Shoots · ночь', img: 'assets/main/bg/ar_shoots_night.webp' },
@@ -2839,6 +2839,15 @@ function mnAgent() {
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) new THREE.TextureLoader().load(MNA.dir + 'leaves.webp?v=' + MNA.v, tx => { if (S.alive) wind = mnaWind(THREE, scene, camera, tx); else tx.dispose(); });
     // агент + AWP в кости wpn (сетка AWP в осях glTF, кость — в осях игры: поворачиваем обратно)
     const pivot = new THREE.Group(); scene.add(pivot);
+    // предметы фона (снеговик на Cobblestone, владелец 19.11): стоят глубоко за агентом, отбрасывают тень, мышью не крутятся
+    const bgNow = MN_BG.find(x => x.id === mnCfg().bg), props = new THREE.Group(); scene.add(props);
+    ((bgNow && bgNow.props) || []).forEach(pr => {
+      MNA.pg = MNA.pg || {}; (MNA.pg[pr.f] || (MNA.pg[pr.f] = MNA.ld(pr.f).catch(e => { delete MNA.pg[pr.f]; throw e; }))).then(g => {
+        if (!S.alive) return; const o = g.scene.clone(true); o.scale.setScalar(pr.h); o.position.fromArray(pr.p); o.rotation.y = pr.r || 0;
+        o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); props.add(o);
+      }, () => {});
+    });
+    MNA.props = props; // для подгонки из браузера
     const agent = ag.scene; pivot.add(agent);
     agent.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
     const wpn = agent.getObjectByName('wpn'), gun = wp.scene;
@@ -4432,6 +4441,15 @@ function c2X3D(host, s) {
     const L = (c, i, x, y, z) => { const l = new THREE.DirectionalLight(c, i); l.position.set(x, y, z); scene.add(l); };
     L(0xffe2b8, 2.6, -3, 3.2, 2); L(0x9fb4d8, 0.6, 3, 0.5, 2.5); L(0xffffff, 1.4, 1.5, 2, -3); scene.add(new THREE.AmbientLight(0xffffff, 0.15));
     const pivot = new THREE.Group(); scene.add(pivot);
+    // предметы фона (снеговик на Cobblestone, владелец 19.11): стоят глубоко за агентом, отбрасывают тень, мышью не крутятся
+    const bgNow = MN_BG.find(x => x.id === mnCfg().bg), props = new THREE.Group(); scene.add(props);
+    ((bgNow && bgNow.props) || []).forEach(pr => {
+      MNA.pg = MNA.pg || {}; (MNA.pg[pr.f] || (MNA.pg[pr.f] = MNA.ld(pr.f).catch(e => { delete MNA.pg[pr.f]; throw e; }))).then(g => {
+        if (!S.alive) return; const o = g.scene.clone(true); o.scale.setScalar(pr.h); o.position.fromArray(pr.p); o.rotation.y = pr.r || 0;
+        o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); props.add(o);
+      }, () => {});
+    });
+    MNA.props = props; // для подгонки из браузера
     let len = 1, alive = true, ro = null, hold = null, t0 = 0; // hold — модель, t0 — когда появилась (для влёта и покачивания)
     const kill = () => { alive = false; if (ro) ro.disconnect(); renderer.setAnimationLoop(null); renderer.dispose(); pm.dispose(); };
     const fit = () => {
