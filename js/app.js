@@ -2840,11 +2840,12 @@ function mnAgent() {
     // агент + AWP в кости wpn (сетка AWP в осях glTF, кость — в осях игры: поворачиваем обратно)
     const pivot = new THREE.Group(); scene.add(pivot);
     // предметы фона (снеговик на Cobblestone, владелец 19.11): стоят глубоко за агентом, отбрасывают тень, мышью не крутятся
-    const bgNow = MN_BG.find(x => x.id === mnCfg().bg), props = new THREE.Group(); scene.add(props);
+    const bgNow = MN_BG.find(x => x.id === mnCfg().bg), props = new THREE.Group(), pEls = []; scene.add(props); $$('.mna-psh', host).forEach(e => e.remove());
     ((bgNow && bgNow.props) || []).forEach(pr => {
       MNA.pg = MNA.pg || {}; (MNA.pg[pr.f] || (MNA.pg[pr.f] = MNA.ld(pr.f).catch(e => { delete MNA.pg[pr.f]; throw e; }))).then(g => {
         if (!S.alive) return; const o = g.scene.clone(true); o.scale.setScalar(pr.h); o.position.fromArray(pr.p); o.rotation.y = pr.r || 0;
         o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); props.add(o);
+        const el = document.createElement('i'); el.className = 'mna-psh'; host.prepend(el); pEls.push([el, pr]); if (S.placeP) S.placeP(); // тень — под сценой, на фоне
       }, () => {});
     });
     MNA.props = props; // для подгонки из браузера
@@ -2906,6 +2907,9 @@ function mnAgent() {
       const [x0, y0] = pr(-0.55, 2.0), [x1, y1] = pr(0.55, 0);
       Object.assign(hit.style, { left: x0 + 'px', top: y0 + 'px', width: (x1 - x0) + 'px', height: (y1 - y0) + 'px' });
       if (mn) { const mr = mn.getBoundingClientRect(); Object.assign(kg, { w, h, l: r.left - mr.left, b: mr.bottom - r.top }); kLast = ''; placeCard(); }
+      S.placeP = () => pEls.forEach(([el, pr]) => { const v = new THREE.Vector3(pr.p[0], 0, pr.p[2]).project(camera), u = new THREE.Vector3(pr.p[0] + pr.h * 0.5, 0, pr.p[2]).project(camera);
+        const rw = Math.abs(u.x - v.x) / 2 * w; Object.assign(el.style, { left: ((v.x + 1) / 2 * w).toFixed(1) + 'px', top: ((1 - v.y) / 2 * h).toFixed(1) + 'px', width: (rw * 2.6).toFixed(1) + 'px', height: (rw * 0.5).toFixed(1) + 'px' }); });
+      S.placeP();
     };
     // нажатие = сдвиг меньше 5 px и короче 0,5 с; иначе это поворот, и танец не запускается
     hit.addEventListener('pointerdown', e => { if (e.button) return; drag = true; lx = px = e.clientX; py = e.clientY; pt = performance.now(); moved = false; vYaw = 0; hit.setPointerCapture(e.pointerId); hit.classList.add('drag'); });
@@ -4441,15 +4445,6 @@ function c2X3D(host, s) {
     const L = (c, i, x, y, z) => { const l = new THREE.DirectionalLight(c, i); l.position.set(x, y, z); scene.add(l); };
     L(0xffe2b8, 2.6, -3, 3.2, 2); L(0x9fb4d8, 0.6, 3, 0.5, 2.5); L(0xffffff, 1.4, 1.5, 2, -3); scene.add(new THREE.AmbientLight(0xffffff, 0.15));
     const pivot = new THREE.Group(); scene.add(pivot);
-    // предметы фона (снеговик на Cobblestone, владелец 19.11): стоят глубоко за агентом, отбрасывают тень, мышью не крутятся
-    const bgNow = MN_BG.find(x => x.id === mnCfg().bg), props = new THREE.Group(); scene.add(props);
-    ((bgNow && bgNow.props) || []).forEach(pr => {
-      MNA.pg = MNA.pg || {}; (MNA.pg[pr.f] || (MNA.pg[pr.f] = MNA.ld(pr.f).catch(e => { delete MNA.pg[pr.f]; throw e; }))).then(g => {
-        if (!S.alive) return; const o = g.scene.clone(true); o.scale.setScalar(pr.h); o.position.fromArray(pr.p); o.rotation.y = pr.r || 0;
-        o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); props.add(o);
-      }, () => {});
-    });
-    MNA.props = props; // для подгонки из браузера
     let len = 1, alive = true, ro = null, hold = null, t0 = 0; // hold — модель, t0 — когда появилась (для влёта и покачивания)
     const kill = () => { alive = false; if (ro) ro.disconnect(); renderer.setAnimationLoop(null); renderer.dispose(); pm.dispose(); };
     const fit = () => {

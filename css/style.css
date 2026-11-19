@@ -7725,3 +7725,6 @@ body:not(.pg-main) .mn-cfg,body:not(.pg-main) .mn-menu{display:none}
 /* выбранный в меню главной фон — и на остальных страницах (кроме особых сцен: краш, контракты, кейс, админка), владелец 19.11 */
 body.mn-alt.pg-cases::before,body.mn-alt.pg-bonus::before,body.mn-alt.pg-profile::before,body.mn-alt.pg-upgrade::before,body.mn-alt.pg-invite::before,body.mn-alt.pg-doc::before,body.mn-alt.pg-faq::before{background-image:var(--mn-bg)}
 body.mn-alt.pg-cases::before,body.mn-alt.pg-bonus::before,body.mn-alt.pg-doc::before{inset:-24px;filter:blur(5px)} /* у этих страниц картинка была уже размыта — выбранный фон размываем так же */
+/* тень предмета на фоне (снеговик): обычный элемент под 3D-сценой — в сцене полупрозрачное на этом фоне не видно */
+.mna-psh{position:absolute;z-index:0;transform:translate(-38%,-58%);border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(20,12,16,.6),rgba(20,12,16,.32) 55%,rgba(20,12,16,0));filter:blur(1.5px)}
