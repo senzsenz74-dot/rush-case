@@ -146,13 +146,14 @@ begin
   return jsonb_build_object('chat', (select v from public.bot_cfg where k = 'sup_chat'), 'title', (select v from public.bot_cfg where k = 'sup_chat_title'),
     'linked_at', (select updated_at from public.bot_cfg where k = 'sup_chat'), 'code', c);
 end $$;
-create or replace function public.bot_link_sup(p_code text, p_chat bigint, p_title text) returns boolean
+drop function if exists public.bot_link_sup(text, bigint, text);
+create or replace function public.bot_link_sup(p_code text, p_chat bigint, p_title text, p_topic bigint default null) returns boolean
 language plpgsql security definer set search_path = public as $$
 declare v text;
 begin
   select bot_cfg.v into v from public.bot_cfg where k = 'sup_link_code';
   if v is null or split_part(v, ':', 1) <> upper(trim(p_code)) or split_part(v, ':', 2)::bigint < extract(epoch from now()) then return false; end if;
-  insert into public.bot_cfg (k, v) values ('sup_chat', p_chat::text), ('sup_chat_title', left(coalesce(p_title, ''), 100))
+  insert into public.bot_cfg (k, v) values ('sup_chat', p_chat::text), ('sup_chat_title', left(coalesce(p_title, ''), 100)), ('sup_topic', p_topic::text)
     on conflict (k) do update set v = excluded.v, updated_at = now();
   delete from public.bot_cfg where k = 'sup_link_code';
   return true;
@@ -167,12 +168,12 @@ begin
   select * into th from public.support_threads where id = tk.thread;
   if th.uid is not null then select p.pid, p.name into ppid, pnm from public.profiles p where p.id = th.uid; end if;
   select s.text into m from public.support_msgs s where s.thread = tk.thread and not s.from_admin order by s.id desc limit 1;
-  return jsonb_build_object('ticket', tk.id, 'chat', (select c.v from public.bot_cfg c where c.k = 'sup_chat'),
+  return jsonb_build_object('ticket', tk.id, 'chat', (select c.v from public.bot_cfg c where c.k = 'sup_chat'), 'topic', (select c.v from public.bot_cfg c where c.k = 'sup_topic'),
     'pid', ppid, 'name', coalesce(pnm, th.tg_name), 'tg_user', th.tg_user, 'src', case when th.uid is null then 'tg' else 'site' end, 'text', m);
 end $$;
-revoke all on function public.admin_sup_chat(boolean), public.bot_link_sup(text, bigint, text), public.bot_ticket_take(bigint) from public, anon, authenticated;
+revoke all on function public.admin_sup_chat(boolean), public.bot_link_sup(text, bigint, text, bigint), public.bot_ticket_take(bigint) from public, anon, authenticated;
 grant execute on function public.admin_sup_chat(boolean) to authenticated;
-grant execute on function public.bot_link_sup(text, bigint, text), public.bot_ticket_take(bigint) to service_role;
+grant execute on function public.bot_link_sup(text, bigint, text, bigint), public.bot_ticket_take(bigint) to service_role;
 
 create extension if not exists pg_net with schema extensions;
 create or replace function public._ticket_tg() returns trigger language plpgsql security definer set search_path = public, extensions as $$

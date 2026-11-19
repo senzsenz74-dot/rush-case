@@ -67,7 +67,7 @@ Deno.serve(async req => {
       const { data: t } = await db.rpc('bot_ticket_take', { p_ticket: Number(b.ticket) || 0 });
       if (!t || !t.chat) return json({ ok: true });
       const who = t.src === 'site' ? `${t.name || 'Игрок'}${t.pid ? ' (#' + t.pid + ')' : ''} — с сайта` : `${t.name || 'Без имени'}${t.tg_user ? ' @' + t.tg_user : ''} — из Telegram-бота`;
-      await tg('sendMessage', { chat_id: Number(t.chat), text: `🆕 Новое обращение №${t.ticket}
+      await tg('sendMessage', { chat_id: Number(t.chat), ...(t.topic ? { message_thread_id: Number(t.topic) } : {}), text: `🆕 Новое обращение №${t.ticket}
 От: ${who}
 
 ${String(t.text || '').slice(0, 3500)}
@@ -113,10 +113,11 @@ ${String(t.text || '').slice(0, 3500)}
       const lk = /^\/link(?:@\w+)?\s+([A-Za-z0-9]{4,12})\s*$/.exec(m?.text || '');
       if (lk && m.chat) {
         const title = m.chat.title || [m.from?.first_name, m.from?.last_name].filter(Boolean).join(' ');
-        const { data: sup } = await db.rpc('bot_link_sup', { p_code: lk[1], p_chat: m.chat.id, p_title: title });
-        if (sup) { await tg('sendMessage', { chat_id: m.chat.id, text: 'Группа поддержки привязана ✅ Сюда будут приходить новые обращения игроков.' }); return json({ ok: true }); }
+        const topic = m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {}; // группа с темами — отвечаем в ту же тему
+        const { data: sup } = await db.rpc('bot_link_sup', { p_code: lk[1], p_chat: m.chat.id, p_title: title, p_topic: topic.message_thread_id || null });
+        if (sup) { await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: 'Группа поддержки привязана ✅ Сюда будут приходить новые обращения игроков.' }); return json({ ok: true }); }
         const { data: ok } = await db.rpc('bot_link_chat', { p_code: lk[1], p_chat: m.chat.id, p_title: title });
-        await tg('sendMessage', { chat_id: m.chat.id, text: ok ? 'Чат владельцев привязан ✅ Сюда будут приходить заявки сотрудников на изменение витрины.' : 'Код неверный или устарел — возьмите новый в админке (вкладка «Сотрудники»).' });
+        await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: ok ? 'Чат владельцев привязан ✅ Сюда будут приходить заявки сотрудников на изменение витрины.' : 'Код неверный или устарел — возьмите новый в админке (вкладка «Сотрудники»).' });
         return json({ ok: true });
       }
       if (!m || !m.chat || m.chat.type !== 'private') return json({ ok: true });
