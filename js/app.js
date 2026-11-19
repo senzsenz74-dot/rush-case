@@ -824,6 +824,44 @@ const CASES = [
     ],
   },
   {
+    // «КАРАМЕЛЬНОЕ ЯБЛОКО» (20.11.2026, владелец): новогодний ивентовый 3D-кейс, раздел «НОВЫЙ 2027». Blender (ветка blender):
+    // blender/scenes/case-newyear.blend → assets/cs2case/case-apple.glb (выгрузка blender/scripts/case_export_glb_newyear.py):
+    // корпус «карамельное яблоко» под лаком, ремни — зелёная крокодиловая кожа, золотой лавровый венок с рубинами, снежный налёт;
+    // после приземления — снегопад и сугроб на крышке (SN_*), при открытии сугроб съезжает назад. Сцена как у MAJOR (ui: 'cs2').
+    // Состав (владелец: 450 ₽, «дороже кейса» 30%): 49 позиций от 103 ₽ — Candy Apple, красные, золотые и «ледяные» скины;
+    // с гарантом окупаемость 80%, дороже кейса 30,1% (подобрано весом 0,072 у группы «чуть дороже кейса»).
+    id: 'apple', name: 'КАРАМЕЛЬНОЕ ЯБЛОКО', price: 450, tag: 'Новый год', tagIc: 'gift', rtp: 0.8, ui: 'cs2',
+    pity: true, // гарант 75/150, как у MAJOR; шансы пересчитаны с гарантом (pityEv) — окупаемость 80%
+    c2glb: 'case-apple.glb', c2p: { sun: 7, env: .18, exposure: .84, contrast: 1.01, saturate: 1.6, shadow: .79, fill: .1, dust: 4 }, // свет — подобран владельцем в пробе 20.11
+    sub: 'Новогодний кейс с гарантом: 49 позиций от 103 ₽, каждое третье открытие дороже кейса. Candy Apple, Ледяной уголь, Красная линия; за «Засекречено» — Золотой зубок, Wildfire, Код красный, Golden Coil. Джекпоты — ножи Crimson Web, Lore, Karambit | Doppler',
+    th: { a: '#e23a3a' }, img: 'assets/case-apple.webp', // рендер 3D-модели (холст, ширина и поля как у CS2 CASE)
+    exact: [
+      // дешевле кейса (от 103 ₽)
+      ['Glock-18 | Candy Apple', 'FN', 0.06], ['MP9 | Ruby Poison Dart', 'FT', 0.06], ['CZ75-Auto | Red Astor', 'BS', 0.06],
+      ['StatTrak™ Tec-9 | Ice Cap', 'MW', 0.06], ['AUG | Arctic Wolf', 'FT', 0.06], ['Galil AR | Crimson Tsunami', 'FT', 0.06],
+      ['XM1014 | Red Python', 'FT', 0.06], ['UMP-45 | Crimson Foil', 'MW', 0.06], ['MP9 | Arctic Tri-Tone', 'FT', 0.06],
+      ['SCAR-20 | Crimson Web', 'FT', 0.06], ['SG 553 | Candy Apple', 'FT', 0.06], ['UMP-45 | Gold Bismuth', 'WW', 0.06],
+      ['P250 | Epicenter', 'FT', 0.06], ['AWP | Ледяной уголь', 'BS', 0.06], ['AK-47 | Ледяной уголь', 'BS', 0.06],
+      // чуть дороже кейса (460–750 ₽) — вместе ~30% открытий
+      ['Souvenir MAC-10 | Candy Apple', 'FN', 0.072], ['MP9 | Arctic Tri-Tone', 'FN', 0.072], ['AWP | Ледяной уголь', 'WW', 0.072],
+      ['M4A1-S | Blood Tiger', 'FT', 0.072], ['Nova | Red Quartz', 'FT', 0.072], ['MAG-7 | Justice', 'FT', 0.072],
+      ['UMP-45 | Gold Bismuth', 'MW', 0.072], ['Souvenir Nova | Candy Apple', 'FN', 0.072], ['Galil AR | Crimson Tsunami', 'FN', 0.072],
+      ['AWP | Ледяной уголь', 'FT', 0.072], ['SG 553 | Candy Apple', 'FN', 0.072], ['AK-47 | Ледяной уголь', 'MW', 0.072],
+      ['Glock-18 | Sacrifice', 'FN', 0.072],
+      // дорогие (0,8–3,8 тыс.)
+      ['StatTrak™ AK-47 | Ice Coaled', 'BS', 0.008], ['AWP | Ледяной уголь', 'MW', 0.008], ['StatTrak™ AWP | Ice Coaled', 'FT', 0.008],
+      ['AK-47 | Красная линия', 'FT', 0.008], ['AWP | Красная линия', 'FT', 0.008], ['P90 | Cold Blooded', 'FN', 0.008],
+      // «Засекречено» (красные)
+      ['MP7 | Bloodsport', 'FT', 0.002], ['Glock-18 | Золотой зубок', 'FT', 0.002], ['AWP | Wildfire', 'FT', 0.002],
+      ['Desert Eagle | Код красный', 'FT', 0.002], ['M4A1-S | Golden Coil', 'BS', 0.002],
+      // джекпоты — ножи и перчатки (Crimson Web, Lore, Marble Fade, Slaughter, Doppler)
+      ['★ Kukri Knife | Crimson Web', 'BS', 0.0002], ['★ Gut Knife | Crimson Web', 'WW', 0.0002], ['★ Moto Gloves | Blood Pressure', 'WW', 0.0002],
+      ['★ Navaja Knife | Marble Fade', 'MW', 0.0002], ['★ Ursus Knife | Crimson Web', 'MW', 0.0002], ['★ Flip Knife | Lore', 'BS', 0.0002],
+      ['★ Hand Wraps | Slaughter', 'FT', 0.0002], ['★ Karambit | Lore', 'WW', 0.0002], ['★ Butterfly Knife | Lore', 'FT', 0.0002],
+      ['★ Karambit | Doppler', 'FN', 0.0002],
+    ],
+  },
+  {
     id: 'rushb', name: 'RUSH B', price: 249, tag: 'Мемный', tagIc: 'bolt', rtp: 0.8,
     sub: 'GO GO GO!!! 45 граффити-скинов в красно-оранжевом стиле от 25 ₽ до 81 тыс., ~23% открытий окупаются. Джекпоты — Karambit | Slaughter, Autotronic и Crimson Web',
     th: { a: '#ea580c' }, img: 'assets/case-rushb.webp',
@@ -1758,7 +1796,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-elite2.webp':1.3018,'assets/case-major3.webp':1.3018,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
+const CASE_AR = {'assets/case-apple.webp':1.3018,'assets/case-elite2.webp':1.3018,'assets/case-major3.webp':1.3018,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
 // картинки из админки (хранилище Supabase) весят 2–3 МБ: для уже загруженных — лёгкие копии в assets/cc (900 px и 440 px для витрины);
 // новые загрузки админка сама сжимает в *.opt.webp + *.opt-s.webp (admImgPack). Неизвестная картинка — как есть.
@@ -2293,6 +2331,7 @@ const casePrice = (c, v) => c.rc ? `<span class="prc prc-rc">${rc(v)}<i class="p
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
+  { id: 'ny2027', wm: '2027', t: 'НОВЫЙ 2027', sub: 'Новогодние кейсы', ic: 'gift', a: '#e23a3a', ids: ['apple'], fresh: true }, // новогодний раздел (владелец 20.11); fresh — встаёт первым, даже если в админке сохранён старый список разделов
   { id: 'bmw5dfjvu', wm: 'NEW', t: 'CS2 CASE', sub: '', ic: 'star', a: '#f3c14f', ids: ['cs2', 'major', 'elite'] },
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
@@ -2308,7 +2347,7 @@ const CASE_BLOCKS = [
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
+const NEW_CASES = ['apple', 'elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
 /* раздел, порядок и метки кейса: по умолчанию — из кода (CASE_BLOCKS, NEW_CASES, HOME_POP); админ-панель может поменять (site_cfg) */
 const DEF_BLOCK = {}, DEF_ORD = {};
 CASE_BLOCKS.forEach(b => b.ids.forEach((id, i) => { DEF_BLOCK[id] = b.id; DEF_ORD[id] = i; }));
@@ -2377,7 +2416,10 @@ async function loadCaseCfg() {
   const sk = data.find(r => r.k === 'skins'); if (sk && sk.v && sk.v.hold != null) SK_HOLD = Math.max(0, +sk.v.hold || 0);
   const bc = data.find(r => r.k === 'build'); if (bc && bc.v) { if (+bc.v.rtp >= .3 && +bc.v.rtp <= .98) BUILD.rtp = +bc.v.rtp; BUILD.off = !!bc.v.off; if ($('#bdSet')) drawBuild(); }
   const bl = data.find(r => r.k === 'blocks');
-  if (bl && Array.isArray(bl.v) && bl.v.length) CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...bl.v.map(b => ({ ...b, ids: [] })));
+  if (bl && Array.isArray(bl.v) && bl.v.length) {
+    const fresh = CASE_BLOCKS.filter(b => b.fresh && !bl.v.some(x => x.id === b.id)); // новые разделы из кода, которых нет в сохранённом списке
+    CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...fresh.map(b => ({ ...b, ids: [] })), ...bl.v.map(b => ({ ...b, ids: [] })));
+  }
   CASES.forEach(applyCaseCfg); CASES.sort((a, b) => a.price - b.price);
 }
 /* заголовок раздела: наклонная метка со значком, название с переливом, подпись, линия с бегущим огоньком, счётчик */
@@ -3263,6 +3305,8 @@ function ixPlan() {
 }
 function pageCases() {
   const P = ixPlan(), tabs = [], secs = [];
+  const top = P.rest.filter(([b]) => b.fresh); P.rest = P.rest.filter(([b]) => !b.fresh); // новый раздел (НОВЫЙ 2027) — самым первым
+  top.forEach(([b, L]) => { tabs.push([b.id, ixTab(b)]); secs.push(ixSec(b.id, esc(b.t), `<div class="ix-grid">${L.map((c, i) => ixTile(c, i)).join('')}</div>`)); });
   if (P.fresh.length) { tabs.push(['new', 'Новые']); secs.push(ixSec('new', 'Новые кейсы', `<div class="ix-grid">${P.fresh.map((c, i) => ixTile(c, i)).join('')}</div>`)); }
   tabs.push(['auth', 'Авторские']);
   secs.push(ixSec('auth', 'Авторские кейсы', P.auth.length ? `<div class="ix-grid">${P.auth.map((c, i) => ixTile(c, i, { risk: true })).join('')}</div>` : '<p class="ix-soon">Скоро здесь появятся кейсы, которые соберут сами игроки.</p>',
@@ -3881,7 +3925,7 @@ const c2Sorted = c => c.items.slice().sort((a, b) => RAR[a.r].o - RAR[b.r].o || 
 // количество. И в рулетке они не видны (просьба владельца, 08.11): редкий (нож) — золотой значок «?» в лаврах (rare.webp),
 // Тайное — красный значок «ЗАСЕКРЕЧЕНО» (secret.webp); какой именно предмет выпал, видно только после остановки ленты
 // (позже — в особой сцене c2Cutscene, пока — на обычном экране выигрыша)
-const C2BADGE = { rare: 'assets/cs2case/rare.webp?v=1', covert: 'assets/cs2case/secret.webp?v=1' };
+const C2BADGE = { rare: 'assets/cs2case/rare.webp?v=2', covert: 'assets/cs2case/secret.webp?v=2' };
 const c2Badge = (r, cls = '') => `<div class="c2t c2t-badge ${r === 'rare' ? 'c2t-gold' : 'c2t-red'} ${cls}"><img src="${C2BADGE[r]}" alt="" draggable="false"></div>`;
 const c2Secret = n => n ? `<div class="c2-it c2-secret">${c2Badge('covert')}<em>${n} ${plural(n, 'предмет', 'предмета', 'предметов')}</em><b>ЗАСЕКРЕЧЕНО</b><span>Тайное</span></div>` : '';
 const c2Tile = (s, cls = '') => C2BADGE[s.r] ? c2Badge(s.r, cls)
@@ -3991,7 +4035,7 @@ function c2Mount(c) {
       setFrame(C2D.REST); gl.scene.updateMatrixWorld(true);
       camNode.getWorldPosition(cam.position); camNode.getWorldQuaternion(cam.quaternion);
       cam.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(H_FOV / 2) / (16 / 9))); cam.aspect = 16 / 9; cam.clearViewOffset(); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
-      const box = new THREE.Box3(); gl.scene.getObjectByName('CASE_ROOT').traverse(o => { if (o.isMesh && o.name !== 'KEY') box.expandByObject(o); });
+      const box = new THREE.Box3(); gl.scene.getObjectByName('CASE_ROOT').traverse(o => { if (o.isMesh && o.name !== 'KEY' && !/^SN_/.test(o.name)) box.expandByObject(o); });
       let y = -1; for (let i = 0; i < 8; i++) { const v = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(cam); y = Math.max(y, (1 - v.y) / 2); }
       setFrame(1); return Math.min(1, y);
     })();
