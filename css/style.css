@@ -7724,3 +7724,4 @@ body:not(.pg-main) .mn-cfg,body:not(.pg-main) .mn-menu{display:none}
 .mm-list .mm-i{min-height:42px;padding:9px 22px}
 /* выбранный в меню главной фон — и на остальных страницах (кроме особых сцен: краш, контракты, кейс, админка), владелец 19.11 */
 body.mn-alt.pg-cases::before,body.mn-alt.pg-bonus::before,body.mn-alt.pg-profile::before,body.mn-alt.pg-upgrade::before,body.mn-alt.pg-invite::before,body.mn-alt.pg-doc::before,body.mn-alt.pg-faq::before{background-image:var(--mn-bg)}
+body.mn-alt.pg-cases::before,body.mn-alt.pg-bonus::before,body.mn-alt.pg-doc::before{inset:-24px;filter:blur(5px)} /* у этих страниц картинка была уже размыта — выбранный фон размываем так же */
