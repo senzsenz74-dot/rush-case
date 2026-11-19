@@ -2645,7 +2645,7 @@ function nwFeed() {
 const INVITE_SVG = '<svg viewBox="0 0 15 14" aria-hidden="true"><path d="M0.817197 5.34773H5.9052V0.0677261H9.2972V5.34773H14.3852V8.38773H9.2972V13.6677H5.9052V8.38773H0.817197V5.34773Z" fill="currentColor"/></svg>'; // «Оформление сайта/ИНВАЙТ.svg»
 const MNK_SND = 'assets/main/play.mp3?v=1'; // звук кнопки «Играть» в карточке КРОТ (cs2.mp3 владельца); громкость 0,2 — владелец 12.11: «намного тише»
 function mountMain() {
-  nwFeed();
+  nwFeed(); mnCfgUi();
   Snd.preloadSet({ k: MNK_SND }); const kgo = $('.mnk-go'); if (kgo) kgo.addEventListener('click', () => Snd.playCtl(MNK_SND, .2).then(t => { if (!t) Snd.file(MNK_SND, .2); })); // если звук ещё не скачался — обычным плеером (при выключенном звуке молчит)
   mnLampsPos(); later(mnLampsPos, 700); if (!mnLampsPos.on) { mnLampsPos.on = 1; addEventListener('resize', mnLampsPos); $('#app').addEventListener('animationend', e => { if (e.target.id === 'app') mnLampsPos(); }); } // второй раз — после «въезда» страницы
   later(() => (window.requestIdleCallback || (f => f()))(mnAgent, { timeout: 1200 }), 300); // 3D-агент — после показа страницы
@@ -2667,10 +2667,11 @@ window.rcMNA = MNA; // для проверки из браузера
 const mnaStop = () => { if (MNA.s) { MNA.s.kill(); MNA.s = null; } };
 function mnaLoad() { // модели держим в памяти вкладки (без видеокарты): при возврате на главную не качаем заново
   if (!MNA.gl) MNA.gl = c2Lib().then(([THREE, { GLTFLoader }]) => {
-    const ld = u => new Promise((ok, bad) => new GLTFLoader().load(MNA.dir + u + '?v=' + MNA.v, ok, undefined, bad));
-    return Promise.all([ld('agent.glb'), ld('awp-dragon-lore.glb'), ld('breakdance.glb').catch(() => null)]); // без танца агент всё равно показывается
+    MNA.ld = u => new Promise((ok, bad) => new GLTFLoader().load(MNA.dir + u + '?v=' + MNA.v, ok, undefined, bad));
+    return Promise.all([MNA.ld('agent.glb'), MNA.ld('breakdance.glb').catch(() => null)]); // без танца агент всё равно показывается
   }).catch(e => { MNA.gl = null; throw e; });
-  return MNA.gl;
+  const k = mnWpnKey(); MNA.wg = MNA.wg || {}; // оружие — по выбору игрока (меню над поддержкой), каждое качаем один раз
+  return MNA.gl.then(([ag, bd]) => (MNA.wg[k] || (MNA.wg[k] = MNA.ld(MN_WPN[k].f).catch(e => { delete MNA.wg[k]; throw e; }))).then(wp => [ag, wp, bd]));
 }
 // лампы на фоне главного (assets/bg-main.webp, 1920×1080): прожектор на хижине и подвесная лампа внутри.
 // Свечение и затемнение освещённого места поверх снимка; моргают стилями (переменная --f: 1 — горит, 0 — погасла)
@@ -2758,6 +2759,53 @@ function mnaWind(THREE, scene, camera, tex) {
     dispose() { meshes.forEach(m => scene.remove(m)); scene.remove(dust); trash.forEach(x => x.dispose()); },
   };
 }
+/* ---------- настройки главного экрана (владелец 19.11): кнопка над поддержкой → меню слева: фон, оружие, агент (скоро) ----------
+   выбор помнит браузер (rc.mainCfg). Фоны — фото владельца (MN_BG), у каждого фона свои лампы/«плюс» пока только у Ancient */
+const MN_BG = [{ id: 'ancient', n: 'Ancient · сумерки', img: 'assets/bg-main.webp' },
+  { id: 'de_mirage_4', n: 'Mirage', img: 'assets/main/bg/de_mirage_4.webp' },
+  { id: 'de_inferno', n: 'Inferno', img: 'assets/main/bg/de_inferno.webp' },
+  { id: 'de_nuke_4', n: 'Nuke', img: 'assets/main/bg/de_nuke_4.webp' },
+  { id: 'de_overpass_2', n: 'Overpass', img: 'assets/main/bg/de_overpass_2.webp' },
+  { id: 'de_vertigo_1', n: 'Vertigo', img: 'assets/main/bg/de_vertigo_1.webp' },
+  { id: 'de_train', n: 'Train', img: 'assets/main/bg/de_train.webp' },
+  { id: 'de_cache_4', n: 'Cache', img: 'assets/main/bg/de_cache_4.webp' },
+  { id: 'de_cbble', n: 'Cobblestone', img: 'assets/main/bg/de_cbble.webp' },
+  { id: 'cs_italy', n: 'Italy', img: 'assets/main/bg/cs_italy.webp' },
+  { id: 'cs_office_1', n: 'Office · снег', img: 'assets/main/bg/cs_office_1.webp' },
+  { id: 'cs_office_2', n: 'Office', img: 'assets/main/bg/cs_office_2.webp' },
+  { id: 'rush_001_4', n: 'Rush', img: 'assets/main/bg/rush_001_4.webp' },
+  { id: 'ar_shoots_night', n: 'Shoots · ночь', img: 'assets/main/bg/ar_shoots_night.webp' },
+  { id: 'ar_shoots_night_1', n: 'Shoots · ночь 2', img: 'assets/main/bg/ar_shoots_night_1.webp' },
+  { id: 'ar_shoots_night_2', n: 'Shoots · ночь 3', img: 'assets/main/bg/ar_shoots_night_2.webp' }]; // снимки карт из CS2 (владелец 19.11, assets/main/bg/)
+const MN_WPN = { awp: { n: 'AWP | Dragon Lore', f: 'awp-dragon-lore.glb', p: [-5.29, 0.19, -8.99] } }; // AK и другие — когда будут анимации держания (Blender), владелец 19.11: сначала фоны
+function mnCfg() { let c = {}; try { c = JSON.parse(localStorage.getItem('rc.mainCfg') || '{}') || {}; } catch (e) { /* */ } return { bg: MN_BG.some(b => b.id === c.bg) ? c.bg : 'ancient', wpn: MN_WPN[c.wpn] ? c.wpn : 'awp' }; }
+function mnCfgSet(k, v) { const c = mnCfg(); c[k] = v; try { localStorage.setItem('rc.mainCfg', JSON.stringify(c)); } catch (e) { /* */ } return c; }
+const mnWpnKey = () => mnCfg().wpn;
+function mnBgApply() { const b = MN_BG.find(x => x.id === mnCfg().bg) || MN_BG[0]; document.body.style.setProperty("--mn-bg", `url("${new URL(b.img, location.href).href}")`); document.body.classList.toggle('mn-alt', b.id !== 'ancient'); }
+const MN_CFG_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>';
+function mnCfgUi() {
+  mnBgApply();
+  if (!$('#mnCfg')) document.body.insertAdjacentHTML('beforeend', `<button class="mn-cfg" id="mnCfg" aria-label="Настройки главного экрана" aria-expanded="false">${MN_CFG_SVG}</button><div class="mn-menu" id="mnMenu" hidden></div>`);
+  const btn = $('#mnCfg'); let menu = $('#mnMenu');
+  const close = () => { menu.hidden = true; btn.classList.remove('on'); btn.setAttribute('aria-expanded', 'false'); };
+  const draw = view => {
+    const c = mnCfg(), back = t => `<button class="mm-i mm-back" data-v="root"><i>‹</i>${t}</button><hr>`;
+    const opt = (k, v, n) => `<button class="mm-i${c[k] === v ? ' on' : ''}" data-k="${k}" data-x="${v}">${esc(n)}${c[k] === v ? '<b>✓</b>' : ''}</button>`;
+    menu.innerHTML = view === 'bg' ? back('Фон главного меню') + '<div class="mm-list">' + MN_BG.map(b => opt('bg', b.id, b.n)).join('') + '</div>'
+      : view === 'wpn' ? back('Оружие') + Object.entries(MN_WPN).map(([id, w]) => opt('wpn', id, w.n)).join('')
+      : `<button class="mm-i" data-v="bg">Изменить фон главного меню</button><button class="mm-i" disabled>Сменить оружие<small>скоро</small></button><hr>
+         <button class="mm-i" disabled>Сменить агента<small>скоро</small></button>`;
+    $$('[data-v]', menu).forEach(b => b.onclick = e => { e.stopPropagation(); draw(b.dataset.v); });
+    $$('[data-k]', menu).forEach(b => b.onclick = e => {
+      e.stopPropagation(); const { k, x } = b.dataset; if (mnCfg()[k] === x) return;
+      const sc = $('.mm-list', menu); const top = sc ? sc.scrollTop : 0; mnCfgSet(k, x); draw(view); const sc2 = $('.mm-list', menu); if (sc2) sc2.scrollTop = top;
+      if (k === 'bg') { mnBgApply(); mnLampsPos(); } else if ($('#mnAgent')) mnAgent(); // новое оружие — агент пересобирается (без выхода)
+    });
+  };
+  btn.onclick = e => { e.stopPropagation(); menu = $('#mnMenu'); if (!menu.hidden) return close(); draw('root'); menu.hidden = false; btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true'); };
+  if (!mnCfgUi.off) { mnCfgUi.off = 1; document.addEventListener('click', e => { const m = $('#mnMenu'); if (m && !m.hidden && !e.target.closest('#mnMenu')) { m.hidden = true; $('#mnCfg').classList.remove('on'); } });
+    document.addEventListener('keydown', e => { const m = $('#mnMenu'); if (e.key === 'Escape' && m && !m.hidden) { m.hidden = true; $('#mnCfg').classList.remove('on'); } }); }
+}
 function mnAgent() {
   const host = $('#mnAgent'); if (!host) return;
   mnaStop();
@@ -2798,7 +2846,8 @@ function mnAgent() {
     agent.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
     const wpn = agent.getObjectByName('wpn'), gun = wp.scene;
     gun.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1));
-    gun.position.set(-5.29, 0.19, -8.99).multiplyScalar(0.0254); // корневая кость AWP «weapon» (из модели игры) совпадает с wpn, а не начало сетки
+    gun.position.fromArray(MN_WPN[mnWpnKey()].p).multiplyScalar(0.0254); // корневая кость оружия (из модели игры) совпадает с wpn, а не начало сетки
+    MNA.gun = gun; // для подгонки из браузера
     gun.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
     if (wpn) wpn.add(gun); gun.visible = true; // модель общая для заходов: могли уйти посреди танца
     let yaw = -0.32, vYaw = 0, drag = false, lx = 0, dirty = false, px = 0, py = 0, pt = 0, moved = false;

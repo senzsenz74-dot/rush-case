@@ -7696,3 +7696,29 @@ body.pg-admin .live{display:none}
 .ax-top .ax-shift{align-self:flex-end;flex:none;height:30px;padding:0 12px;font:500 12px/1 var(--ax-oz);letter-spacing:.04em;box-shadow:inset 0 0 0 1px rgba(51,200,115,.6)}
 .m-shift .sh-prev{max-height:300px;overflow:auto;margin:12px 0 10px;padding:12px 14px;border-radius:2px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font:12.5px/1.45 var(--ff);color:#dfe3e8;white-space:pre-wrap}
 .m-shift .sh-com{width:100%;resize:vertical;min-height:70px}
+
+/* главный экран: кнопка настроек над поддержкой и меню слева от неё (владелец 19.11) — то же тёмное стекло, что у кнопки поддержки */
+body.pg-main::before{background-image:var(--mn-bg,url("../assets/bg-main.webp"))}
+body.mn-alt #mnLamps{display:none}
+.mn-cfg{--s:max(44px,calc(var(--u,1px)*54));position:fixed;right:22px;bottom:calc(22px + var(--s) + 10px);z-index:900;width:var(--s);height:var(--s);display:grid;place-items:center;padding:0;border:0;border-radius:4px;cursor:pointer;color:#e9ecef;
+  background:linear-gradient(245deg,rgba(255,255,255,.1),transparent 62%),linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03)),rgba(24,26,30,.4);
+  -webkit-backdrop-filter:blur(26px) saturate(150%);backdrop-filter:blur(26px) saturate(150%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.1),0 0 0 1px rgba(0,0,0,.22),0 1px 2px rgba(0,0,0,.5),0 3px 12px rgba(0,0,0,.42);transition:background-color .2s,color .2s}
+.mn-cfg svg{width:calc(var(--s)*.46);height:calc(var(--s)*.46)}
+.mn-cfg:hover{background-color:rgba(62,66,74,.45);color:#fff}
+.mn-cfg.on{color:#84d9fd;background-color:rgba(132,217,253,.12)}
+.mn-menu{--s:max(44px,calc(var(--u,1px)*54));position:fixed;right:calc(22px + var(--s) + 12px);bottom:22px;z-index:901;width:300px;padding:0;border-radius:2px;background:#2a2b2d;box-shadow:0 0 0 1px rgba(0,0,0,.5),0 12px 32px rgba(0,0,0,.55)}
+.mn-menu[hidden]{display:none}
+.mn-menu hr{margin:0;border:0;border-top:1px solid #3d3e41}
+.mm-i{display:flex;align-items:center;gap:10px;width:100%;min-height:50px;padding:12px 22px;border:0;background:none;color:#d4d5d7;font:400 15px/1.35 var(--ff);text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
+.mm-i:hover:not(:disabled){background:#3a3b3e;color:#fff}
+.mm-i.on{color:#fff}
+.mm-i b{margin-left:auto;color:#84d9fd;font-weight:500}
+.mm-i:disabled{color:#d4d5d7;cursor:default;opacity:.5}
+.mm-i small{margin-left:auto;font-size:13px;color:#9a9ca0}
+.mm-back{min-height:44px;color:#9a9ca0;font-size:13.5px}.mm-back i{font-style:normal;font-size:20px;line-height:1}
+body:not(.pg-main) .mn-cfg,body:not(.pg-main) .mn-menu{display:none}
+@media (min-width:1025px){.mn-cfg{right:calc(var(--lw) + 22px)}.mn-menu{right:calc(var(--lw) + 22px + var(--s) + 12px)}}
+@media (max-width:600px){.mn-cfg{right:14px;bottom:calc(14px + var(--s) + 10px)}.mn-menu{right:14px;bottom:calc(14px + var(--s) * 2 + 20px);width:min(300px,calc(100vw - 28px))}}
+.mm-list{max-height:min(460px,calc(100vh - 220px));overflow-y:auto;scrollbar-width:thin;scrollbar-color:#55575b transparent}
+.mm-list .mm-i{min-height:42px;padding:9px 22px}
