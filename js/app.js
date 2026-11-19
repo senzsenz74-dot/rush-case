@@ -743,7 +743,7 @@ const CASES = [
   },
   {
     // «CS2 CASE» — заготовка под кейс с 3D-сценой открытия (модель и видео-фон из Blender подключим позже); пока виден только админу (adm)
-    id: 'cs2', name: 'CS2 CASE', price: 219, tag: 'Новый', tagIc: 'star', rtp: 0.8, adm: true, ui: 'cs2', // ui: 'cs2' — открытие как в CS2 (только на ПК)
+    id: 'cs2', name: 'CS2 CASE', price: 219, tag: 'Новый', tagIc: 'star', rtp: 0.8, ui: 'cs2', // BLAST (имя из админки) — открыт для всех игроков 19.11 (было adm: true — только админ); // ui: 'cs2' — открытие как в CS2 (только на ПК)
     pity: true, // гарант 75/150 (PITY, supabase/cs2_pity.sql); шансы подобраны так, чтобы с гарантом окупаемость осталась rtp
     sub: 'Тестовый кейс: простое наполнение для примера',
     th: { a: '#f3c14f' }, img: 'assets/case-cs2.webp', // рендер 3D-модели (assets/cs2case/case.glb)
