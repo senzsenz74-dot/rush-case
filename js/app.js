@@ -2767,16 +2767,12 @@ const MN_BG = [{ id: 'ancient', n: 'Ancient · сумерки', img: 'assets/bg-
   { id: 'de_nuke_4', n: 'Nuke', img: 'assets/main/bg/de_nuke_4.webp' },
   { id: 'de_overpass_2', n: 'Overpass', img: 'assets/main/bg/de_overpass_2.webp' },
   { id: 'de_vertigo_1', n: 'Vertigo', img: 'assets/main/bg/de_vertigo_1.webp' },
-  { id: 'de_train', n: 'Train', img: 'assets/main/bg/de_train.webp' },
   { id: 'de_cache_4', n: 'Cache', img: 'assets/main/bg/de_cache_4.webp' },
   { id: 'de_cbble', n: 'Cobblestone', img: 'assets/main/bg/de_cbble.webp' },
-  { id: 'cs_italy', n: 'Italy', img: 'assets/main/bg/cs_italy.webp' },
   { id: 'cs_office_1', n: 'Office · снег', img: 'assets/main/bg/cs_office_1.webp' },
-  { id: 'cs_office_2', n: 'Office', img: 'assets/main/bg/cs_office_2.webp' },
   { id: 'rush_001_4', n: 'Rush', img: 'assets/main/bg/rush_001_4.webp' },
   { id: 'ar_shoots_night', n: 'Shoots · ночь', img: 'assets/main/bg/ar_shoots_night.webp' },
-  { id: 'ar_shoots_night_1', n: 'Shoots · ночь 2', img: 'assets/main/bg/ar_shoots_night_1.webp' },
-  { id: 'ar_shoots_night_2', n: 'Shoots · ночь 3', img: 'assets/main/bg/ar_shoots_night_2.webp' }]; // снимки карт из CS2 (владелец 19.11, assets/main/bg/)
+  { id: 'ar_shoots_night_1', n: 'Shoots · ночь 2', img: 'assets/main/bg/ar_shoots_night_1.webp' }]; // снимки карт из CS2 (владелец 19.11, assets/main/bg/)
 const MN_WPN = { awp: { n: 'AWP | Dragon Lore', f: 'awp-dragon-lore.glb', p: [-5.29, 0.19, -8.99] } }; // AK и другие — когда будут анимации держания (Blender), владелец 19.11: сначала фоны
 function mnCfg() { let c = {}; try { c = JSON.parse(localStorage.getItem('rc.mainCfg') || '{}') || {}; } catch (e) { /* */ } return { bg: MN_BG.some(b => b.id === c.bg) ? c.bg : 'ancient', wpn: MN_WPN[c.wpn] ? c.wpn : 'awp' }; }
 function mnCfgSet(k, v) { const c = mnCfg(); c[k] = v; try { localStorage.setItem('rc.mainCfg', JSON.stringify(c)); } catch (e) { /* */ } return c; }
@@ -2799,7 +2795,8 @@ function mnCfgUi() {
     $$('[data-k]', menu).forEach(b => b.onclick = e => {
       e.stopPropagation(); const { k, x } = b.dataset; if (mnCfg()[k] === x) return;
       const sc = $('.mm-list', menu); const top = sc ? sc.scrollTop : 0; mnCfgSet(k, x); draw(view); const sc2 = $('.mm-list', menu); if (sc2) sc2.scrollTop = top;
-      if (k === 'bg') { mnBgApply(); mnLampsPos(); } else if ($('#mnAgent')) mnAgent(); // новое оружие — агент пересобирается (без выхода)
+      if (k === 'bg') { mnBgApply(); mnLampsPos(); MNA.seen = false; } // новый фон — агент выходит заново (владелец 19.11)
+      if ($('#mnAgent')) mnAgent(); // новое оружие — агент пересобирается (без выхода)
     });
   };
   btn.onclick = e => { e.stopPropagation(); menu = $('#mnMenu'); if (!menu.hidden) return close(); draw('root'); menu.hidden = false; btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true'); };
