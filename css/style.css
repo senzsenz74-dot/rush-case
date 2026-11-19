@@ -7688,17 +7688,6 @@ body.pg-faq::before{inset:-24px;background-image:url("../assets/bg-main.webp");f
 body.pg-admin{--lw:0px;padding-left:0;padding-right:0}
 body.pg-admin .live{display:none}
 
-/* реф. страница: баннеры для соцсетей и стрима (19.11) */
-.rf-bn{display:grid;gap:12px;margin-top:16px}
-.rf-bn-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.rf-bn-i{display:grid;gap:10px;padding:10px;border-radius:2px;background:rgba(255,255,255,.03);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
-.rf-bn-v{height:170px;display:grid;place-items:center;border-radius:2px;background:rgba(0,0,0,.35);overflow:hidden;cursor:pointer}
-.rf-bn-v video{max-width:100%;max-height:100%;object-fit:contain;display:block}
-.rf-bn-t{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
-.rf-bn-t b{font:500 14px/1.2 'Oswald',var(--ff);letter-spacing:.04em;text-transform:uppercase;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rf-bn-t small{font-size:12px;color:var(--pt);white-space:nowrap}
-.rf-bn-a{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.rf-bn-d{justify-content:center;border-radius:2px;min-height:36px;padding:0 10px;font-size:13px;text-decoration:none}
-.rf-bn-d svg{width:15px;height:15px}
-@media (max-width:1100px){.rf-bn-g{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:560px){.rf-bn-g{grid-template-columns:1fr}.rf-bn-v{height:150px}}
+/* реф. страница: «Баннеры — Скачать» (все одним архивом, 19.11) */
+.rf-bn .rf-bn-d{margin-left:auto;height:32px;padding:0 14px;border-radius:2px;font-size:13px;text-decoration:none}
+.rf-bn .rf-bn-d svg{width:15px;height:15px}

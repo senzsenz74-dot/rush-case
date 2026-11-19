@@ -2924,15 +2924,6 @@ function rfGiftNow(D) {
   if (p && p.used < Math.min(p.g_n, p.max_gifts)) return { pct: Math.max(+c.friend_pct, Math.min(p.g_pct != null ? +p.g_pct : +c.friend_pct, +p.max_pct)), bal: Math.min(+p.g_bal, +p.max_bal), case: p.g_case && caseById(p.g_case) ? p.g_case : null };
   return { pct: +c.friend_pct, bal: 0, case: null };
 }
-// баннеры для соцсетей и стрима (владелец 19.11): анимация + картинка, файлы в assets/ref/
-const RF_BN = [['square_1080x1080', 'Пост', '1080×1080', 'mp4'], ['tiktok_reels_1080x1920', 'Сторис · ТикТок · Reels', '1080×1920', 'mp4'],
-  ['stream_corner_520x470', 'Угол на стриме', '520×470', 'webm'], ['stream_plashka_1600x330', 'Плашка на стриме', '1600×330', 'webm']];
-const rfBanners = () => `<article class="rf-card rf-c rf-bn"><h2 class="rf-h">Баннеры</h2>
-  <p class="rf-mute">Для соцсетей и стрима. Рядом с баннером оставьте свою ссылку — по ней друзья получат подарок.</p>
-  <div class="rf-bn-g">${RF_BN.map(([f, n, sz, ext]) => { const p = 'assets/ref/RUSHCASE_' + f; return `<div class="rf-bn-i">
-    <div class="rf-bn-v"><video src="${p}.${ext}" poster="${p}_prev.webp" muted loop playsinline preload="none"></video></div>
-    <div class="rf-bn-t"><b>${n}</b><small>${sz}</small></div>
-    <div class="rf-bn-a"><a class="rf-go rf-bn-d" href="${p}.${ext}" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Видео</a><a class="rf-btn rf-bn-d" href="${p}_poster.png" download>Картинка</a></div></div>`; }).join('')}</div></article>`;
 function rfDraw() {
   const box = $('#rf'), D = RF.D; if (!box || !D) return;
   const T = D.tot, W = D.wallet, P = D.partner, link = rfLink(D), shown = link.replace(/^https?:\/\//, ''), forever = !(+D.cfg.days);
@@ -2953,6 +2944,7 @@ function rfDraw() {
       <h2 class="rf-h">Ваша ссылка</h2>
       <div class="rf-url"><span class="rf-url-t" title="${esc(link)}">${esc(shown.slice(0, -D.code.length))}<b>${esc(D.code)}</b></span><button class="rf-go" data-act="copy" data-copy="${esc(link)}">${ic.copy}Копировать</button></div>
       <div class="rf-row"><span class="rf-lbl">Код в ссылке</span><b class="rf-code">${esc(D.code)}</b><button class="rf-mini" id="rfCode">${ic.edit}Изменить</button></div>
+      <div class="rf-row rf-bn"><span class="rf-lbl">Баннеры для соцсетей и стрима</span><a class="rf-go rf-bn-d" href="assets/ref/RUSHCASE_banners.zip" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Скачать</a></div>
       <div class="rf-share"><a class="rf-sq" href="https://t.me/share/url?url=${share}&text=${stext}" target="_blank" rel="noopener" title="Отправить в Telegram">${ic.tg}</a><a class="rf-sq" href="https://vk.com/share.php?url=${share}" target="_blank" rel="noopener" title="Поделиться ВКонтакте">${ic.vk}</a>
         <span class="rf-mute">Старая ссылка с вашим ID ${D.pid} тоже работает</span></div>
     </article>
@@ -2975,7 +2967,6 @@ function rfDraw() {
       <div class="rf-row rf-row-b"><span class="rf-lbl">Ваш процент</span><b>${String(+D.pct).replace('.', ',')}%</b>${P && P.pct != null ? '<i class="rf-tag">личный</i>' : ''}</div>
     </article>
   </div>
-  ${rfBanners()}
   <div class="rf-kpis">
     ${rfKpi('Приглашено', fmt(+T.friends), +T.today ? `сегодня <b class="rf-pos">+${fmt(+T.today)}</b>` : 'сегодня 0')}
     ${rfKpi('Пополнили', fmt(+T.deps), `конверсия <b>${conv}%</b>`)}
@@ -2999,7 +2990,6 @@ function rfDraw() {
     <div class="rf-more" id="rfMore"></div>
   </section>`;
   $('#rfRules').onclick = () => rfRules(D);
-  $$('.rf-bn-v', box).forEach(c => { const v = c.firstElementChild; c.onmouseenter = () => v.play().catch(() => {}); c.onmouseleave = () => v.pause(); }); // баннер оживает при наведении
   $('#rfCode').onclick = () => rfCodeWin(D);
   const ge = $('#rfGiftEd'); if (ge) ge.onclick = () => rfGiftEd(D);
   const gz = $('#rfGa'); if (gz) gz.onclick = gaStrWin;
