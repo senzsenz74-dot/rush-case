@@ -9,6 +9,8 @@
 //   POST ?action=close    (админ)    {thread} — обращение закрыто: в Telegram — просьба оценить помощь кнопками ⭐1–5
 //   POST ?action=shop_new (админ)    {id} — заявка сотрудника на витрину → в чат владельцев с кнопками ✅ / ❌ (supabase/shop_requests.sql)
 //   POST ?action=shop_upd (админ)    {id} — решение принято на сайте → обновить сообщение в чате владельцев
+//   POST ?action=ticket   (база)     {ticket} — новое обращение → в группу поддержки (триггер supabase/staff_perms.sql, шлёт один раз)
+//   В группе поддержки: «/link@бот КОД» (код — вкладка «Сотрудники», «Telegram — группа поддержки») привязывает её.
 //   В группе владельцев: «/link@бот КОД» (код — в админке, вкладка «Сотрудники») привязывает чат.
 //
 // Секрет (Edge Functions → Secrets): TG_BOT_TOKEN — токен бота от @BotFather. После него — кнопка «Подключить бота» в админке.
@@ -60,6 +62,20 @@ Deno.serve(async req => {
   try {
     if (action === 'info') return json({ bot: (await getBot()) || null });
 
+    if (action === 'ticket') { // новое обращение → в группу поддержки; база отдаёт его только один раз (bot_ticket_take)
+      const b = await req.json().catch(() => ({}));
+      const { data: t } = await db.rpc('bot_ticket_take', { p_ticket: Number(b.ticket) || 0 });
+      if (!t || !t.chat) return json({ ok: true });
+      const who = t.src === 'site' ? `${t.name || 'Игрок'}${t.pid ? ' (#' + t.pid + ')' : ''} — с сайта` : `${t.name || 'Без имени'}${t.tg_user ? ' @' + t.tg_user : ''} — из Telegram-бота`;
+      await tg('sendMessage', { chat_id: Number(t.chat), text: `🆕 Новое обращение №${t.ticket}
+От: ${who}
+
+${String(t.text || '').slice(0, 3500)}
+
+Ответить: https://rush-case.online/#/admin`, disable_web_page_preview: true });
+      return json({ ok: true });
+    }
+
     if (action === 'webhook') {
       if (req.headers.get('x-telegram-bot-api-secret-token') !== await hookSecret()) return json({ error: 'forbidden' }, 403);
       const u = await req.json().catch(() => ({}));
@@ -96,7 +112,10 @@ Deno.serve(async req => {
       // привязка чата владельцев: «/link@бот КОД» (в личке — «/link КОД»)
       const lk = /^\/link(?:@\w+)?\s+([A-Za-z0-9]{4,12})\s*$/.exec(m?.text || '');
       if (lk && m.chat) {
-        const { data: ok } = await db.rpc('bot_link_chat', { p_code: lk[1], p_chat: m.chat.id, p_title: m.chat.title || [m.from?.first_name, m.from?.last_name].filter(Boolean).join(' ') });
+        const title = m.chat.title || [m.from?.first_name, m.from?.last_name].filter(Boolean).join(' ');
+        const { data: sup } = await db.rpc('bot_link_sup', { p_code: lk[1], p_chat: m.chat.id, p_title: title });
+        if (sup) { await tg('sendMessage', { chat_id: m.chat.id, text: 'Группа поддержки привязана ✅ Сюда будут приходить новые обращения игроков.' }); return json({ ok: true }); }
+        const { data: ok } = await db.rpc('bot_link_chat', { p_code: lk[1], p_chat: m.chat.id, p_title: title });
         await tg('sendMessage', { chat_id: m.chat.id, text: ok ? 'Чат владельцев привязан ✅ Сюда будут приходить заявки сотрудников на изменение витрины.' : 'Код неверный или устарел — возьмите новый в админке (вкладка «Сотрудники»).' });
         return json({ ok: true });
       }

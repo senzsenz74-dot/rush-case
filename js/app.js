@@ -7550,6 +7550,7 @@ async function admRole() {
   return admMe;
 }
 const admOwner = () => !admMe || admMe.role === 'owner';
+const admCan = k => admOwner() || admMe.perms.includes(k); // галочка сотрудника (supabase/staff_perms.sql)
 const admTabs = () => admOwner() ? ADM_TABS : ADM_TABS.filter(([k]) => admMe.perms.includes(k));
 /* каталог цен и составы встроенных кейсов → на сервер (выпадение считает сервер по этим данным); грузим, если на сайте что-то поменялось */
 async function admSync(force) {
@@ -7725,7 +7726,7 @@ function admPeriodBar() {
   const [f, t] = admRangeDates();
   box.innerHTML = `<div class="ax-seg">${[['today', 'Сегодня'], ['yest', 'Вчера'], ['7d', '7 дней'], ['30d', '30 дней'], ['90d', '90 дней'], ['all', 'Всё время']].map(([k, n]) => `<button data-k="${k}" class="${admRange.k === k ? 'on' : ''}">${n}</button>`).join('')}</div>
     <div class="ax-dates"><input type="date" id="axFrom" value="${admIso(f)}"><i>—</i><input type="date" id="axTo" value="${admIso(new Date(+t - 864e5))}"><button class="ax-btn" id="axGo">Показать</button></div>
-    <button class="ax-btn" id="axRe" title="Обновить данные">${ic.history || '↻'}</button>${admOwner() ? '<button class="ax-btn" id="axXls" title="Выгрузить статистику за период в Excel">Excel</button>' : ''}`;
+    <button class="ax-btn" id="axRe" title="Обновить данные">${ic.history || '↻'}</button>${admCan('dash') ? '<button class="ax-btn" id="axXls" title="Выгрузить статистику за период в Excel">Excel</button>' : ''}`;
   $$('.ax-seg [data-k]', box).forEach(b => b.onclick = () => { admRange = { k: b.dataset.k }; admPeriodBar(); admDraw(); });
   $('#axGo', box).onclick = () => { const a = $('#axFrom', box).value, b = $('#axTo', box).value; if (!a || !b || a > b) return toast('Проверьте даты', 'err'); admRange = { k: 'custom', from: a, to: b }; admPeriodBar(); admDraw(); };
   $('#axRe', box).onclick = () => { admData = null; admDraw(); };
@@ -8134,9 +8135,11 @@ async function axBooks(box, D) {
   });
 }
 /* ---------- сотрудники (только владелец): кому какие вкладки, график смен (для отчётов) ---------- */
-const STAFF_PERMS = [['support', 'Поддержка'], ['out', 'Выводы Steam'], ['online', 'Онлайн'], ['players', 'Игроки (поиск, без начислений)'], ['shop', 'Управление витриной (через подтверждение)']];
+// галочки сотрудника = окна админки (как в меню слева) + «Начисления»; окно «Сотрудники» — только владельцам (supabase/staff_perms.sql)
+const STAFF_PERMS = () => { const T = ADM_TABS.filter(([k]) => k !== 'staff'), inG = new Set(ADM_GROUPS.flatMap(g => g[1]));
+  return [...ADM_GROUPS.map(([g, ks]) => [g, T.filter(([k]) => ks.includes(k))]), ['Другое', T.filter(([k]) => !inG.has(k))], ['Деньги игроков', [['grant', 'Начисления и удача (игрокам и кейсам)']]]].filter(g => g[1].length); };
 const WDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-const STAFF_ERR = { 'player not found': 'Игрок с таким ID не найден', 'is owner': 'Это владелец — у него и так все права', forbidden: 'Только владелец может менять сотрудников' };
+const STAFF_ERR = { 'player not found': 'Игрок с таким ID не найден', 'is owner': 'Это владелец — у него и так все права', 'no grant': 'Удачу меняет только сотрудник с галочкой «Начисления и удача»', forbidden: 'Только владелец может менять сотрудников' };
 // чат владельцев: сюда бот присылает заявки сотрудников на витрину (кнопки ✅ / ❌); привязка — кодом из админки
 async function sfTg(el, code) {
   if (!el) return;
@@ -8149,6 +8152,18 @@ async function sfTg(el, code) {
       : `<button class="ax-btn" id="sfTgCode">${data.chat ? 'Привязать другой чат' : 'Привязать чат'}</button>`}`;
   const b = $('#sfTgCode', el); if (b) b.onclick = () => sfTg(el, true);
 }
+// группа поддержки: бот присылает туда каждое НОВОЕ обращение (с сайта и из бота), чтобы никто не пропустил
+async function sfSup(el, code) {
+  if (!el) return;
+  const [{ data, error }] = await Promise.all([sb.rpc('admin_sup_chat', { p_new_code: !!code }), supBotLoad()]);
+  if (!el.isConnected) return;
+  if (error) return (el.innerHTML = '<p class="ax-foot">Выполните supabase/staff_perms.sql в Supabase.</p>');
+  const bot = esc(supBot || 'бот'), cmd = `/link@${bot} ${data.code}`;
+  el.innerHTML = `${data.chat ? `<p>Привязана группа <b>${esc(data.title || data.chat)}</b>${data.linked_at ? ` <small class="ax-mute">с ${new Date(data.linked_at).toLocaleDateString('ru-RU')}</small>` : ''} — сюда приходит каждое новое обращение.</p>` : '<p class="neg">Группа не привязана — новые обращения видны только во вкладке «Поддержка».</p>'}
+    ${data.code ? `<ol class="sf-tg-steps"><li>Создайте группу в Telegram и добавьте туда сотрудников поддержки.</li><li>Добавьте в неё @${bot}.</li><li>Отправьте в группе сообщение (код действует 30 минут):<br><button class="ax-btn ax-sm" data-act="copy" data-copy="${cmd}"><b>${cmd}</b> — копировать</button></li><li>Бот ответит «Группа поддержки привязана ✅». Потом обновите эту страницу.</li></ol>`
+      : `<button class="ax-btn" id="sfSupCode">${data.chat ? 'Привязать другую группу' : 'Привязать группу'}</button>`}`;
+  const b = $('#sfSupCode', el); if (b) b.onclick = () => sfSup(el, true);
+}
 async function admStaff(box) {
   box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем сотрудников…</div>';
   const { data, error } = await sb.rpc('admin_staff_list');
@@ -8158,7 +8173,7 @@ async function admStaff(box) {
   const who = s => `<span class="at-u">${axAva({ name: s.name || '?', ava: s.ava }, 'xs')}<span><b><i class="at-id">#${s.pid}</i>${plink(s.pid, esc(s.name || '?'))}</b><small>в команде с ${new Date(s.since).toLocaleDateString('ru-RU')}</small></span></span>`;
   const row = s => { const sc = s.schedule || {}, days = sc.days || [], P = s.perms || []; return `<div class="sf-row" data-pid="${s.pid}" data-uid="${s.uid}">
       <div class="sf-who">${who(s)}</div>
-      <div class="sf-perms">${STAFF_PERMS.map(([k, n]) => `<label class="sf-chk"><input type="checkbox" data-p="${k}" ${P.includes(k) ? 'checked' : ''}>${n}</label>`).join('')}</div>
+      <div class="sf-perms">${STAFF_PERMS().map(([g, L]) => `<div class="sf-pg"><b>${g}</b><span>${L.map(([k, n]) => `<label class="sf-chk"><input type="checkbox" data-p="${k}" ${P.includes(k) ? 'checked' : ''}>${n}</label>`).join('')}</span></div>`).join('')}</div>
       <div class="sf-sch"><span class="sf-days">${WDAYS.map((d, i) => `<label class="sf-day"><input type="checkbox" data-d="${i + 1}" ${days.includes(i + 1) ? 'checked' : ''}><i>${d}</i></label>`).join('')}</span>
         <span class="sf-time"><input type="time" class="ax-inp" data-f value="${esc(sc.from || '10:00')}"><i>—</i><input type="time" class="ax-inp" data-to value="${esc(sc.to || '22:00')}"><small>по Москве</small></span></div>
       <div class="sf-acts"><input class="ax-inp sf-note" data-n placeholder="Заметка" maxlength="200" value="${esc(s.note || '')}"><button class="ax-ok ax-sm" data-save>Сохранить</button><button class="ax-btn ax-sm" data-del>Снять права</button></div></div>`; };
@@ -8167,9 +8182,10 @@ async function admStaff(box) {
       <p class="ax-foot">Игрок получит доступ в админку без разделов — отметьте галочками, что ему можно, задайте график и нажмите «Сохранить». Права действуют сразу; сотруднику достаточно обновить страницу.</p>`)}
     ${axCard(`Сотрудники <small class="ax-mute">${staff.length}</small>`, staff.length ? `<div class="sf-list">${staff.map(row).join('')}</div>` : '<p class="ax-mute">Сотрудников пока нет.</p>')}
     ${axCard('Владельцы', `<div class="sf-own">${owners.map(who).join('')}</div>
-      <p class="ax-foot">Сотрудник не видит и не может менять: удачу кейсов и игроков, начисления, кассу, бухгалтерию и деньги на дашборде, промокоды, настройки маркета, турниры и этот раздел. Витрина — только заявками, которые одобряет владелец (в Telegram или в «Управлении витриной»). Выводы — только заявки «ждут решения» (дороже порога автовывода). График смен нужен для отчётов.</p>`)}
+      <p class="ax-foot">Каждая галочка открывает окно целиком — как у владельца: смотреть и менять. Начисления баланса и удачу игрокам и кейсам даёт только галочка «Начисления и удача». Окно «Сотрудники» — только владельцам. График смен нужен для отчётов.</p>`)}
+    ${axCard('Telegram — группа поддержки', '<div id="sfSup"><span class="ax-mute">Загружаем…</span></div>')}
     ${axCard('Telegram — чат владельцев', '<div id="sfTg"><span class="ax-mute">Загружаем…</span></div>')}`;
-  sfTg($('#sfTg', box));
+  sfTg($('#sfTg', box)); sfSup($('#sfSup', box));
   const err = e => STAFF_ERR[e.message] || 'Ошибка: ' + e.message;
   $('#sfAdd', box).onclick = async () => {
     const pid = +$('#sfPid', box).value;
@@ -8380,7 +8396,6 @@ function admDraw() {
   if (!sb) return (box.innerHTML = admErr({ message: 'нет связи с базой' }));
   const R = { dash: axDash, money: axMoney, books: axBooks, online: axOnline, cases: axCases, bets: axBets, upg: axUpg, crash: axCrash, out: axOut, players: axPlayers };
   if (!admTabs().some(([k]) => k === admTab)) return;
-  if (!admOwner()) return admTab === 'online' ? admStaffOnline(box) : admTab === 'out' ? axOut(box, null) : admTab === 'players' ? admPlayers(box) : admTab === 'shop' ? admCases(box) : admSupport(box);
   if (admTab === 'staff') return admStaff(box);
   if (admTab === 'tours') return admTours(box);
   if (admTab === 'shop') return admCases(box);
@@ -8450,7 +8465,7 @@ async function admLiveEv(e, beep) {
 }
 async function admLiveInit() {
   if (!sb || !$('#axFeed')) return;
-  if (!admOwner()) return $('#axFeed').remove();
+  if (!admCan('dash')) return $('#axFeed').remove();
   admFeedDraw();
   if (!admLive.loaded) {
     admLive.loaded = true;
@@ -8482,13 +8497,12 @@ async function admSoft() {
   if (!box || !sb || admLive.busy || document.hidden || !ADM_SOFT.includes(admTab)) return;
   if (box.dataset.dirty || (a && box.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
   if (box.querySelector('.ax-col:hover, .ax-col:focus') || $('#modal-root .modal-ov')) return;
-  if (!admOwner() && admTab !== 'out') return;
   admLive.busy = true;
   const tab = admTab, y = window.scrollY, xs = $$('.ax-tw', box).map(e => e.scrollLeft);
   const back = () => { $$('.ax-tw', box).forEach((e, i) => { if (xs[i]) e.scrollLeft = xs[i]; }); if (Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y); };
   try {
     if (tab === 'out') {
-      const D = admOwner() ? await admFetch() : null;
+      const D = await admFetch();
       if (admTab !== tab || box !== $('#admBody')) return;
       box.classList.add('ax-quiet'); await axOut(box, D, true); back(); return;
     }
@@ -8596,7 +8610,7 @@ async function cfgSave(rows) {
   if (del.length) { const { error } = await sb.from('site_cfg').delete().in('k', del); if (error) return error; }
   return null;
 }
-const cfgErr = e => toast('Не сохранено: ' + e.message + (/site_cfg/.test(e.message) ? ' — запустите supabase/site_cfg.sql' : ''), 'err');
+const cfgErr = e => toast('Не сохранено: ' + (/no grant/.test(e.message) ? 'удачу меняет только сотрудник с галочкой «Начисления и удача»' : e.message) + (/site_cfg/.test(e.message) ? ' — запустите supabase/site_cfg.sql' : ''), 'err');
 /* правка кейса → caseCfg + применить на месте + загрузить кейсы на сервер */
 /* ---------- витрина для сотрудника: правка не пишется сразу, а уходит заявкой владельцу (чат владельцев в Telegram + админка) — supabase/shop_requests.sql ---------- */
 const supBotCall = async (action, body) => {
@@ -8652,7 +8666,7 @@ async function shopReqs(el) {
 }
 async function caseCfgPut(changes) { // { id: правка | null }
   const rows = Object.entries(changes).map(([id, v]) => ({ k: 'case:' + id, v }));
-  if (!admOwner()) return shopAsk(Object.entries(changes).map(([id, v]) => shopCaseLine(id, v)), rows.map(r => ({ t: 'cfg', k: r.k, v: r.v && Object.keys(r.v).length ? r.v : null })));
+  if (!admCan('shop')) return shopAsk(Object.entries(changes).map(([id, v]) => shopCaseLine(id, v)), rows.map(r => ({ t: 'cfg', k: r.k, v: r.v && Object.keys(r.v).length ? r.v : null })));
   const e = await cfgSave(rows); if (e) { cfgErr(e); return false; }
   Object.entries(changes).forEach(([id, v]) => { if (v && Object.keys(v).length) caseCfg[id] = v; else delete caseCfg[id]; const c = caseById(id); if (c) { applyCaseCfg(c); applyLuck(c, c.luck || 1); } });
   CASES.sort((a, b) => a.price - b.price);
@@ -8669,13 +8683,13 @@ function admCases(box) {
         <span class="ac-acts"><button class="ac-edit">${ic.edit || '✎'}Изменить</button><button class="ac-tg${nw ? ' on' : ''}" data-tg="isNew">Новое</button><button class="ac-tg ac-hit${ht ? ' on' : ''}" data-tg="hit">Хит</button>${c.custom ? '<button class="ac-del">Удалить</button>' : ''}</span></div>
       <div class="ac-m"><span>Окупаемость</span><b class="ac-rtp">${pctS(caseRtp(c))}</b></div>
       <div class="ac-m"><span>Дороже кейса</span><b class="ac-win">${pctS(caseWin(c))}</b></div>
-      <div class="ac-luck"${admOwner() ? '' : ' style="display:none"'}><span>Удача <b class="ac-lv">×${l.toFixed(2)}</b></span><input type="range" min="0.5" max="3" step="0.05" value="${l}" class="ac-r"></div>
+      <div class="ac-luck"${admCan('grant') ? '' : ' style="display:none"'}><span>Удача <b class="ac-lv">×${l.toFixed(2)}</b></span><input type="range" min="0.5" max="3" step="0.05" value="${l}" class="ac-r"></div>
       <label class="switch ac-sw"><input type="checkbox" class="ac-open"${c.disabled ? '' : ' checked'}><i></i><span>${c.disabled ? 'Закрыт' : 'Открыт'}</span></label>
       <button class="ax-ok ax-sm ac-save" disabled>Сохранить</button>
     </div>`;
   };
   const groups = CASE_BLOCKS.map(b => ({ b, list: blockCases(b) }));
-  box.innerHTML = `<div id="shopReq"></div><div id="bnAdm"></div>${admOwner() ? "" : `<p class="ax-foot sr-note">Вы — сотрудник: любые правки витрины уходят владельцу на подтверждение (Telegram и админка) и появятся на сайте после одобрения. Удачу кейсов меняет только владелец.</p>`}<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="ax-btn ax-sm" id="acBlocks">${ic.menu || ''}Разделы</button><button class="ax-btn ax-sm" id="acCloseAll">Закрыть все</button><button class="ax-btn ax-sm" id="acOpenAll">Открыть все</button><button class="ax-ok ax-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Изменить» — название, цена, картинка, раздел и наполнение любого кейса. Стрелки — порядок внутри раздела. «Новое» и «Хит» — метки на карточке (хиты показываются в популярных на главной). «Удача» умножает шанс всех предметов дороже кейса. Изменения у игроков — после обновления страницы.</p></div>
+  box.innerHTML = `<div id="shopReq"></div><div id="bnAdm"></div>${admCan('shop') ? "" : `<p class="ax-foot sr-note">Вы — сотрудник: любые правки витрины уходят владельцу на подтверждение (Telegram и админка) и появятся на сайте после одобрения. Удачу кейсов меняет только владелец.</p>`}<div class="adm-panel"><div class="adm-ph"><h3>Кейсы</h3><span class="adm-ph-acts"><button class="ax-btn ax-sm" id="acBlocks">${ic.menu || ''}Разделы</button><button class="ax-btn ax-sm" id="acCloseAll">Закрыть все</button><button class="ax-btn ax-sm" id="acOpenAll">Открыть все</button><button class="ax-ok ax-sm" id="acNew">${ic.plus}Создать кейс</button></span><p>«Изменить» — название, цена, картинка, раздел и наполнение любого кейса. Стрелки — порядок внутри раздела. «Новое» и «Хит» — метки на карточке (хиты показываются в популярных на главной). «Удача» умножает шанс всех предметов дороже кейса. Изменения у игроков — после обновления страницы.</p></div>
     ${groups.map(({ b, list }) => `<div class="ac-grp" style="--bc:${b.a}"><div class="ac-gh"><b>${esc(b.t)}</b><span>${list.length} ${plural(list.length, 'кейс', 'кейса', 'кейсов')}</span></div>
       <div class="adm-cases">${list.length ? list.map((c, i) => row(c, i, list.length)).join('') : '<div class="empty">Пусто — перенесите сюда кейс через «Изменить»</div>'}</div></div>`).join('')}</div>`;
   shopReqs($('#shopReq', box)); admBanners($('#bnAdm', box));
@@ -8684,7 +8698,7 @@ function admCases(box) {
   // все кейсы разом: удача у каждого остаётся своя
   const setAll = async (off, btn) => {
     if (off && !confirm('Закрыть все кейсы? Игроки не смогут их открывать, пока вы не откроете обратно.')) return;
-    if (!admOwner()) { if (await shopAsk([`${off ? 'Закрыть' : 'Открыть'} все кейсы (${CASES.length})`], CASES.map(c => ({ t: 'open', id: c.id, disabled: off })))) admCases(box); return; }
+    if (!admCan('shop')) { if (await shopAsk([`${off ? 'Закрыть' : 'Открыть'} все кейсы (${CASES.length})`], CASES.map(c => ({ t: 'open', id: c.id, disabled: off })))) admCases(box); return; }
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     const now = new Date().toISOString();
     const { error } = await sb.from('case_settings').upsert(CASES.map(c => ({ id: c.id, disabled: off, luck: c.luck || 1, updated_at: now, updated_by: st.user.id })));
@@ -8700,13 +8714,13 @@ function admCases(box) {
     // метки «Новое» / «Хит» — сразу
     $$('.ac-tg', el).forEach(b => b.onclick = async () => {
       const k = b.dataset.tg, on = !b.classList.contains('on'); b.disabled = true;
-      if (k === 'isNew' && c.custom && !admOwner()) { if (!(await shopAsk([`Кейс «${c.name}»: «Новое» ${on ? 'вкл' : 'выкл'}`], [{ t: 'new', id: c.id, on }]))) b.disabled = false; else admCases(box); return; }
+      if (k === 'isNew' && c.custom && !admCan('shop')) { if (!(await shopAsk([`Кейс «${c.name}»: «Новое» ${on ? 'вкл' : 'выкл'}`], [{ t: 'new', id: c.id, on }]))) b.disabled = false; else admCases(box); return; }
       if (k === 'isNew' && c.custom) {
         const { error } = await sb.from('custom_cases').update({ is_new: on }).eq('id', c.id);
         if (error) { b.disabled = false; return toast('Не сохранено: ' + error.message, 'err'); }
         const rw = customCaseRows.find(x => x.id === c.id); if (rw) rw.is_new = on; c.isNew = on;
       } else if (!(await caseCfgPut({ [c.id]: { ...(caseCfg[c.id] || {}), [k]: on } }))) { b.disabled = false; return; }
-      if (admOwner()) toast(`«${esc(c.name)}»: ${k === 'hit' ? 'Хит' : 'Новое'} ${on ? 'включено' : 'выключено'}`); admCases(box);
+      if (admCan('shop')) toast(`«${esc(c.name)}»: ${k === 'hit' ? 'Хит' : 'Новое'} ${on ? 'включено' : 'выключено'}`); admCases(box);
     });
     // порядок внутри раздела: всем кейсам раздела проставляем номера и меняем местами соседей
     const move = async d => {
@@ -8719,7 +8733,7 @@ function admCases(box) {
     $('.ac-up', el).onclick = () => move(-1); $('.ac-dn', el).onclick = () => move(1);
     const dl = $('.ac-del', el); if (dl) dl.onclick = async () => {
       if (!confirm(`Удалить кейс «${c.name}»? Игроки больше не смогут его открыть (уже выпавшие скины останутся).`)) return;
-      if (!admOwner()) { if (await shopAsk([`Удалить кейс «${c.name}»`], [{ t: 'case_del', id: c.id }])) admCases(box); return; }
+      if (!admCan('shop')) { if (await shopAsk([`Удалить кейс «${c.name}»`], [{ t: 'case_del', id: c.id }])) admCases(box); return; }
       const { error } = await sb.from('custom_cases').delete().eq('id', c.id);
       if (error) return toast('Не удалено: ' + error.message, 'err');
       removeCustomCase(c.id); customCaseRows = customCaseRows.filter(x => x.id !== c.id); toast(`Кейс «${esc(c.name)}» удалён`); admCases(box);
@@ -8734,7 +8748,7 @@ function admCases(box) {
     };
     r.oninput = preview; sw.onchange = preview;
     save.onclick = async () => {
-      if (!admOwner()) { save.disabled = true; if (await shopAsk([`Кейс «${c.name}»: ${sw.checked ? 'открыть' : 'закрыть'}`], [{ t: 'open', id: c.id, disabled: !sw.checked }])) admCases(box); else save.disabled = false; return; }
+      if (!admCan('shop')) { save.disabled = true; if (await shopAsk([`Кейс «${c.name}»: ${sw.checked ? 'открыть' : 'закрыть'}`], [{ t: 'open', id: c.id, disabled: !sw.checked }])) admCases(box); else save.disabled = false; return; }
       save.disabled = true; save.innerHTML = '<span class="spinner"></span>';
       const { error } = await sb.from('case_settings').upsert({ id: c.id, disabled: !sw.checked, luck: +r.value, updated_at: new Date().toISOString(), updated_by: st.user.id });
       save.textContent = 'Сохранить';
@@ -8774,7 +8788,7 @@ function admBlocks(done) {
     if (B.some(b => !b.t.trim())) return toast('У каждого раздела должно быть название', 'err');
     const btn = $('#ablSave', m); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     const v = B.map(b => ({ ...b, t: b.t.trim(), sub: b.sub.trim(), wm: b.wm.trim() || b.t.trim().slice(0, 8).toUpperCase() }));
-    if (!admOwner()) {
+    if (!admCan('shop')) {
       const was = CASE_BLOCKS.map(b => b.t).join(', '), now = v.map(b => b.t).join(', ');
       if (await shopAsk([`Разделы витрины: ${was === now ? 'подписи, значки, цвета' : was + ' → ' + now}`], [{ t: 'cfg', k: 'blocks', v }])) { closeModal(); done && done(); } else { btn.disabled = false; btn.textContent = 'Сохранить'; }
       return;
@@ -8807,7 +8821,7 @@ function admBanners(el) {
     el.innerHTML = `<div class="adm-panel bn"><div class="adm-ph"><h3>Баннеры на главной</h3><span class="adm-ph-acts">
         <label class="ax-ok ax-sm bn-up">${ic.plus}Добавить баннер<input type="file" id="bnFile" accept="image/png,image/jpeg,image/webp" hidden></label>
         <button class="ax-btn ax-sm" id="bnReset">Вернуть стандартные</button>
-        <button class="ax-ok ax-sm" id="bnSave"${changed ? '' : ' disabled'}>${admOwner() ? 'Сохранить' : 'Отправить на подтверждение'}</button></span></div>
+        <button class="ax-ok ax-sm" id="bnSave"${changed ? '' : ' disabled'}>${admCan('shop') ? 'Сохранить' : 'Отправить на подтверждение'}</button></span></div>
       <p class="bn-req"><b>Размер баннера: 2000 × 800 px</b> (пропорции 2,5 : 1) · PNG, JPG или WebP до 12 МБ.
         Важное — текст и кнопки — держите ближе к центру: на телефоне края чуть подрезаются. Картинку других пропорций сайт обрежет по центру до 2,5 : 1.</p>
       <div class="bn-list">${L.length ? L.map((x, i) => { const exp = now > bannerUntil(x.until), stt = x.off ? 'скрыт' : exp ? 'срок вышел' : 'на главной'; return `<div class="bn-row${x.off || exp ? ' off' : ''}" data-i="${i}">
@@ -8851,7 +8865,7 @@ function admBanners(el) {
     };
     $('#bnSave', el).onclick = async () => {
       const v = L.map(x => { const o = { id: x.id, img: x.img, title: x.title || '' }; if (x.b) o.b = 1; else o.link = bannerLink(x.link); if (x.until) o.until = x.until; if (x.off) o.off = true; return o; });
-      if (!admOwner()) {
+      if (!admCan('shop')) {
         const del = was.filter(w => !v.some(x => x.id === w.id)).map(w => w.title), add = v.filter(x => !was.some(w => w.id === x.id)).map(x => x.title);
         const lines = [`Баннеры главной: ${v.filter(x => !x.off).map(x => x.title || 'без названия').join(' → ') || 'нет'}`];
         if (add.length) lines.push('Добавлены: ' + add.join(', ')); if (del.length) lines.push('Удалены: ' + del.join(', '));
@@ -9132,7 +9146,7 @@ function admCaseEditor(row, done, base) {
   v('cedCancel').onclick = closeModal;
   const rs = v('cedReset'); if (rs) rs.onclick = async () => {
     if (!confirm(`Вернуть кейс «${base.name}» к исходному виду из кода? Пропадут все правки: название, цена, картинка, раздел, метки, порядок, наполнение.`)) return;
-    rs.disabled = true; if (await caseCfgPut({ [base.id]: null })) { closeModal(); if (admOwner()) toast(`«${esc(base.name)}» — как было`); done && done(); } else rs.disabled = false;
+    rs.disabled = true; if (await caseCfgPut({ [base.id]: null })) { closeModal(); if (admCan('shop')) toast(`«${esc(base.name)}» — как было`); done && done(); } else rs.disabled = false;
   };
   v('cedSave').onclick = async () => {
     const id = v('cedId').value.trim().toLowerCase(), name = v('cedName').value.trim(), p = price(), tot = E.items.reduce((a, x) => a + x.ch, 0);
@@ -9155,11 +9169,11 @@ function admCaseEditor(row, done, base) {
       if (blk !== caseBlockId(base)) delete o.ord; // в новом разделе — в конец по умолчанию
       if (itemsDirty) o.items = E.items.map(x => ({ n: x.n, ch: Math.round(x.ch / tot * 1e8) / 1e8 }));
       if (!(await caseCfgPut({ [id]: o }))) return fail();
-      closeModal(); if (admOwner()) toast(`Кейс «${esc(name)}» обновлён — у игроков после обновления страницы`); done && done(); return;
+      closeModal(); if (admCan('shop')) toast(`Кейс «${esc(name)}» обновлён — у игроков после обновления страницы`); done && done(); return;
     }
     const rec = { id, name, price: p, img: E.img, accent: acc, block: blk, is_new: isNew, sub: sub || null,
       items: E.items.map(x => ({ n: x.n, ch: Math.round(x.ch / tot * 1e8) / 1e8 })), updated_at: new Date().toISOString() };
-    if (!admOwner()) { // сотрудник: кейс из панели — заявкой владельцу
+    if (!admCan('shop')) { // сотрудник: кейс из панели — заявкой владельцу
       const old = customCaseRows.find(x => x.id === id), ops = [{ t: 'case', row: rec }];
       if (hit !== (old ? isHitCase(caseById(id) || {}) : false)) ops.push({ t: 'cfg', k: 'case:' + id, v: { ...(caseCfg[id] || {}), hit } });
       const L = { name: 'название', price: 'цена', img: 'картинка', accent: 'цвет', block: 'раздел', is_new: '«Новое»', sub: 'подпись', items: 'предметы и шансы' };
@@ -9181,7 +9195,7 @@ function admCaseEditor(row, done, base) {
 /* ---------- игроки: поиск, начисление баланса ---------- */
 let admQ = '';
 async function admPlayers(box) {
-  const own = admOwner();
+  const own = admCan('grant');
   box.innerHTML = `<div class="adm-panel"><div class="adm-ph"><h3>Игроки</h3>
       <div class="search adm-search"><input class="inp" id="admQ" placeholder="ID, ник или e-mail" value="${esc(admQ)}" autocomplete="off">${ic.search}</div></div>
     <div id="admList"><div class="adm-load"><span class="spinner"></span>Загружаем игроков…</div></div></div>`;
