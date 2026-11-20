@@ -1339,11 +1339,12 @@ function makeWorld(T, RB, RE, cv, PP) {
   };
   function cctvDraw() {   // кадр камеры: свою голову на это время возвращаем (от первого лица она скрыта), экран прячем (нельзя рисовать в текстуру, которую он показывает)
     const me = AV[mySeat], M = me && me.on && me.M;
+    const hs = M ? M.head.scale.x : 1, rz = M ? M.root.position.z : 0;   // вернуть как было (у себя модель сдвинута — ME_BACK/ME_FWD)
     if (M) { M.head.scale.setScalar(1); M.root.position.z = 0; }
     const au = ren.shadowMap.autoUpdate; ren.shadowMap.autoUpdate = false; for (const b of boards) b.visible = false; for (const o of overhead) o.visible = false;
     ren.setRenderTarget(cctvRT); ren.render(scene, cctvCam); ren.setRenderTarget(null);
     for (const b of boards) b.visible = true; ren.shadowMap.autoUpdate = au; for (const o of overhead) o.visible = true;
-    if (M) { M.head.scale.setScalar(1e-4); M.root.position.z = .1; }
+    if (M) { M.head.scale.setScalar(hs); M.root.position.z = rz; }
   }
   function ovDraw(t) {   // надписи камеры: номер, REC (мигает), дата и время
     const x = ovC.getContext('2d'), W2 = 640, H2 = 344, d = new Date(), p = n => String(n).padStart(2, '0');
@@ -1449,7 +1450,8 @@ function makeWorld(T, RB, RE, cv, PP) {
     g.rotation.order = 'YXZ'; g.rotation.set(-Math.PI / 2, .55, 0);   // лежит на боку, стволом чуть вбок
     g.position.set(0, TOP + .025, 0);                                   // барабан (радиус 2,4 см) касается сукна
     scene.add(g);
-    return { g, drum, axis: 'x', hammer: null, half: .025, seat: 0, muzzle: V(.215, .012, 0) };
+    // tp — где лежит на столе; who — чья рука держит, hw — рука дотянулась (0…1), lw — поднят к виску (0…1); kz/hop/kick — рывки от курка и выстрела
+    return { g, drum, axis: 'x', hammer: null, half: .025, seat: 0, muzzle: V(.215, .012, 0), tp: { x: 0, z: 0, yaw: .55 }, sl: null, who: 0, hw: 0, lw: 0, kz: 0, hop: 0, kick: 0, rush: false, drop: false, play: false };
   })();
   const flashL = new T.PointLight(0xffc27a, 0, 3.5, 2); flashL.position.set(0, -10, 0); scene.add(flashL);   // вспышка выстрела (лампа заранее: новая = подвисание)
   W.gun = gun;
@@ -1681,13 +1683,14 @@ function makeWorld(T, RB, RE, cv, PP) {
       snow.pts.position.set(GLOBE.x, TOP, GLOBE.z); scene.add(snow.pts);
     }
   }
+  const ME_BACK = .1, ME_FWD = .08;   // своя модель на 10 см позади камеры (глаза модели = камера, воротник не в кадре); своё место вместе с камерой — на 8 см ближе к столу, чтобы руки лежали на бортике (видно только у себя)
   const mdlFor = s => MDL[mdlOrder[s - 1]] || null;
   const showAV = a => {   // видимость фигуры: модель, пока не загружена — манекен; у себя без головы
     const vis = !menuOn && a.on, man = vis && !a.M;
     a.body.visible = man; a.card.visible = false;   // рулетка: карточек нет
     a.arm.forEach(r => { r.up.visible = r.fo.visible = r.el.visible = r.hand.visible = man; r.shp.visible = man && !a.me; });
     a.headParts.forEach(o => { o.visible = !a.me; });
-    if (a.M) { a.M.root.visible = vis; a.M.head.scale.setScalar(a.me ? 1e-4 : 1); a.M.root.position.z = a.me ? .1 : 0; }   // у себя модель на 10 см назад: глаза модели = камера, воротник не лезет в кадр
+    if (a.M) { a.M.root.visible = vis; a.M.head.scale.setScalar(a.me ? 1e-4 : 1); a.M.root.position.z = a.me ? ME_BACK - ME_FWD : 0; }   // у себя модель сдвинута назад (ME_BACK): глаза модели = камера, воротник не лезет в кадр
     a.cb.visible = !(a.me && a.M);   // свою спинку стула не видно, а сдвинутая спина в неё заходит
   };
   const mdlApply = () => {
@@ -1724,8 +1727,7 @@ function makeWorld(T, RB, RE, cv, PP) {
           gun.g.add(wrap);
           const dr = sc.getObjectByName('drum'); if (dr) { gun.drum = dr; gun.axis = 'z'; }
           gun.hammer = sc.getObjectByName('hammer') || null;
-          gun.half = (bb.max.z - bb.min.z) / 2; gun.muzzle = V(bb.max.x - c.x, .01, 0);
-          gun.g.position.y = TOP + gun.half;
+          gun.half = (bb.max.z - bb.min.z) / 2; gun.muzzle = V(bb.max.x - c.x, .039, 0);   // ось ствола — на 3,9 см выше центра (замер 20.11)
         } catch (e) { console.warn('RR revolver', e); }
       }, undefined, e => console.warn('RR revolver', e));
       CHARS.forEach((n, i) => ld.load('assets/krot/' + n + '.glb?v=1', gl => {
@@ -1747,15 +1749,18 @@ function makeWorld(T, RB, RE, cv, PP) {
   // поза модели за кадр (после того как карточка встала на место)
   const poseModel = (a, t, dt) => {
     const M = a.M, B = M.B, g = a.g;
+    // револьвер (этап 4): held — рука тянется к нему (0…1), lift — поднят к виску; пока тянется к столу — корпус наклоняется вперёд
+    const held = gun.who === a.s ? gun.hw : 0, lift = held ? easeIO(gun.lw) : 0, lk = held ? easeIO(held) * (1 - lift) : 0;
     for (let i = 0; i < M.bones.length; i++) M.bones[i].quaternion.copy(M.rest[i]);
     M.root.updateMatrixWorld(true);
     wq(g, _qs);
     const ax = _t3.set(1, 0, 0).applyQuaternion(_qs);
-    // корпус: чуть вперёд + дыхание
-    const br = Math.sin(t * 1.6 + a.s * 1.3);
-    _qc.setFromAxisAngle(ax, -.05); rotW(B.spine_0, _qc);
-    _qc.setFromAxisAngle(ax, -.04); rotW(B.spine_1, _qc);
-    _qc.setFromAxisAngle(ax, -.03 + br * .012); rotW(B.spine_2, _qc);
+    // корпус: чуть вперёд + дыхание (+ наклон к револьверу)
+    const br = Math.sin(t * 1.6 + a.s * 1.3), ln = a.me ? 0 : lk * .28;   // у себя не наклоняемся: шея и воротник влезли бы в камеру (владелец 20.11)
+    _qc.setFromAxisAngle(ax, -.05 - ln * .4); rotW(B.spine_0, _qc);
+    _qc.setFromAxisAngle(ax, -.04 - ln * .35); rotW(B.spine_1, _qc);
+    _qc.setFromAxisAngle(ax, -.03 - ln * .25 + br * .012); rotW(B.spine_2, _qc);
+    { const th = (a.me ? .3 : 0) + (a.me ? 0 : lk * .2); if (th && B.clavicle_r) { _t1.set(0, 1, 0).applyQuaternion(_qs); _qc.setFromAxisAngle(_t1, th); rotW(B.clavicle_r, _qc); _qc.setFromAxisAngle(_t1, -th); rotW(B.clavicle_l, _qc); } }   // плечи вперёд
     // ноги: щиколотки на полу перед стулом, колени под столом
     for (const [k, sd] of [['l', -1], ['r', 1]]) {
       const L = M.L['leg' + k];
@@ -1769,32 +1774,51 @@ function makeWorld(T, RB, RE, cv, PP) {
     a.gk += ((a.spk && !a.me ? 1 : 0) - a.gk) * (1 - Math.exp(-dt * 5));
     _eg.set(a.hp * .85 + a.gk * .06 * Math.sin(t * 7.3), a.hy * .9, 0); _qg.setFromEuler(_eg);
     _qh.copy(_qs).multiply(_qI.identity().slerp(_qg, .35)).multiply(M.rel.neck); setW(B.neck_0, _qh);
-    _qh.copy(_qs).multiply(_qg).multiply(M.rel.head); setW(B.head_0, _qh);
-    // руки: ладони за нижними углами карточки, пальцы вверх; при речи правая рука жестикулирует
-    a.card.matrixWorld.decompose(_ps, _qh2, _sc); _mi.copy(a.card.matrixWorld).invert();
+    _qh3.copy(_qs).multiply(_qg); _qh.copy(_qh3).multiply(M.rel.head); setW(B.head_0, _qh);
+    // револьвер в руке: на столе → дугой к виску (от первого лица уходит за правый край кадра); рывки курка и выстрела — дуло вверх
+    if (held) {
+      _eg2.set(-Math.PI / 2, gun.tp.yaw, 0); _gq.setFromEuler(_eg2); _gp.set(gun.tp.x, TOP + gun.half, gun.tp.z);
+      if (lift > 0) {
+        if (a.me && spec < .35 && tvK < .05) { _gd.copy(FPD).applyQuaternion(_qs); _gu.set(0, 1, 0).applyQuaternion(_qs); _gt.set(FPM.x, EYE + FPM.y, -.02 - ME_FWD + FPM.z).applyMatrix4(g.matrixWorld); }   // свой вид: дуло у виска привязано к телу — видно, если повернуть голову вправо
+        else { _gd.copy(TDIR).applyQuaternion(_qh3); _gu.set(0, 1, 0).applyQuaternion(_qh3); wp(B.head_0, _gt).add(_t1.copy(TEMPLE).applyQuaternion(_qh3)); }
+        frameQ(_gd, _gu, _gtq); _gt.sub(_t1.copy(gun.muzzle).applyQuaternion(_gtq));   // центр револьвера = дуло − дуло в его осях
+        _gp.lerp(_gt, lift); _gp.y += Math.sin(Math.PI * lift) * .1; _gq.slerp(_gtq, lift);   // дугой вверх — над бортиком
+      }
+      if (gun.kz || gun.kick) { _qc.setFromAxisAngle(_t1.set(0, 0, 1), gun.kz + gun.kick * .3 * lift); _gq.multiply(_qc); _gp.addScaledVector(_t1.set(-1, 0, 0).applyQuaternion(_gq), gun.kick * .02 * lift); }
+      _gw.copy(GRIP_W).applyQuaternion(_gq).add(_gp);   // где запястье
+      _t1.copy(GRIP_F).applyQuaternion(_gq); _t2.copy(GRIP_A).applyQuaternion(_gq); frameQ(_t1, _t2, _gfq);
+    }
+    // руки (владелец 20.11): просто лежат на бортике ладонями вниз; правая берёт револьвер в свой ход; при речи правая рука жестикулирует
+    if (!a.rest || a.rest.me !== a.me) a.rest = { me: a.me, l: handRest(a, -1), r: handRest(a, 1) };
     for (const [k, sd] of [['l', -1], ['r', 1]]) {
-      const L = M.L['arm' + k], pl = M['palm' + k];
-      _t1.set(-.15 * sd, 1, 0).applyQuaternion(_qh2);                 // пальцы
-      _t2.set(sd, 0, 0).applyQuaternion(_qh2);                         // от мизинца к большому
+      const L = M.L['arm' + k], hk = k === 'r' && held ? easeIO(held) : 0;
+      _t1.set(-sd * .22, .1, -1).applyQuaternion(_qs);                // к пальцам: вперёд и чуть внутрь
+      _t2.set(-sd, 0, 0).applyQuaternion(_qs);                         // от мизинца к большому — к середине
       frameQ(_t1, _t2, _qh);
-      _f3.set(0, 0, -1).applyQuaternion(_qh2);                         // за карточку
-      _e4.set(sd * .041, -.06, 0).applyMatrix4(a.card.matrixWorld).addScaledVector(_f1, -pl * .95).addScaledVector(_f3, .026);   // хват у нижних углов: карточку видно над пальцами
-      const gk = k === 'r' ? a.gk : 0;
+      _e4.copy(a.rest[k]);
+      const gk = k === 'r' && !held ? a.gk : 0;
       if (gk > .01) {
         _t1.set(-.25, .28 + .14 * Math.sin(t * 4.3 + a.s), -1).applyQuaternion(_qs); _t2.set(1, 0, 0).applyQuaternion(_qs);
         frameQ(_t1, _t2, _qc);
         _t3.set(.17 + .025 * Math.sin(t * 3.1), .93 + .035 * Math.sin(t * 4.3 + a.s), -.27 + .03 * Math.sin(t * 2.2)).applyMatrix4(g.matrixWorld);
         _e4.lerp(_t3, gk); _qh.slerp(_qc, gk);
       }
+      if (hk) { _e4.lerp(_gw, hk); if (!lift) _e4.y += Math.sin(Math.PI * hk) * .05; _qh.slerp(_gfq, hk); }   // тянется к рукояти дугой
       _t3.set(sd * .75, -1, .35).applyQuaternion(_qs);                 // локти — вниз и в стороны
+      if (hk && lift) _t3.lerp(_t1.set(1, -.3, .2).applyQuaternion(_qs), lift);   // у виска локоть — в сторону
       ik2(B['arm_upper_' + k], B['arm_lower_' + k], B['hand_' + k], _e4, _t3, L[0], L[1]);
       setW(B['hand_' + k], _qh.multiply(M.hand[k]));
-      // пальцы: в исходной позе модели они согнуты и прошли бы сквозь карточку — каждую фалангу выпрямляем до рубашки (оси фаланг в 2,2 см за карточкой)
-      if (gk < .5) M['fing' + k].forEach((ch, fi) => {
+      if (hk > .6) {   // револьвер в руке: идёт за кистью; если рука не дотянулась — в конце дотягивания сам скользит в ладонь
+        const wA = lift > 0 ? 1 : easeIO((hk - .6) / .4);
+        wp(B.hand_r, _t1).sub(_gw); _gp.addScaledVector(_t1, wA);
+        gun.g.position.copy(_gp); gun.g.quaternion.copy(_gq);
+      }
+      // пальцы: в исходной позе модели согнуты — на бортике каждую фалангу, что ушла бы в стол, кладём на его поверхность; рука с револьвером — согнуты вокруг рукояти
+      if (!hk && gk < .5) M['fing' + k].forEach((ch, fi) => {
         for (let j = 0; j < 3; j++) {
           if (j < 2) wp(ch[j + 1], _t1); else _t1.copy(M['tip' + k][fi]).applyMatrix4(ch[2].matrixWorld);
-          _t2.copy(_t1).applyMatrix4(_mi); if (_t2.z <= -.022) continue;
-          _t2.z = -.022; _t2.applyMatrix4(a.card.matrixWorld); aim(ch[j], _t1, _t2);
+          const y = railH(_t1.x, _t1.z) + .009; if (_t1.y >= y) continue;
+          _t2.copy(_t1); _t2.y = y; aim(ch[j], _t1, _t2);
         }
       });
     }
@@ -1823,6 +1847,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       const a = AV[s], p = d.players.find(x => x.seat === s);
       a.on = !!p; a.me = !!(p && p.me); a.bOn = false;
       a.dead = !!(p && p.alive === false && ph !== 'lobby');
+      if (!a.dead) a.vDead = false; else if (gun.who !== s || clock >= (gun.holdUntil || 0)) a.vDead = true;   // у стреляющего «выбыл» приходит раньше выстрела — голову опускаем после выстрела (W.event)
       showAV(a);
       a.tag.visible = !menuOn && !a.me;
       const st2 = !p ? 'free' : ph === 'lobby' ? (p.online ? (p.ready ? 'ready' : 'wait') : 'off') : p.left ? 'left' : a.dead ? 'dead' : ph === 'done' && p.place === 1 ? 'win' : g && ph === 'play' && g.turn === s ? 'turn' : !p.online ? 'off' : '';
@@ -1830,33 +1855,68 @@ function makeWorld(T, RB, RE, cv, PP) {
       if (key !== a.tagKey) { a.tagKey = key; if (a.tag.material.map) a.tag.material.map.dispose(); a.tag.material.map = tex(paintTag(s, p ? p.name : '', st2)); a.tag.material.needsUpdate = true; }
     }
     btnActive = false;
+    gun.play = ph === 'play';   // револьвер берут в руки только во время хода
     gunTo(g && ['play', 'next'].includes(ph) ? g.turn || 0 : 0);
   };
-  // револьвер лежит на сукне перед игроком, стволом вправо от него; seat 0 — посреди стола
+  // револьвер лежит на сукне у правой руки того, чей ход: стволом вперёд-влево, рукоятью к руке — чтобы взять его правой рукой (этап 4); seat 0 — посреди стола
   function gunSpot(seat) {
     if (!seat) return { x: 0, z: 0, yaw: .55 };
-    const p = SEAT[seat], k = SEAT_OFF + .15 + .09 + .2;   // от стула: бортик, дерево и ещё 20 см по сукну
-    return { x: p.x - Math.sin(p.yaw) * k, z: p.z - Math.cos(p.yaw) * k, yaw: p.yaw + .35 };
+    const p = SEAT[seat], f = SEAT_OFF + .15 + .09 + .05, r = .1;   // от стула: бортик, дерево и 5 см по сукну, на 10 см правее
+    return { x: p.x - Math.sin(p.yaw) * f + Math.cos(p.yaw) * r, z: p.z - Math.cos(p.yaw) * f - Math.sin(p.yaw) * r, yaw: p.yaw + Math.PI / 2 + .35 };
   }
   W.specGo = s => { specAt = clock + s; };   // свой выстрел показан — через s с камера улетает в наблюдатели
-  W.hold = ms => { gun.holdUntil = clock + ms / 1000; };   // пока звучит выстрел — револьвер не уезжает к следующему
+  W.hold = ms => { gun.holdUntil = clock + ms / 1000; };   // пока звучит выстрел — револьвер у виска и не уезжает к следующему
   function gunTo(seat) {
-    if (clock < (gun.holdUntil || 0)) { gun.pend = seat; return; }
-    if (gun.seat === seat) return; gun.seat = seat;
-    const o = gun.g, to = gunSpot(seat), x0 = o.position.x, z0 = o.position.z;
-    let y0 = o.rotation.y, y1 = to.yaw; while (y1 - y0 > Math.PI) y1 -= Math.PI * 2; while (y1 - y0 < -Math.PI) y1 += Math.PI * 2;
-    const id = (gun.mv = (gun.mv || 0) + 1);
-    if (!menuOn && Math.hypot(to.x - x0, to.z - z0) > .05) rrSound('slide');   // револьвер едет по столу (звук подогнан под 0,85 с)
-    tween(.85, k => { if (gun.mv !== id) return; const e = easeIO(k); o.position.x = x0 + (to.x - x0) * e; o.position.z = z0 + (to.z - z0) * e; o.position.y = TOP + gun.half;   /* владелец 20.11: скользит по сукну, без подлёта */ o.rotation.y = y0 + (y1 - y0) * e; });
+    if (gun.seat === seat) { gun.pend = null; return; }
+    if (clock < (gun.holdUntil || 0) || gun.who) { gun.pend = seat; return; }   // сначала кладёт на стол (gunStep), потом едет
+    gun.seat = seat;
+    const to = gunSpot(seat), tp = gun.tp;
+    let y1 = to.yaw; while (y1 - tp.yaw > Math.PI) y1 -= Math.PI * 2; while (y1 - tp.yaw < -Math.PI) y1 += Math.PI * 2;
+    if (!menuOn && Math.hypot(to.x - tp.x, to.z - tp.z) > .05) rrSound('slide');   // револьвер едет по столу (звук подогнан под 0,85 с)
+    gun.sl = { x0: tp.x, z0: tp.z, y0: tp.yaw, x1: to.x, z1: to.z, y1, k: 0 };   // владелец 20.11: скользит по сукну, без подлёта (ход — в gunStep)
   }
-  // события стола: прокрутка барабана, щелчок курка, выстрел (вспышка у дула)
+  // револьвер в руке (этап 4, владелец 20.11): ходящий правой рукой берёт его со стола и подносит к виску; после щелчка кладёт обратно, и он едет к следующему.
+  // Кисть на рукояти — в осях револьвера (x — ствол, y — верх, z — правый бок): к пальцам поперёк рукояти, от мизинца к указательному вверх по рукояти, запястье за рукоятью
+  const GRIP_F = V(.94, -.35, 0), GRIP_A = V(.35, .94, 0), GRIP_W = V(-.153, -.002, .025);
+  const TEMPLE = V(.088, .035, -.035), TDIR = V(-1, -.05, .3).normalize();
+  const FPM = V(.17, -.04, -.11), FPD = V(-.85, .05, .5).normalize();   // от первого лица (в осях места, от глаз; владелец 20.11): дуло справа у виска, смотрит в голову — прямо не видно, повернёшь голову вправо — видно; кисть и револьвер за ним   // дуло у правого виска (в осях головы: вправо, вверх, −z вперёд), ствол — в голову, рукоять чуть впереди
+  const _eg2 = new T.Euler(0, 0, 0, 'YXZ'), _gp = V(0, 0, 0), _gq = new T.Quaternion(), _gt = V(0, 0, 0), _gtq = new T.Quaternion(), _gu = V(0, 0, 0), _gd = V(0, 0, 0), _gw = V(0, 0, 0), _gfq = new T.Quaternion(), _qh3 = new T.Quaternion();
+  const gunStep = dt => {
+    const sp = gun.rush ? 4 : 1;   // нажали «Выстрел»/«Крутить», а револьвер ещё не у виска — всё быстрее
+    if (gun.sl) { const s = gun.sl; s.k = Math.min(1, s.k + dt / .85 * sp); const e = easeIO(s.k); gun.tp.x = s.x0 + (s.x1 - s.x0) * e; gun.tp.z = s.z0 + (s.z1 - s.z0) * e; gun.tp.yaw = s.y0 + (s.y1 - s.y0) * e; if (s.k >= 1) gun.sl = null; }
+    let want = 0;
+    if (!menuOn && gun.play && gun.seat && gun.pend == null && !gun.sl) { const a = AV[gun.seat]; if (a && a.on && a.M && !a.vDead) want = gun.seat; }
+    if (clock < (gun.holdUntil || 0) && gun.who) want = gun.who;   // щелчок/выстрел ещё звучит — держит у виска
+    if (gun.who && gun.who !== want) {   // опускает на стол и отпускает
+      if (gun.lw > 0) gun.lw = Math.max(0, gun.lw - dt / .6 * sp * (gun.drop ? 1.6 : 1));
+      else { gun.hw = Math.max(0, gun.hw - dt / .35 * sp); if (!gun.hw) { gun.who = 0; gun.drop = false; } }
+    } else if (want) {                   // тянется, берёт, подносит к виску
+      gun.who = want;
+      if (gun.hw < 1) gun.hw = Math.min(1, gun.hw + dt / .45 * sp); else gun.lw = Math.min(1, gun.lw + dt / .8 * sp);
+    }
+    if (gun.rush && ((gun.who && gun.who === want && gun.lw >= 1) || (!want && !gun.who && !gun.sl && gun.pend == null))) gun.rush = false;
+    if (gun.pend != null && !gun.who && clock >= (gun.holdUntil || 0)) { const ps = gun.pend; gun.pend = null; gunTo(ps); }
+    // на столе (пока рука не подняла — модель в poseModel перепишет)
+    _eg2.set(-Math.PI / 2, gun.tp.yaw, gun.kz); gun.g.quaternion.setFromEuler(_eg2);
+    gun.g.position.set(gun.tp.x, TOP + gun.half + gun.hop, gun.tp.z);
+  };
+  // где лежат кисти (запястье): на бортике, ближе к верху; свои — чуть дальше, чтобы в кадре были выше (владелец 20.11: «руки повыше»)
+  const railH = (x, z) => { const r = Math.hypot(x / TA, z / TB) || 1e-6, d = Math.hypot(x, z) * (1 / r - 1); if (d < 0) return -1; if (d > RAIL) return TOP; const u = (d - RAIL / 2) / (RAIL / 2); return TOP + .03 + RAIL / 2 * .62 * Math.sqrt(Math.max(0, 1 - u * u)); };   // высота стола над точкой: кожаный бортик (труба), дальше дерево и сукно
+  const handRest = (a, sd) => {
+    const want = a.me ? .08 : .04, o = V(0, 0, 0); let f = .25;   // want — запястье от внешнего края бортика (м)
+    for (; f < .6; f += .004) { o.set(sd * .16, 0, -f).applyMatrix4(a.g.matrixWorld); const r = Math.hypot(o.x / TA, o.z / TB), d = Math.hypot(o.x, o.z) * (1 / r - 1); if (d >= want) break; }
+    o.y = Math.max(railH(o.x, o.z), TOP + .03) + .026; return o;
+  };
+  // события стола: прокрутка барабана (в руке — тоже), взвод курка, щелчок, выстрел (вспышка у дула)
   W.event = ev => {
     const ax = gun.axis, dr = gun.drum, o = gun.g;
+    if ((ev.kind === 'spin' || ev.kind === 'cock') && ev.seat && (gun.who !== ev.seat || gun.lw < 1)) gun.rush = true;   // нажали раньше, чем револьвер у виска — догоняем
     if (ev.kind === 'spin' && dr) { const a0 = dr.rotation[ax], a1 = a0 + (Math.PI / 3) * (12 + rnd(12)); tween(1.2, k => { dr.rotation[ax] = a0 + (a1 - a0) * (1 - Math.pow(1 - k, 3)); }); }
-    if (ev.kind === 'cock') { const r0 = o.rotation.z; tween(.18, k => { o.rotation.z = r0 + Math.sin(Math.PI * k) * .05; }); return; }   // взвели курок — короткий рывок
+    if (ev.kind === 'cock') { tween(.18, k => { gun.kz = k < 1 ? Math.sin(Math.PI * k) * .05 : 0; }); return; }   // взвели курок — короткий рывок
     if ((ev.kind === 'click' || ev.kind === 'bang') && dr) { const a0 = dr.rotation[ax]; tween(.12, k => { dr.rotation[ax] = a0 + (Math.PI / 3) * k; }); }
-    if (ev.kind === 'click' || ev.kind === 'bang') { const big = ev.kind === 'bang' ? 1 : .35, y0 = TOP + gun.half; tween(.35, k => { o.position.y = y0 + Math.sin(Math.PI * k) * .025 * big; }); }
+    if (ev.kind === 'click' || ev.kind === 'bang') { const big = ev.kind === 'bang' ? 1 : .35; tween(.35, k => { const s = k < 1 ? Math.sin(Math.PI * k) * big : 0; gun.hop = s * .025; gun.kick = s; }); }   // на столе подпрыгивает, в руке — дуло вверх
     if (ev.kind === 'bang') {
+      const a = AV[ev.seat]; if (a) a.vDead = true; gun.drop = true;   // голова падает только теперь (падение и кровь — следующий этап)
       o.updateMatrixWorld(); flashL.position.copy(gun.muzzle).applyMatrix4(o.matrixWorld); flashL.position.y += .05;
       tween(.45, k => { flashL.intensity = 40 * Math.pow(1 - k, 2); });
     }
@@ -1932,6 +1992,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   W.frame = (dt, t) => {
     clock += dt;
     for (let i = tw.length - 1; i >= 0; i--) { const x = tw[i], k = (clock - x.t0) / x.dur; if (k < 0) continue; x.fn(Math.min(1, k)); if (k >= 1) { tw.splice(i, 1); x.res(); } }
+    gunStep(dt);   // револьвер: едет по столу, кто его держит
     // камера
     if (menuOn) {
       const a = t * .045; cam.position.set(Math.sin(a) * 2.75, 1.95, Math.cos(a) * 2.75); cam.lookAt(0, .78, 0);
@@ -1939,8 +2000,9 @@ function makeWorld(T, RB, RE, cv, PP) {
       if (tvD || tvK || spec) { tvD = null; tvKey = ''; tvK = 0; spec = 0; specF = 0; ren.domElement.style.filter = ''; }   // в меню — экран итога и вид выбывшего сбрасываем сразу
     } else {
       if (auto) { const f = 1 - Math.exp(-dt * 3); yaw += (auto.y - yaw) * f; pitch += (auto.p - pitch) * f; }
-      const me = AV[mySeat]; me.g.updateMatrixWorld(); _a.set(0, EYE, -.02).applyMatrix4(me.g.matrixWorld);
-      cam.position.copy(_a); cam.rotation.set(pitch, seatYaw(mySeat) + yaw, 0);
+      const me = AV[mySeat], gl = gun.who === mySeat ? easeIO(gun.hw) * easeIO(gun.lw) : 0;   // свой ход: у виска — голова чуть наклонена влево
+      me.g.updateMatrixWorld(); _a.set(0, EYE, -.02 - ME_FWD).applyMatrix4(me.g.matrixWorld);
+      cam.position.copy(_a); cam.rotation.set(pitch, seatYaw(mySeat) + yaw, .06 * gl);
       // выбыл — камера плавно уходит под потолок и медленно облетает стол сверху (наблюдатель)
       if (!me.dead) specAt = Infinity; else if (specAt === Infinity) specAt = clock + 3;   // владелец 20.11: сначала выстрел, потом камера вверх (specGo из rrEvent; без события — через 3 с)
       spec += ((me.dead && clock >= specAt ? 1 : 0) - spec) * (1 - Math.exp(-dt * 1.2));
@@ -1983,7 +2045,8 @@ function makeWorld(T, RB, RE, cv, PP) {
         a.bCap.position.y = .031 - .009 * a.bk; a.bDome.position.y = .042 - .009 * a.bk; a.bCapM.emissiveIntensity = .2 + 1.7 * a.bk + (hov ? .35 : 0) + (btnActive && a.me && !on ? .15 * (1 + Math.sin(t * 4)) : 0); a.bGlow.material.opacity = .9 * a.bk; }
       if (!a.on || menuOn) continue;
       const f = 1 - Math.exp(-dt * 9);
-      if (a.dead && !a.me) { a.ty = 0; a.tp = -1; }   // выбыл — голова опущена (падение и кровь — этап 4)
+      if (a.dead && !a.vDead && clock >= (gun.holdUntil || 0) + .5) a.vDead = true;
+      if (a.vDead && !a.me) { a.ty = 0; a.tp = -1; }   // выбыл — голова опущена (падение и кровь — этап 4)
       if (!a.me) { a.hy += (a.ty - a.hy) * f; a.hp += (a.tp - a.hp) * f; a.hd.rotation.set(a.hp * .85, a.hy * .9, 0); }
       if (!a.M) a.body.position.y = Math.sin(t * 1.7 + s * 1.3) * .004;
       { const o = a.sp.material, want = a.spk && !a.me ? 1 : 0; o.opacity += (want - o.opacity) * (1 - Math.exp(-dt * 14)); a.sp.visible = o.opacity > .02; const k2 = 1 + (a.spk ? Math.sin(t * 12) * .08 : 0); a.sp.scale.set(.1 * k2, .1 * k2, 1); }
@@ -2028,7 +2091,6 @@ function makeWorld(T, RB, RE, cv, PP) {
     }
     if (mineN && !BX[mineN].open && !menuOn) { mine.position.set(BX[mineN].g.position.x, TOP + .27 + Math.sin(t * 2.4) * .006, BX[mineN].g.position.z); mine.material.opacity += (1 - mine.material.opacity) * .2; }
     else mine.material.opacity *= .8;
-    if (gun.pend != null && clock >= (gun.holdUntil || 0)) { const ps = gun.pend; gun.pend = null; gunTo(ps); }
     if (flames.length) { const fl = .82 + .1 * Math.sin(t * 9.1) + .07 * Math.sin(t * 23.7 + 1.3) + .04 * Math.sin(t * 41); candL.intensity = 1.6 * fl; for (const f of flames) { const k = 1 + .12 * Math.sin(t * 13 + f.k) + .06 * Math.sin(t * 29 + f.k * 2); f.sp.scale.set(.026 * (2 - k) * .9, .052 * k, 1); } }
     if (snow.pts) { const p = snow.pts.geometry.attributes.position, a = p.array; for (let i = 0; i < snow.v.length; i++) { a[i * 3 + 1] -= snow.v[i] * dt; a[i * 3] += Math.sin(t * .7 + i) * .0009 * dt; if (a[i * 3 + 1] < .042) { a[i * 3 + 1] = .11; a[i * 3] = (Math.random() - .5) * .1; a[i * 3 + 2] = (Math.random() - .5) * .1; } } p.needsUpdate = true; }
     for (const m of haze) { m.f += m.v * dt; m.sp.position.x = Math.cos(m.f) * m.r; m.sp.position.z = Math.sin(m.f) * m.r; m.sp.position.y = m.y0 + Math.sin(t * .15 + m.k) * .12; m.sp.material.rotation += m.rv * dt; }
