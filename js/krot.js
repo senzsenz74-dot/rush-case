@@ -256,6 +256,8 @@ function onClick(e) {
   else if (a === 'copy') copy(S && S.room.code, 'Код скопирован');
   else if (a === 'link') copy(S && location.origin + location.pathname + '#/krot/' + S.room.code, 'Ссылка-приглашение скопирована');
   else if (a === 'ready') ready();
+  else if (a === 'bot-add') botAct('krot_bot_add', {});
+  else if (a === 'bot-del') botAct('krot_bot_del', { p_seat: +b.dataset.seat });
   else if (a === 'leave') leaveAsk();
   else if (a === 'leave-yes') { closeOv(); leave(); }
   else if (a === 'again') again();
@@ -384,6 +386,10 @@ function coinTick(last) {   // звон монетки (владелец 20.11: 
     if (Math.random() < .5) ring(t0 + .035 + Math.random() * .03, f * (1.03 + Math.random() * .05), .014);   // звякнула о соседнюю
     if (last) { ring(t0 + .09, 3300, .03); ring(t0 + .17, 4100, .022); }   // последняя — «дзынь-дзынь»
   } catch (e) { /* без звука */ }
+}
+async function botAct(fn, args) {   // админ: добавить / убрать бота в лобби (сервер проверяет права)
+  if (!S || busy) return; busy = true;
+  try { await api.rpc(fn, Object.assign({ p_room: room }, args)); await refresh(); } catch (e) { note(errText(e), 'err'); } finally { busy = false; }
 }
 async function ready() {
   if (!S || busy) return; busy = true;
@@ -650,8 +656,9 @@ function drawMenu(wait) {
   ensureHandlers();
 }
 // кнопки меню: поиск и группа (подбор как в CS2 — раздел «Подбор матча»)
+const pnum = p => p ? p.members.length + (p.bots ? p.bots.length : 0) : 0;   // мест в лобби: люди + боты (владелец 20.11)
 function menuPlay() {
-  const p = MM.st && MM.st.party, srch = !!(p && p.state === 'search'), n = p ? p.members.length : 1;
+  const p = MM.st && MM.st.party, srch = !!(p && p.state === 'search'), n = p ? pnum(p) : 1;
   return `<button class="kr-btn ${srch ? 'red' : 'go'} kr-big" data-a="play"><span>${srch ? 'Отменить поиск' : 'Найти игру'}</span><small>${srch ? 'Идёт поиск: <b id="krMmT">0:00</b>' : n > 1 ? `Лобби ${n}/5${n >= 5 ? " · без очков недели" : ""}` : 'Случайные игроки · очки недели'}</small></button>
     <button class="kr-btn kr-big" data-a="invite"><span>${n > 1 ? `Лобби ${n}/5` : 'Создать лобби'}</span><small>Код или ссылка · до 5 человек</small></button>`;
 }
@@ -938,11 +945,11 @@ async function vcFillDevs(scope) {   // списки микрофонов и д�
 }
 function spkTest() { mmSound('connect', true, true); }
 function lobbyHtml() {
-  const r = S.room, priv = r.kind === 'private', n = S.players.length;
+  const r = S.room, priv = r.kind === 'private', n = S.players.length, adm = priv && !r.mm && S.me.admin;   // владелец 20.11: админ добавляет ботов в своё лобби
   const seats = SEATS.map(s => {
     const p = S.players.find(x => x.seat === s);
-    if (!p) return `<li class="free">${seatB(s)}<span>Свободное место</span><em>ждём</em></li>`;
-    return `<li class="${p.ready ? 'rd' : ''}${p.me ? ' me' : ''}${p.online ? '' : ' off'}">${seatB(s)}<span>${esc(p.name)}${p.me ? ' <small>(вы)</small>' : ''}</span><em>${!p.online ? 'нет связи' : p.ready ? 'готов' : 'не готов'}</em></li>`;
+    if (!p) return `<li class="free">${seatB(s)}<span>Свободное место</span>${adm ? '<button class="kr-btn sm" data-a="bot-add">+ Бот</button>' : '<em>ждём</em>'}</li>`;
+    return `<li class="${p.ready ? 'rd' : ''}${p.me ? ' me' : ''}${p.online ? '' : ' off'}${p.bot ? ' bot' : ''}">${seatB(s)}<span>${esc(p.name)}${p.me ? ' <small>(вы)</small>' : ''}${p.bot ? ' <i class="kr-botb">БОТ</i>' : ''}</span>${p.bot && adm ? `<button class="kr-btn sm ghost" data-a="bot-del" data-seat="${s}">Убрать</button>` : `<em>${!p.online ? 'нет связи' : p.ready ? 'готов' : 'не готов'}</em>`}</li>`;
   }).join('');
   return `<section class="kr-lob kr-glass"><span class="kr-h">${priv ? 'Комната друзей · без очков' : 'Быстрая игра · очки недели'}</span>
     <h2 class="kr-t">${priv ? 'Соберите группу' : 'Подбор игроков'}</h2>
@@ -1017,9 +1024,9 @@ function ovHtml(kind, arg) {
       const s2 = p.seat, dead = p.alive === false && ph !== 'lobby', turn = !!(g && ph === 'play' && g.turn === s2), win = ph === 'done' && p.place === 1;
       const st = p.left ? ['', 'вышел'] : !p.online ? ['off', 'нет связи'] : win ? ['win', 'победитель'] : dead ? ['dead', 'выбыл'] : turn ? ['turn', 'ходит'] : ph === 'lobby' ? ['', p.ready ? 'готов' : 'ждём'] : ['', 'в игре'];
       const k = vkey(p), mut = !!VC.mute[k], vol = Math.round((VC.vol[k] != null ? VC.vol[k] : 1) * 100);
-      const ctl = p.me ? '' : `<span class="rr-sbc"><button class="rr-sbi${mut ? ' on' : ''}" data-a="vmute" data-seat="${s2}" title="${mut ? 'Включить звук игрока' : 'Заглушить игрока'}">${mut ? ICO.spkOff : ICO.spk}</button><input type="range" min="0" max="100" value="${vol}" data-vol="${s2}" aria-label="Громкость: ${esc(p.name)}"><button class="rr-sbrep" data-a="report" data-seat="${s2}">Пожаловаться</button></span>`;
+      const ctl = p.me || p.bot ? '' : `<span class="rr-sbc"><button class="rr-sbi${mut ? ' on' : ''}" data-a="vmute" data-seat="${s2}" title="${mut ? 'Включить звук игрока' : 'Заглушить игрока'}">${mut ? ICO.spkOff : ICO.spk}</button><input type="range" min="0" max="100" value="${vol}" data-vol="${s2}" aria-label="Громкость: ${esc(p.name)}"><button class="rr-sbrep" data-a="report" data-seat="${s2}">Пожаловаться</button></span>`;
       return `<tr class="${p.me ? 'me' : ''}${dead ? ' dead' : ''}${turn ? ' turn' : ''}"><td class="x">${dead ? '✕' : ''}</td><td class="mic"><i class="rr-sbmic" data-spk="${s2}">${ICO.mic}</i></td><td class="av"><b>${s2}</b></td>
-        <td class="nm"><span>${esc(p.name)}</span>${p.me ? '<small>(вы)</small>' : ''}<em class="kr-vst" data-vst="${s2}">${vcPeerText(s2)}</em></td><td class="st ${st[0]}">${st[1]}</td>
+        <td class="nm"><span>${esc(p.name)}</span>${p.me ? '<small>(вы)</small>' : ''}${p.bot ? '<i class="kr-botb">БОТ</i>' : `<em class="kr-vst" data-vst="${s2}">${vcPeerText(s2)}</em>`}</td><td class="st ${st[0]}">${st[1]}</td>
         <td>${p.clicks || 0}</td><td>${p.spins || 0}</td><td>${p.place || '—'}</td><td class="pt">${S.room.points ? (p.pts != null ? '+' + p.pts : '—') : '—'}</td><td class="ct">${ctl}</td></tr>`;
     }).join('');
     const rnd2 = g ? g.round : 0, bl = g ? g.bullets : 0;
@@ -1147,7 +1154,7 @@ function sendHead(t) {
   if (Math.abs(h.y - sent.y) < .015 && Math.abs(h.p - sent.p) < .015 && t - sent.t < 2000) return;
   sent = { y: h.y, p: h.p, t };
   const y = +h.y.toFixed(3), p = +h.p.toFixed(3), n = VC.core ? VC.core.sendData({ h: [y, p] }) : 0;
-  const need = S.players.filter(q => !q.me && !q.left).length;
+  const need = S.players.filter(q => !q.me && !q.left && !q.bot).length;
   if (n < need && chRt && t - headRt > 250) { headRt = t; try { chRt.send({ type: 'broadcast', event: 'h', payload: { s: S.me.seat, y, p } }); } catch (e) { /* канал ещё не готов */ } }
 }
 
@@ -1875,8 +1882,8 @@ function makeWorld(T, RB, RE, cv, PP) {
       showAV(a);
       a.tag.visible = !menuOn && !a.me;
       const st2 = !p ? 'free' : ph === 'lobby' ? (p.online ? (p.ready ? 'ready' : 'wait') : 'off') : p.left ? 'left' : a.dead ? 'dead' : ph === 'done' && p.place === 1 ? 'win' : g && ph === 'play' && g.turn === s ? 'turn' : !p.online ? 'off' : '';
-      const key = (p ? p.name : '') + '|' + st2;
-      if (key !== a.tagKey) { a.tagKey = key; if (a.tag.material.map) a.tag.material.map.dispose(); a.tag.material.map = tex(paintTag(s, p ? p.name : '', st2)); a.tag.material.needsUpdate = true; }
+      const key = (p ? p.name + (p.bot ? '·b' : '') : '') + '|' + st2;
+      if (key !== a.tagKey) { a.tagKey = key; if (a.tag.material.map) a.tag.material.map.dispose(); a.tag.material.map = tex(paintTag(s, p ? p.name + (p.bot ? ' · БОТ' : '') : '', st2)); a.tag.material.needsUpdate = true; }
     }
     btnActive = false;
     gun.play = ph === 'play';
@@ -2659,7 +2666,7 @@ function vcTick() {
 function vcSummary() {
   if (VC.err) return { cls: 'bad', t: VC.err };
   if (VC.demo) return { cls: '', t: VC.micErr ? VC.micErr : 'Демо: ботов не слышно, ваш микрофон проверяется' };
-  const others = S ? S.players.filter(p => !p.me && !p.left) : [];
+  const others = S ? S.players.filter(p => !p.me && !p.left && !p.bot) : [];
   const ok = others.filter(p => VC.core && VC.core.state(p.seat) === 'connected'), bad = others.filter(p => VC.rem[p.seat] && VC.rem[p.seat].st === 'failed');
   let t = !VC.ready ? 'Голос: подключение…' : others.length ? `Голос: ${ok.length} из ${others.length}` : 'Голос: ждём игроков';
   if (bad.length) t += ` · нет связи: ${bad.map(p => p.name).join(', ')} — пишите в чат`;
@@ -2815,7 +2822,7 @@ function mmSchedule() {
   if (!MM.on) return;
   const s = MM.st, p = s && s.party;
   if (!p && !(s && s.game)) return mmStop();   // группы нет — опрашивать нечего
-  if (p && p.members.length === 1 && p.state === 'idle' && !s.game && !s.match && !MM.hold) {   // один и не ищет — группа не нужна
+  if (p && pnum(p) === 1 && p.state === 'idle' && !s.game && !s.match && !MM.hold) {   // один и не ищет — группа не нужна
     if (MM.busy) return mmTick(1000);   // идёт «Играть» — состояние «один, без поиска» могло устареть
     mmApi('krot_party_leave').then(x => { mmApply(x); mmSchedule(); }, () => mmTick(2000));   // не вышли (сервер: идёт «Принять») — опрос не останавливаем
     return;
@@ -2829,7 +2836,7 @@ function mmApply(s) {
   const prev = MM.st; MM.st = s; MM.at = Date.now(); MM.off = (s.now || Date.now()) - Date.now();
   try { if (s.party || s.game) localStorage.setItem('krot:mm', '1'); else localStorage.removeItem('krot:mm'); } catch (e) { /* приватный режим */ }
   const p = s.party;
-  if (p && p.members.length > 1 && !MM.hold) { MM.hold = true; LS.set('hold', true); }
+  if (p && pnum(p) > 1 && !MM.hold) { MM.hold = true; LS.set('hold', true); }
   if (!p && MM.hold) { MM.hold = false; LS.set('hold', false); }
   // события группы — один раз
   const n = p && p.note;
@@ -2955,7 +2962,7 @@ function mmDraw() {
       bar.addEventListener('click', e => { if (e.target.closest('.krmm-x')) mmCancel(); });
     }
     bar.querySelector('.krmm-bh').textContent = found ? 'Игра найдена' : 'Поиск игры';
-    bar.querySelector('.krmm-bm').innerHTML = 'Русская рулетка' + (p && p.members.length > 1 ? `<br>лобби ${p.members.length}/${NS}` : '');
+    bar.querySelector('.krmm-bm').innerHTML = 'Русская рулетка' + (p && pnum(p) > 1 ? `<br>лобби ${pnum(p)}/${NS}` : '');
     bar.querySelector('.krmm-x').hidden = found;
     bar.classList.toggle('found', found);
     mmPlace(bar);
@@ -2988,22 +2995,22 @@ function mmSlots() {   // владелец 20.11: друзья в лобби —
   const inv = document.getElementById('mnInvite');
   if (inv) { const old = inv.querySelector('.krmm-mates'); if (old) { old.remove(); inv.classList.remove('krmm-has'); const lab = inv.querySelector(':scope > span'); if (lab && lab.dataset.t) lab.textContent = lab.dataset.t; } }
   const card = document.getElementById('mnKrot'); if (!card) return;
-  const p = MM.st && MM.st.party, mates = p ? p.members.filter(m => !m.me) : [];
+  const p = MM.st && MM.st.party, mates = p ? p.members.filter(m => !m.me).concat((p.bots || []).map(b => ({ name: b.name + ' · БОТ', online: true }))) : [];
   let box = document.getElementById('krmmFr');
   if (!mates.length) { if (box) box.remove(); return; }
   if (!box) { box = document.createElement('div'); box.id = 'krmmFr'; box.className = 'krmm-fr'; box.addEventListener('click', () => K.mmInvite()); card.appendChild(box); }
-  box.innerHTML = `<span class="krmm-frh">Лобби · ${p.members.length}/${NS}</span>` + mates.map(m => `<span class="krmm-fri${m.online ? '' : ' off'}" title="${esc(m.name)}${m.leader ? ' — лидер лобби' : ''}${m.online ? '' : ' — нет связи'}"><i>${avaHtml(m)}</i><em>${esc(m.name)}</em>${m.leader ? '<s>лидер</s>' : ''}</span>`).join('');
+  box.innerHTML = `<span class="krmm-frh">Лобби · ${pnum(p)}/${NS}</span>` + mates.map(m => `<span class="krmm-fri${m.online ? '' : ' off'}" title="${esc(m.name)}${m.leader ? ' — лидер лобби' : ''}${m.online ? '' : ' — нет связи'}"><i>${avaHtml(m)}</i><em>${esc(m.name)}</em>${m.leader ? '<s>лидер</s>' : ''}</span>`).join('');
 }
 function mmCard() {
   const b = document.querySelector('.mnk-go'); if (!b) return;
   const s = MM.st, p = s && s.party, srch = !!(p && p.state === 'search');
   b.textContent = s && s.match ? 'Игра найдена' : srch ? 'Отменить поиск' : 'Играть';
   b.classList.toggle('krmm-srch', srch);
-  const lb = document.querySelector('.mnk-lb'); if (lb) { const n = p ? p.members.length : 0; lb.textContent = n > 1 ? `Лобби · ${n}/${NS}` : 'Создать лобби'; }
+  const lb = document.querySelector('.mnk-lb'); if (lb) { const n = pnum(p); lb.textContent = n > 1 ? `Лобби · ${n}/${NS}` : 'Создать лобби'; }
 }
 function mmMenu() {
   if (!root || view !== 'menu') return;
-  const p = MM.st && MM.st.party, key = p ? p.state + p.members.length : '-';
+  const p = MM.st && MM.st.party, key = p ? p.state + pnum(p) : '-';
   if (key === MM.menuKey) return; MM.menuKey = key;
   const box = $('.kr-mbox', root), btn = box && $('[data-a="play"]', box); if (!btn) return;
   const tmp = document.createElement('div'); tmp.innerHTML = menuPlay();
@@ -3022,22 +3029,23 @@ function mmWin(on) {
     document.body.appendChild(w);
     requestAnimationFrame(() => w.classList.add('in'));
   }
-  const key = JSON.stringify([p.code, p.state, p.leader, p.members]);
+  const key = JSON.stringify([p.code, p.state, p.leader, p.members, p.bots, p.admin]);
   if (w.dataset.k === key) return; w.dataset.k = key;
-  const link = location.origin + location.pathname + '#/krot/' + p.code;
+  const link = location.origin + location.pathname + '#/krot/' + p.code, bots = p.bots || [], adm = !!p.admin && p.state === 'idle';   // владелец 20.11: админ добавляет ботов в своё лобби
   const rows = [0, 1, 2, 3, 4].map(i => {
-    const m = p.members[i];
-    if (!m) return '<li class="free"><span class="krmm-av"><b>+</b></span><span class="krmm-nm">Свободное место</span></li>';
+    const m = p.members[i], bt = !m && bots[i - p.members.length];
+    if (bt) return `<li class="bot"><span class="krmm-av"><b>Б</b></span><span class="krmm-nm">${esc(bt.name)} <i class="kr-botb">БОТ</i></span>${adm ? `<button class="kr-btn sm ghost" data-mm="bot-del" data-n="${bt.n}">Убрать</button>` : ''}</li>`;
+    if (!m) return `<li class="free"><span class="krmm-av"><b>+</b></span><span class="krmm-nm">Свободное место</span>${adm ? '<button class="kr-btn sm" data-mm="bot-add">+ Бот</button>' : ''}</li>`;
     return `<li class="${m.online ? '' : 'off'}"><span class="krmm-av">${avaHtml(m)}</span><span class="krmm-nm">${esc(m.name)}${m.me ? ' <small>(вы)</small>' : ''}</span>${m.leader ? '<em class="krmm-ld">Лидер</em>' : ''}${!m.online ? '<em class="krmm-off">нет связи</em>' : ''}${p.leader && !m.me ? `<button class="kr-btn sm ghost" data-mm="kick" data-n="${i + 1}">Убрать</button>` : ''}</li>`;
   }).join('');
   w.innerHTML = `<section class="krmm-wp kr-glass" role="dialog" aria-labelledby="krmmWh"><button class="kr-ib krmm-wx" data-mm="close" aria-label="Закрыть">${ICO.close}</button>
-    <span class="kr-h">Русская рулетка</span><h2 class="kr-t" id="krmmWh">Лобби · ${p.members.length}/${NS}</h2>
+    <span class="kr-h">Русская рулетка</span><h2 class="kr-t" id="krmmWh">Лобби · ${pnum(p)}/${NS}</h2>
     <p class="krmm-wl">Позовите друзей: им нужен этот код или ссылка. Лобби ищет игру вместе, недостающих добавит подбор.</p>
     <div class="kr-cbig"><span>Код лобби</span><b>${esc(p.code)}</b><div><button class="kr-btn sm" data-mm="copy">Скопировать код</button><button class="kr-btn sm" data-mm="link" data-link="${esc(link)}">Ссылка-приглашение</button></div></div>
     <ul class="krmm-ml">${rows}</ul>
     <form class="kr-join krmm-join" autocomplete="off"><input id="krmmCode" maxlength="6" placeholder="Код лобби друга" spellcheck="false" aria-label="Код лобби друга"><button class="kr-btn">Войти</button></form>
-    <p class="kr-fine">Очки недели получают только те, кто ищет игру в одиночку: так друзья не смогут подыгрывать друг другу.</p>
-    <div class="krmm-wa">${p.members.length > 1 ? '<button class="kr-btn ghost sm" data-mm="leave">Выйти из лобби</button>' : '<span></span>'}<a class="kr-link" href="#/invite" data-mm="close">Реферальная программа — скоро</a></div></section>`;
+    <p class="kr-fine">${bots.length ? 'С ботами игра идёт только вашим составом: недостающих добавят боты, очков недели нет.' : 'Очки недели получают только те, кто ищет игру в одиночку: так друзья не смогут подыгрывать друг другу.'}</p>
+    <div class="krmm-wa">${pnum(p) > 1 ? '<button class="kr-btn ghost sm" data-mm="leave">Выйти из лобби</button>' : '<span></span>'}<a class="kr-link" href="#/invite" data-mm="close">Реферальная программа — скоро</a></div></section>`;
 }
 async function mmWinClick(e) {
   const w = document.getElementById('krmmWin'); if (!w) return;
@@ -3049,6 +3057,8 @@ async function mmWinClick(e) {
   if (a === 'link') return mmCopy(b.dataset.link, 'Ссылка-приглашение скопирована');
   try {
     if (a === 'kick') mmApply(await mmApi('krot_party_kick', { p_n: +b.dataset.n }));
+    if (a === 'bot-add') mmApply(await mmApi('krot_party_bot', { p_add: true }));
+    if (a === 'bot-del') mmApply(await mmApi('krot_party_bot', { p_add: false, p_n: +b.dataset.n }));
     if (a === 'leave') { mmApply(await mmApi('krot_party_leave')); mmWin(false); }
   } catch (x) { mmToast(errText(x), 'err'); }
   mmSchedule();

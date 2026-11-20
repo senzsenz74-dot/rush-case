@@ -19,7 +19,8 @@ await db.exec(`
   create role anon; create role authenticated; create schema auth;
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('test.uid', true), '')::uuid $$;
   create table public.profiles (id uuid primary key, name text, ava text, pid bigint);
-  create table public.site_cfg (k text primary key, v jsonb);`);
+  create table public.site_cfg (k text primary key, v jsonb);
+  create function public.is_staff() returns boolean language sql stable as $$ select auth.uid() = '00000000-0000-0000-0000-000000000001'::uuid $$;   -- «Вы (тест)» — админ: видна кнопка «+ Бот»`);
 await db.exec(readFileSync(path.join(here, '../../supabase/roulette.sql'), 'utf8'));
 const NAMES = ['Вы (тест)', 'Viper', 'Сова', 'Grizzly', 'Lynx'];
 const U = NAMES.map((n, i) => `00000000-0000-0000-0000-${String(i + 1).padStart(12, '0')}`);

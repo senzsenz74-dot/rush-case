@@ -311,5 +311,139 @@ log('F. права');
   ok(/not authenticated/.test(await err(rpc(null, 'rr_quick'))), 'без входа — not authenticated');
 }
 
+// ============ G. Боты (владелец 20.11): админ добавляет их в комнату друзей; игра без очков; боты сами крутят и стреляют ============
+log('G. боты в комнате друзей');
+await db.exec(`create or replace function public.is_staff() returns boolean language sql stable as $$ select current_setting('test.staff', true) = '1' $$;`);
+const staff = on => db.query(`select set_config('test.staff', $1, false)`, [on ? '1' : '']);
+const phaseOf = async room => (await db.query(`select phase from public.rr_rooms where id = $1`, [room])).rows[0].phase;
+{
+  const A = U[10], H = U[11];
+  let s = await rpc(A, 'rr_create', { p_private: true });
+  const room = s.room.id, code = s.room.code;
+  ok(s.me.admin === false, 'не сотрудник — не админ');
+  ok(/forbidden/.test(await err(rpc(A, 'rr_bot_add', { p_room: room }))), 'не админ — ботов не добавить');
+  await staff(true);
+  s = await rpc(A, 'rr_state', { p_room: room });
+  ok(s.me.admin === true, 'сотрудник — админ');
+  for (let i = 0; i < 3; i++) await rpc(A, 'rr_bot_add', { p_room: room });
+  s = await rpc(A, 'rr_state', { p_room: room });
+  const bots = s.players.filter(p => p.bot);
+  ok(bots.length === 3 && bots.every(p => p.ready && p.online && p.loaded && !p.me), 'три бота: готовы, на связи', s.players);
+  ok(new Set(s.players.map(p => p.name)).size === s.players.length, 'имена ботов не повторяются');
+  await rpc(A, 'rr_bot_del', { p_room: room, p_seat: bots[0].seat });
+  ok((await rpc(A, 'rr_state', { p_room: room })).players.filter(p => p.bot).length === 2, 'бот убран');
+  ok(/not bot/.test(await err(rpc(A, 'rr_bot_del', { p_room: room, p_seat: 1 }))), 'человека «Убрать» нельзя');
+  await rpc(H, 'rr_join', { p_code: code });
+  await staff(false);
+  ok(/forbidden/.test(await err(rpc(H, 'rr_bot_add', { p_room: room }))), 'обычный игрок ботов не добавляет');
+  await staff(true);
+  await rpc(A, 'rr_bot_add', { p_room: room });
+  s = await rpc(A, 'rr_state', { p_room: room });
+  ok(s.players.length === 5 && s.players.filter(p => p.bot).length === 3, 'за столом 2 человека и 3 бота');
+  ok(/room full/.test(await err(rpc(A, 'rr_bot_add', { p_room: room }))), 'шестому боту нет места');
+  ok(/bad player/.test(await err(rpc(A, 'rr_report', { p_room: room, p_seat: s.players.find(p => p.bot).seat, p_reason: 'spam' }))), 'жалоба на бота — нельзя');
+  await rpc(A, 'rr_ready', { p_room: room, p_ready: true });
+  await rpc(H, 'rr_ready', { p_room: room, p_ready: true });
+  await shift(3.1);
+  s = await rpc(A, 'rr_state', { p_room: room });
+  ok(s.room.phase === 'next' && s.room.points === false, 'все готовы — игра, без очков');
+  ok(/not lobby/.test(await err(rpc(A, 'rr_bot_add', { p_room: room }))), 'в игре ботов не добавить');
+  await staff(false);
+  // люди стреляют, как только их ход; боты — сами; пульс раз в 1 с
+  let guard = 0;
+  while (guard++ < 800) {
+    for (const u of [A, H]) await rpc(u, 'rr_tick', { p_room: room });
+    s = await rpc(A, 'rr_state', { p_room: room });
+    if (s.room.phase === 'done') break;
+    if (s.room.phase === 'play' && s.room.phase_at <= s.now) {
+      const tp = s.players.find(p => p.seat === s.game.turn);
+      if (!tp.bot) await err(rpc(await seatUid(room, tp.seat), 'rr_shoot', { p_room: room, p_turn: s.game.n }));
+    }
+    await shift(s.room.phase === 'next' ? 5.1 : 1);
+  }
+  checkFinal(s, false);
+  const botSeats = s.players.filter(p => p.bot).map(p => p.seat);
+  const lg = (await db.query(`select kind, data, at from public.rr_log where room_id = $1 and kind in ('spin', 'click', 'bang') order by id`, [room])).rows;
+  const botShots = lg.filter(e => e.kind !== 'spin' && botSeats.includes(e.data.seat));
+  ok(botShots.length > 0 && botShots.every(e => e.data.auto === false), 'боты стреляют сами, не по таймеру', botShots.map(e => e.data.auto));
+  await verifyGame(room);
+  const chat = (await db.query(`select name from public.rr_chat where room_id = $1 and kind = 'msg'`, [room])).rows;
+  ok(chat.every(m => / · БОТ$/.test(m.name)), 'реплики ботов подписаны «БОТ»', chat);
+  log(`  ходов ботов: ${botShots.length}, прокруток ботов: ${lg.filter(e => e.kind === 'spin' && botSeats.includes(e.data.seat)).length}, реплик в чате: ${chat.length}`);
+}
+{   // G2: в игре с ботами человек ушёл — игра доигрывается сразу (боты людей не держат)
+  const A = U[10];
+  await staff(true);
+  let s = await rpc(A, 'rr_create', { p_private: true });
+  const room = s.room.id;
+  for (let i = 0; i < 4; i++) await rpc(A, 'rr_bot_add', { p_room: room });
+  await staff(false);
+  await rpc(A, 'rr_ready', { p_room: room, p_ready: true });
+  await shift(3.1); await rpc(A, 'rr_tick', { p_room: room }); await shift(15.1);
+  s = await rpc(A, 'rr_state', { p_room: room });
+  ok(s.room.phase === 'play', 'один человек и 4 бота — игра идёт');
+  await rpc(A, 'rr_leave', { p_room: room });
+  ok(await phaseOf(room) === 'done', 'человек ушёл — игра доиграна сразу');
+}
+{   // G3: лобби — люди ушли, остались боты — комната закрывается
+  const A = U[10];
+  await staff(true);
+  const s = await rpc(A, 'rr_create', { p_private: true });
+  await rpc(A, 'rr_bot_add', { p_room: s.room.id }); await rpc(A, 'rr_bot_add', { p_room: s.room.id });
+  await staff(false);
+  await rpc(A, 'rr_leave', { p_room: s.room.id });
+  ok(await phaseOf(s.room.id) === 'done', 'в лобби одни боты — комната закрыта');
+}
+
+// ============ H. Боты в лобби группы (владелец 20.11): «+ Бот» в лобби, «Найти игру» — стол только из своих и ботов ============
+log('H. боты в лобби группы');
+{
+  const A = U[10], H = U[11];
+  ok(/forbidden/.test(await err(rpc(A, 'rr_party_bot', { p_add: true }))), 'не админ — ботов в лобби не добавить');
+  await staff(true);
+  let m = await rpc(A, 'rr_party_open');
+  ok(m.party && m.party.admin === true && m.party.bots.length === 0, 'лобби открыто, я — админ');
+  for (let i = 0; i < 3; i++) m = await rpc(A, 'rr_party_bot', { p_add: true });
+  ok(m.party.bots.length === 3 && new Set(m.party.bots.map(b => b.name)).size === 3, 'в лобби 3 бота, имена разные', m.party.bots);
+  m = await rpc(A, 'rr_party_bot', { p_add: false, p_n: 2 });
+  ok(m.party.bots.length === 2 && m.party.bots.map(b => b.n).join() === '1,2', 'бот №2 убран', m.party.bots);
+  ok(/not bot/.test(await err(rpc(A, 'rr_party_bot', { p_add: false, p_n: 5 }))), 'убрать несуществующего — not bot');
+  await staff(false);
+  // параллельно ищет обычный игрок — к столу с ботами его не подмешивают
+  await rpc(H, 'rr_search', { p_on: true });
+  m = await rpc(A, 'rr_search', { p_on: true });
+  ok(m.match && m.match.players.length === 5, 'с ботами — игра найдена сразу, за столом пятеро', m.match);
+  const room = m.match.room;
+  const pl = (await db.query(`select uid, bot, ready from public.rr_players where room_id = $1 order by seat`, [room])).rows;
+  ok(pl.filter(p => p.bot).length === 4 && pl.filter(p => p.bot).every(p => p.ready), '1 человек + 2 бота лобби + 2 бота добора, боты приняли');
+  ok(!pl.some(p => p.uid === H), 'чужого игрока к столу с ботами не подмешали');
+  ok((await rpc(H, 'rr_mm_state')).party.state === 'search', 'чужой игрок дальше в поиске');
+  await rpc(H, 'rr_search', { p_on: false });
+  await rpc(A, 'rr_accept');
+  await shift(1); await rpc(A, 'rr_loaded', { p_room: room });
+  for (let i = 0; i < 20 && (await phaseOf(room)) === 'lobby'; i++) { await shift(1); await rpc(A, 'rr_tick', { p_room: room }); }
+  let s = await rpc(A, 'rr_state', { p_room: room });
+  ok(['next', 'play'].includes(s.room.phase) && s.room.points === false, 'игра началась, без очков', s.room);
+  let guard = 0;
+  while (guard++ < 800) {
+    await rpc(A, 'rr_tick', { p_room: room });
+    s = await rpc(A, 'rr_state', { p_room: room });
+    if (s.room.phase === 'done') break;
+    if (s.room.phase === 'play' && s.room.phase_at <= s.now) {
+      const tp = s.players.find(p => p.seat === s.game.turn);
+      if (!tp.bot) await err(rpc(A, 'rr_shoot', { p_room: room, p_turn: s.game.n }));
+    }
+    await shift(s.room.phase === 'next' ? 5.1 : 1);
+  }
+  checkFinal(s, false);
+  await verifyGame(room);
+  m = await rpc(A, 'rr_mm_state');
+  ok(m.party && m.party.state === 'idle' && m.party.bots.length === 2, 'после игры лобби свободно, боты остались');
+  await staff(true);
+  for (let i = 0; i < 2; i++) m = await rpc(A, 'rr_party_bot', { p_add: true });
+  ok(/party full/.test(await err(rpc(A, 'rr_party_bot', { p_add: true }))), '1 человек + 4 бота — лобби полное');
+  await staff(false);
+}
+
 log(`\nПроверок: ${checks}, ошибок: ${fails}`);
 process.exit(fails ? 1 : 0);

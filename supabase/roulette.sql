@@ -72,6 +72,9 @@ create table if not exists public.rr_players (
   unique (room_id, seat)
 );
 create index if not exists rr_players_uid on public.rr_players (uid);
+-- боты (владелец 20.11): админ добавляет их в комнату друзей кнопкой «+ Бот»; uid бота — случайный, профиля нет (поэтому без ссылки на profiles)
+alter table public.rr_players add column if not exists bot boolean not null default false;
+alter table public.rr_players drop constraint if exists rr_players_uid_fkey;
 
 create table if not exists public.rr_games (   -- барабан и ход; из браузера не читается (тайна: где патроны)
   id bigserial primary key,
@@ -96,6 +99,9 @@ create table if not exists public.rr_games (   -- барабан и ход; из
   created_at timestamptz not null default now(),
   ended_at timestamptz
 );
+alter table public.rr_games add column if not exists bot_n int;            -- ход бота (n), для которого план ниже
+alter table public.rr_games add column if not exists bot_at timestamptz;   -- когда бот сделает следующее действие
+alter table public.rr_games add column if not exists bot_spins smallint;   -- сколько ещё раз бот крутит перед выстрелом
 
 create table if not exists public.rr_chat (
   id bigserial primary key,                 -- серверный порядковый номер (догрузка после переподключения)
@@ -155,6 +161,7 @@ create table if not exists public.rr_party (
   updated_at timestamptz not null default now()
 );
 create unique index if not exists rr_party_code on public.rr_party (code);
+alter table public.rr_party add column if not exists bots text[] not null default '{}';   -- боты лобби (имена; добавляет админ, владелец 20.11)
 create index if not exists rr_party_search on public.rr_party (search_at) where state = 'search';
 create table if not exists public.rr_party_members (
   uid uuid primary key references public.profiles (id) on delete cascade,   -- человек — не больше чем в одной группе
@@ -304,10 +311,44 @@ begin
 end $$;
 -- будут ли очки: только быстрая игра и не группа из 5 друзей, собравшаяся сама с собой
 create or replace function public._rr_pts_on(p_room bigint) returns boolean language sql stable as $$
-  select r.kind = 'quick' and not coalesce((select count(*) = 5 and count(distinct p.party_id) = 1 and bool_and(p.party_id is not null)
+  select r.kind = 'quick' and not exists (select 1 from public.rr_players b where b.room_id = r.id and b.bot) and not coalesce((select count(*) = 5 and count(distinct p.party_id) = 1 and bool_and(p.party_id is not null)
     from public.rr_players p where p.room_id = r.id), false)
   from public.rr_rooms r where r.id = p_room
 $$;
+
+-- ---------- боты ----------
+-- админ: владелец или сотрудник (is_staff из staff_perms.sql; если её нет — is_admin; если нет и её — никто)
+create or replace function public._rr_staff() returns boolean language plpgsql stable security definer set search_path = public as $$
+begin
+  begin return coalesce(public.is_staff(), false); exception when undefined_function then null; end;
+  begin return coalesce(public.is_admin(), false); exception when undefined_function then return false; end;
+end $$;
+-- реплика бота в чат (как в демо): turn — свой ход, click — пусто, bang — кого-то убило
+create or replace function public._rr_bot_say(p_room bigint, p_seat int, p_kind text) returns void language plpgsql as $$
+declare p public.rr_players; l text[] := case p_kind
+  when 'turn' then array['Ну, с богом.', 'Моя очередь…', 'Руки трясутся, честно.', 'Давай уже.', 'Ладно, поехали.']
+  when 'click' then array['Фух.', 'Пусто!', 'Живой.', 'Следующий!']
+  when 'bang' then array['Минус один…', 'Жёстко.', 'Вот и раунд.', 'Ох.']
+  else array['Ага.', 'Посмотрим.', 'Удачи всем.', 'Не тяни.'] end;
+begin
+  select * into p from public.rr_players where room_id = p_room and seat = p_seat and bot and alive;
+  if p.uid is null then return; end if;
+  insert into public.rr_chat (room_id, uid, seat, name, kind, text, created_at)
+    values (p_room, p.uid, p.seat, p.name || ' · БОТ', 'msg', l[1 + floor(random() * cardinality(l))::int], public._rr_now());
+end $$;
+-- прокрутка барабана места p_seat (и для игрока — rr_spin, и для бота): гнездо — h('p<k>') из seed раунда
+create or replace function public._rr_spin_at(p_room bigint, p_seat int) returns void language plpgsql as $$
+declare g public.rr_games; now_ts timestamptz := public._rr_now();
+begin
+  select * into g from public.rr_games where room_id = p_room for update;
+  update public.rr_games set rspins = rspins + 1, pos = (public._rr_h(g.seed, 'p' || (g.rspins + 1)) % 6)::smallint,
+    clicks = 0, spins = spins + 1, last_spin = now_ts
+  where id = g.id;
+  update public.rr_players set spins = spins + 1 where room_id = p_room and seat = p_seat;
+  perform public._rr_ev(p_room, 'spin', p_seat, null);
+  perform public._rr_log(p_room, g.id, 'spin', jsonb_build_object('round', g.round, 'seat', p_seat, 'k', g.rspins + 1, 'turn', g.n));
+  update public.rr_rooms set rev = rev + 1, updated_at = now_ts where id = p_room;
+end $$;
 
 -- ---------- ход игры ----------
 -- ход места p_seat: начнётся через p_delay (ключ настроек), на ход — turn секунд (вышедшему — gone_shot)
@@ -371,6 +412,7 @@ begin
     update public.rr_games set pos = ((pos + 1) % 6)::smallint, clicks = clicks + 1 where id = g.id;
     update public.rr_players set clicks = clicks + 1 where room_id = p_room and seat = p_seat;
     perform public._rr_ev(p_room, 'click', p_seat, jsonb_build_object('auto', p_auto));
+    if random() < .3 then perform public._rr_bot_say(p_room, p_seat, 'click'); end if;
     perform public._rr_log(p_room, g.id, 'click', jsonb_build_object('round', g.round, 'seat', p_seat, 'auto', p_auto, 'pos', g.pos, 'turn', g.n));
     select seat into v_nx from public.rr_players where room_id = p_room and alive and seat <> p_seat order by (seat - p_seat + 5) % 5 limit 1;
     perform public._rr_turn(p_room, coalesce(v_nx, p_seat), 'click_delay');
@@ -388,6 +430,9 @@ begin
   perform public._rr_log(p_room, g.id, 'bang', jsonb_build_object('round', g.round, 'seat', p_seat, 'auto', p_auto, 'place', v_left,
     'pos', g.pos, 'turn', g.n, 'seed', g.seed, 'proof', v_proof));
   perform public._rr_sys(p_room, format('%s выбывает — %s место.', coalesce(v_nm, 'Игрок'), v_left));
+  if random() < .6 then   -- кто-то из живых ботов отзывается
+    perform public._rr_bot_say(p_room, (select seat from public.rr_players where room_id = p_room and bot and alive order by random() limit 1), 'bang');
+  end if;
   update public.rr_rooms set phase = 'next', phase_at = public._rr_now(), phase_deadline = public._rr_now() + public._rr_dur(c, 'next'),
     rev = rev + 1, updated_at = public._rr_now()
   where id = p_room;
@@ -429,7 +474,7 @@ end $$;
 create or replace function public._rr_step(p_room bigint) returns boolean language plpgsql as $$
 declare
   rm public.rr_rooms; g public.rr_games; tp public.rr_players; p public.rr_players; c jsonb := public._rr_cfg();
-  now_ts timestamptz := public._rr_now(); v_n int; v_ready int; ch boolean := false; v_away boolean; v_dl timestamptz;
+  now_ts timestamptz := public._rr_now(); v_n int; v_ready int; v_h int; ch boolean := false; v_away boolean; v_dl timestamptz; v_sp int;
 begin
   select * into rm from public.rr_rooms where id = p_room for no key update;
   if rm.id is null or rm.phase = 'done' then return false; end if;
@@ -458,19 +503,19 @@ begin
 
   -- ---------- лобби: комната друзей (все «Готов») или открытое лобби быстрой игры ----------
   if rm.phase = 'lobby' then
-    for p in delete from public.rr_players where room_id = rm.id and seen_at < now_ts - public._rr_dur(c, 'stale') returning * loop
+    for p in delete from public.rr_players where room_id = rm.id and not bot and seen_at < now_ts - public._rr_dur(c, 'stale') returning * loop
       perform public._rr_sys(rm.id, format('Игрок %s покинул комнату.', p.name));
       ch := true;
     end loop;
-    select count(*), count(*) filter (where ready) into v_n, v_ready from public.rr_players where room_id = rm.id;
-    if v_n = 0 then
+    select count(*), count(*) filter (where ready), count(*) filter (where not bot) into v_n, v_ready, v_h from public.rr_players where room_id = rm.id;
+    if v_h = 0 then   -- людей не осталось (одни боты) — комната закрывается
       update public.rr_rooms set phase = 'done', phase_deadline = null, rev = rev + 1, updated_at = now_ts where id = rm.id;
       return true;
     end if;
     if ch then
       update public.rr_rooms set rev = rev + 1, updated_at = now_ts,
         owner = case when exists (select 1 from public.rr_players where room_id = rm.id and uid = rm.owner) then owner
-                     else (select uid from public.rr_players where room_id = rm.id order by seat limit 1) end
+                     else (select uid from public.rr_players where room_id = rm.id and not bot order by seat limit 1) end
       where id = rm.id;
     end if;
     if v_n < 5 or (rm.kind = 'private' and v_ready < 5) then
@@ -492,14 +537,35 @@ begin
   -- ---------- идёт игра ----------
   select * into g from public.rr_games where room_id = rm.id;
   -- за столом никого (все вышли или без связи дольше offline + reconnect) — доигрываем сразу, выстрелами без прокрутки
-  v_away := not exists (select 1 from public.rr_players where room_id = rm.id and left_at is null
-    and seen_at >= now_ts - public._rr_dur(c, 'offline') - public._rr_dur(c, 'reconnect'));
+  v_away := not exists (select 1 from public.rr_players where room_id = rm.id and not bot and left_at is null
+    and seen_at >= now_ts - public._rr_dur(c, 'offline') - public._rr_dur(c, 'reconnect'));   -- боты не в счёт
   if rm.phase = 'play' then
     if v_away or now_ts >= rm.phase_deadline then   -- время вышло — выстрел сам, без прокрутки
       perform public._rr_fire(rm.id, g.turn, true);
       return true;
     end if;
     select * into tp from public.rr_players where room_id = rm.id and seat = g.turn;
+    if tp.bot then   -- ход бота (как в демо): думает 1,6–4,2 с; крутит барабан (чаще, когда после пустых щелчков шанс вырос); потом выстрел
+      if g.bot_n is distinct from g.n then
+        v_sp := case when g.bullets::numeric / greatest(1, 6 - g.clicks) > g.bullets::numeric / 6 + 0.001
+                     then case when random() < .85 then 1 + floor(random() * 2)::int else 0 end
+                     else case when random() < .3 then 1 else 0 end end;
+        update public.rr_games set bot_n = g.n, bot_spins = v_sp,
+          bot_at = greatest(rm.phase_at, now_ts) + make_interval(secs => 1.6 + random() * 2.6) where id = g.id;
+        if random() < .35 then perform public._rr_bot_say(rm.id, tp.seat, 'turn'); end if;
+        return true;
+      end if;
+      if now_ts >= g.bot_at then
+        if g.bot_spins > 0 then
+          perform public._rr_spin_at(rm.id, tp.seat);
+          update public.rr_games set bot_spins = bot_spins - 1, bot_at = now_ts + make_interval(secs => 1.1 + random() * .9) where id = g.id;
+        else
+          perform public._rr_fire(rm.id, tp.seat, false);
+        end if;
+        return true;
+      end if;
+      return false;
+    end if;
     if tp.left_at is not null then   -- ходящий вышел посреди своего хода — выстрел за него через gone_shot
       v_dl := greatest(rm.phase_at, tp.left_at) + public._rr_dur(c, 'gone_shot');
       if rm.phase_deadline > v_dl then
@@ -599,11 +665,11 @@ begin
       'load_at', public._rr_ms(rm.load_at), 'paused', false, 'owner', rm.owner = auth.uid(),
       'turn_sec', (c->>'turn')::numeric, 'next_sec', (c->>'next')::numeric, 'intro_sec', (c->>'intro')::numeric),
     'players', coalesce((select jsonb_agg(jsonb_build_object('seat', p.seat, 'name', p.name, 'ava', p.ava, 'pid', p.pid,
-        'me', p.uid = auth.uid(), 'ready', p.ready, 'loaded', p.loaded,
-        'online', p.left_at is null and p.seen_at >= now_ts - public._rr_dur(c, 'offline'), 'left', p.left_at is not null,
+        'me', p.uid = auth.uid(), 'ready', p.ready, 'loaded', p.loaded, 'bot', p.bot,
+        'online', p.bot or (p.left_at is null and p.seen_at >= now_ts - public._rr_dur(c, 'offline')), 'left', p.left_at is not null,
         'alive', p.alive, 'place', p.place, 'pts', p.pts, 'clicks', p.clicks, 'spins', p.spins) order by p.seat)
       from public.rr_players p where p.room_id = rm.id), '[]'::jsonb),
-    'me', jsonb_build_object('seat', me.seat, 'ready', me.ready, 'alive', me.alive),
+    'me', jsonb_build_object('seat', me.seat, 'ready', me.ready, 'alive', me.alive, 'admin', public._rr_staff()),
     'game', case when g.id is null then null else jsonb_build_object('id', g.id, 'round', g.round, 'bullets', g.bullets,
       'turn', g.turn, 'first', g.first, 'clicks', g.clicks, 'spins', g.spins, 'n', g.n,
       'evs', g.evs, 'ev', case when jsonb_array_length(g.evs) > 0 then g.evs->-1 end,
@@ -640,7 +706,7 @@ begin
   if rm.phase = 'lobby' then
     delete from public.rr_players where room_id = p_room and uid = auth.uid();
     update public.rr_rooms set rev = rev + 1, updated_at = public._rr_now(),
-      owner = case when owner = auth.uid() then (select uid from public.rr_players where room_id = p_room order by seat limit 1) else owner end
+      owner = case when owner = auth.uid() then (select uid from public.rr_players where room_id = p_room and not bot order by seat limit 1) else owner end
     where id = p_room;
     perform public._rr_sys(p_room, format('Игрок %s покинул комнату.', me.name));
   elsif me.left_at is null then
@@ -779,13 +845,7 @@ begin
   now_ts := public._rr_now();
   select * into g from public.rr_games where room_id = p_room for update;
   if g.last_spin > now_ts - public._rr_dur(c, 'spin_gap') then raise exception 'too fast'; end if;
-  update public.rr_games set rspins = rspins + 1, pos = (public._rr_h(g.seed, 'p' || (g.rspins + 1)) % 6)::smallint,
-    clicks = 0, spins = spins + 1, last_spin = now_ts
-  where id = g.id;
-  update public.rr_players set spins = spins + 1 where room_id = p_room and uid = auth.uid();
-  perform public._rr_ev(p_room, 'spin', me.seat, null);
-  perform public._rr_log(p_room, g.id, 'spin', jsonb_build_object('round', g.round, 'seat', me.seat, 'k', g.rspins + 1, 'turn', g.n));
-  update public.rr_rooms set rev = rev + 1, updated_at = now_ts where id = p_room;
+  perform public._rr_spin_at(p_room, me.seat);
   return jsonb_build_object('ok', true, 'n', g.n);
 end $$;
 
@@ -836,7 +896,7 @@ declare tu uuid; gid bigint;
 begin
   if auth.uid() is null then raise exception 'not authenticated'; end if;
   if not public._rr_member(p_room) then raise exception 'not in room'; end if;
-  select uid into tu from public.rr_players where room_id = p_room and seat = p_seat;
+  select uid into tu from public.rr_players where room_id = p_room and seat = p_seat and not bot;
   if tu is null or tu = auth.uid() then raise exception 'bad player'; end if;
   if coalesce(p_reason, '') not in ('abuse', 'cheat', 'spam', 'afk', 'other') then raise exception 'bad reason'; end if;
   if (select count(*) from public.rr_reports where from_uid = auth.uid() and created_at > now() - interval '1 day') >= 20 then
@@ -935,17 +995,17 @@ end $$;
 create or replace function public._rr_mm_match() returns int language plpgsql as $$
 declare
   c jsonb := public._rr_cfg(); now_ts timestamptz := public._rr_now(); made int := 0;
-  anc record; q record; pick bigint[]; need int; rid bigint; s int; m record;
+  anc record; q record; pick bigint[]; need int; rid bigint; s int; m record; bn text;
 begin
   perform pg_advisory_xact_lock(hashtext('rush-rr-mm'));
   loop
     pick := null;
-    for anc in select pt.id, count(mb.uid)::int cnt from public.rr_party pt join public.rr_party_members mb on mb.party_id = pt.id
-        where pt.state = 'search' group by pt.id, pt.search_at
-        having bool_and(mb.seen_at >= now_ts - interval '20 seconds') and count(mb.uid) <= 5 order by pt.search_at, pt.id loop
-      pick := array[anc.id]; need := 5 - anc.cnt;
+    for anc in select pt.id, count(mb.uid)::int cnt, cardinality(pt.bots) nb from public.rr_party pt join public.rr_party_members mb on mb.party_id = pt.id
+        where pt.state = 'search' group by pt.id, pt.search_at, pt.bots
+        having bool_and(mb.seen_at >= now_ts - interval '20 seconds') and count(mb.uid) + cardinality(pt.bots) <= 5 order by pt.search_at, pt.id loop
+      pick := array[anc.id]; need := case when anc.nb > 0 then 0 else 5 - anc.cnt end;   -- с ботами — стол только из своих, остальное — боты
       for q in select pt.id, count(mb.uid)::int cnt from public.rr_party pt join public.rr_party_members mb on mb.party_id = pt.id
-          where pt.state = 'search' and pt.id <> anc.id group by pt.id, pt.search_at
+          where pt.state = 'search' and pt.id <> anc.id and cardinality(pt.bots) = 0 group by pt.id, pt.search_at
           having bool_and(mb.seen_at >= now_ts - interval '20 seconds') order by pt.search_at, pt.id loop
         exit when need <= 0;
         if q.cnt <= need then pick := pick || q.id; need := need - q.cnt; end if;
@@ -964,6 +1024,15 @@ begin
       s := s + 1;
       insert into public.rr_players (room_id, uid, seat, name, ava, pid, seen_at, solo, party_id)
         values (rid, m.uid, s, coalesce(m.name, 'Игрок'), m.ava, m.pid, now_ts, m.psize = 1, m.party_id);
+    end loop;
+    for bn in select b from public.rr_party pt, unnest(pt.bots) b where pt.id = pick[1] loop   -- боты лобби, потом — до пяти
+      exit when s >= 5; s := s + 1;
+      insert into public.rr_players (room_id, uid, seat, name, ready, loaded, bot, seen_at) values (rid, gen_random_uuid(), s, bn, true, true, true, now_ts);
+    end loop;
+    while s < 5 and (select cardinality(bots) from public.rr_party where id = pick[1]) > 0 loop
+      s := s + 1;
+      select n into bn from unnest(array['Viper', 'Сова', 'Grizzly', 'Lynx', 'Кобра', 'Shade', 'Гром', 'Ghost', 'Рысь', 'Волк']) n where not exists (select 1 from public.rr_players where room_id = rid and name = n) order by random() limit 1;
+      insert into public.rr_players (room_id, uid, seat, name, ready, loaded, bot, seen_at) values (rid, gen_random_uuid(), s, coalesce(bn, 'Бот ' || s), true, true, true, now_ts);
     end loop;
     update public.rr_party set state = 'match', room_id = rid, note = null, rev = rev + 1, updated_at = now_ts where id = any(pick);
     perform public._rr_log(rid, null, 'mm_match', jsonb_build_object('parties', to_jsonb(pick)));
@@ -1049,7 +1118,9 @@ begin
         'me', coalesce(pt.note->'uids' ? auth.uid()::text, false), 'at', public._rr_ms(pt.note_at)) end,
       'members', (select jsonb_agg(jsonb_build_object('name', mb.name, 'ava', mb.ava, 'pid', mb.pid, 'me', mb.uid = auth.uid(),
           'leader', mb.uid = pt.leader, 'online', mb.seen_at >= now_ts - interval '20 seconds') order by mb.joined_at)
-        from public.rr_party_members mb where mb.party_id = pt.id)) end);
+        from public.rr_party_members mb where mb.party_id = pt.id),
+      'bots', coalesce((select jsonb_agg(jsonb_build_object('name', b, 'n', i) order by i) from unnest(pt.bots) with ordinality x(b, i)), '[]'::jsonb),
+      'admin', public._rr_staff()) end);
 end $$;
 
 create or replace function public.rr_party_open() returns jsonb
@@ -1074,7 +1145,7 @@ begin
   perform public._rr_mm_sync(pt.id);
   select * into pt from public.rr_party where id = pt.id;
   if pt.state = 'match' and exists (select 1 from public.rr_rooms where id = pt.room_id and phase = 'lobby') then raise exception 'party busy'; end if;
-  if (select count(*) from public.rr_party_members where party_id = pt.id) >= 5 then raise exception 'party full'; end if;
+  if (select count(*) from public.rr_party_members where party_id = pt.id) + cardinality(pt.bots) >= 5 then raise exception 'party full'; end if;
   if cur is not null then perform public._rr_party_out(auth.uid(), 'left'); end if;
   select coalesce(name, 'Игрок') into nm from public.profiles where id = auth.uid();
   insert into public.rr_party_members (uid, party_id, name, ava, pid, seen_at)
@@ -1105,6 +1176,31 @@ begin
   select uid into u from public.rr_party_members where party_id = ptid order by joined_at offset greatest(coalesce(p_n, 0) - 1, 0) limit 1;
   if u is null or u = auth.uid() then raise exception 'bad player'; end if;
   perform public._rr_party_out(u, 'kicked');
+  return public.rr_mm_state();
+end $$;
+
+-- бот в лобби (владелец 20.11): p_add — добавить (случайное имя), иначе убрать бота номер p_n; только админ, лобби свободно
+create or replace function public.rr_party_bot(p_add boolean default true, p_n int default null) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me public.rr_party_members; pt public.rr_party; v_nm text;
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  if not public._rr_staff() then raise exception 'forbidden'; end if;
+  perform pg_advisory_xact_lock(hashtext('rush-rr-mm'));
+  select * into me from public.rr_party_members where uid = auth.uid();
+  if me.uid is null then perform public._rr_party_new(); select * into me from public.rr_party_members where uid = auth.uid(); end if;
+  perform public._rr_mm_sync(me.party_id);
+  select * into pt from public.rr_party where id = me.party_id;
+  if pt.state <> 'idle' then raise exception 'party busy'; end if;
+  if coalesce(p_add, true) then
+    if (select count(*) from public.rr_party_members where party_id = pt.id) + cardinality(pt.bots) >= 5 then raise exception 'party full'; end if;
+    select n into v_nm from unnest(array['Viper', 'Сова', 'Grizzly', 'Lynx', 'Кобра', 'Shade', 'Гром', 'Ghost', 'Рысь', 'Волк']) n
+      where not (n = any (pt.bots)) and not exists (select 1 from public.rr_party_members where party_id = pt.id and name = n) order by random() limit 1;
+    update public.rr_party set bots = bots || coalesce(v_nm, 'Бот ' || (cardinality(bots) + 1)), rev = rev + 1, updated_at = public._rr_now() where id = pt.id;
+  else
+    if p_n is null or p_n < 1 or p_n > cardinality(pt.bots) then raise exception 'not bot'; end if;
+    update public.rr_party set bots = bots[1:p_n - 1] || bots[p_n + 1:], rev = rev + 1, updated_at = public._rr_now() where id = pt.id;
+  end if;
   return public.rr_mm_state();
 end $$;
 
@@ -1225,6 +1321,48 @@ begin
     'hash_ok', ok_hash, 'chat_ok', ok_chat);
 end $$;
 
+-- ---------- боты: добавить / убрать (владелец 20.11: только админы — владелец и сотрудники; только лобби комнаты друзей) ----------
+create or replace function public._rr_bot_room(p_room bigint) returns public.rr_rooms language plpgsql as $$
+declare rm public.rr_rooms; me public.rr_players;
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  if not public._rr_staff() then raise exception 'forbidden'; end if;
+  select * into rm from public.rr_rooms where id = p_room for no key update;
+  me := public._rr_touch(p_room);
+  if me.uid is null then raise exception 'not in room'; end if;
+  if rm.phase <> 'lobby' or rm.kind <> 'private' or rm.mm then raise exception 'not lobby'; end if;
+  return rm;
+end $$;
+create or replace function public.rr_bot_add(p_room bigint) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare s int; v_nm text;
+begin
+  perform public._rr_bot_room(p_room);
+  select min(x) into s from generate_series(1, 5) x where not exists (select 1 from public.rr_players where room_id = p_room and seat = x);
+  if s is null then raise exception 'room full'; end if;
+  select n into v_nm from unnest(array['Viper', 'Сова', 'Grizzly', 'Lynx', 'Кобра', 'Shade', 'Гром', 'Ghost', 'Рысь', 'Волк']) n
+    where not exists (select 1 from public.rr_players where room_id = p_room and name = n) order by random() limit 1;
+  v_nm := coalesce(v_nm, 'Бот ' || s);
+  insert into public.rr_players (room_id, uid, seat, name, ready, loaded, bot, seen_at)
+    values (p_room, gen_random_uuid(), s, v_nm, true, true, true, public._rr_now());
+  update public.rr_rooms set rev = rev + 1, updated_at = public._rr_now() where id = p_room;
+  perform public._rr_sys(p_room, format('Бот %s сел за стол.', v_nm));
+  perform public._rr_log(p_room, null, 'bot_add', jsonb_build_object('seat', s, 'name', v_nm));
+  return public.rr_tick(p_room);
+end $$;
+create or replace function public.rr_bot_del(p_room bigint, p_seat int) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare v_nm text;
+begin
+  perform public._rr_bot_room(p_room);
+  delete from public.rr_players where room_id = p_room and seat = p_seat and bot returning name into v_nm;
+  if v_nm is null then raise exception 'not bot'; end if;
+  update public.rr_rooms set rev = rev + 1, updated_at = public._rr_now() where id = p_room;
+  perform public._rr_sys(p_room, format('Бот %s ушёл из-за стола.', v_nm));
+  perform public._rr_log(p_room, null, 'bot_del', jsonb_build_object('seat', p_seat));
+  return public.rr_tick(p_room);
+end $$;
+
 -- ---------- права на функции ----------
 do $$ declare f regprocedure; begin
   for f in select p.oid::regprocedure from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -1237,7 +1375,7 @@ grant execute on function public.rr_state(bigint, bigint), public.rr_tick(bigint
   public.rr_create(boolean), public.rr_join(text), public.rr_quick(), public.rr_ready(bigint, boolean),
   public.rr_spin(bigint, int), public.rr_shoot(bigint, int), public.rr_chat_send(bigint, text), public.rr_report(bigint, int, text, text),
   public.rr_loaded(bigint), public.rr_mm_state(), public.rr_party_open(), public.rr_party_join(text), public.rr_party_leave(),
-  public.rr_party_kick(int), public.rr_search(boolean), public.rr_accept() to authenticated;
+  public.rr_party_kick(int), public.rr_search(boolean), public.rr_accept(), public.rr_bot_add(bigint), public.rr_bot_del(bigint, int), public.rr_party_bot(boolean, int) to authenticated;
 -- rr_selftest — только из SQL Editor
 
 select public.rr_selftest(3000) as "РУЛЕТКА: самопроверка";
