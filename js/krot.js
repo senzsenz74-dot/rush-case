@@ -1750,16 +1750,18 @@ function makeWorld(T, RB, RE, cv, PP) {
   const poseModel = (a, t, dt) => {
     const M = a.M, B = M.B, g = a.g;
     // револьвер (этап 4): held — рука тянется к нему (0…1), lift — поднят к виску; пока тянется к столу — корпус наклоняется вперёд
-    const held = gun.who === a.s ? gun.hw : 0, lift = held ? easeIO(gun.lw) : 0, lk = held ? easeIO(held) * (1 - lift) : 0;
+    const fallGun = gun.fallSeat === a.s, held = gun.who === a.s && !fallGun ? gun.hw : 0, lift = held ? easeIO(gun.lw) : 0, lk = held ? easeIO(held) * (1 - lift) : 0;
+    const fl = fallW(a), fs = fl ? fl.s : 0, ff = fl ? fl.f : 0;   // падение после боевого
     for (let i = 0; i < M.bones.length; i++) M.bones[i].quaternion.copy(M.rest[i]);
     M.root.updateMatrixWorld(true);
     wq(g, _qs);
     const ax = _t3.set(1, 0, 0).applyQuaternion(_qs);
     // корпус: чуть вперёд + дыхание (+ наклон к револьверу)
-    const br = Math.sin(t * 1.6 + a.s * 1.3), ln = a.me ? 0 : lk * .28;   // у себя не наклоняемся: шея и воротник влезли бы в камеру (владелец 20.11)
-    _qc.setFromAxisAngle(ax, -.05 - ln * .4); rotW(B.spine_0, _qc);
-    _qc.setFromAxisAngle(ax, -.04 - ln * .35); rotW(B.spine_1, _qc);
-    _qc.setFromAxisAngle(ax, -.03 - ln * .25 + br * .012); rotW(B.spine_2, _qc);
+    const br = fl ? 0 : Math.sin(t * 1.6 + a.s * 1.3), ln = a.me ? 0 : lk * .28;   // у себя не наклоняемся: шея и воротник влезли бы в камеру (владелец 20.11)
+    _qc.setFromAxisAngle(ax, -.05 - ln * .4 - ff * FALL.sp[0]); rotW(B.spine_0, _qc);
+    _qc.setFromAxisAngle(ax, -.04 - ln * .35 - ff * FALL.sp[1]); rotW(B.spine_1, _qc);
+    _qc.setFromAxisAngle(ax, -.03 - ln * .25 + br * .012 - ff * FALL.sp[2]); rotW(B.spine_2, _qc);
+    if (fl) { _t1.set(0, 0, 1).applyQuaternion(_qs); _qc.setFromAxisAngle(_t1, ff * FALL.roll + fs * .04 * (1 - ff)); rotW(B.spine_1, _qc); }   // и чуть влево
     { const th = (a.me ? .3 : 0) + (a.me ? 0 : lk * .2); if (th && B.clavicle_r) { _t1.set(0, 1, 0).applyQuaternion(_qs); _qc.setFromAxisAngle(_t1, th); rotW(B.clavicle_r, _qc); _qc.setFromAxisAngle(_t1, -th); rotW(B.clavicle_l, _qc); } }   // плечи вперёд
     // ноги: щиколотки на полу перед стулом, колени под столом
     for (const [k, sd] of [['l', -1], ['r', 1]]) {
@@ -1773,8 +1775,12 @@ function makeWorld(T, RB, RE, cv, PP) {
     // голова по взгляду игрока (+ кивок при речи)
     a.gk += ((a.spk && !a.me ? 1 : 0) - a.gk) * (1 - Math.exp(-dt * 5));
     _eg.set(a.hp * .85 + a.gk * .06 * Math.sin(t * 7.3), a.hy * .9, 0); _qg.setFromEuler(_eg);
-    _qh.copy(_qs).multiply(_qI.identity().slerp(_qg, .35)).multiply(M.rel.neck); setW(B.neck_0, _qh);
+    if (fl) { _qc.setFromAxisAngle(_t1.set(0, 0, 1), .45 * fs * (1 - ff)); _qg.multiply(_qc).slerp(FALL.head, ff); }   // выстрелом голову откидывает влево, потом — левой щекой на стол
+    _qh.copy(_qs).multiply(_qI.identity().slerp(_qg, .35 + .4 * ff)).multiply(M.rel.neck); setW(B.neck_0, _qh);   // упал — шея гнётся за головой
     _qh3.copy(_qs).multiply(_qg); _qh.copy(_qh3).multiply(M.rel.head); setW(B.head_0, _qh);
+    (a.hq || (a.hq = new T.Quaternion())).copy(_qh3);   // поворот головы — для брызг при выстреле
+    if (fl && !a.stain && M.head.scale.x > .5) bloodStain(a, B, _qh3);   // пятно на виске
+    if (fl && fl.t > FALL_HIT && !a.pool) bloodHit(a, wp(B.head_0, V(0, 0, 0)), _qh3);   // удар о стол: брызги, потёки, лужа, капли на пол
     // револьвер в руке: на столе → дугой к виску (от первого лица уходит за правый край кадра); рывки курка и выстрела — дуло вверх
     if (held) {
       _eg2.set(-Math.PI / 2, gun.tp.yaw, 0); _gq.setFromEuler(_eg2); _gp.set(gun.tp.x, TOP + gun.half, gun.tp.z);
@@ -1804,17 +1810,34 @@ function makeWorld(T, RB, RE, cv, PP) {
         _e4.lerp(_t3, gk); _qh.slerp(_qc, gk);
       }
       if (hk) { _e4.lerp(_gw, hk); if (!lift) _e4.y += Math.sin(Math.PI * hk) * .05; _qh.slerp(_gfq, hk); }   // тянется к рукояти дугой
+      if (fl || (k === 'r' && fallGun)) {
+        const r = k === 'r', gIn = r && fallGun;
+        if (r && a.relP) { _e4.copy(a.relP); _qh.copy(a.relQ); }   // до падения рука там, где была при выстреле (у себя — пока камера не ушла вверх)
+        if (fl) {
+          _t1.set(r ? -.35 : .2, -.04, -1).applyQuaternion(_qs); _t2.set(-sd, 0, r ? .3 : 0).applyQuaternion(_qs); frameQ(_t1, _t2, _qc);   // ладонью вниз
+          _t2.set(r ? .24 : -.26, 0, r ? -.64 : -.5).applyMatrix4(g.matrixWorld); _t2.y = Math.max(surfY(_t2.x, _t2.z), TOP) + (gIn ? gun.half + .025 : .026);
+          _e4.lerp(_t2, ff); _qh.slerp(_qc, ff);
+        }
+      }
       _t3.set(sd * .75, -1, .35).applyQuaternion(_qs);                 // локти — вниз и в стороны
       if (hk && lift) _t3.lerp(_t1.set(1, -.3, .2).applyQuaternion(_qs), lift);   // у виска локоть — в сторону
+      if (ff) _t3.lerp(_t1.set(sd, .5, .3).applyQuaternion(_qs), ff);   // упал — локти в стороны и вверх, не в бортик
       ik2(B['arm_upper_' + k], B['arm_lower_' + k], B['hand_' + k], _e4, _t3, L[0], L[1]);
+      if (k === 'r' && fallGun) {   // убит с револьвером: он в ладони, пока рука не легла на стол, потом выпадает
+        _gtq.copy(_qh).multiply(GRIP_QI);
+      }
       setW(B['hand_' + k], _qh.multiply(M.hand[k]));
+      if (k === 'r' && fallGun) {
+        gun.g.quaternion.copy(_gtq); gun.g.position.copy(wp(B.hand_r, _t1)).sub(_t2.copy(GRIP_W).applyQuaternion(_gtq));
+        if (fl && fl.t > FALL_HIT + .05) releaseGun();   // ударился о стол — пальцы разжались
+      }
       if (hk > .6) {   // револьвер в руке: идёт за кистью; если рука не дотянулась — в конце дотягивания сам скользит в ладонь
         const wA = lift > 0 ? 1 : easeIO((hk - .6) / .4);
         wp(B.hand_r, _t1).sub(_gw); _gp.addScaledVector(_t1, wA);
         gun.g.position.copy(_gp); gun.g.quaternion.copy(_gq);
       }
       // пальцы: в исходной позе модели согнуты — на бортике каждую фалангу, что ушла бы в стол, кладём на его поверхность; рука с револьвером — согнуты вокруг рукояти
-      if (!hk && gk < .5) M['fing' + k].forEach((ch, fi) => {
+      if (!hk && !(k === 'r' && fallGun) && gk < .5) M['fing' + k].forEach((ch, fi) => {
         for (let j = 0; j < 3; j++) {
           if (j < 2) wp(ch[j + 1], _t1); else _t1.copy(M['tip' + k][fi]).applyMatrix4(ch[2].matrixWorld);
           const y = railH(_t1.x, _t1.z) + .009; if (_t1.y >= y) continue;
@@ -1847,7 +1870,8 @@ function makeWorld(T, RB, RE, cv, PP) {
       const a = AV[s], p = d.players.find(x => x.seat === s);
       a.on = !!p; a.me = !!(p && p.me); a.bOn = false;
       a.dead = !!(p && p.alive === false && ph !== 'lobby');
-      if (!a.dead) a.vDead = false; else if (gun.who !== s || clock >= (gun.holdUntil || 0)) a.vDead = true;   // у стреляющего «выбыл» приходит раньше выстрела — голову опускаем после выстрела (W.event)
+      if (!a.dead) { a.vDead = false; if (a.fallAt != null || a.fallPend || a.pool) fallReset(a); }
+      else if (!a.vDead && (gun.who !== s || clock >= (gun.holdUntil || 0))) { a.vDead = true; if (a.me) a.fallPend = true; else if (a.fallAt == null) a.fallAt = clock - 5; }   // у стреляющего «выбыл» приходит раньше выстрела — голову опускаем после выстрела (W.event)
       showAV(a);
       a.tag.visible = !menuOn && !a.me;
       const st2 = !p ? 'free' : ph === 'lobby' ? (p.online ? (p.ready ? 'ready' : 'wait') : 'off') : p.left ? 'left' : a.dead ? 'dead' : ph === 'done' && p.place === 1 ? 'win' : g && ph === 'play' && g.turn === s ? 'turn' : !p.online ? 'off' : '';
@@ -1855,7 +1879,8 @@ function makeWorld(T, RB, RE, cv, PP) {
       if (key !== a.tagKey) { a.tagKey = key; if (a.tag.material.map) a.tag.material.map.dispose(); a.tag.material.map = tex(paintTag(s, p ? p.name : '', st2)); a.tag.material.needsUpdate = true; }
     }
     btnActive = false;
-    gun.play = ph === 'play';   // револьвер берут в руки только во время хода
+    gun.play = ph === 'play';
+    { const gid = g ? g.id : null; if (gid !== bloodGid) { bloodGid = gid; bloodClear(); } }   // новая игра — крови нет   // револьвер берут в руки только во время хода
     gunTo(g && ['play', 'next'].includes(ph) ? g.turn || 0 : 0);
   };
   // револьвер лежит на сукне у правой руки того, чей ход: стволом вперёд-влево, рукоятью к руке — чтобы взять его правой рукой (этап 4); seat 0 — посреди стола
@@ -1868,7 +1893,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   W.hold = ms => { gun.holdUntil = clock + ms / 1000; };   // пока звучит выстрел — револьвер у виска и не уезжает к следующему
   function gunTo(seat) {
     if (gun.seat === seat) { gun.pend = null; return; }
-    if (clock < (gun.holdUntil || 0) || gun.who) { gun.pend = seat; return; }   // сначала кладёт на стол (gunStep), потом едет
+    if (clock < (gun.holdUntil || 0) || gun.who || gun.fly) { gun.pend = seat; return; }   // сначала кладёт на стол (gunStep), потом едет
     gun.seat = seat;
     const to = gunSpot(seat), tp = gun.tp;
     let y1 = to.yaw; while (y1 - tp.yaw > Math.PI) y1 -= Math.PI * 2; while (y1 - tp.yaw < -Math.PI) y1 += Math.PI * 2;
@@ -1885,7 +1910,8 @@ function makeWorld(T, RB, RE, cv, PP) {
     const sp = gun.rush ? 4 : 1;   // нажали «Выстрел»/«Крутить», а револьвер ещё не у виска — всё быстрее
     if (gun.sl) { const s = gun.sl; s.k = Math.min(1, s.k + dt / .85 * sp); const e = easeIO(s.k); gun.tp.x = s.x0 + (s.x1 - s.x0) * e; gun.tp.z = s.z0 + (s.z1 - s.z0) * e; gun.tp.yaw = s.y0 + (s.y1 - s.y0) * e; if (s.k >= 1) gun.sl = null; }
     let want = 0;
-    if (!menuOn && gun.play && gun.seat && gun.pend == null && !gun.sl) { const a = AV[gun.seat]; if (a && a.on && a.M && !a.vDead) want = gun.seat; }
+    if (gun.fallSeat) { if (clock - gun.fallT > 6) releaseGun(); want = gun.who; }   // убит с револьвером в руке: рука падает на стол (poseModel), там отпустит; страховка — 6 с
+    else if (!menuOn && gun.play && gun.seat && gun.pend == null && !gun.sl) { const a = AV[gun.seat]; if (a && a.on && a.M && !a.vDead) want = gun.seat; }
     if (clock < (gun.holdUntil || 0) && gun.who) want = gun.who;   // щелчок/выстрел ещё звучит — держит у виска
     if (gun.who && gun.who !== want) {   // опускает на стол и отпускает
       if (gun.lw > 0) gun.lw = Math.max(0, gun.lw - dt / .6 * sp * (gun.drop ? 1.6 : 1));
@@ -1895,7 +1921,13 @@ function makeWorld(T, RB, RE, cv, PP) {
       if (gun.hw < 1) gun.hw = Math.min(1, gun.hw + dt / .45 * sp); else gun.lw = Math.min(1, gun.lw + dt / .8 * sp);
     }
     if (gun.rush && ((gun.who && gun.who === want && gun.lw >= 1) || (!want && !gun.who && !gun.sl && gun.pend == null))) gun.rush = false;
-    if (gun.pend != null && !gun.who && clock >= (gun.holdUntil || 0)) { const ps = gun.pend; gun.pend = null; gunTo(ps); }
+    if (gun.pend != null && !gun.who && !gun.fly && clock >= (gun.holdUntil || 0)) { const ps = gun.pend; gun.pend = null; gunTo(ps); }
+    if (gun.fly) {   // выпал из руки — ложится на сукно
+      const fl = gun.fly; fl.k = Math.min(1, fl.k + dt / .3); _eg2.set(-Math.PI / 2, fl.yaw, 0); _gq.setFromEuler(_eg2);
+      gun.g.quaternion.copy(fl.q0).slerp(_gq, easeIO(fl.k)); gun.g.position.set(fl.p0.x + (fl.x - fl.p0.x) * fl.k, fl.p0.y + (TOP + gun.half - fl.p0.y) * fl.k * fl.k, fl.p0.z + (fl.z - fl.p0.z) * fl.k);
+      if (fl.k >= 1) gun.fly = null;
+      return;
+    }
     // на столе (пока рука не подняла — модель в poseModel перепишет)
     _eg2.set(-Math.PI / 2, gun.tp.yaw, gun.kz); gun.g.quaternion.setFromEuler(_eg2);
     gun.g.position.set(gun.tp.x, TOP + gun.half + gun.hop, gun.tp.z);
@@ -1907,6 +1939,152 @@ function makeWorld(T, RB, RE, cv, PP) {
     for (; f < .6; f += .004) { o.set(sd * .16, 0, -f).applyMatrix4(a.g.matrixWorld); const r = Math.hypot(o.x / TA, o.z / TB), d = Math.hypot(o.x, o.z) * (1 / r - 1); if (d >= want) break; }
     o.y = Math.max(railH(o.x, o.z), TOP + .03) + .026; return o;
   };
+  // ===== падение и кровь после боевого (этап 4, часть 2; владелец 20.11: «головой на стол», «брызги + лужа», свой вид — как было) =====
+  // падение (владелец 20.11: «резко — после выстрела сразу упал на стол»): s — голову откидывает выстрелом (0,06 с); f — корпус рушится на стол (с 0,04 с, с ускорением, удар ~0,36 с, короткий отскок)
+  const FALL_HIT = .36;
+  const fallW = a => {
+    if (a.fallAt == null) return null;
+    const t = clock - a.fallAt, k = clamp((t - .04) / (FALL_HIT - .04), 0, 1);
+    let f = k * k * k; if (t > FALL_HIT) f = 1 - .05 * Math.sin(Math.PI * clamp((t - FALL_HIT) / .18, 0, 1));
+    return { s: easeIO(clamp(t / .06, 0, 1)), f, t };
+  };
+  const FALL = { sp: [.42, .36, .35], roll: .14, head: null };   // наклон позвонков вперёд (рад), завал влево; голова — левой щекой на стол, правым виском вверх
+  FALL.head = frameQ(V(-.25, 1, .15), V(.15, .45, -1), new T.Quaternion());   // в осях места: правая сторона головы — вверх, макушка — вперёд по столу
+  const GRIP_QI = frameQ(GRIP_F, GRIP_A, new T.Quaternion()).invert();       // кисть → револьвер
+  const releaseGun = () => {   // рука на столе разжалась: револьвер ложится на сукно рядом (0,3 с), дальше едет к следующему как обычно
+    const o = gun.g, p = o.position, D = V(1, 0, 0).applyQuaternion(o.quaternion);
+    let x = p.x + D.x * .03, z = p.z + D.z * .03;
+    for (let i = 0; i < 30 && railH(x, z) !== TOP; i++) { x *= .96; z *= .96; }   // не на бортике — ближе к середине
+    const yaw = Math.atan2(-D.z, D.x) + (Math.random() - .5) * .6;
+    gun.fly = { p0: p.clone(), q0: o.quaternion.clone(), x, z, yaw, k: 0 };
+    gun.tp.x = x; gun.tp.z = z; gun.tp.yaw = yaw; gun.who = 0; gun.hw = gun.lw = 0; gun.fallSeat = 0;
+  };
+  // кровь (владелец 20.11: «больше, и текстуру как настоящую»; фото CC0 нет — рисуем в коде): форма — метаболы (сливающиеся капли с рваным краем),
+  // толстая середина темнее, тонкий край светлее и с тёмным ободком, хвосты брызг по направлению полёта; карта рельефа — мокрый блеск под лампами
+  const bloodPaint = (cells, draw, cs = 256) => {   // cells×cells клеток по cs px (каждая — свой вариант пятна), draw(add, i) рисует вариант i в координатах 0…256
+    const S = cs * cells, F = new Float32Array(S * S), sc = cs / 256;
+    for (let i = 0; i < cells * cells; i++) {
+      const ox = (i % cells) * cs, oy = Math.floor(i / cells) * cs;
+      const add = (cx, cy, r, sx = 1, ang = 0, k = 1) => {   // капля-метабол (вытянута в sx раз вдоль ang)
+        cx *= sc; cy *= sc; r *= sc;
+        const ca = Math.cos(ang), sa = Math.sin(ang), R = r * Math.max(1, sx) * 1.7;
+        const x0 = Math.max(0, Math.floor(cx - R)), x1 = Math.min(cs - 1, Math.ceil(cx + R)), y0 = Math.max(0, Math.floor(cy - R)), y1 = Math.min(cs - 1, Math.ceil(cy + R));
+        for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+          const dx = x - cx, dy = y - cy, u = (dx * ca + dy * sa) / (r * sx), v = (-dx * sa + dy * ca) / r, d2 = (u * u + v * v) / 2.6;
+          if (d2 < 1) { const q = 1 - d2; F[(oy + y) * S + ox + x] += k * q * q; }
+        }
+      };
+      draw(add, i);
+    }
+    const c = cnv(S, S), x = c.getContext('2d'), img = x.createImageData(S, S), d = img.data, nc = cnv(S, S), nx = nc.getContext('2d'), nimg = nx.createImageData(S, S), nd = nimg.data;
+    const TH = .5, hgt = j => { const f = F[j] - TH; return f > 0 ? Math.sqrt(f) : 0; };
+    for (let y = 0; y < S; y++) for (let x0 = 0; x0 < S; x0++) {
+      const j = y * S + x0, f = F[j], a = clamp((f - TH + .045) / .09, 0, 1), t = clamp((f - TH) / 1.1, 0, 1), rim = Math.exp(-Math.pow((f - TH) / .07, 2)) * .45, nz = .92 + Math.random() * .08;
+      const r = (98 - 60 * Math.pow(t, .5)) * (1 - rim) * nz, gg = (6 - 4.5 * t) * (1 - rim), b = (9 - 6 * t) * (1 - rim);   // тонкий край — тёмно-красный, толстая середина — почти бордово-чёрная
+      d[j * 4] = r; d[j * 4 + 1] = gg; d[j * 4 + 2] = b; d[j * 4 + 3] = 255 * a * (.82 + .18 * Math.min(1, t * 4));
+      const hx = hgt(y * S + Math.min(S - 1, x0 + 1)) - hgt(y * S + Math.max(0, x0 - 1)), hy = hgt(Math.min(S - 1, y + 1) * S + x0) - hgt(Math.max(0, y - 1) * S + x0), L = Math.hypot(hx * 3, hy * 3, 1);
+      nd[j * 4] = 128 - 127 * hx * 3 / L; nd[j * 4 + 1] = 128 + 127 * hy * 3 / L; nd[j * 4 + 2] = 255 / L; nd[j * 4 + 3] = 255;
+    }
+    x.putImageData(img, 0, 0); nx.putImageData(nimg, 0, 0);
+    const map = tex(c), nrm = new T.CanvasTexture(nc); nrm.anisotropy = ANI;
+    return { map, nrm };
+  };
+  const rr = (a, b) => a + Math.random() * (b - a);
+  // брызги: 0, 1 — круглые (удар сверху), 2, 3 — с хвостом (капля летела вбок, хвост — по +x), 4..8 — мелкие капли
+  const SPL = bloodPaint(3, (add, i) => {
+    if (i < 2) {
+      add(128, 128, rr(30, 40)); for (let k = 0; k < 7; k++) { const a = rr(0, 6.28), dd = rr(14, 34); add(128 + Math.cos(a) * dd, 128 + Math.sin(a) * dd, rr(12, 24)); }
+      for (let k = 0; k < 26; k++) { const a = rr(0, 6.28), dd = rr(52, 112), r = rr(1.5, 6); add(128 + Math.cos(a) * dd, 128 + Math.sin(a) * dd, r, rr(1, 2.8), a, 1.4); }
+    } else if (i < 4) {
+      add(78, 128, 30, 1.7); add(118, 128, 16, 1.6); add(150, 129, 9, 1.8); add(172, 130, 5.5, 2); add(190, 131, 3.5, 2.2);
+      for (let k = 0; k < 22; k++) { const a = rr(-.55, .55), dd = rr(60, 120), r = rr(1.5, 5); add(78 + Math.cos(a) * dd, 128 + Math.sin(a) * dd, r, rr(1.4, 3.2), a, 1.4); }
+    } else { add(128, 128, rr(16, 26)); for (let k = 0; k < 6; k++) { const a = rr(0, 6.28), dd = rr(30, 70); add(128 + Math.cos(a) * dd, 128 + Math.sin(a) * dd, rr(1.5, 4), rr(1, 2), a, 1.4); } }
+  });
+  const POOL = bloodPaint(1, add => {   // лужа: толстая середина, неровный край, языки-потёки, рядом капли (края текстуры — прозрачные: лужа «растёт» сдвигом текстуры)
+    add(128, 128, 50, 1, 0, 1.8); for (let k = 0; k < 16; k++) { const a = rr(0, 6.28), dd = rr(22, 52); add(128 + Math.cos(a) * dd, 128 + Math.sin(a) * dd, rr(14, 30), rr(1, 1.7), a, 1.3); }
+    for (let k = 0; k < 5; k++) { const a = rr(0, 6.28); for (let j = 0; j < 4; j++) add(128 + Math.cos(a) * (62 + j * 9), 128 + Math.sin(a) * (62 + j * 9), 9 - j * 1.6, 1.3, a, 1.2); }
+    for (let k = 0; k < 16; k++) { const a = rr(0, 6.28), dd = rr(88, 108); add(128 + Math.cos(a) * dd, 128 + Math.sin(a) * dd, rr(1.5, 4.5), 1, 0, 1.4); }
+  }, 512);
+  const wetM = (t, ro, off) => std({ map: t.map, normalMap: t.nrm, normalScale: new T.Vector2(1.6, 1.6), transparent: true, depthWrite: false, roughness: ro, metalness: 0, envMapIntensity: 1.4, polygonOffset: true, polygonOffsetFactor: off, polygonOffsetUnits: off });
+  const splM = wetM(SPL, .1, -4), poolM = wetM(POOL, .06, -6);
+  const cellG = i => { const g = new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), uv = g.attributes.uv, cx = (i % 3) / 3, cy = 1 - (Math.floor(i / 3) + 1) / 3; for (let k = 0; k < uv.count; k++) uv.setXY(k, cx + uv.getX(k) / 3, cy + uv.getY(k) / 3); return g; };
+  const SPLN = 260, splI = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => { const m = new T.InstancedMesh(cellG(i), splM, SPLN); m.count = 0; m.frustumCulled = false; m.renderOrder = 2; m.receiveShadow = true; scene.add(m); return { m, n: 0 }; });
+  const DROPS = 220, drops = new T.InstancedMesh(new T.SphereGeometry(1, 6, 4), std({ color: 0x5a0508, roughness: .12, metalness: 0 }), DROPS);
+  drops.count = 0; drops.frustumCulled = false; scene.add(drops);
+  const dropL = [], mists = [], pools = [], drips = [], _bm = new T.Matrix4(), _bq = new T.Quaternion(), _bq2 = new T.Quaternion(), _bs = V(1, 1, 1), _bn = V(0, 1, 0), _bp = V(0, 0, 0), _bd = V(0, 0, 0);
+  const surfY = (x, z) => { const h = railH(x, z); return h < 0 ? 0 : h; };   // стол (бортик, дерево, сукно) или пол
+  const surfN = (x, z, o) => { const e = .006, hx = surfY(x + e, z) - surfY(x - e, z), hz = surfY(x, z + e) - surfY(x, z - e); return o.set(-hx / (2 * e), 1, -hz / (2 * e)).normalize(); };
+  // пятно на поверхности (по наклону бортика); dir — куда летела капля (хвост туда), st — во сколько раз вытянуть
+  const splat = (x, z, s, dir, st = 1, kind) => {
+    const v = kind != null ? kind : dir ? 2 + (Math.random() < .5 ? 1 : 0) : s < .02 ? 4 + Math.floor(Math.random() * 5) : Math.floor(Math.random() * 2), o = splI[v];
+    const ang = dir ? Math.atan2(-dir.z, dir.x) : Math.random() * 6.28;
+    _bp.set(x, surfY(x, z) + .0012 + o.n * .0000015, z); _bq.setFromUnitVectors(UP, surfN(x, z, _bn)); _bq2.setFromAxisAngle(UP, ang); _bq.multiply(_bq2); _bs.set(s * st, 1, s);
+    _bm.compose(_bp, _bq, _bs); o.m.setMatrixAt(o.n % SPLN, _bm); o.n++; o.m.count = Math.min(SPLN, o.n); o.m.instanceMatrix.needsUpdate = true;
+  };
+  const poolK = (p, k) => { const rep = 1 / Math.max(.04, k), off = .5 - .5 * rep; for (const t of [p.m.map, p.m.normalMap]) { t.repeat.set(rep, rep); t.offset.set(off, off); } };
+  const putPool = (x, z, lift, max, grow) => {   // лужа: сетка лежит по поверхности (бортик, дерево, сукно, пол), растекается за grow с
+    const seg = 24, g = new T.PlaneGeometry(1, 1, seg, seg).rotateX(-Math.PI / 2), pa = g.attributes.position, an = Math.random() * 6.28, ca = Math.cos(an), sa = Math.sin(an);
+    for (let i = 0; i < pa.count; i++) { const lx = pa.getX(i) * max, lz = pa.getZ(i) * max, wx = x + lx * ca - lz * sa, wz = z + lx * sa + lz * ca; pa.setXYZ(i, wx, surfY(wx, wz) + lift, wz); }
+    g.computeVertexNormals();
+    const m = poolM.clone(); m.map = POOL.map.clone(); m.normalMap = POOL.nrm.clone(); m.map.needsUpdate = m.normalMap.needsUpdate = true;
+    const o = new T.Mesh(g, m); o.renderOrder = 3; o.receiveShadow = true; scene.add(o);
+    const p = { o, m, t0: clock, grow }; poolK(p, .04); pools.push(p); return p;
+  };
+  const spurt = (p, v, r) => { if (dropL.length < DROPS) dropL.push({ p: p.clone(), v, r }); };
+  const bloodShot = a => {   // выстрел: облачко у выхода (левый висок) и много брызг вперёд-влево на стол; из входа справа — меньше
+    if (!a.M || !a.hq) return;
+    const hp = wp(a.M.B.head_0, V(0, 0, 0)), q = a.hq;
+    const ex = V(-.085, .04, -.035).applyQuaternion(q).add(hp), en = V(.085, .04, -.035).applyQuaternion(q).add(hp), dir = V(-.45, .3, -1).normalize().applyQuaternion(q), dr = V(1, .3, -.3).normalize().applyQuaternion(q);
+    for (let i = 0; i < 160; i++) { const sp = rr(.9, 2.8), big = Math.random() < .3; spurt(ex, dir.clone().multiplyScalar(sp).add(V(rr(-.45, .45), rr(-.3, .45), rr(-.45, .45))), big ? rr(.005, .009) * (1.6 - sp * .25) : rr(.0016, .004)); }   // кучно: крупные — ближе, мелкие — дальше
+    for (let i = 0; i < 25; i++) spurt(en, dr.clone().multiplyScalar(rr(.5, 1.6)).add(V(rr(-.3, .3), rr(0, .4), rr(-.3, .3))), rr(.002, .004));
+    for (const [p, s0] of [[ex, .17], [ex.clone().addScaledVector(dir, .12), .13], [en, .07]]) { const sp = new T.Sprite(new T.SpriteMaterial({ map: mistT, transparent: true, depthWrite: false })); sp.position.copy(p); sp.scale.setScalar(s0); sp.renderOrder = 9; scene.add(sp); mists.push({ sp, t0: clock, s0 }); }
+  };
+  const bloodHit = (a, hb, q) => {   // голова ударилась о стол: брызги вокруг, потёки по бортику, лужа на ровном, капли с края стола на пол
+    const p = V(-.07, .05, -.02).applyQuaternion(q).add(hb);
+    for (let i = 0; i < 40; i++) { const a = rr(0, 6.28), d = Math.pow(Math.random(), .7) * .24, h = V(Math.cos(a) * d, 0, Math.sin(a) * d).add(hb); if (railH(h.x, h.z) > 0) splat(h.x, h.z, rr(.02, .07) * (1.2 - d * 2.5), null, 1); }
+    for (let i = 0; i < 7; i++) {   // потёки: вытянутые пятна вниз по склону бортика
+      const h = V(rr(-.12, .12), 0, rr(-.12, .12)).add(hb); if (railH(h.x, h.z) <= TOP) continue;
+      surfN(h.x, h.z, _bd); _bd.y = 0; if (_bd.lengthSq() < 1e-6) continue; splat(h.x, h.z, rr(.018, .03), _bd.clone(), rr(2.2, 3.4), 2);
+    }
+    a.pool = putPool(p.x, p.z, .003, .5, 2.2);   // из-под головы — по бортику и дальше
+    const c = p.clone().multiplyScalar(.9); a.pool2 = putPool(c.x, c.z, .0026, .62, 4);   // и шире — к середине стола (стекает)
+    const r0 = Math.hypot(p.x / TA, p.z / TB) || 1, edge = V(p.x / r0, 0, p.z / r0); edge.multiplyScalar(1 + .012 / Math.hypot(edge.x, edge.z));   // край стола напротив головы
+    if (edge.distanceTo(V(p.x, 0, p.z)) < .3) drips.push({ x: edge.x, z: edge.z, y: TOP + .02, t: clock + 1.2, end: clock + 22, a });
+  };
+  const bloodStain = (a, B, q) => {   // пятно на правом виске (входное) — держится за голову
+    const hb = wp(B.head_0, V(0, 0, 0)), o = new T.Mesh(cellG(0), splM); o.renderOrder = 2;
+    o.position.copy(V(.083, .04, -.035).applyQuaternion(q).add(hb)); o.quaternion.setFromUnitVectors(UP, V(1, 0, 0).applyQuaternion(q)); o.scale.set(.07, 1, .07);
+    scene.add(o); B.head_0.attach(o); a.stain = o;
+  };
+  const bloodStep = dt => {   // полёт капель (упала — пятно, хвостом по полёту), облачка, лужи растут, с края стола капает
+    let n = 0;
+    for (let i = dropL.length - 1; i >= 0; i--) {
+      const d = dropL[i]; d.v.y -= 9.8 * dt; d.p.addScaledVector(d.v, dt);
+      if (d.p.y <= surfY(d.p.x, d.p.z) || Math.abs(d.p.x) > 6 || Math.abs(d.p.z) > 6) {
+        if (d.p.y > -.1) { const hv = Math.hypot(d.v.x, d.v.z), sp = d.v.length(), s = Math.min(.06, d.r * rr(5, 9) + Math.min(.015, sp * .003)), tail = hv > 2.4 && Math.random() < .6; splat(d.p.x, d.p.z, s, tail ? _bd.set(d.v.x, 0, d.v.z) : null, tail ? 1 + Math.min(.8, (hv - 2) * .25) : 1); }   // хвост — только у быстрых капель
+        dropL.splice(i, 1); continue;
+      }
+      _bs.setScalar(d.r * (1 + Math.min(1.5, d.v.length() * .12))); _bm.compose(d.p, _bq.identity(), _bs); drops.setMatrixAt(n++, _bm);
+    }
+    drops.count = n; if (n) drops.instanceMatrix.needsUpdate = true;
+    for (let i = mists.length - 1; i >= 0; i--) { const m = mists[i], k = (clock - m.t0) / .6; if (k >= 1) { scene.remove(m.sp); m.sp.material.dispose(); mists.splice(i, 1); continue; } m.sp.scale.setScalar(m.s0 * (1 + 4 * k)); m.sp.material.opacity = .9 * (1 - k) * (1 - k); }
+    for (const p of pools) poolK(p, .04 + .96 * (1 - Math.exp(-(clock - p.t0) / p.grow)));
+    for (let i = drips.length - 1; i >= 0; i--) {
+      const d = drips[i]; if (clock > d.end) { drips.splice(i, 1); continue; }
+      if (clock >= d.t) { d.t = clock + rr(.35, .9); spurt(V(d.x + rr(-.01, .01), d.y, d.z + rr(-.01, .01)), V(0, -.2, 0), rr(.003, .005)); if (!d.floor) d.floor = putPool(d.x, d.z, .002, .32, 9); }
+    }
+  };
+  const mistT = (() => { const c = cnv(64, 64), x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(140,10,12,.85)'); g.addColorStop(.5, 'rgba(110,6,8,.35)'); g.addColorStop(1, 'rgba(90,4,6,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return tex(c); })();
+  const fallReset = a => {   // новая игра: сидит снова, крови нет
+    a.fallAt = null; a.fallPend = false; a.relP = null; a.pool = a.pool2 = null;
+    if (a.stain) { if (a.stain.parent) a.stain.parent.remove(a.stain); a.stain = null; }
+  };
+  const bloodClear = () => {
+    for (const o of splI) { o.n = 0; o.m.count = 0; }
+    for (const p of pools) { scene.remove(p.o); p.o.geometry.dispose(); p.m.map.dispose(); p.m.normalMap.dispose(); p.m.dispose(); } pools.length = 0; drips.length = 0; dropL.length = 0; drops.count = 0;
+    for (const s of SEATS) fallReset(AV[s]);
+  };
+  let bloodGid = null;
   // события стола: прокрутка барабана (в руке — тоже), взвод курка, щелчок, выстрел (вспышка у дула)
   W.event = ev => {
     const ax = gun.axis, dr = gun.drum, o = gun.g;
@@ -1916,7 +2094,13 @@ function makeWorld(T, RB, RE, cv, PP) {
     if ((ev.kind === 'click' || ev.kind === 'bang') && dr) { const a0 = dr.rotation[ax]; tween(.12, k => { dr.rotation[ax] = a0 + (Math.PI / 3) * k; }); }
     if (ev.kind === 'click' || ev.kind === 'bang') { const big = ev.kind === 'bang' ? 1 : .35; tween(.35, k => { const s = k < 1 ? Math.sin(Math.PI * k) * big : 0; gun.hop = s * .025; gun.kick = s; }); }   // на столе подпрыгивает, в руке — дуло вверх
     if (ev.kind === 'bang') {
-      const a = AV[ev.seat]; if (a) a.vDead = true; gun.drop = true;   // голова падает только теперь (падение и кровь — следующий этап)
+      const a = AV[ev.seat];
+      if (a) {
+        a.vDead = true; bloodShot(a);
+        if (a.me) a.fallPend = true; else if (a.fallAt == null) a.fallAt = clock;   // своё тело падает, когда камера уже ушла вверх (владелец: свой вид — как было)
+        if (a.M && gun.who === ev.seat && gun.hw >= 1) { gun.fallSeat = ev.seat; gun.fallT = clock; a.relP = wp(a.M.B.hand_r, V(0, 0, 0)); a.relQ = gun.g.quaternion.clone().multiply(GRIP_QI.clone().invert()); }
+        else gun.drop = true;
+      }
       o.updateMatrixWorld(); flashL.position.copy(gun.muzzle).applyMatrix4(o.matrixWorld); flashL.position.y += .05;
       tween(.45, k => { flashL.intensity = 40 * Math.pow(1 - k, 2); });
     }
@@ -1993,6 +2177,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     clock += dt;
     for (let i = tw.length - 1; i >= 0; i--) { const x = tw[i], k = (clock - x.t0) / x.dur; if (k < 0) continue; x.fn(Math.min(1, k)); if (k >= 1) { tw.splice(i, 1); x.res(); } }
     gunStep(dt);   // револьвер: едет по столу, кто его держит
+    bloodStep(dt);   // капли крови, облачка, лужи
     // камера
     if (menuOn) {
       const a = t * .045; cam.position.set(Math.sin(a) * 2.75, 1.95, Math.cos(a) * 2.75); cam.lookAt(0, .78, 0);
@@ -2034,6 +2219,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       const watch = spec > .35;   // сверху виден свой персонаж целиком — голова опущена, как у остальных выбывших
       if (me.M) { if ((me.M.head.scale.x > .5) !== watch) me.M.head.scale.setScalar(watch ? 1 : 1e-4); }
       else if (me.headParts[0].visible !== watch) me.headParts.forEach(o => { o.visible = watch; });
+      if (watch && me.fallPend) { me.fallPend = false; if (me.fallAt == null) me.fallAt = clock; }   // своё тело валится на стол — видно сверху
       if (watch) { me.hy += (0 - me.hy) * .05; me.hp += (-1 - me.hp) * .05; me.hd.rotation.set(me.hp * .85, me.hy * .9, 0); }
       else { me.ty = yaw; me.tp = pitch; me.hy = yaw; me.hp = pitch; }
     }
@@ -2045,7 +2231,7 @@ function makeWorld(T, RB, RE, cv, PP) {
         a.bCap.position.y = .031 - .009 * a.bk; a.bDome.position.y = .042 - .009 * a.bk; a.bCapM.emissiveIntensity = .2 + 1.7 * a.bk + (hov ? .35 : 0) + (btnActive && a.me && !on ? .15 * (1 + Math.sin(t * 4)) : 0); a.bGlow.material.opacity = .9 * a.bk; }
       if (!a.on || menuOn) continue;
       const f = 1 - Math.exp(-dt * 9);
-      if (a.dead && !a.vDead && clock >= (gun.holdUntil || 0) + .5) a.vDead = true;
+      if (a.dead && !a.vDead && clock >= (gun.holdUntil || 0) + .5) { a.vDead = true; if (a.me) a.fallPend = true; else if (a.fallAt == null) a.fallAt = clock; }
       if (a.vDead && !a.me) { a.ty = 0; a.tp = -1; }   // выбыл — голова опущена (падение и кровь — этап 4)
       if (!a.me) { a.hy += (a.ty - a.hy) * f; a.hp += (a.tp - a.hp) * f; a.hd.rotation.set(a.hp * .85, a.hy * .9, 0); }
       if (!a.M) a.body.position.y = Math.sin(t * 1.7 + s * 1.3) * .004;
