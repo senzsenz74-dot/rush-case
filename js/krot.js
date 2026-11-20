@@ -18,7 +18,21 @@ let sb = null, openAuth = null, getUser = () => null, soundOn = () => true;   //
 function setDeps(dep) { if (!dep) return; if (dep.sb) sb = dep.sb; if (dep.openAuth) openAuth = dep.openAuth; if (dep.esc) esc = dep.esc; if (dep.user) getUser = dep.user; if (dep.sound) soundOn = dep.sound; }
 
 /* ---------- константы ---------- */
-const R_SEAT = 1.08, EYE = 1.28, TOP = .765;                                   // радиус мест, высота глаз, высота сукна (м)
+const EYE = 1.28, TOP = .765;                                                  // высота глаз, высота сукна (м)
+// «Русская рулетка»: 5 мест вокруг овального покерного стола. TA/TB — полуоси внешнего края бортика (м),
+// SEAT_OFF — центр стула дальше края на столько. Места — через равные отрезки по краю овала, место 1 — середина ближней длинной стороны.
+const NS = 5, SEATS = [1, 2, 3, 4, 5], TA = 1.32, TB = .84, SEAT_OFF = .36;
+const SEAT = (() => {
+  const N = 1440, pts = []; let L = 0;
+  for (let i = 0; i <= N; i++) { const f = i / N * Math.PI * 2, x = Math.sin(f) * TA, z = Math.cos(f) * TB; if (i) L += Math.hypot(x - pts[i - 1].x, z - pts[i - 1].z); pts.push({ f, x, z, L }); }
+  const out = {};
+  for (let s = 1; s <= NS; s++) {
+    const want = (s - 1) / NS * L, p = pts.find(q => q.L >= want) || pts[0];
+    const nx = Math.sin(p.f) / TA, nz = Math.cos(p.f) / TB, nl = Math.hypot(nx, nz), ux = nx / nl, uz = nz / nl;   // наружная нормаль к краю
+    out[s] = { x: p.x + ux * SEAT_OFF, z: p.z + uz * SEAT_OFF, yaw: Math.atan2(ux, uz) };
+  }
+  return out;
+})();
 const BOXP = { 1: [-.2, -.16], 2: [.2, -.16], 3: [-.2, .16], 4: [.2, .16] };   // центры контейнеров на столе (x, z)
 const COL = { amber: '#e3a33b', red: '#e2493f', green: '#4fbf62', blue: '#3f8fe6' };
 const DICT0 = { sym: { tri: 'треугольник', circle: 'круг', hex: 'шестиугольник', rhomb: 'ромб' },
@@ -33,14 +47,16 @@ const GUN = {   // силуэты оружия, 48×24, дулом вправо
   rifle: 'M1.5 10.5 10 9H12V8H31V8.6H38V9.2H47V10.6H38V12.2H31V13H28.5L30.5 20.5 26.6 21.5 24.6 13H19.5L17.4 19H13.8L15.6 13H11L4.5 16.5H1.5ZM44.5 7.6h1.4v1.6h-1.4ZM24 6.8h2V8h-2Z',
   sniper: 'M1 9.5 9 9 12 10.5H14V10H31V10.6H45.6V9.8h1.8v2.6h-1.8V12H31V13.5H25V17.5H21.5V13.5H18.5L16.5 19H13L14.8 13.5H12L10 15.5H4L1 13.5ZM15.5 5.5H27.5V4.8h2.6v4.4h-2.6V8.5H15.5ZM18 8.5h1.6V10H18ZM25 8.5h1.6V10H25Z',
   knife: 'M2.5 10.8H15V8.6h2.6v2H38C42 10.6 45 11.2 47 12.2 44.5 13.6 40 14.4 34 14.4H17.6V16H15V13.8H2.5C1.6 13.8 1 13.2 1 12.3S1.6 10.8 2.5 10.8Z' };
-const PH = { lobby: 'Сбор группы', brief: 'Брифинг', talk: 'Обсуждение', vote: 'Фиксация выбора', revote: 'Доп. голосование',
-  open: 'Вскрытие', debrief: 'Разбор операции', done: 'Операция завершена' };
-const HINT = { lobby: 'Ждём четырёх игроков. Нажмите «Готов к операции», когда будете на месте.',
-  brief: 'Прочитайте свою карточку — опустите взгляд или зажмите ПКМ. Остальные её не видят.',
-  talk: 'Сверьте улики и найдите цель. Готовы голосовать — нажмите красную кнопку перед собой: когда нажмут все, начнётся голосование.',
-  vote: 'Кликните по контейнеру (или 1–4). Выбор можно менять до конца таймера. Зажмите ЛКМ — осмотреться.',
-  revote: 'Голоса разделились. Выберите один из подсвеченных контейнеров.',
-  open: 'Вскрываем…', debrief: 'Роли раскрыты. Кто был Кротом?', done: '' };
+const PH = { lobby: 'Сбор игроков', play: 'Раунд', next: 'Раунд окончен', done: 'Игра окончена' };
+const HINT = { lobby: 'Ждём пятерых игроков.' };
+// правила «Русской рулетки» (сервер берёт те же числа из настроек): ход, патроны по числу живых, очки за место, пауза между раундами
+const RR = { turn: 20, bul: { 5: 1, 4: 2, 3: 3, 2: 5 }, pts: { 1: 10, 2: 6, 3: 3, 4: 1, 5: 0 }, next: 5 };
+// шанс выстрела: патроны в случайных гнёздах; после k пустых щелчков без прокрутки — b из (6 − k)
+const rrChance = (b, k) => (6 - k > 0 ? Math.min(1, b / (6 - k)) : 1);
+const pct = v => Math.round(v * 100) + '%';
+const plural = n => (n === 1 ? 'патрон' : n < 5 ? 'патрона' : 'патронов');
+const ICO_DRUM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="6.6" r="1.7"/><circle cx="16.7" cy="9.3" r="1.7"/><circle cx="16.7" cy="14.7" r="1.7"/><circle cx="12" cy="17.4" r="1.7"/><circle cx="7.3" cy="14.7" r="1.7"/><circle cx="7.3" cy="9.3" r="1.7"/></svg>';
+const ICO_GUN = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 7.2h13.6l.9-.9h3.3v2.9h-3l-.9.9h-4.6v1.4l-.9.5v1H9.7l-.8 1.9c-.3.6-.8.9-1.4.9H5.8l1.3-4.1h-.7L4.8 14H2.9l1.3-4.2H2z"/></svg>';
 const REASON = { majority: 'большинством голосов', revote: 'на доп. голосовании' };
 const CANCEL = { disconnect: 'игрок не вернулся вовремя', few_votes: 'проголосовало меньше двух Оперативников', abandoned: 'все игроки вышли' };
 const REPORT = [['abuse', 'Оскорбления'], ['cheat', 'Подсказки со стороны или сговор'], ['spam', 'Спам в чате'], ['afk', 'Не участвует в игре'], ['other', 'Другое']];
@@ -149,6 +165,7 @@ K.stop = () => {
   if (api === Demo) Demo.stop();
   root = ui = null; S = null; room = 0; view = ''; lastPhase = ''; pend = null; draft = 0; busy = false; ov = '';
   chat = []; seen = new Set(); lastChat = 0; proof = null; openRound = 0; briefSeen = 0;
+  lastEv = 0; lastGame = 0; actBusy = false; actLock = 0; actShown = ''; keyDown = ''; spinNote = null; keysGame = 0; keysTurn = 0; capHoldUntil = 0;
 };
 
 function setTop() {
@@ -165,7 +182,8 @@ function listen() {
   H.scr = () => { if (window.scrollY && root) window.scrollTo(0, 0); };   // игра на весь экран: страница не прокручивается (фокус в чате и т. п.)
   H.pu = e => {
     if (e.button === 2 && G) G.setRead(false);
-    if (e.button === 0 && drag && !drag.moved && G) { if (G.aimBtn() && canBtn()) voteReady(); else { const a = G.aim(); if (a && canPick()) vote(a); } }   // клик без перетаскивания — выбор контейнера
+    if (e.button === 0 && drag && !drag.moved && G && S && S.room.phase === 'done') { const cv = $('#krCv', root), r = cv && cv.getBoundingClientRect(), a = r && G.tvPick((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1, false); if (a) tvAct(a); }   // кнопки на экране итога
+    else if (e.button === 0 && drag && !drag.moved && G) { if (G.aimBtn() && canBtn()) voteReady(); else { const a = G.aim(); if (a && canPick()) vote(a); } }   // клик без перетаскивания — выбор контейнера
     drag = null; if (root) root.classList.remove('drag');
   };
   H.bu = e => { if (S && room && ['brief', 'talk', 'vote', 'revote'].includes(S.room.phase)) { e.preventDefault(); e.returnValue = ''; } };
@@ -191,7 +209,8 @@ function onKey(e, down) {
   if (e.key === 'Escape') { if (inp) { e.target.blur(); return; } if (ov) { closeOv(); return; } return; }
   if (inp || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'Enter') { const i = $('#krIn', root); if (i) { e.preventDefault(); if (document.pointerLockElement) document.exitPointerLock(); openChat(true); i.focus({ preventScroll: true }); } return; }
-  if (/^[1-4]$/.test(e.key) && canPick()) { e.preventDefault(); vote(+e.key); }
+  if (e.code === 'KeyR' && !e.repeat) { e.preventDefault(); rrAct('spin'); return; }       // крутить барабан
+  if ((e.code === 'Space' || e.code === 'KeyF') && !e.repeat) { e.preventDefault(); rrAct('shoot'); }   // выстрел
 }
 function bindCanvas(cv) {
   cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -206,13 +225,14 @@ function bindCanvas(cv) {
   cv.addEventListener('pointermove', e => {
     if (!G) return;
     const r = cv.getBoundingClientRect();
-    G.mouse((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    const mx = (e.clientX - r.left) / r.width * 2 - 1, my = -((e.clientY - r.top) / r.height) * 2 + 1; G.mouse(mx, my);
+    root.classList.toggle('tvh', !!G.tvPick(mx, my));   // курсор-рука над кнопкой на экране итога
     if (!drag || drag.id !== e.pointerId || (e.pointerType === 'mouse' && !(e.buttons & 1))) return;
     if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 5) drag.moved = true;
     if (drag.moved) G.look((e.clientX - drag.x) * 1.5, (e.clientY - drag.y) * 1.5);   // голова крутится, пока зажата ЛКМ
     drag.x = e.clientX; drag.y = e.clientY;
   });
-  cv.addEventListener('pointerleave', () => { if (G && !drag) G.mouse(null); });
+  cv.addEventListener('pointerleave', () => { if (G && !drag) { G.mouse(null); G.tvPick(null); root.classList.remove('tvh'); } });
 }
 const canBtn = () => !!(S && S.room.phase === 'talk' && !S.room.paused);
 const canPick = () => !!(S && S.round && ['brief', 'talk', 'vote', 'revote'].includes(S.room.phase) && !S.room.paused);
@@ -240,7 +260,8 @@ function onClick(e) {
   else if (a === 'menu') leave(true);
   else if (a === 'copyres') copy(resultText(), 'Итог скопирован');
   else if (a === 'brief-ok') { briefSeen = S && S.round ? S.round.id : briefSeen; drawMid(); }
-  else if (a === 'card-hide') { hideCard = !hideCard; LS.set('hide', hideCard); drawCard(); if (G) G.hideCard(hideCard); }
+  else if (a === 'spin') rrAct('spin');
+  else if (a === 'shoot') rrAct('shoot');
   else if (a === 'report') openOv('report', +b.dataset.seat);
   else if (a === 'rep-send') sendReport(b);
   else if (a === 'chat') openChat(!chatOpen);
@@ -288,7 +309,13 @@ async function joinCode(code) {
 }
 async function again() {
   if (busy || !S) return;
-  if (S.room.kind !== 'private') { await leaveFinished(); roomless(); K.mmPlay(); return; }
+  if (S.room.kind !== 'private') {   // владелец 20.11: сразу главный экран сайта с уже идущим поиском, очки летят монетками в аватарку
+    const me = myPlayer(), pts = S.room.points && me && me.pts > 0 ? me.pts : 0;
+    await leaveFinished(); roomless();
+    location.hash = '#/'; K.mmPlay();
+    // if (pts) coinsFly(pts);   // монетки-очки — убраны «пока что» (владелец 20.11); код coinsFly/coinTick оставлен, проверка KROT.dbg.coins(8)
+    return;
+  }
   busy = true; const g = gen, old = room;
   try {
     await leaveFinished();
@@ -298,6 +325,63 @@ async function again() {
     enterRoom(d);
     note('Новая комната ' + d.room.code + ' — код отправлен в чат прошлой игры');
   } catch (e) { if (g === gen) note(errText(e), 'err'); } finally { if (g === gen) busy = false; }
+}
+/* монетки-очки: от персонажа на главной (#mnAgent) в аватарку игрока (.lu-ava), «+N очков» у аватарки */
+function coinsFly(pts) {
+  let tries = 0;
+  const go = () => {
+    const src = document.getElementById('mnAgent'), dst = document.querySelector('.lu .lu-ava') || document.querySelector('.lu .lu-steam');   // гость (демо) — в кнопку входа
+    const a = src && src.getBoundingClientRect(), b = dst && dst.getBoundingClientRect();
+    if (!a || !b || !a.width || !b.width) { if (++tries < 50) setTimeout(go, 100); return; }   // главная ещё рисуется
+    const tx = b.left + b.width / 2, ty = b.top + b.height / 2, tag = () => {
+      const t = document.createElement('b'); t.className = 'rr-coin-tag'; const m10 = pts % 10, m100 = pts % 100; t.textContent = '+' + pts + (m10 === 1 && m100 !== 11 ? ' очко' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? ' очка' : ' очков');
+      t.style.left = (b.right + 10) + 'px'; t.style.top = ty + 'px'; document.body.appendChild(t);
+      t.animate([{ opacity: 0, transform: 'translate(-4px,-50%) scale(.7)' }, { opacity: 1, transform: 'translate(0,-50%) scale(1.08)', offset: .15 }, { opacity: 1, transform: 'translate(0,-50%) scale(1)', offset: .75 }, { opacity: 0, transform: 'translate(0,-140%) scale(1)' }], { duration: 2200, easing: 'ease-out' }).onfinish = () => t.remove();
+    };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { tag(); return; }
+    const n = Math.min(14, Math.max(6, pts + 4)), sx = a.left + a.width * .5, sy = a.top + a.height * .4;
+    for (let i = 0; i < n; i++) {
+      const c = document.createElement('i'); c.className = 'rr-coin'; document.body.appendChild(c);
+      const bx = sx + (Math.random() - .5) * 150, by = sy + (Math.random() - .5) * 110;            // всплеск у персонажа
+      const mx = (bx + tx) / 2 + (Math.random() - .5) * 180, my = Math.min(by, ty) - 90 - Math.random() * 130;   // верх дуги
+      const r = 360 + Math.random() * 540, P = (x, y, k, ry) => `translate(${x}px,${y}px) rotateY(${ry}deg) scale(${k})`;
+      const an = c.animate([
+        { transform: P(sx, sy, .2, 0), opacity: 0 },
+        { transform: P(bx, by, 1.15, r * .25), opacity: 1, offset: .2, easing: 'cubic-bezier(.3,0,.4,1)' },
+        { transform: P(mx, my, 1, r * .6), opacity: 1, offset: .6, easing: 'cubic-bezier(.5,0,.8,.6)' },
+        { transform: P(tx, ty, .45, r), opacity: .95 }
+      ], { duration: 1150 + Math.random() * 300, delay: i * 75, fill: 'backwards' });
+      an.onfinish = () => {
+        c.remove(); coinTick(i === n - 1);
+        dst.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.14)' }, { transform: 'scale(1)' }], { duration: 200, easing: 'ease-out' });
+        if (i === n - 1) { tag(); dst.animate([{ boxShadow: '0 0 0 0 rgba(220,230,240,0)' }, { boxShadow: '0 0 0 6px rgba(220,230,240,.45)' }, { boxShadow: '0 0 0 12px rgba(220,230,240,0)' }], { duration: 700 }); }
+      };
+    }
+  };
+  setTimeout(go, 400);
+}
+function coinTick(last) {   // звон монетки (владелец 20.11: прежний «писк» убран): удар + неровные обертоны металлического диска, каждая монетка своя
+  try {
+    if (!soundOn()) return; const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const ac = window.__krAC || (window.__krAC = new AC()); if (ac.state === 'suspended') ac.resume();
+    const t0 = ac.currentTime + .005, out = ac.createGain(), lp = ac.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 8500; out.gain.value = last ? .9 : .6; out.connect(lp); lp.connect(ac.destination);
+    const ring = (t, f, v) => {
+      [[1, 1, .6], [2.32, .5, .35], [4.25, .28, .2], [6.63, .14, .1]].forEach(([r, g, d]) => {   // обертоны диска: выше — тише и короче
+        const o = ac.createOscillator(), e = ac.createGain(); o.type = 'sine'; o.frequency.value = f * r * (1 + (Math.random() - .5) * .004);
+        e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(v * g, t + .002); e.gain.exponentialRampToValueAtTime(.0001, t + .05 + d * .35);
+        o.connect(e); e.connect(out); o.start(t); o.stop(t + .07 + d * .35);
+      });
+      const len = ac.sampleRate * .012 | 0, buf = ac.createBuffer(1, len, ac.sampleRate), dt = buf.getChannelData(0);   // сам удар — короткий шорох
+      for (let k = 0; k < len; k++) dt[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / len, 3);
+      const n = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain();
+      bp.type = 'bandpass'; bp.frequency.value = 5200; bp.Q.value = 1.2; ng.gain.value = v * .8; n.buffer = buf; n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t);
+    };
+    const f = 2600 + Math.random() * 900;
+    ring(t0, f, .028);
+    if (Math.random() < .5) ring(t0 + .035 + Math.random() * .03, f * (1.03 + Math.random() * .05), .014);   // звякнула о соседнюю
+    if (last) { ring(t0 + .09, 3300, .03); ring(t0 + .17, 4100, .022); }   // последняя — «дзынь-дзынь»
+  } catch (e) { /* без звука */ }
 }
 async function ready() {
   if (!S || busy) return; busy = true;
@@ -325,7 +409,7 @@ function vote(box) {
   const ph = S.room.phase;
   if (S.room.paused) return note('Игра на паузе', 'err');
   if (ph === 'talk' || ph === 'brief') {   // черновик: уйдёт на сервер сам, когда начнётся фиксация
-    draft = draft === box ? 0 : box; drawDos(); drawHint(); if (G) G.marks(marks());
+    draft = draft === box ? 0 : box; drawHint(); if (G) G.marks(marks());
     if (draft) note('Черновик: ' + nn(draft) + ' — отправится, когда начнётся фиксация');
     return;
   }
@@ -336,7 +420,7 @@ function vote(box) {
   const cur = stage === 'main' ? S.me.vote : S.me.revote;
   if (cur === box && !pend) return;
   pend = { box, stage, id: uuid(), tries: 0 };
-  drawDos(); drawHint(); if (G) G.marks(marks());
+  drawHint(); if (G) G.marks(marks());
   sendVote(pend);
 }
 async function sendVote(p) {
@@ -345,11 +429,11 @@ async function sendVote(p) {
     const r = await api.rpc('krot_vote', { p_room: room, p_box: p.box, p_action: p.id });
     if (g !== gen || pend !== p || !S) return;
     if (p.stage === 'main') S.me.vote = r.box; else S.me.revote = r.box;
-    pend = null; drawDos(); drawHint(); if (G) G.marks(marks());
+    pend = null; drawHint(); if (G) G.marks(marks());
   } catch (e) {
     if (g !== gen || pend !== p) return;
     if (isNet(e) && ++p.tries < 5) { timers.push(setTimeout(() => sendVote(p), 600 * p.tries)); return; }   // тот же id — сервер не засчитает дважды
-    pend = null; note(errText(e), 'err'); drawDos(); drawHint(); if (G) G.marks(marks());
+    pend = null; note(errText(e), 'err'); drawHint(); if (G) G.marks(marks());
   }
 }
 function myPick() {
@@ -391,7 +475,7 @@ function drawRdy() {
   const el = root && $('#krRdy', root); if (!el || !S) return;
   const show = canBtn(); el.hidden = !show; if (!show) return;
   const ps = S.players.filter(p => !p.left), n = ps.filter(p => p.vote_ready).length, me = myPlayer();
-  el.innerHTML = `<span class="kr-h">Готовы голосовать</span><span class="kr-rdd">${[1, 2, 3, 4].map(st2 => { const p = S.players.find(q => q.seat === st2); return `<i class="${p && p.vote_ready ? 'on' : ''}" title="${p ? esc(p.name) + (p.vote_ready ? ' — готов' : '') : ''}"></i>`; }).join('')}</span><b>${n}/${ps.length}</b><button class="kr-btn sm ${me && me.vote_ready ? 'ghost' : 'red'}" data-a="vready">${me && me.vote_ready ? 'Отжать' : 'Я готов'}</button>`;
+  el.innerHTML = `<span class="kr-h">Готовы голосовать</span><span class="kr-rdd">${SEATS.map(st2 => { const p = S.players.find(q => q.seat === st2); return `<i class="${p && p.vote_ready ? 'on' : ''}" title="${p ? esc(p.name) + (p.vote_ready ? ' — готов' : '') : ''}"></i>`; }).join('')}</span><b>${n}/${ps.length}</b><button class="kr-btn sm ${me && me.vote_ready ? 'ghost' : 'red'}" data-a="vready">${me && me.vote_ready ? 'Отжать' : 'Я готов'}</button>`;
 }
 
 /* ---------- чат ---------- */
@@ -412,10 +496,10 @@ function addChat(list) {
   if (!chatOpen && fresh.some(m => m.kind === 'msg')) { unread += fresh.filter(m => m.kind === 'msg').length; drawChatBtn(); }
 }
 function msgHtml(m) {
-  if (m.kind === 'sys') return `<div class="kr-m sys">${esc(m.text)}</div>`;
+  if (m.kind === 'sys') return '';   // владелец 20.11: служебных строк в чате нет (кто сел, начало игры, раунды, выбывание — всё и так крупно на экране)
   const mine = S && m.seat === S.me.seat, rm = /^Новая комната: ([A-Z0-9]{6})$/.exec(m.text || '');
   const body = rm && !mine ? `Новая комната: <b>${rm[1]}</b> <button class="kr-btn sm go" data-join="${rm[1]}">Войти</button>` : esc(m.text);
-  return `<div class="kr-m${mine ? ' me' : ''}">${seatB(m.seat)}<span class="kr-mn">${esc(m.name || 'Игрок')}</span><span class="kr-mt">${body}</span></div>`;
+  return `<div class="kr-m${mine ? ' me' : ''}"><span class="kr-mn" data-s="${+m.seat || 0}">${esc(m.name || 'Игрок')}</span><span class="kr-mt">${body}</span></div>`;   // как на Twitch: ник цветом места
 }
 async function sendChat(t) {
   if (!room) return false;
@@ -518,30 +602,19 @@ function apply(d) {
   S = d; S._at = Date.now();
   off = d.now - Date.now();
   if (d.chat && d.chat.length) addChat(d.chat.map(rowMsg));
-  const ph = d.room.phase, prev = lastPhase;
-  if (pend && ((pend.stage === 'main' && d.me.vote === pend.box) || (pend.stage === 'revote' && d.me.revote === pend.box))) pend = null;
-  if (G) G.sync(d);   // сначала сцена (новый раунд, контейнеры), потом события фазы (вскрытие)
+  const ph = d.room.phase, prev = lastPhase, g = d.game;
+  if (g && g.id !== lastGame) { lastGame = g.id; lastEv = 0; }
+  const fresh = g && g.evs ? g.evs.filter(ev => ev.n > lastEv && d.now - ev.at < 4000) : [];   // старые события (зашли посреди игры) — без анимации
+  if (g && g.evs && g.evs.length) lastEv = Math.max(lastEv, g.evs[g.evs.length - 1].n);
+  if (fresh.some(ev => ev.kind === 'click' || ev.kind === 'bang')) { capHoldUntil = Date.now() + COCK_MS + 1100; if (G && G.hold) G.hold(COCK_MS + 900); }
+  if (G) G.sync(d);
+  for (const ev of fresh) rrShot(ev);   // старые события (зашли посреди игры) — без анимации
   if (ph !== prev) { lastPhase = ph; onPhase(prev, ph); }
-  if (G) G.marks(marks());
   drawAll();
 }
 function onPhase(prev, ph) {
   lastSec = -1;
-  const rd = S.round;
-  if (ph === 'vote' && draft && !S.me.vote && !S.me.locked) { const b = draft; draft = 0; setTimeout(() => vote(b), 60); }
-  if (ph === 'revote' && S.me.vote && rd && !(rd.cands || []).includes(S.me.vote)) note('Ваш прежний выбор не в доп. голосовании — выберите заново', 'warn');
-  if (ph === 'open' && rd && rd.target && openRound !== rd.id) {
-    openRound = rd.id; openDone = false;
-    const late = !prev || prev === 'open';   // зашли посреди вскрытия — без анимации
-    if (G) G.reveal(rd.chosen, rd.target, late).then(() => { if (S && S.round && S.round.id === rd.id) { openDone = true; drawMid(); } });
-    else openDone = true;
-  }
-  if ((ph === 'debrief' || ph === 'done') && rd && rd.target) {
-    if (openRound !== rd.id) { openRound = rd.id; if (G) G.reveal(rd.chosen, rd.target, true); }
-    openDone = true;
-    checkProof();
-  }
-  if (ph === 'brief' && G) G.setRead(false);
+  if (ph === 'lobby' && G) G.setRead(false);
 }
 async function checkProof() {
   const rd = S && S.round; if (!rd || !rd.proof || !rd.commit || (proof && proof.round === rd.id)) return;
@@ -585,6 +658,7 @@ function ensureHandlers() {
   if (root._krH) return; root._krH = true;
   root.addEventListener('click', onClick); root.addEventListener('submit', onSubmit);
   root.addEventListener('focusin', e => { if (e.target.id === 'krIn') { openChat(true); vcKey(false); } });
+  root.addEventListener('keydown', e => { if (e.key === 'Escape' && e.target.id === 'krIn') { e.preventDefault(); e.target.blur(); openChat(false); } });   // Esc в поле — спрятать поле
   root.addEventListener('input', e => { const t = e.target; if (t.dataset.vol) { const p = S && S.players.find(q => q.seat === +t.dataset.vol); if (p) vcPlayerVol(p, t.value / 100); } else if (t.dataset.thr) { vcSet('thr', t.value / 100); const m = $('.kr-thr', root); if (m) m.style.left = t.value + '%'; } });
   root.addEventListener('change', e => { const t = e.target; if (t.dataset.dev) vcSet(t.dataset.dev, t.value); else if (t.dataset.chk) vcSet(t.dataset.chk, t.checked); });
 }
@@ -593,30 +667,32 @@ function drawRoom() {
   view = 'room'; root.classList.remove('in-menu'); root.classList.add('in-room');
   if (G) G.menu(false);
   ui.innerHTML = `
-  <div class="kr-rdy kr-glass" id="krRdy" hidden></div>
   <header class="kr-top kr-glass" id="krTop"><span class="kr-ph" id="krPh"></span><b class="kr-tm" id="krTm"></b><i class="kr-bar"><i id="krBar"></i></i><em class="kr-net" id="krNet" hidden>Нет связи — переподключаемся…</em></header>
   <div class="kr-rm" id="krRm"></div>
-  <aside class="kr-left" id="krLeft"><section class="kr-card kr-glass" id="krCard"></section><section class="kr-dos kr-glass" id="krDos"></section></aside>
   <aside class="kr-chat kr-glass" id="krChat">
-    <header class="kr-chh"><span class="kr-h">Связь</span><button class="kr-vc" id="krVc" data-a="voice" type="button"></button><button class="kr-ib kr-chx" data-a="chat" aria-label="Свернуть чат">${ICO.close}</button></header>
     <div class="kr-msgs" id="krMsgs" aria-live="polite"></div>
-    <form class="kr-chf" id="krChF" autocomplete="off"><input id="krIn" maxlength="300" placeholder="Сообщение… (Enter)" aria-label="Сообщение в чат"><button class="kr-send" aria-label="Отправить">${ICO.send}</button></form>
+    <form class="kr-chf" id="krChF" autocomplete="off"><input id="krIn" maxlength="300" placeholder="Написать в чат…" aria-label="Сообщение в чат"><button class="kr-send" aria-label="Отправить">${ICO.send}</button></form>
   </aside>
-  <button class="kr-chb kr-glass" id="krChB" data-a="chat">${ICO.chat}<span>Чат</span><b id="krUnr" hidden></b></button>
+  <div class="kr-dock"><button class="kr-vc" id="krVc" data-a="voice" type="button"></button><button class="kr-chb kr-glass" id="krChB" data-a="chat">${ICO.chat}<span>Чат</span><b id="krUnr" hidden></b></button></div>   <!-- владелец 20.11: микрофон — отдельной кнопкой рядом с «Чат» -->
   <div class="kr-mid" id="krMid"></div>
+  <div class="rr-ev" id="rrEv" aria-live="assertive"></div>
+  <div class="rr-band" id="rrBand" aria-live="assertive"></div>
+  <div class="rr-fl" id="rrFl"></div>
+  <div class="rr-cap" id="rrAct" hidden></div>
   <div class="kr-hint" id="krHint"></div>
   <div class="kr-air" id="krAir" hidden>${ICO.mic}<span>В эфире</span></div>
-  <div class="kr-keys"><span><kbd>V</kbd>говорить</span><span><kbd>ЛКМ</kbd>зажать — осмотреться</span><span><kbd>Клик</kbd>контейнер</span><span><kbd>ПКМ</kbd>карточка</span><span><kbd>1–4</kbd>выбор</span><span><kbd>Enter</kbd>чат</span><span><kbd>Tab</kbd>игроки</span></div>`;
+  <div class="kr-keys"><span><kbd>V</kbd>говорить</span><span><kbd>ЛКМ</kbd>зажать — осмотреться</span><span><kbd>Enter</kbd>чат</span><span><kbd>Tab</kbd>игроки</span></div>`;
   ensureHandlers();
-  openChat(window.innerWidth > 900);
+  openChat(false);   // владелец 20.11: сообщения видны всегда, поле ввода — по кнопке «Чат» или Enter
   vcDraw();
+  sndLoad();
 }
 function drawAll() {
   if (!S || view !== 'room') return;
-  drawTop(); drawRm(); drawCard(); drawDos(); drawMid(); drawHint(); drawOvLive(); drawRdy();
-  root.classList.toggle('can-pick', canPick());
+  drawTop(); drawRm(); drawAct(); drawMid(); drawHint(); drawOvLive(); drawChatLock();
   root.classList.toggle('paused', !!S.room.paused);
   root.dataset.ph = S.room.phase;
+  root.classList.toggle('rr-dead', rrSilent());
   const ld = S.room.phase === 'lobby' && !!S.room.mm;
   root.classList.toggle('loading', ld);
   if (G && ld !== lastLd) { lastLd = ld; G.menu(ld); if (!ld) G.sync(S); }
@@ -625,9 +701,12 @@ function drawAll() {
 }
 function drawTop() {
   const ph = $('#krPh', root); if (!ph) return;
-  const r = S.room;
-  ph.textContent = r.paused ? 'Пауза' : r.phase === 'lobby' ? (r.deadline ? 'Старт через' : PH.lobby) : PH[r.phase] || '';
-  $('#krTop', root).dataset.ph = r.phase;
+  const r = S.room, g = S.game, tp = g && S.players.find(p => p.seat === g.turn), mine = !!(tp && tp.me && r.phase === 'play');
+  let t = r.paused ? 'Пауза' : r.phase === 'lobby' ? (r.deadline ? 'Старт через' : PH.lobby) : PH[r.phase] || '';
+  if (g && r.phase === 'play') t = `Раунд ${g.round} · ${mine ? 'ваш ход' : 'ход: ' + (tp ? tp.name : '—')}`;
+  if (g && r.phase === 'next') t = `Раунд ${g.round} окончен`;
+  ph.textContent = t;
+  const top = $('#krTop', root); top.dataset.ph = r.phase; top.classList.toggle('mine', mine);
 }
 function drawRm() {
   const el = $('#krRm', root); if (!el) return;
@@ -638,60 +717,115 @@ function drawRm() {
     <button class="kr-ib kr-glass" data-a="how" title="Как играть">${ICO.help}</button>
     <button class="kr-btn sm ghost" data-a="leave">${r.phase === 'done' || r.phase === 'debrief' ? 'В меню' : 'Выйти'}</button>`;
 }
-function drawCard() {
-  const el = $('#krCard', root); if (!el) return;
-  const role = S.me.role, c = S.me.card || {};
-  if (!role) { el.className = 'kr-card kr-glass wait'; el.innerHTML = '<header><span class="kr-h">Ваша карточка</span></header><p class="kr-cw">Роль и улику выдадут на брифинге. До этого все карточки одинаковые.</p>'; return; }
-  const k = role === 'krot';
-  el.className = 'kr-card kr-glass ' + (k ? 'krot' : 'agent') + (hideCard ? ' hid' : '');
-  el.innerHTML = `<header><span class="kr-h">Ваша роль</span><button class="kr-ib" data-a="card-hide" title="${hideCard ? 'Показать карточку' : 'Скрыть карточку (для стрима)'}">${hideCard ? ICO.eyeOff : ICO.eye}</button></header>
-    <h3 class="kr-role">${k ? 'Крот' : 'Оперативник'}</h3>
-    <div class="kr-cb">${k ? `<div class="kr-ck"><span>Цель</span><b class="kr-tg">Контейнер ${nn(c.target)}</b></div>
-      <div class="kr-ck"><span>Задание · ${esc((c.task && c.task.title) || '')}</span><p>${esc((c.task && c.task.text) || '')}</p></div>
-      <p class="kr-cf">Ваш голос не считается. Уведите команду от цели и не выдайте себя.</p>`
-    : `<div class="kr-ck"><span>Ваша улика</span><p class="kr-clue">${clueIco(c)}<span>${esc(c.text || '')}</span></p></div>
-      <p class="kr-cf">Улика правдивая. Ещё две — у двух других Оперативников. Четвёртый за столом — Крот.</p>`}</div>
-    <p class="kr-cmask">Карточка скрыта</p>`;
+let actLock = 0, actBusy = false, actShown = '', keyDown = '', keyDownAt = 0, spinNote = null, keysGame = 0, keysTurn = 0;
+const ME_LINE = 'Мне нужно это сделать.';   // подпись в свой ход (владелец 20.11)
+function myTurn() { const g = S && S.game, me = myPlayer(); return !!(g && S.room.phase === 'play' && me && g.turn === me.seat && me.alive !== false); }
+// субтитр хода, как в играх (мелко, одна строка, имя — золотом): свой ход — «Вы: Мне нужно это сделать.», чужой — «Shade берёт револьвер.»;
+// клавиши [R] прокрутить / [ПРОБЕЛ] выстрел — только в первый свой ход за игру (на сенсорном экране — всегда, там нет клавиатуры); не пульсируют, при нажатии вдавливаются и дают волны (keyWave)
+function drawAct() {
+  const el = $('#rrAct', root); if (!el) return;
+  const g = S.game, mine = myTurn(), tp = g && S.room.phase === 'play' ? S.players.find(p => p.seat === g.turn) : null, other = !!(tp && !tp.me && tp.alive !== false);
+  root.classList.toggle('my-turn', mine);
+  if ((!mine && !other) || Date.now() < capHoldUntil) { el.hidden = true; el.innerHTML = ''; actShown = ''; return; }   // пока звучит выстрел — без подписи
+  if (mine && keysGame !== g.id) { keysGame = g.id; keysTurn = g.n; }   // первый свой ход в этой игре
+  const touch = window.matchMedia && matchMedia('(pointer: coarse)').matches, keys = mine && (touch || keysTurn === g.n);
+  const lock = actBusy || Date.now() < actLock, down = Date.now() - keyDownAt < 400 ? keyDown : '', spin = !!(spinNote && spinNote.seat === g.turn && Date.now() < spinNote.until);
+  const who = (mine ? 'me' : 'o' + tp.seat) + '|' + g.n, key = who + '|' + down + '|' + spin + '|' + lock + '|' + keys;
+  if (key === actShown) return;                                 // без лишних перерисовок (иначе мигает появление)
+  const fresh = !actShown.startsWith(who + '|'); actShown = key;
+  el.hidden = false; el.className = 'rr-cap' + (mine ? ' me' : '') + (fresh ? ' in' : '');
+  const k = (a, label, wide, sub) => `<button class="rr-kb" data-a="${a}"${lock ? ' disabled' : ''}><kbd class="rr-k${wide ? ' wide' : ''}${down === a ? ' down' : ''}"><b>${label}</b></kbd><span>${sub}</span></button>`;
+  el.innerHTML = mine
+    ? `<p class="rr-line"><b class="rr-who">${esc((myPlayer() || {}).name || 'Вы')}:</b> ${ME_LINE}</p>${keys ? `<div class="rr-keys">${k('spin', 'R', false, 'прокрутить')}${k('shoot', 'Пробел', true, 'выстрел')}</div>` : ''}`
+    : `<p class="rr-line rr-nar">${esc(tp.name)} ${spin ? 'крутит барабан' : 'берёт револьвер'}.</p>`;
 }
-function drawDos() {
-  const el = $('#krDos', root); if (!el) return;
-  const rd = S.round, ph = S.room.phase;
-  if (!rd) { el.innerHTML = '<header><span class="kr-h">Досье · контейнеры</span></header><p class="kr-cw">Признаки четырёх контейнеров откроются на брифинге.</p>'; return; }
-  const d = rd.dict || DICT0, m = myPick(), cands = ph === 'revote' ? rd.cands || [] : null, reveal = rd.target != null, pick = canPick();
-  const rows = rd.boxes.slice().sort((a, b) => a.n - b.n).map(b => {
-    const cl = ['kr-row'], off2 = cands && !cands.includes(b.n);
-    if (m.box === b.n) cl.push(m.kind);
-    if (cands) cl.push(off2 ? 'dim' : 'cand');
-    if (reveal) { if (b.n === rd.target) cl.push('tgt'); else if (b.n === rd.chosen) cl.push('miss'); }
-    const tag = reveal ? (b.n === rd.target ? 'Цель' : b.n === rd.chosen ? 'Выбор команды' : '') : m.box === b.n ? { sel: 'Ваш выбор', pend: 'Отправляем…', draft: 'Черновик' }[m.kind] : '';
-    const full = `Контейнер ${nn(b.n)}: знак — ${d.sym[b.sym] || b.sym}, внутри — ${d.gun[b.gun] || b.gun}, маркировка — ${d.col[b.col] || b.col}`;
-    return `<button class="${cl.join(' ')}" data-box="${b.n}" title="${esc(full)}" aria-label="${esc(full)}"${pick && !off2 ? '' : ' disabled'}><b class="kr-n">${nn(b.n)}</b>
-      <span class="kr-f">${svgSym(b.sym)}<i>${esc(SHORT.sym[b.sym] || b.sym)}</i></span><span class="kr-f">${svgGun(b.gun)}<i>${esc(SHORT.gun[b.gun] || b.gun)}</i></span>
-      <span class="kr-f">${sw(b.col)}<i>${esc(SHORT.col[b.col] || b.col)}</i></span>${tag ? `<em class="kr-rt">${tag}</em>` : ''}</button>`;
-  }).join('');
-  el.innerHTML = `<header><span class="kr-h">Досье · контейнеры</span><small>признаки видят все</small></header>
-    <div class="kr-rh"><span>№</span><span>Знак</span><span>Внутри</span><span>Маркировка</span></div><div class="kr-rows">${rows}</div><footer class="kr-dst">${dosStatus()}</footer>`;
-}
-function dosStatus() {
-  const ph = S.room.phase, me = S.me, rd = S.round;
-  if (me.locked && ['vote', 'revote'].includes(ph)) return 'Ваш голос сохранён: после потери связи его нельзя менять.';
-  if (pend) return '<i class="kr-spin"></i>Отправляем выбор…';
-  if (ph === 'brief' || ph === 'talk') return draft ? `Черновик: <b>${nn(draft)}</b> — отправится сам, когда начнётся фиксация.` : 'Голосование — после обсуждения. Можно заранее отметить контейнер (клик или 1–4).';
-  if (ph === 'vote') return me.vote ? `${ICO.ok}Выбор зафиксирован: <b>${nn(me.vote)}</b>. Можно изменить до конца таймера.` : 'Выберите контейнер: прицел и клик, клик по строке или клавиши 1–4.';
-  if (ph === 'revote') {
-    const c = rd.cands || [];
-    if (me.revote) return `${ICO.ok}Выбор зафиксирован: <b>${nn(me.revote)}</b>.`;
-    return `Только ${c.map(x => '<b>' + nn(x) + '</b>').join(' или ')}.` + (me.vote && c.includes(me.vote) ? ' Если не переголосуете — останется ваш прежний выбор.' : '');
+function keyWave(kind) {   // от нажатия клавиши на экране расходятся две волны (владелец 20.11, вместо пульса)
+  const k = root && $(`#rrAct [data-a="${kind}"] .rr-k`, root); if (!k || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  const r = k.getBoundingClientRect(); if (!r.width) return;
+  const box = (d, rad) => ({ left: (r.left - d) + 'px', top: (r.top - d) + 'px', width: (r.width + d * 2) + 'px', height: (r.height + d * 2) + 'px', borderRadius: rad + 'px' });
+  for (let i = 0; i < 2; i++) {
+    const w = document.createElement('i'); w.className = 'rr-wave'; document.body.appendChild(w);
+    w.animate([Object.assign(box(0, 8), { opacity: .85 }), Object.assign(box(24, 20), { opacity: 0 })], { duration: 650, delay: i * 150, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'backwards' }).onfinish = () => w.remove();
   }
-  if (rd.target) return rd.chosen ? `Команда выбрала <b>${nn(rd.chosen)}</b>, цель — <b>${nn(rd.target)}</b>.` : `Цель — <b>${nn(rd.target)}</b>.`;
-  return '';
+}
+async function rrAct(kind) {
+  if (!myTurn() || actBusy || Date.now() < actLock) return;
+  keyDown = kind; keyDownAt = Date.now();   // клавиша на экране вдавливается
+  actBusy = true; drawAct(); keyWave(kind);
+  try { await api.rpc(kind === 'spin' ? 'rr_spin' : 'rr_shoot', { p_room: room, p_turn: S.game.n }); }
+  catch (e) { note(errText(e), 'err'); }
+  finally { actBusy = false; actLock = Date.now() + (kind === 'spin' ? 1250 : 500); soon(); }
+}
+// выбывший смотрит молча: микрофон не передаёт, чат — только чтение
+const rrSilent = () => !!(S && S.me && S.me.alive === false && ['play', 'next'].includes(S.room.phase));
+function drawChatLock() {
+  const i = root && $('#krIn', root); if (!i) return;
+  const dead = rrSilent(); if (i.disabled === dead) return;
+  i.disabled = dead; i.placeholder = dead ? 'Выбывшие только читают чат' : 'Сообщение… (Enter)';
+}
+// события стола: начало раунда, прокрутка, щелчок, выстрел — надпись по центру, звук, 3D
+let evT = 0, lastEv = 0, lastGame = 0;
+function showEv(t, sub, kind, ms) {
+  const el = root && $('#rrEv', root); if (!el) return;
+  el.className = 'rr-ev ' + kind; void el.offsetWidth;   // заново — чтобы анимация шла с начала
+  el.innerHTML = `<b>${esc(t)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}`; el.className = 'rr-ev in ' + kind;   // владелец 20.11: полосой, как «Раунд», цвет по событию
+  clearTimeout(evT); evT = setTimeout(() => { if (el.isConnected) el.className = 'rr-ev out ' + kind; }, ms);
+}
+// начало раунда — полоса через весь экран по центру, как «Бомба взорвалась» в «Краше» (владелец 20.11)
+let bandT = 0;
+function showBand(big, small, ms) {
+  const el = root && $('#rrBand', root); if (!el) return;
+  el.className = 'rr-band'; void el.offsetWidth; el.innerHTML = '<b>' + esc(big) + '</b><small>' + esc(small) + '</small>'; el.className = 'rr-band in';
+  clearTimeout(bandT); bandT = setTimeout(() => { if (el.isConnected) el.className = 'rr-band out'; }, ms);
+}
+let capHoldUntil = 0;
+function rrShot(ev) {   // щелчок и выстрел — после взвода курка, остальное — сразу
+  if (ev.kind !== 'click' && ev.kind !== 'bang') return rrEvent(ev);
+  rrSound('cock'); if (G && G.event) G.event({ kind: 'cock', seat: ev.seat });
+  const id = lastGame; setTimeout(() => { if (root && lastGame === id) rrEvent(ev); }, COCK_MS);
+}
+function rrEvent(ev) {
+  const p = S && S.players.find(x => x.seat === ev.seat), me = !!(p && p.me), nm = p ? (me ? 'вы' : p.name) : '';
+  if (G && G.event) G.event(ev);
+  rrSound(ev.kind);
+  const auto = ev.auto ? 'время вышло · ' : '';
+  if (ev.kind === 'start') showBand('Раунд ' + ev.round, (ev.bullets === RR.bul[2] ? 'Финал · ' : '') + 'в револьвере ' + ev.bullets + ' ' + plural(ev.bullets), 3200);   // владелец: «РАУНД №, В РЕВОЛЬВЕРЕ 1 ПАТРОН», в рамке как в «Краше»
+  else if (ev.kind === 'spin') { if (!me) { spinNote = { seat: ev.seat, until: Date.now() + 1400 }; drawAct(); } }
+  else if (ev.kind === 'click') showEv('В барабане пусто', me ? 'вы живы' : nm + ' жив', 'click', 1600);   // владелец 20.11: без «Щелчок» и без «время вышло»
+  else if (ev.kind === 'bang') {
+    showEv('Выстрел', `${auto}${me ? 'вы выбыли' : nm + ' выбыл'}`, 'bang', 2600);
+    const f = root && $('#rrFl', root); if (f) { f.className = 'rr-fl'; void f.offsetWidth; f.className = 'rr-fl on' + (me ? ' me' : ''); }
+  }
+}
+// звуки владельца (assets/rr/snd, откуда — ПЛАН_РУЛЕТКА.md «Звуки»): прокрутка, взвод курка, пустой выстрел, выстрел; громкость умеренная (владелец не любит громко)
+const SND = { spin: { f: 'spin', vol: .5 }, cock: { f: 'cock', vol: .6 }, click: { f: 'click', vol: .6 }, bang: { f: 'bang', vol: .5 } }, sndBuf = {};
+const COCK_MS = 480;   // взвели курок → через столько мс щелчок или выстрел
+let AC = null;
+function sndLoad() {   // загрузить звуки заранее (при входе за стол)
+  try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  for (const k in SND) if (!sndBuf[k]) { sndBuf[k] = 1; fetch('assets/rr/snd/' + SND[k].f + '.mp3?v=1').then(r => r.arrayBuffer()).then(b => AC.decodeAudioData(b)).then(buf => { sndBuf[k] = buf; }).catch(() => { delete sndBuf[k]; }); }
+}
+function rrSound(kind) {
+  if (!soundOn()) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const sb = sndBuf[kind];
+    if (sb && sb.duration) { const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = sb; g.gain.value = SND[kind].vol; src.connect(g); g.connect(AC.destination); src.start(); return; }
+    const t0 = AC.currentTime + .01, out = AC.createGain(); out.gain.value = .2; out.connect(AC.destination);
+    const tick = (t, f, d, v) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'square'; o.frequency.value = f; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d); o.connect(g); g.connect(out); o.start(t); o.stop(t + d + .02); };
+    const noise = (t, d, v, lp) => { const n = AC.sampleRate * d | 0, b = AC.createBuffer(1, n, AC.sampleRate), ch = b.getChannelData(0); for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3); const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); f.type = 'lowpass'; f.frequency.value = lp; g.gain.value = v; s.buffer = b; s.connect(f); f.connect(g); g.connect(out); s.start(t); };
+    if (kind === 'spin') { let t = t0; for (let i = 0; i < 18; i++) { tick(t, 1700 + Math.random() * 300, .012, .22); t += .028 + i * .004; } }
+    else if (kind === 'click') { tick(t0, 2300, .02, .5); noise(t0, .06, .35, 3200); }
+    else if (kind === 'bang') { noise(t0, .8, 1.3, 1600); noise(t0, .1, .9, 9000); tick(t0, 80, .3, .7); }
+  } catch (e) { /* звук недоступен */ }
 }
 function drawHint() {
   const el = $('#krHint', root); if (!el) return;
-  const ph = S.room.phase;
-  let t = S.room.paused ? 'Игра на паузе: ждём игрока.' : HINT[ph] || '';
-  if (ph === 'lobby') t = S.room.kind === 'private' ? 'Игра начнётся, когда все четверо нажмут «Готов к операции».' : 'Матч начнётся сам, когда соберутся 4 игрока.';
-  el.textContent = t; el.hidden = !t;
+  const r = S.room, g = S.game, ph = r.phase, me = myPlayer();
+  let t = '';
+  if (r.paused) t = 'Игра на паузе: ждём игрока.';
+  else if (ph === 'lobby' && !r.mm) t = r.kind === 'private' ? 'Игра начнётся, когда все пятеро нажмут «Готов к игре».' : 'Матч начнётся сам, когда соберутся 5 игроков.';
+  el.innerHTML = t; el.hidden = !t;
 }
 function drawChatBtn() {
   const b = root && $('#krUnr', root); if (!b) return;
@@ -701,21 +835,25 @@ function drawChatBtn() {
 /* ---------- центр экрана: лобби, роль, пауза, итог ---------- */
 function drawMid() {
   const el = root && $('#krMid', root); if (!el || !S) return;
-  const r = S.room, rd = S.round, ph = r.phase;
+  const r = S.room, g = S.game, ph = r.phase, me = myPlayer();
   el.className = 'kr-mid'; root.classList.remove('show-res');
-  if (r.paused) { const p = S.players.find(x => x.seat === r.pause_seat); el.innerHTML = `<section class="kr-pause kr-glass"><span class="kr-h">Пауза</span><h2 class="kr-t">Игрок потерял связь</h2><p>${p ? seatB(p.seat) + esc(p.name) : 'Игрок'} — ждём <b id="krPl">…</b>. Не вернётся — раунд отменят без очков.</p></section>`; return; }
+  if (G && G.tv) G.tv(ph === 'done' ? tvData() : null);   // итог — на экране на стене (3D)
+  if (r.paused) { const p = S.players.find(x => x.seat === r.pause_seat); el.innerHTML = `<section class="kr-pause kr-glass"><span class="kr-h">Пауза</span><h2 class="kr-t">Игрок потерял связь</h2><p>${p ? seatB(p.seat) + esc(p.name) : 'Игрок'} — ждём <b id="krPl">…</b>.</p></section>`; return; }
   if (ph === 'lobby' && r.mm) { el.className = 'kr-mid ld'; el.innerHTML = loadHtml(); micFill(); return; }   // все приняли — экран загрузки
   if (ph === 'lobby') { el.className = 'kr-mid lob'; el.innerHTML = lobbyHtml(); return; }
-  if (ph === 'brief' && rd && briefSeen !== rd.id && S.me.role) { el.innerHTML = briefHtml(); return; }
-  if (ph === 'open' && !openDone) { el.className = 'kr-mid low'; el.innerHTML = `<div class="kr-opening kr-glass"><span class="kr-h">Вскрытие</span><b>${rd && rd.chosen ? 'Команда выбрала ' + nn(rd.chosen) : 'Команда не выбрала цель'}</b><button class="kr-btn sm ghost" data-a="skip">Пропустить</button></div>`; return; }
-  if ((ph === 'open' && openDone) || ph === 'debrief' || ph === 'done') { el.className = 'kr-mid res'; root.classList.add('show-res'); el.innerHTML = resultHtml(); return; }
+  if (ph === 'done') { el.className = 'kr-mid res'; root.classList.add('show-res'); el.innerHTML = ''; return; }
+  if (ph === 'next' && g && g.ev && g.ev.kind === 'bang') {
+    const d = S.players.find(p => p.seat === g.ev.seat), left = S.players.filter(p => p.alive !== false).length, nb = RR.bul[left];
+    el.innerHTML = '';   // владелец 20.11: плашки «Раунд N / ник выбыл» нет — кто выбыл, видно по центру («Выстрел / ник выбыл»)
+    return;
+  }
+  if (ph === 'play' && me && me.alive === false) { el.className = 'kr-mid low'; el.innerHTML = `<section class="rr-nx kr-glass"><span class="kr-h">Вы выбыли · ${me.place} место</span><p>Смотрите игру до конца. Живые вас не слышат, чат — только чтение.</p></section>`; return; }
   el.innerHTML = '';
 }
 // ---------- экран загрузки: все приняли → ~10 с, все успевают открыть игру, проверить микрофон и звук ----------
-const TIPS = ['Зажмите ЛКМ и ведите мышью — осмотритесь за столом.', 'Опустите взгляд или зажмите ПКМ — прочитаете свою карточку.',
-  'Клавиши 1–4 — быстрый выбор контейнера.', 'Улик три, и только вместе они указывают на цель. Сверяйте всё.',
-  'Крот знает цель. Слушайте, кто уводит разговор в сторону.', 'Считаются только голоса Оперативников: 2:1 или 3:0 решает дело.',
-  'В разборе можно проверить отпечаток: цель не меняли по ходу игры.'];
+const TIPS = ['Зажмите ЛКМ и ведите мышью — осмотритесь за столом.', 'На своём ходу барабан можно крутить сколько угодно раз — клавиша R.',
+  'Не крутили — выстрел из следующего гнезда. После пустых щелчков шанс растёт.', 'Раунд идёт до первого выстрела, потом в барабане на патрон больше.',
+  'Финал один на один: пять патронов из шести.', 'Кто стреляет первым в раунде, сервер решает случайно.', 'Не успели за 20 секунд — револьвер выстрелит сам, без прокрутки.'];
 let loadSent = 0, tipN = rnd(TIPS.length), tipAt = 0, lastLd = null;
 function markLoaded() {   // игра у меня загрузилась (3D готово или без 3D) — сообщаем серверу
   if (!S || !room || loadSent === room || S.room.phase !== 'lobby' || !S.room.mm) return;
@@ -726,7 +864,7 @@ function markLoaded() {   // игра у меня загрузилась (3D г�
 }
 function loadHtml() {
   const ps = S.players, n = ps.filter(p => p.loaded).length;
-  const rows = [1, 2, 3, 4].map(s2 => {
+  const rows = SEATS.map(s2 => {
     const p = ps.find(q => q.seat === s2); if (!p) return '';
     return `<li class="${p.loaded ? 'ok' : ''}${p.me ? ' me' : ''}">${seatB(s2)}<span>${esc(p.name)}${p.me ? ' <small>(вы)</small>' : ''}</span><em>${p.loaded ? ICO.ok + 'готов' : '<i class="kr-spin"></i>загрузка'}</em></li>`;
   }).join('');
@@ -735,7 +873,7 @@ function loadHtml() {
       <p class="kr-ldtip" id="krTip">${esc(TIPS[tipN % TIPS.length])}</p>
       <div class="kr-ldb"><i id="krLdBar"></i></div><p class="kr-lds" id="krLdSt">Операция начнётся через <b>…</b></p></div>
     <aside class="kr-lda">
-      <section class="kr-glass kr-ldp"><span class="kr-h">Игроки · ${n}/4 загрузились</span><ul>${rows}</ul></section>
+      <section class="kr-glass kr-ldp"><span class="kr-h">Игроки · ${n}/${NS} загрузились</span><ul>${rows}</ul></section>
       <section class="kr-glass kr-ldmic"><span class="kr-h">Голосовой чат</span>
         <label class="kr-micl"><span>Микрофон</span><select id="krMicSel" data-dev="mic" aria-label="Микрофон"><option value="">По умолчанию</option></select></label>
         <div class="kr-meter" aria-hidden="true"><i id="krLdLvl"></i></div>
@@ -769,18 +907,18 @@ async function vcFillDevs(scope) {   // списки микрофонов и д�
 function spkTest() { mmSound('connect', true, true); }
 function lobbyHtml() {
   const r = S.room, priv = r.kind === 'private', n = S.players.length;
-  const seats = [1, 2, 3, 4].map(s => {
+  const seats = SEATS.map(s => {
     const p = S.players.find(x => x.seat === s);
     if (!p) return `<li class="free">${seatB(s)}<span>Свободное место</span><em>ждём</em></li>`;
     return `<li class="${p.ready ? 'rd' : ''}${p.me ? ' me' : ''}${p.online ? '' : ' off'}">${seatB(s)}<span>${esc(p.name)}${p.me ? ' <small>(вы)</small>' : ''}</span><em>${!p.online ? 'нет связи' : p.ready ? 'готов' : 'не готов'}</em></li>`;
   }).join('');
   return `<section class="kr-lob kr-glass"><span class="kr-h">${priv ? 'Комната друзей · без очков' : 'Быстрая игра · очки недели'}</span>
     <h2 class="kr-t">${priv ? 'Соберите группу' : 'Подбор игроков'}</h2>
-    <p class="kr-sub"><b>${n}</b> / 4 за столом${r.deadline ? ' · старт через <b id="krLs">…</b>' : ''}</p>
+    <p class="kr-sub"><b>${n}</b> / ${NS} за столом${r.deadline ? ' · старт через <b id="krLs">…</b>' : ''}</p>
     ${priv ? `<div class="kr-cbig"><span>Код комнаты</span><b>${esc(r.code)}</b><div><button class="kr-btn sm" data-a="copy">Скопировать код</button><button class="kr-btn sm" data-a="link">Ссылка-приглашение</button></div></div>` : ''}
     <ul class="kr-seats">${seats}</ul>
-    <div class="kr-la"><button class="kr-btn ${S.me.ready ? '' : 'go'}" data-a="ready">${S.me.ready ? 'Я не готов' : 'Готов к операции'}</button><button class="kr-btn ghost" data-a="leave">Выйти</button></div>
-    <p class="kr-fine">${priv ? 'Игра начнётся, когда за столом четверо и все нажали «Готов».' : 'Матч начнётся сам, когда соберутся четверо. Все «Готов» — старт через 3 секунды.'} <button class="kr-link" data-a="how">Правила</button></p></section>`;
+    <div class="kr-la"><button class="kr-btn ${S.me.ready ? '' : 'go'}" data-a="ready">${S.me.ready ? 'Я не готов' : 'Готов к игре'}</button><button class="kr-btn ghost" data-a="leave">Выйти</button></div>
+    <p class="kr-fine">${priv ? 'Игра начнётся, когда за столом пятеро и все нажали «Готов».' : 'Матч начнётся сам, когда соберутся пятеро. Все «Готов» — старт через 3 секунды.'} <button class="kr-link" data-a="how">Правила</button></p></section>`;
 }
 function briefHtml() {
   const c = S.me.card || {}, k = S.me.role === 'krot';
@@ -789,36 +927,23 @@ function briefHtml() {
     : `<p class="kr-bl">${clueIco(c)}<span>${esc(c.text || '')}</span></p><p class="kr-bs">Ваша улика правдивая. Найдите две другие — и не верьте Кроту.</p>`}
     <button class="kr-btn go" data-a="brief-ok">Понятно</button><small class="kr-fine">Карточка останется в руках: опустите взгляд или зажмите ПКМ.</small></section>`;
 }
-function resultHtml() {
-  const rd = S.round, r = S.room;
-  if (!rd) return `<section class="kr-res kr-glass"><span class="kr-h">Комната закрыта</span><h2 class="kr-t">Игра не состоялась</h2><div class="kr-ra"><button class="kr-btn go" data-a="again">Играть ещё</button><button class="kr-btn ghost" data-a="menu">В меню</button></div></section>`;
-  const out = rd.outcome, cancel = out === 'cancel', me = S.me, roles = rd.roles || null;
-  const win = (out === 'team' && me.role === 'agent') || (out === 'krot' && me.role === 'krot');
-  const pts = rd.tally && rd.tally.pts ? rd.tally.pts[String(me.seat)] : null;
-  const title = cancel ? 'Раунд отменён' : out === 'team' ? 'Операция успешна' : 'Крот сорвал операцию';
-  const line = cancel ? 'Причина: ' + (CANCEL[rd.reason] || rd.reason || 'неизвестно') + '. Очков нет.'
-    : rd.chosen ? `Команда выбрала <b>${nn(rd.chosen)}</b> ${REASON[rd.reason] || ''}. Цель — <b>${nn(rd.target)}</b>.` : `Команда не договорилась. Цель — <b>${nn(rd.target)}</b>.`;
-  const krot = roles && roles.find(x => x.role === 'krot');
-  const vt = (s, st2) => { const v = (rd.votes || []).find(x => x.seat === s && x.stage === st2); return v ? nn(v.box) : '—'; };
-  const hasRe = (rd.votes || []).some(x => x.stage === 'revote') || (rd.tally && rd.tally.revote);
-  const list = roles ? `<table class="kr-rl"><thead><tr><th>Игрок</th><th>Роль</th><th>Карточка</th><th>Голос</th>${hasRe ? '<th>Доп.</th>' : ''}</tr></thead><tbody>${roles.map(x => {
-    const p = S.players.find(q => q.seat === x.seat) || {}, k = x.role === 'krot', c = x.card || {};
-    return `<tr class="${k ? 'krot' : ''}${p.me ? ' me' : ''}"><td>${seatB(x.seat)}${esc(p.name || 'Игрок')}</td><td><em class="kr-rb ${k ? 'krot' : 'agent'}">${k ? 'Крот' : 'Оперативник'}</em></td>
-      <td>${k ? 'Цель ' + nn(c.target) + (c.task ? ' · ' + esc(c.task.title) : '') : clueIco(c) + esc(c.label || c.text || '')}</td><td>${vt(x.seat, 'main')}${k ? ' <small>не в счёт</small>' : ''}</td>${hasRe ? `<td>${vt(x.seat, 'revote')}</td>` : ''}</tr>`;
-  }).join('')}</tbody></table>` : '<p class="kr-fine"><i class="kr-spin"></i>Роли раскроются через мгновение…</p>';
-  const task = krot && krot.card && krot.card.task ? `<div class="kr-rtask"><span>Задание Крота · ${esc(krot.card.task.title)}</span><p>${esc(krot.card.task.text)}</p></div>` : '';
-  const fair = proof && proof.round === rd.id ? (proof.ok ? `<p class="kr-fair ok">${ICO.ok}Честная игра: цель записана до брифинга, отпечаток совпал.<details><summary>Проверить самому</summary><code>sha256("${esc(rd.proof)}")<br>= ${esc(rd.commit)}</code></details></p>`
-    : proof.ok === false ? '<p class="kr-fair bad">Отпечаток не совпал — сообщите в поддержку.</p>' : '') : '';
-  const meLine = cancel ? '' : `<p class="kr-me ${win ? 'win' : 'lose'}">${win ? 'Вы победили' : 'Вы проиграли'}${r.points ? (pts ? ` · <b>+${pts}</b> очков недели` : win ? ' · дневной лимит очков исчерпан' : '') : ' · комната друзей — без очков'}</p>`;
-  return `<section class="kr-res kr-glass ${cancel ? 'cancel' : out}"><span class="kr-h">Итог операции</span><h2 class="kr-t">${title}</h2><p class="kr-rs">${line}</p>${meLine}
-    ${list}${task}${fair}
-    <div class="kr-ra">${r.phase === 'open' ? '' : '<button class="kr-btn go" data-a="again">Играть ещё</button>'}<button class="kr-btn" data-a="copyres">Скопировать итог</button><button class="kr-btn ghost" data-a="players">Пожаловаться</button><button class="kr-btn ghost" data-a="menu">В меню</button></div></section>`;
+function tvData() {   // итог для экрана на стене (рисует 3D-часть, tvDraw)
+  const r = S.room, me = myPlayer(), list = S.players.slice().sort((a, b) => (a.place || 9) - (b.place || 9)), w = list.find(p => p.place === 1);
+  const up = s => String(s || '').toUpperCase();
+  return {
+    t1: w ? (w.me ? 'ВЫ ПОБЕДИЛИ' : 'ПОБЕДИЛ') : 'ИГРА ОКОНЧЕНА', t2: w && !w.me ? up(w.name) : '',
+    me: me && me.place ? (me.place === 1 ? 'ВЫ ВЫЖИЛИ' : 'ВАШЕ МЕСТО: ' + me.place) + (r.points ? (me.pts ? ` · +${me.pts} ОЧКОВ НЕДЕЛИ` : '') : ' · БЕЗ ОЧКОВ') : '', win: !!(me && me.place === 1),
+    rows: list.map(p => ({ pl: p.place || 0, s: p.seat, n: p.name, me: !!p.me, out: p.place !== 1, pts: r.points && p.pts != null ? '+' + p.pts : '—' })),
+    btns: [{ a: 'again', l: 'ИГРАТЬ ЕЩЁ', go: true }, { a: 'copyres', l: 'СКОПИРОВАТЬ ИТОГ' }, { a: 'players', l: 'ПОЖАЛОВАТЬСЯ' }, { a: 'menu', l: 'В МЕНЮ' }]
+  };
+}
+function tvAct(a) {   // кнопка на экране = та же кнопка интерфейса (onClick по data-a)
+  const b = document.createElement('button'); b.type = 'button'; b.hidden = true; b.dataset.a = a; root.appendChild(b); b.click(); b.remove();
 }
 function resultText() {
-  const rd = S && S.round; if (!rd || !rd.outcome) return '';
-  const krot = (rd.roles || []).find(x => x.role === 'krot'), kp = krot && S.players.find(p => p.seat === krot.seat);
-  const t = rd.outcome === 'cancel' ? 'Раунд отменён' : rd.outcome === 'team' ? 'Операция успешна' : 'Крот сорвал операцию';
-  return `RUSH CASE · КРОТ — ${t}. Цель: ${nn(rd.target)}. Выбор команды: ${rd.chosen ? nn(rd.chosen) : 'нет'}.${kp ? ' Кротом был ' + kp.name + '.' : ''} ${location.origin}/#/krot`;
+  if (!S || S.room.phase !== 'done') return '';
+  const w = S.players.find(p => p.place === 1), me = myPlayer();
+  return `RUSH CASE · Русская рулетка — победил ${w ? w.name : '—'}.${me && me.place ? ' Моё место: ' + me.place + '.' : ''} ${location.origin}/#/krot`;
 }
 
 /* ---------- окна поверх игры ---------- */
@@ -841,28 +966,38 @@ function drawOvLive(force) {   // окно «Игроки» перерисовы
 }
 function ovHtml(kind, arg) {
   const x = `<button class="kr-ib kr-ovx" data-a="close" aria-label="Закрыть">${ICO.close}</button>`;
-  if (kind === 'how') return `<aside class="kr-how kr-glass">${x}<span class="kr-h">Правила</span><h2 class="kr-t">Как играть в «Крота»</h2>
+  if (kind === 'how') return `<aside class="kr-how kr-glass">${x}<span class="kr-h">Правила</span><h2 class="kr-t">Русская рулетка</h2>
     <ol class="kr-steps">
-      <li><b>Стол.</b> Четыре игрока, четыре одинаковых контейнера 01–04. У каждого открытые признаки: знак, что внутри, цвет маркировки. Цель — один из них.</li>
-      <li><b>Роли.</b> Трое — Оперативники: у каждого одна правдивая улика, признак цели. Только три улики вместе указывают на цель. Четвёртый — Крот: знает цель и тайное задание.</li>
-      <li><b>Брифинг.</b> Сервер раздаёт карточки. Свою читаете, опустив взгляд или зажав ПКМ. Чужие видны только рубашкой.</li>
-      <li><b>Обсуждение.</b> 75 секунд голосом и в чате. Сверяйте улики. Крот врёт убедительно.</li>
-      <li><b>Фиксация.</b> 15 секунд: каждый выбирает контейнер. Считаются только голоса Оперативников: 3:0 или 2:1 — решение команды, ничья — доп. голосование.</li>
-      <li><b>Вскрытие.</b> Команда выбрала цель — победа Оперативников. Иначе — победа Крота. Потом роли раскрываются.</li>
+      <li><b>Стол.</b> Пять игроков и один револьвер на шесть гнёзд. Патроны лежат в случайных гнёздах — где именно, не знает никто.</li>
+      <li><b>Ход.</b> Револьвер идёт по кругу. На своём ходу можно крутить барабан сколько угодно раз, потом — выстрел. На ход 20 секунд: не успели — револьвер выстрелит сам, без прокрутки.</li>
+      <li><b>Шанс.</b> Не крутили — выстрел из следующего гнезда: после пустых щелчков шанс растёт, прокрутка возвращает его к началу. Текущий шанс виден вверху экрана.</li>
+      <li><b>Раунды.</b> Раунд идёт до первого выстрела. Раунд 1 — 1 патрон, раунд 2 — 2, раунд 3 — 3, финал один на один — 5. Кто стреляет первым в раунде, сервер решает случайно.</li>
+      <li><b>Выбывшие</b> смотрят игру до конца молча: живые их не слышат, чат — только чтение.</li>
     </ol>
-    <h3 class="kr-h2">Честность</h3><p>Цель записывается на сервере до брифинга, её отпечаток виден сразу. В разборе отпечаток можно проверить — цель не меняли.</p>
-    <h3 class="kr-h2">Очки</h3><p>Быстрая игра — очки за победу и таблица недели, лучшим — скины. Комнаты друзей — без очков.</p>
-    <h3 class="kr-h2">Управление</h3><ul class="kr-keyl"><li><kbd>ЛКМ</kbd> зажать и вести мышью — осмотреться</li><li><kbd>ПКМ</kbd> или взгляд вниз — своя карточка</li><li>Клик по контейнеру или <kbd>1–4</kbd> — выбор</li><li><kbd>V</kbd> зажать — говорить (или «голосом» в настройках голоса)</li><li><kbd>Enter</kbd> — чат, <kbd>Tab</kbd> — игроки, громкость каждого</li></ul></aside>`;
-  if (kind === 'players') {
-    const ps = S ? S.players : [];
-    const rows = [1, 2, 3, 4].map(s => {
-      const p = ps.find(q => q.seat === s);
-      if (!p) return `<li class="free">${seatB(s)}<span>Свободно</span></li>`;
-      const stt = p.left ? ['left', 'вышел'] : p.online ? ['on', 'на связи'] : ['off', 'нет связи'];
+    <h3 class="kr-h2">Очки</h3><p>Быстрая игра — очки недели за место: 1-е — 10, 2-е — 6, 3-е — 3, 4-е — 1. Лучшим за неделю — скины. Комнаты друзей — без очков.</p>
+    <h3 class="kr-h2">Управление</h3><ul class="kr-keyl"><li><kbd>ЛКМ</kbd> зажать и вести мышью — осмотреться</li><li><kbd>R</kbd> — крутить барабан</li><li><kbd>Пробел</kbd> — выстрел</li><li><kbd>V</kbd> зажать — говорить</li><li><kbd>Enter</kbd> — чат, <kbd>Tab</kbd> — игроки</li></ul></aside>`;
+  if (kind === 'players') {   // таблица счёта как в CS2: шапка, квадрат раунда, строки игроков; своя строка — золотом, выбывшие — с крестиком
+    const ps = S ? S.players : [], g = S && S.game, ph = S ? S.room.phase : '', alive = ps.filter(p => p.alive !== false && !p.left).length;
+    const order = SEATS.map(st => ps.find(q => q.seat === st)).filter(Boolean).sort((p, q) => (p.alive === false) - (q.alive === false) || (p.place || 0) - (q.place || 0) || p.seat - q.seat);
+    const rows = order.map(p => {
+      const s2 = p.seat, dead = p.alive === false && ph !== 'lobby', turn = !!(g && ph === 'play' && g.turn === s2), win = ph === 'done' && p.place === 1;
+      const st = p.left ? ['', 'вышел'] : !p.online ? ['off', 'нет связи'] : win ? ['win', 'победитель'] : dead ? ['dead', 'выбыл'] : turn ? ['turn', 'ходит'] : ph === 'lobby' ? ['', p.ready ? 'готов' : 'ждём'] : ['', 'в игре'];
       const k = vkey(p), mut = !!VC.mute[k], vol = Math.round((VC.vol[k] != null ? VC.vol[k] : 1) * 100);
-      return `<li><i class="kr-sd" data-spk="${s}"></i>${seatB(s)}<span>${esc(p.name)}${p.me ? ' <small>(вы)</small>' : ''}</span><em class="${stt[0]}">${stt[1]}</em><em class="kr-vst" data-vst="${s}">${vcPeerText(s)}</em>${p.me ? '' : `<div class="kr-vv"><button class="kr-ib kr-vm${mut ? ' on' : ''}" data-a="vmute" data-seat="${s}" title="${mut ? 'Включить звук игрока' : 'Заглушить игрока'}">${mut ? ICO.spkOff : ICO.spk}</button><input type="range" min="0" max="100" value="${vol}" data-vol="${s}" aria-label="Громкость: ${esc(p.name)}"><button class="kr-btn sm ghost" data-a="report" data-seat="${s}">Пожаловаться</button></div>`}</li>`;
+      const ctl = p.me ? '' : `<span class="rr-sbc"><button class="rr-sbi${mut ? ' on' : ''}" data-a="vmute" data-seat="${s2}" title="${mut ? 'Включить звук игрока' : 'Заглушить игрока'}">${mut ? ICO.spkOff : ICO.spk}</button><input type="range" min="0" max="100" value="${vol}" data-vol="${s2}" aria-label="Громкость: ${esc(p.name)}"><button class="rr-sbrep" data-a="report" data-seat="${s2}">Пожаловаться</button></span>`;
+      return `<tr class="${p.me ? 'me' : ''}${dead ? ' dead' : ''}${turn ? ' turn' : ''}"><td class="x">${dead ? '✕' : ''}</td><td class="mic"><i class="rr-sbmic" data-spk="${s2}">${ICO.mic}</i></td><td class="av"><b>${s2}</b></td>
+        <td class="nm"><span>${esc(p.name)}</span>${p.me ? '<small>(вы)</small>' : ''}<em class="kr-vst" data-vst="${s2}">${vcPeerText(s2)}</em></td><td class="st ${st[0]}">${st[1]}</td>
+        <td>${p.clicks || 0}</td><td>${p.spins || 0}</td><td>${p.place || '—'}</td><td class="pt">${S.room.points ? (p.pts != null ? '+' + p.pts : '—') : '—'}</td><td class="ct">${ctl}</td></tr>`;
     }).join('');
-    return `<section class="kr-pl kr-glass">${x}<span class="kr-h">Игроки · Tab</span><ul class="kr-pll">${rows}</ul><p class="kr-fine">Громкость каждого — ползунком, значок динамика — заглушить. Настройки голоса — кнопка микрофона над чатом.</p></section>`;
+    const rnd2 = g ? g.round : 0, bl = g ? g.bullets : 0;
+    return `<section class="rr-sb">
+      <header class="rr-sbh"><span class="rr-sbt">${ICO_GUN}Русская рулетка <i>|</i> ${S && S.room.kind === 'private' ? 'Комната друзей' : 'Быстрая игра'}</span><span class="rr-sbr">${ph === 'done' ? 'Игра окончена' : ph === 'lobby' ? 'Сбор игроков' : 'Раунд ' + rnd2 + ' из 4'}</span></header>
+      <div class="rr-sbsub">${ICO.mic}<span>V — говорить</span><span class="rr-sbsep"></span><span>${S && S.room.points ? 'очки недели' : 'без очков'}</span></div>
+      <div class="rr-sbb">
+        <div class="rr-sbq"><div class="rr-sbn">${rnd2 || '—'}</div><b>Раунд</b><small>${bl ? bl + ' ' + plural(bl) + ' в барабане' : 'ещё не начался'}</small><small>живых ${alive}/${NS}</small></div>
+        <table class="rr-sbg"><thead><tr><th></th><th></th><th></th><th class="nm"></th><th>Статус</th><th>Щелчков</th><th>Прокруток</th><th>Место</th><th>Очки</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      </div>
+      <footer class="rr-sbf"><span>Наведите на игрока — звук, громкость, жалоба</span><span>Tab — закрыть</span></footer>
+    </section>`;
   }
   if (kind === 'report') {
     const p = S && S.players.find(q => q.seat === arg);
@@ -873,19 +1008,28 @@ function ovHtml(kind, arg) {
   }
   if (kind === 'voice') {
     const sink = 'setSinkId' in HTMLMediaElement.prototype;
-    return `<section class="kr-vs kr-glass">${x}<span class="kr-h">Голосовой чат</span><h2 class="kr-t">Связь</h2>
-      <p class="kr-vsum" id="krVsSum">${esc(vcSummary().t)}</p>${VC.micErr ? `<p class="kr-micst bad">${esc(VC.micErr)}</p>` : ''}
-      <div class="kr-seg" role="radiogroup" aria-label="Как говорить"><button class="${VC.mode === 'ptt' ? 'on' : ''}" data-a="vmode" data-v="ptt">Зажать V</button><button class="${VC.mode === 'vad' ? 'on' : ''}" data-a="vmode" data-v="vad">Голосом</button></div>
-      <div class="kr-meter kr-vsm" aria-hidden="true"><i id="krVsLvl"></i>${VC.mode === 'vad' ? `<b class="kr-thr" style="left:${Math.round(VC.thr * 100)}%"></b>` : ''}</div>
-      ${VC.mode === 'vad' ? `<label class="kr-micl"><span>Порог</span><input type="range" min="2" max="60" value="${Math.round(VC.thr * 100)}" data-thr="1" aria-label="Порог включения"></label>` : '<p class="kr-fine">Пока V зажата — вас слышат, внизу горит «В эфире».</p>'}
-      <label class="kr-micl"><span>Микрофон</span><select data-dev="mic" aria-label="Микрофон"><option value="">По умолчанию</option></select></label>
-      ${sink ? '<label class="kr-micl"><span>Динамики</span><select data-dev="spk" aria-label="Динамики"><option value="">По умолчанию</option></select></label>' : ''}
-      <label class="kr-chk"><input type="checkbox" data-chk="self"${VC.self ? ' checked' : ''}><span>Выключить мой микрофон</span></label>
-      <label class="kr-chk"><input type="checkbox" data-chk="deaf"${VC.deaf ? ' checked' : ''}><span>Выключить весь звук игроков</span></label>
-      <label class="kr-chk"><input type="checkbox" data-chk="guard"${VC.guard ? ' checked' : ''}><span>Подавление эха (пока говорят другие, микрофон пропускает только явную речь)</span></label>
-      ${VC.aec ? '' : '<p class="kr-micst warn">Браузер не включил эхоподавление — говорите через наушники и в режиме «Зажать V».</p>'}
-      <div class="kr-la"><button class="kr-btn sm" data-a="spk">Проверить звук</button>${VC.micErr ? '<button class="kr-btn sm go" data-a="mic-retry">Включить микрофон</button>' : ''}</div>
-      <p class="kr-fine">Слышите себя с задержкой? Нажмите Tab и говорите: у кого при этом загорается значок — у того микрофон ловит звук из наушников (или идёт трансляция игры со звуком, например в Discord). Заглушите его кнопкой динамика. Голос идёт напрямую между игроками; если с кем-то не соединилось — пишите в чат.</p></section>`;
+    const sm = vcSummary(), err = VC.micErr;   // владелец 20.11: окно в стиле CS2 — стекло, разделы, переключатели; ошибка микрофона — одной строкой (раньше дважды)
+    return `<section class="kr-vs2" role="dialog" aria-label="Голосовой чат">${x}
+      <header class="vs-hd"><span class="vs-k">Голосовой чат</span><h2>Связь</h2></header>
+      ${err ? `<div class="vs-st bad"><i></i><span>${esc(err)}</span><button class="vs-go" data-a="mic-retry" type="button">Включить микрофон</button></div>`
+        : `<div class="vs-st ${sm.cls}"><i></i><span id="krVsSum">${esc(sm.t)}</span></div>`}
+      <div class="vs-sec"><span class="vs-lb">Как говорить</span>
+        <div class="kr-seg" role="radiogroup" aria-label="Как говорить"><button class="${VC.mode === 'ptt' ? 'on' : ''}" data-a="vmode" data-v="ptt">Зажать V</button><button class="${VC.mode === 'vad' ? 'on' : ''}" data-a="vmode" data-v="vad">Голосом</button></div>
+        <div class="kr-meter kr-vsm" aria-hidden="true"><i id="krVsLvl"></i>${VC.mode === 'vad' ? `<b class="kr-thr" style="left:${Math.round(VC.thr * 100)}%"></b>` : ''}</div>
+        ${VC.mode === 'vad' ? `<label class="vs-row"><span>Порог</span><input type="range" min="2" max="60" value="${Math.round(VC.thr * 100)}" data-thr="1" aria-label="Порог включения"></label>` : '<p class="vs-hint">Пока V зажата — вас слышат, внизу горит «В эфире».</p>'}
+      </div>
+      <div class="vs-sec"><span class="vs-lb">Устройства</span>
+        <label class="vs-row"><span>Микрофон</span><select data-dev="mic" aria-label="Микрофон"><option value="">По умолчанию</option></select></label>
+        ${sink ? '<label class="vs-row"><span>Динамики</span><select data-dev="spk" aria-label="Динамики"><option value="">По умолчанию</option></select></label>' : ''}
+      </div>
+      <div class="vs-sec vs-tgs">
+        <label class="vs-tg"><span>Выключить мой микрофон</span><input type="checkbox" data-chk="self"${VC.self ? ' checked' : ''}></label>
+        <label class="vs-tg"><span>Выключить звук игроков</span><input type="checkbox" data-chk="deaf"${VC.deaf ? ' checked' : ''}></label>
+        <label class="vs-tg"><span>Подавление эха<small>Пока говорят другие, микрофон пропускает только явную речь</small></span><input type="checkbox" data-chk="guard"${VC.guard ? ' checked' : ''}></label>
+        ${VC.aec ? '' : '<p class="vs-warn">Браузер не включил эхоподавление — говорите через наушники и в режиме «Зажать V».</p>'}
+      </div>
+      <div class="vs-ft"><button class="vs-btn" data-a="spk" type="button">Проверить звук</button></div>
+      <details class="vs-help"><summary>Слышите себя с задержкой?</summary><p>Нажмите Tab и говорите: у кого при этом загорается значок — у того микрофон ловит звук из наушников (или идёт трансляция игры со звуком, например в Discord). Заглушите его кнопкой динамика. Голос идёт напрямую между игроками; если с кем-то не соединилось — пишите в чат.</p></details></section>`;
   }
   if (kind === 'leave') return `<section class="kr-rep kr-glass">${x}<span class="kr-h">Выход</span><h2 class="kr-t">Покинуть матч?</h2><p>Матч поставят на паузу, а если вы не вернётесь за 30 секунд — раунд отменят для всех.</p>
     <div class="kr-la"><button class="kr-btn red" data-a="leave-yes">Выйти</button><button class="kr-btn go" data-a="close">Остаться</button></div></section>`;
@@ -919,6 +1063,8 @@ function loop(t) {
 function uiTick() {
   if (view !== 'room' || !S || !root) return;
   if (S.room.phase === 'lobby' && S.room.mm) loadTick();
+  if (capHoldUntil && Date.now() >= capHoldUntil) { capHoldUntil = 0; drawAct(); }
+  if (actShown && ((actShown.endsWith('true') && !actBusy && Date.now() >= actLock) || (keyDown && Date.now() - keyDownAt > 400) || (spinNote && Date.now() > spinNote.until))) { if (keyDown && Date.now() - keyDownAt > 400) keyDown = ''; if (spinNote && Date.now() > spinNote.until) spinNote = null; drawAct(); }   // кнопки снова активны после анимации
   const r = S.room, tm = $('#krTm', root), bar = $('#krBar', root); if (!tm) return;
   if (r.paused) {
     const left = Math.max(0, (r.pause_left || 0) - (Date.now() - S._at)), s = Math.ceil(left / 1000);
@@ -929,12 +1075,12 @@ function uiTick() {
   }
   if (!r.deadline) { if (lastSec !== -2) { lastSec = -2; tm.textContent = ''; bar.style.transform = 'scaleX(0)'; $('#krTop', root).classList.remove('warn', 'crit'); } return; }
   const left = Math.max(0, r.deadline - (Date.now() + off)), s = Math.ceil(left / 1000);
-  const total = (r.phase === 'lobby' ? r.deadline - r.phase_at : ((r.times && r.times[r.phase]) || 0) * 1000) || 1;
+  const total = (r.deadline - r.phase_at) || 1;   // ход (20 с), пауза между раундами, отсчёт старта
   bar.style.transform = `scaleX(${clamp(left / total, 0, 1)})`;
   if (s !== lastSec) {
     lastSec = s; tm.textContent = fmt(s);
-    const timed = ['talk', 'vote', 'revote', 'brief'].includes(r.phase), top = $('#krTop', root);
-    top.classList.toggle('warn', timed && s <= 15 && s > 5); top.classList.toggle('crit', timed && s <= 5);
+    const timed = r.phase === 'play', top = $('#krTop', root);
+    top.classList.toggle('warn', timed && s <= 10 && s > 5); top.classList.toggle('crit', timed && s <= 5);
     const ls = $('#krLs', root); if (ls) ls.textContent = s + ' с';
   }
   if (left <= 0 && Date.now() - lastKick > 1200) { lastKick = Date.now(); pulse(); }
@@ -966,16 +1112,17 @@ function sendHead(t) {
    3D: штаб, стол, контейнеры, фигуры (three.js из importmap)
    ============================================================ */
 let LIB = null;
-const lib = () => LIB || (LIB = Promise.all([import('three'), import('three/addons/geometries/RoundedBoxGeometry.js'), import('three/addons/environments/RoomEnvironment.js')]).catch(e => { LIB = null; throw e; }));
+const lib = () => LIB || (LIB = Promise.all([import('three'), import('three/addons/geometries/RoundedBoxGeometry.js'), import('three/addons/environments/RoomEnvironment.js'),
+  Promise.all(['EffectComposer', 'RenderPass', 'UnrealBloomPass', 'OutputPass'].map(n => import('three/addons/postprocessing/' + n + '.js'))).then(m => Object.assign({}, ...m)).catch(() => null)]).catch(e => { LIB = null; throw e; }));
 async function start3D(g) {
   const cv = $('#krCv', root);
-  let T, RB, RE;
+  let T, RB, RE, PP;
   try {
-    const [a, b, c] = await lib(); T = a; RB = b.RoundedBoxGeometry; RE = c.RoomEnvironment;
+    const [a, b, c, d] = await lib(); T = a; RB = b.RoundedBoxGeometry; RE = c.RoomEnvironment; PP = d;
     await Promise.all([document.fonts.load('500 64px Oswald'), document.fonts.load('700 32px Manrope'), document.fonts.load('800 32px Manrope')]).catch(() => { /* без шрифта — запасной */ });
   } catch (e) { if (g === gen && root) root.classList.add('no3d'); return; }
   if (g !== gen || !root) return;
-  try { G = makeWorld(T, RB, RE, cv); } catch (e) { console.warn('KROT 3D:', e); if (root) root.classList.add('no3d'); return; }
+  try { G = makeWorld(T, RB, RE, cv, PP); } catch (e) { console.warn('KROT 3D:', e); if (root) root.classList.add('no3d'); return; }
   G.hideCard(hideCard);
   if (view === 'menu') G.menu(true);
   if (S) { lastLd = null; G.menu(false); G.sync(S); G.marks(marks()); const rd = S.round; if (rd && rd.target && ['open', 'debrief', 'done'].includes(S.room.phase)) G.reveal(rd.chosen, rd.target, true); }
@@ -983,59 +1130,286 @@ async function start3D(g) {
   markLoaded();
 }
 
-function makeWorld(T, RB, RE, cv) {
+function makeWorld(T, RB, RE, cv, PP) {
   const W = {};
   const ren = new T.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
   ren.setPixelRatio(Math.min(1.75, window.devicePixelRatio || 1));
-  ren.outputColorSpace = T.SRGBColorSpace; ren.toneMapping = T.ACESFilmicToneMapping; ren.toneMappingExposure = 1.05;
+  ren.outputColorSpace = T.SRGBColorSpace; ren.toneMapping = T.ACESFilmicToneMapping; ren.toneMappingExposure = 1.2;
   ren.shadowMap.enabled = true; ren.shadowMap.type = T.PCFSoftShadowMap;
   const ANI = Math.min(8, ren.capabilities.getMaxAnisotropy());
-  const scene = new T.Scene(); scene.background = new T.Color(0x07090c); scene.fog = new T.Fog(0x07090c, 5.5, 12.5);
+  const scene = new T.Scene(); scene.background = new T.Color(0x040303); scene.fog = new T.FogExp2(0x060404, .07);   // тёмный зал, лёгкая дымка
   const pm = new T.PMREMGenerator(ren); scene.environment = pm.fromScene(new RE(), .04).texture; scene.environmentIntensity = .22; pm.dispose();
   const cam = new T.PerspectiveCamera(62, 1, .03, 40); cam.rotation.order = 'YXZ'; scene.add(cam);
+  let comp = null;   // ореолы вокруг ламп, бра и свечей (bloom); нет модулей — рисуем без них
+  if (PP && PP.EffectComposer) { try { comp = new PP.EffectComposer(ren); comp.addPass(new PP.RenderPass(scene, cam)); comp.addPass(new PP.UnrealBloomPass(new T.Vector2(512, 512), .38, .35, 1)); comp.addPass(new PP.OutputPass()); } catch (e) { comp = null; } }
   const tex = (c, rx, ry) => { const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = ANI; if (rx) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry || rx); } return t; };
   const std = o => new T.MeshStandardMaterial(o);
   const mesh = (g, m, cast = true, recv = true) => { const x = new T.Mesh(g, m); x.castShadow = cast; x.receiveShadow = recv; return x; };
   const V = (x, y, z) => new T.Vector3(x, y, z);
   const UP = V(0, 1, 0), _a = V(0, 0, 0), _b = V(0, 0, 0), _c = V(0, 0, 0), _q = new T.Quaternion(), _q2 = new T.Quaternion(), _m = new T.Matrix4(), _e = new T.Euler();
 
-  /* свет: лампа над столом + холодная подсветка стен */
-  scene.add(new T.HemisphereLight(0x9fb4c8, 0x0b0d10, .42));
-  const lamp = new T.SpotLight(0xffe2b8, 34, 0, .7, .55, 2); lamp.position.set(0, 2.33, 0); lamp.target.position.set(0, TOP, 0);
-  lamp.castShadow = true; lamp.shadow.mapSize.set(1024, 1024); lamp.shadow.bias = -.0004; lamp.shadow.normalBias = .02; lamp.shadow.camera.near = .4; lamp.shadow.camera.far = 4;
+  /* свет: подпольное казино — темно; яркое пятно над столом, тёплые бра по стенам, свечи; ореолы — bloom */
+  const H = 3.3;                                           // высота потолка
+  scene.add(new T.HemisphereLight(0xffd2a6, 0x070505, .14));
+  const lamp = new T.SpotLight(0xffd9ac, 30, 0, 1.02, .72, 2); lamp.position.set(0, 2.2, 0); lamp.target.position.set(0, TOP, 0);
+  lamp.castShadow = true; lamp.shadow.mapSize.set(2048, 2048); lamp.shadow.bias = -.0003; lamp.shadow.normalBias = .02; lamp.shadow.camera.near = .3; lamp.shadow.camera.far = 4.5; lamp.shadow.radius = 4;
   scene.add(lamp, lamp.target);
-  const f1 = new T.PointLight(0x4f8fe0, 5, 9, 2); f1.position.set(-3.4, 2.4, -3.4); scene.add(f1);
-  const f2 = new T.PointLight(0x84d9fd, 3, 8, 2); f2.position.set(3.6, 1.8, 3.2); scene.add(f2);
-  const inL = [new T.PointLight(0x84d9fd, 0, 1, 2), new T.PointLight(0xff5a4a, 0, 1, 2)]; inL.forEach(l => { l.position.set(0, -10, 0); scene.add(l); });   // свет изнутри контейнеров (заранее: новые лампы = подвисание)
+  const inL = [0, 1].map(() => ({ intensity: 0, position: V(0, -10, 0) }));   // свет контейнеров «Крота» больше не нужен
+  const CAND = { x: -.6, z: .04, ry: Math.PI / 2 * .92 }, GLOBE = { x: .64, z: -.14, ry: .5 };   // где на столе канделябр и снежный шар
+  const candL = new T.PointLight(0xffa24a, 0, 2.8, 2); candL.position.set(CAND.x, TOP + .43, CAND.z); scene.add(candL);   // свечи (горят, когда модель загрузилась)
 
-  /* комната-штаб */
-  const floor = mesh(new T.PlaneGeometry(10, 10), std({ map: tex(paintFloor(), 3), roughness: .9, metalness: .05, color: 0x9aa3ad }), false, true);
+  /* подпольное казино: внизу — панели из лакированной вишни, сверху — бордовые обои с узором, кессонный потолок, бра; текстуры Poly Haven (CC0) */
+  const TL = new T.TextureLoader();
+  const pbr = (name, rx, ry, o) => {
+    const ld = (k, srgb) => { const t = TL.load('assets/rr/' + name + '_' + k + '.webp?v=1'); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = ANI; if (srgb) t.colorSpace = T.SRGBColorSpace; return t; };
+    const arm = ld('arm'); arm.channel = 0;   // R — тень в щелях, G — шероховатость
+    return std(Object.assign({ map: ld('diff', true), normalMap: ld('nor'), roughnessMap: arm, aoMap: arm, aoMapIntensity: .9, roughness: 1, metalness: 0 }, o));
+  };
+  const floor = mesh(new T.PlaneGeometry(10, 10), pbr('floor', 4, 4, { color: 0x6e6058 }), false, true);
   floor.rotation.x = -Math.PI / 2; scene.add(floor);
-  const wallM = std({ map: tex(paintWall(), 3, 1), roughness: .95, color: 0x8b95a1 });
-  for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2, w = mesh(new T.PlaneGeometry(10, 3.6), wallM, false, true); w.position.set(-Math.sin(a) * 5, 1.8, -Math.cos(a) * 5); w.rotation.y = a; scene.add(w);
-    const neon = new T.Mesh(new T.BoxGeometry(9.7, .03, .03), new T.MeshBasicMaterial({ color: 0x84d9fd })); neon.position.set(-Math.sin(a) * 4.97, 2.78, -Math.cos(a) * 4.97); neon.rotation.y = a; scene.add(neon); }
-  const ceil = mesh(new T.PlaneGeometry(10, 10), std({ color: 0x0c0e11, roughness: 1 }), false, false); ceil.rotation.x = Math.PI / 2; ceil.position.y = 3.6; scene.add(ceil);
-  const mapT = tex(paintMap());
-  const board = mesh(new T.PlaneGeometry(2.7, 1.45), std({ map: mapT, emissive: 0xffffff, emissiveMap: mapT, emissiveIntensity: .3, roughness: .7 }), false, true); board.position.set(0, 1.72, -4.96); scene.add(board);
-  const frameM = std({ color: 0x15191e, metalness: .6, roughness: .4 });
-  const bf = mesh(new T.BoxGeometry(2.82, 1.57, .04), frameM, false, true); bf.position.set(0, 1.72, -4.985); scene.add(bf);
-  [[-.75, 0], [.75, 1]].forEach(([z, i]) => {   // мониторы на стене слева
-    const sT = tex(paintScreen(i)), s = new T.Mesh(new T.PlaneGeometry(1.15, .66), new T.MeshBasicMaterial({ map: sT, color: 0xb8c4cc })); s.position.set(-4.95, 1.62, z); s.rotation.y = Math.PI / 2; scene.add(s);
-    const f = mesh(new T.BoxGeometry(.05, .76, 1.25), frameM, false, true); f.position.set(-4.98, 1.62, z); scene.add(f);
+  // ковёр под столом
+  const rug = mesh(new T.PlaneGeometry(4.8, 3.6), std({ map: tex(paintRug()), roughness: .95, metalness: 0 }), false, true); rug.rotation.x = -Math.PI / 2; rug.position.y = .004; scene.add(rug);
+  const paperM = pbr('paper', 7, 1.6, { color: 0x7a2f30, normalScale: new T.Vector2(.6, .6) });
+  const cherryM = pbr('cherry', 1, 1, { color: 0x9a6a58, roughness: .9 }), cherryLongM = pbr('cherry', 6, .3, { color: 0x8a5a48 });
+  const trimM = pbr('dwood', 5, .2, { color: 0x5a3a2c }), brassM = std({ color: 0xc89a52, roughness: .32, metalness: .95 });
+  const WAIN = 1.08, PAN = 9;                              // высота панелей, панелей на стену
+  const panelG = new RB(.86, .6, .03, 2, .012), panels = new T.InstancedMesh(panelG, cherryM, 4 * PAN);
+  panels.receiveShadow = true; scene.add(panels);
+  const pilG = new T.BoxGeometry(.16, H - WAIN - .2, .04), pils = new T.InstancedMesh(pilG, trimM, 4 * 4); pils.receiveShadow = true; scene.add(pils);
+  const _o = new T.Object3D(); let pi = 0, li = 0;
+  const SCONCE = [];
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2, nx = -Math.sin(a), nz = -Math.cos(a), tx = Math.cos(a), tz = -Math.sin(a);   // n — к стене, t — вдоль стены
+    const at = (u, y, d) => V(nx * (5 - d) + tx * u, y, nz * (5 - d) + tz * u);
+    const plane = (w, h, y, m) => { const p = mesh(new T.PlaneGeometry(w, h), m, false, true); p.position.copy(at(0, y, 0)); p.rotation.y = a; scene.add(p); return p; };
+    plane(10, H - WAIN, WAIN + (H - WAIN) / 2, paperM);                       // обои
+    const back = plane(10, WAIN, WAIN / 2, cherryLongM);                      // подложка панелей
+    for (let k = 0; k < PAN; k++) { _o.position.copy(at(-4.4 + k * 1.1, .2 + .6 / 2 + .06, .02)); _o.rotation.set(0, a, 0); _o.updateMatrix(); panels.setMatrixAt(pi++, _o.matrix); }
+    const box = (w, h, d, y, m, u = 0) => { const b = mesh(new T.BoxGeometry(w, h, d), m, false, true); b.position.copy(at(u, y, d / 2)); b.rotation.y = a; scene.add(b); return b; };
+    box(10, .16, .04, .08, trimM);                                           // плинтус
+    box(10, .06, .06, WAIN, trimM); box(10, .03, .03, WAIN - .05, trimM);    // поручень над панелями
+    box(10, .18, .1, H - .09, trimM); box(10, .05, .14, H - .2, trimM);      // карниз
+    for (const u of [-3.75, 3.75]) { _o.position.copy(at(u, WAIN + (H - WAIN - .2) / 2, .02)); _o.rotation.set(0, a, 0); _o.updateMatrix(); pils.setMatrixAt(li++, _o.matrix); }
+    // бра: на каждой стене по бокам экрана (под ними — напольные канделябры, setupProps)
+    for (const u of [-2.5, 2.5]) SCONCE.push({ p: at(u, 2.02, 0), a, nx, nz, wall: i });
+  }
+  panels.instanceMatrix.needsUpdate = true; pils.count = li; pils.instanceMatrix.needsUpdate = true;   // пилястры — только у краёв стен: в середине экраны
+  // бра: латунная пластина, рожок, плафон из матового стекла (светится — ореол), пятно тёплого света на обоях
+  const shadeGlowM = new T.MeshBasicMaterial({ color: new T.Color(2.4, 1.75, 1.15) }), washT = (() => { const c = cnv(128, 256), x = c.getContext('2d'), g = x.createRadialGradient(64, 120, 4, 64, 120, 120); g.addColorStop(0, 'rgba(255,190,120,.7)'); g.addColorStop(.45, 'rgba(255,150,80,.24)'); g.addColorStop(1, 'rgba(255,120,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 256); return tex(c); })();
+  const scL = [];
+  SCONCE.forEach((sc, k) => {
+    const g = new T.Group(); g.position.copy(sc.p); g.rotation.y = sc.a; scene.add(g);
+    const plate = mesh(new T.CylinderGeometry(.06, .06, .02, 24), brassM, false, false); plate.rotation.x = Math.PI / 2; plate.position.z = .01; g.add(plate);
+    const arm = mesh(new T.TorusGeometry(.09, .01, 8, 20, Math.PI / 2), brassM, false, false); arm.position.set(0, .09, .01); arm.rotation.set(0, Math.PI / 2, Math.PI); g.add(arm);
+    const cup = mesh(new T.CylinderGeometry(.035, .02, .03, 16), brassM, false, false); cup.position.set(0, .09, .1); g.add(cup);
+    const glass = new T.Mesh(new T.CylinderGeometry(.045, .075, .13, 24, 1, true), shadeGlowM); glass.position.set(0, .17, .1); g.add(glass);
+    const wash = new T.Mesh(new T.PlaneGeometry(.9, 1.8), new T.MeshBasicMaterial({ map: washT, transparent: true, blending: T.AdditiveBlending, depthWrite: false })); wash.position.set(0, .05, .006); g.add(wash);
+    { const L = new T.PointLight(0xffb070, sc.wall % 2 ? 2 : 2.6, 3.8, 2); L.position.copy(sc.p).add(V(-sc.nx * .3, .15, -sc.nz * .3)); scene.add(L); scL.push(L); }   // тёплый свет от каждого бра на обои и полки
   });
-  const crateM = std({ map: tex(paintCrate()), roughness: .85, color: 0xb9bfae });
-  [[3.7, .32, -3.7, .64, 0], [3.75, .96, -3.65, .64, .2], [4.0, .32, -2.9, .64, -.15], [-3.9, .32, 3.8, .64, .3], [3.9, .27, 3.6, .54, .1]].forEach(([x, y, z, s, r]) => {
-    const c = mesh(new T.BoxGeometry(s, s, s), crateM); c.position.set(x, y, z); c.rotation.y = r; scene.add(c); });
-  // лампа над столом
-  const shade = mesh(new T.ConeGeometry(.3, .2, 32, 1, true), std({ color: 0x1d232a, metalness: .7, roughness: .4, side: T.DoubleSide }), false, false); shade.position.set(0, 2.45, 0); scene.add(shade);
-  const bulb = new T.Mesh(new T.SphereGeometry(.055, 16, 12), new T.MeshBasicMaterial({ color: 0xfff1d6 })); bulb.position.set(0, 2.39, 0); scene.add(bulb);
-  const cable = mesh(new T.CylinderGeometry(.008, .008, 1.1, 6), std({ color: 0x0a0a0a }), false, false); cable.position.set(0, 3.08, 0); scene.add(cable);
+  // полок с бутылками больше нет (владелец 20.11): на боковых стенах — такие же экраны с камерой
+  // кессонный потолок: тёмные балки сеткой, между ними — панели темнее
+  const ceil = mesh(new T.PlaneGeometry(10, 10), pbr('cherry', 3, 3, { color: 0x2a1812, roughness: .8 }), false, true); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; scene.add(ceil);
+  const beamM = pbr('dwood', 4, .3, { color: 0x3a2318 });
+  for (let k = -4; k <= 4; k++) for (const rot of [0, 1]) { const b = mesh(new T.BoxGeometry(10, .16, .14), beamM, false, true); b.position.set(rot ? k * 1.25 : 0, H - .08, rot ? 0 : k * 1.25); b.rotation.y = rot ? Math.PI / 2 : 0; scene.add(b); }
+  // экран на задней стене (владелец: оставить) — над панелями
+  // экран на задней стене (владелец: оставить) — камера наблюдения: снимает стол из угла в реальном времени (15 кадров/с, эффект CCTV)
+  const cctvRT = new T.WebGLRenderTarget(640, 344, { type: T.HalfFloatType });
+  const cctvCam = new T.PerspectiveCamera(60, 2.7 / 1.45, .05, 30); cctvCam.position.set(0, H - .27, 0); cctvCam.up.set(0, 0, -1); cctvCam.lookAt(0, TOP, 0); scene.add(cctvCam);
+  const overhead = [];   // что висит между камерой и столом (лампа, провода, луч, дым) — в кадре камеры не рисуем
+  const ovC = cnv(640, 344), ovT = tex(ovC);
+  // итог игры на этом же экране (владелец 20.11): камера подъезжает, таблица мест и нажимаемые кнопки (окно поверх игры убрано)
+  const TVW = 1280, TVH = 688, tvC = cnv(TVW, TVH), tvT = tex(tvC);
+  const TV_BTN = [[72, 584, 404, 68], [490, 584, 230, 68], [734, 584, 230, 68], [978, 584, 230, 68]];   // x, y, ширина, высота — в пикселях картинки экрана (поля 72 px: края экрана прикрывает рамка и выпуклость)
+  const tvSkull = new Image(); tvSkull.onload = () => tvDraw(); tvSkull.src = 'assets/rr/dead.svg';   // значок «выбыл» (владелец, Оформление сайта/СМЕРТЬ РР.svg)
+  let tvD = null, tvKey = '', tvAt = 0, tvK = 0, tvHov = null, tvFit = [.5, .5, 1, 1], tvFitAt = -1;   // tvFit — свободная часть холста (без чата и верхних плашек): центр x, y и ширина, высота в долях
+  const cctvM = new T.ShaderMaterial({ uniforms: { tFeed: { value: cctvRT.texture }, tOver: { value: ovT }, uT: { value: 0 }, tRes: { value: tvT }, uMix: { value: 0 } }, vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }",
+    fragmentShader: "uniform sampler2D tFeed; uniform sampler2D tOver; uniform sampler2D tRes; uniform float uT; uniform float uMix; varying vec2 vUv;\nfloat rnd(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 c = vUv - .5; vec2 uv = .5 + c * (1. - .16 * dot(c, c) * 4.) * .97;\n  float ln = floor(uv.y * 220.); uv.x += (rnd(vec2(ln, floor(uT * 15.))) - .5) * .0025;\n  float band = 1. - smoothstep(0., .03, abs(fract(uv.y + uT * .06) - .5)); uv.x += band * .006;\n  vec3 col = vec3(texture2D(tFeed, uv + vec2(.0018, 0.)).r, texture2D(tFeed, uv).g, texture2D(tFeed, uv - vec2(.0018, 0.)).b);\n  col *= 2.5; col = col / (1. + col) * 1.25;\n  float l = dot(col, vec3(.3, .59, .11)); col = mix(vec3(l), col, .22) * vec3(.86, 1., .9);\n  col *= .86 + .14 * sin(vUv.y * 1100.);\n  col += (rnd(vUv * 517. + fract(uT) * 91.) - .5) * .075 + band * .04;\n  col *= 1. - smoothstep(.3, .8, length(c * vec2(1., .9)));\n  if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) col = vec3(0.);\n  vec4 o = texture2D(tOver, vUv); col = mix(col, o.rgb, o.a);\n  col = max(col, 0.) * .85;\n  if (uMix > .001) {\n    vec2 ru = .5 + c * (1. - .18 * dot(c, c)); vec3 rs = texture2D(tRes, ru).rgb;\n    rs *= .93 + .07 * sin(vUv.y * 1100.); rs += (rnd(vUv * 731. + fract(uT) * 37.) - .5) * .022;\n    rs *= 1. - .3 * smoothstep(.4, .9, length(c * vec2(1., .9)));\n    if (ru.x < 0. || ru.x > 1. || ru.y < 0. || ru.y > 1.) rs = vec3(0.);\n    col = mix(col, rs, uMix);\n  }\n  gl_FragColor = vec4(col, 1.);\n}" });
+  const board = new T.Mesh(new T.PlaneGeometry(2.7, 1.45), cctvM); board.position.set(0, 2.05, -4.94); scene.add(board);
+  const boards = [board];   // тот же экран (камера, в конце — итог) на всех 4 стенах: вместо полок и за спиной места 1 — чтобы все видели (владелец 20.11)
+  for (const [x, z, ry] of [[-4.94, 0, Math.PI / 2], [4.94, 0, -Math.PI / 2], [0, 4.94, Math.PI]]) { const b = new T.Mesh(board.geometry, cctvM); b.position.set(x, 2.05, z); b.rotation.y = ry; scene.add(b); boards.push(b); }   // на 1 см перед рамкой (иначе рамка перекрывает)
+  let cctvAt = -1, ovAt = -1;
+  W._cctv = { rt: cctvRT, cam: cctvCam, m: cctvM };   // для проверки (KROT.dbg.world()._cctv)
+  function tvDraw() {
+    const d = tvD; if (!d) return; const x = tvC.getContext('2d'), L = 72, R = TVW - 72, C = TVW / 2;
+    let g = x.createLinearGradient(0, 0, 0, TVH); g.addColorStop(0, '#121820'); g.addColorStop(1, '#090c0f'); x.fillStyle = g; x.fillRect(0, 0, TVW, TVH);
+    g = x.createRadialGradient(C, -80, 60, C, -80, 900); g.addColorStop(0, d.win ? 'rgba(111,220,140,.14)' : 'rgba(132,217,253,.13)'); g.addColorStop(1, 'rgba(132,217,253,0)'); x.fillStyle = g; x.fillRect(0, 0, TVW, TVH);
+    x.strokeStyle = 'rgba(255,255,255,.09)'; x.lineWidth = 2; x.strokeRect(46, 34, TVW - 92, TVH - 68);
+    x.textBaseline = 'alphabetic';
+    // верх — по центру: «ИТОГ ИГРЫ» с чертами по бокам, заголовок, плашка «ваше место»
+    x.textAlign = 'center'; x.letterSpacing = '6px'; x.font = F_H(21); x.fillStyle = '#84d9fd'; x.fillText('ИТОГ ИГРЫ', C + 3, 80);
+    { const w = x.measureText('ИТОГ ИГРЫ').width / 2 + 22; x.fillStyle = 'rgba(132,217,253,.35)'; x.fillRect(C - w - 110, 72, 110, 1.5); x.fillRect(C + w, 72, 110, 1.5); }
+    x.textAlign = 'left'; x.letterSpacing = '1px'; x.font = F_H(62);
+    { const w1 = x.measureText(d.t1 + (d.t2 ? ' ' : '')).width, w2 = d.t2 ? x.measureText(d.t2).width : 0, x0 = C - (w1 + w2) / 2;
+      x.fillStyle = '#fff'; x.fillText(d.t1, x0, 148); if (d.t2) { x.fillStyle = '#84d9fd'; x.fillText(d.t2, x0 + w1, 148); } }
+    if (d.me) {
+      x.font = F_H(22); x.letterSpacing = '2px'; const w = x.measureText(d.me).width + 40, x0 = C - w / 2;
+      x.fillStyle = d.win ? 'rgba(111,220,140,.14)' : 'rgba(255,255,255,.06)'; x.fillRect(x0, 166, w, 40);
+      x.strokeStyle = d.win ? 'rgba(111,220,140,.7)' : 'rgba(255,255,255,.22)'; x.lineWidth = 1.5; x.strokeRect(x0 + .75, 166.75, w - 1.5, 38.5);
+      x.textAlign = 'center'; x.fillStyle = d.win ? '#8ff0ad' : '#e9ecef'; x.fillText(d.me, C + 1, 194); x.textAlign = 'left';
+    }
+    x.font = F_H(17); x.letterSpacing = '3px'; x.fillStyle = '#76808a'; x.fillText('МЕСТО', L + 14, 246); x.fillText('ИГРОК', L + 100, 246);
+    x.textAlign = 'right'; x.fillText('ОЧКИ', R - 16, 246); x.textAlign = 'left';
+    d.rows.forEach((r, i) => {
+      const y = 256 + i * 62, win = r.pl === 1, ac = win ? '#6fdc8c' : r.me ? '#84d9fd' : '', bx = L + 100, nx = L + 150;
+      if (ac) { x.fillStyle = win ? 'rgba(111,220,140,.13)' : 'rgba(132,217,253,.09)'; x.fillRect(L, y, R - L, 58); x.fillStyle = ac; x.fillRect(L, y, 4, 58); }
+      x.fillStyle = 'rgba(255,255,255,.07)'; x.fillRect(L, y + 59, R - L, 1);
+      x.letterSpacing = '0px'; x.font = F_H(38); x.fillStyle = ac || '#e9ecef';
+      if (r.out && tvSkull.naturalWidth) { x.globalAlpha = .9; x.drawImage(tvSkull, L + 14, y + 10, 40, 38); x.globalAlpha = 1; }   // выбыл — череп вместо места (владелец 20.11)
+      else x.fillText(r.pl || '—', L + 20, y + 44);
+      x.fillStyle = '#1f2b34'; x.fillRect(bx, y + 12, 34, 34); x.strokeStyle = 'rgba(132,217,253,.4)'; x.lineWidth = 1.5; x.strokeRect(bx + .75, y + 12.75, 32.5, 32.5);
+      x.font = F_H(21); x.fillStyle = '#84d9fd'; x.textAlign = 'center'; x.fillText(r.s, bx + 17, y + 37); x.textAlign = 'left';
+      x.font = F_B(28); x.fillStyle = r.out ? '#9aa3ab' : '#f1f3f5'; x.fillText(r.n, nx, y + 39);
+      let ex = nx + x.measureText(r.n).width;
+      if (r.me) { x.font = F_B(21, 600); x.fillStyle = '#76808a'; x.fillText('(вы)', ex + 12, y + 39); ex += 12 + x.measureText('(вы)').width; }
+      x.textAlign = 'right'; x.font = F_H(32); x.fillStyle = win ? '#6fdc8c' : '#e9ecef'; x.fillText(r.pts, R - 16, y + 41); x.textAlign = 'left';
+    });
+    d.btns.forEach((b, i) => {
+      const [bx, by, bw, bh] = TV_BTN[i], h = tvHov === b.a;
+      g = x.createLinearGradient(0, by, 0, by + bh);
+      if (b.go) { g.addColorStop(0, h ? '#44a865' : '#32804d'); g.addColorStop(1, h ? '#2d7a47' : '#1f5733'); }
+      else { g.addColorStop(0, h ? 'rgba(132,217,253,.24)' : 'rgba(255,255,255,.08)'); g.addColorStop(1, h ? 'rgba(132,217,253,.12)' : 'rgba(255,255,255,.035)'); }
+      x.fillStyle = g; x.fillRect(bx, by, bw, bh);
+      x.strokeStyle = b.go ? (h ? '#9cf5b7' : '#5cc77f') : (h ? '#84d9fd' : 'rgba(255,255,255,.2)'); x.lineWidth = 2; x.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+      x.font = F_H(b.go ? 30 : 23); x.letterSpacing = '2px'; x.textAlign = 'center'; x.fillStyle = b.go ? '#effff3' : h ? '#fff' : '#c9ced3';
+      x.fillText(b.l, bx + bw / 2, by + bh / 2 + (b.go ? 11 : 8)); x.textAlign = 'left';
+    });
+    x.letterSpacing = '0px'; tvT.needsUpdate = true;
+  }
+  if (document.fonts) document.fonts.ready.then(() => tvDraw());
+  W.tv = d => {   // d — данные итога (или null — убрать); камера подъедет через 1,2 с после конца игры
+    const k = d ? JSON.stringify(d) : ''; if (k === tvKey) return;
+    if (d && !tvD) tvAt = clock + 1.2;
+    tvKey = k; tvD = d; tvHov = null; tvDraw();
+  };
+  W.tvPick = (mx, my, hover) => {   // что под мышкой на экране: действие кнопки или null; hover — подсветить
+    let a = null;
+    if (tvD && tvK > .85 && mx != null) {
+      ndc.set(mx, my); ray.setFromCamera(ndc, cam); const h = ray.intersectObject(board, false)[0];
+      if (h && h.uv) {   // с поправкой на выпуклость кинескопа, как в шейдере
+        const cx = h.uv.x - .5, cy = h.uv.y - .5, k = 1 - .18 * (cx * cx + cy * cy), px = (.5 + cx * k) * TVW, py = (.5 - cy * k) * TVH;
+        const i = TV_BTN.findIndex(([bx, by, bw, bh]) => px >= bx && px <= bx + bw && py >= by && py <= by + bh);
+        if (i >= 0 && tvD.btns[i]) a = tvD.btns[i].a;
+      }
+    }
+    if (hover !== false && a !== tvHov) { tvHov = a; tvDraw(); }
+    return a;
+  };
+  function cctvDraw() {   // кадр камеры: свою голову на это время возвращаем (от первого лица она скрыта), экран прячем (нельзя рисовать в текстуру, которую он показывает)
+    const me = AV[mySeat], M = me && me.on && me.M;
+    if (M) { M.head.scale.setScalar(1); M.root.position.z = 0; }
+    const au = ren.shadowMap.autoUpdate; ren.shadowMap.autoUpdate = false; for (const b of boards) b.visible = false; for (const o of overhead) o.visible = false;
+    ren.setRenderTarget(cctvRT); ren.render(scene, cctvCam); ren.setRenderTarget(null);
+    for (const b of boards) b.visible = true; ren.shadowMap.autoUpdate = au; for (const o of overhead) o.visible = true;
+    if (M) { M.head.scale.setScalar(1e-4); M.root.position.z = .1; }
+  }
+  function ovDraw(t) {   // надписи камеры: номер, REC (мигает), дата и время
+    const x = ovC.getContext('2d'), W2 = 640, H2 = 344, d = new Date(), p = n => String(n).padStart(2, '0');
+    x.clearRect(0, 0, W2, H2); x.font = '700 19px ui-monospace, Consolas, "Courier New", monospace'; x.textBaseline = 'top'; x.fillStyle = 'rgba(232,240,232,.92)'; x.shadowColor = 'rgba(0,0,0,.8)'; x.shadowBlur = 4;
+    x.textAlign = 'left'; x.fillText('CAM 01 · СТОЛ', 26, 22); x.fillText(p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear() + '  ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()), 26, H2 - 44);
+    x.textAlign = 'right'; x.fillText('REC', W2 - 26, 22); x.fillText('RUSH CASE', W2 - 26, H2 - 44);
+    if (Math.floor(t * 1.4) % 2 === 0) { x.fillStyle = '#ff3b30'; x.beginPath(); x.arc(W2 - 86, 32, 7, 0, 7); x.fill(); }
+    x.shadowBlur = 0; x.strokeStyle = 'rgba(232,240,232,.6)'; x.lineWidth = 2; const k = 28;
+    for (const [cx, cy, sx, sy] of [[14, 14, 1, 1], [W2 - 14, 14, -1, 1], [14, H2 - 14, 1, -1], [W2 - 14, H2 - 14, -1, -1]]) { x.beginPath(); x.moveTo(cx, cy + sy * k); x.lineTo(cx, cy); x.lineTo(cx + sx * k, cy); x.stroke(); }
+    x.beginPath(); x.moveTo(W2 / 2 - 12, H2 / 2); x.lineTo(W2 / 2 + 12, H2 / 2); x.moveTo(W2 / 2, H2 / 2 - 12); x.lineTo(W2 / 2, H2 / 2 + 12); x.strokeStyle = 'rgba(232,240,232,.35)'; x.stroke();
+    ovT.needsUpdate = true;
+  }
+  // сама камера: купол на потолке над столом — латунное основание, тёмное стекло, красный огонёк
+  { const baseM = std({ color: 0xc89a52, roughness: .32, metalness: .95 }), domeM = new T.MeshStandardMaterial({ color: 0x07090c, roughness: .08, metalness: .85, transparent: true, opacity: .92 });
+    const base = mesh(new T.CylinderGeometry(.13, .14, .04, 32), baseM, false, false); base.position.set(0, H - .18, 0);   // под перекрестьем балок (низ балок — H − 0,16) scene.add(base);
+    const dome = new T.Mesh(new T.SphereGeometry(.1, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), domeM); dome.position.set(0, H - .2, 0); scene.add(dome);
+    const led = new T.Mesh(new T.SphereGeometry(.008, 10, 8), new T.MeshBasicMaterial({ color: new T.Color(4, .25, .2) })); led.position.set(.105, H - .205, 0); scene.add(led); W._led = led;
+    overhead.push(base, dome, led); }
+  const frameM = std({ color: 0x15191e, metalness: .6, roughness: .4 });
+  const bf = mesh(new T.BoxGeometry(2.86, 1.6, .05), frameM, false, true); bf.position.set(0, 2.05, -4.975); scene.add(bf);
+  for (const [x, z, ry] of [[-4.975, 0, Math.PI / 2], [4.975, 0, -Math.PI / 2], [0, 4.975, Math.PI]]) { const f = mesh(bf.geometry, frameM, false, true); f.position.set(x, 2.05, z); f.rotation.y = ry; scene.add(f); }   // рамки остальных экранов
+  // лампа над столом: латунная штанга и три зелёных абажура, внутри светится (ореол); свет — прожектор lamp
+  const shadeOutM = std({ color: 0x0f2a1d, roughness: .3, metalness: .55 }), shadeInM = new T.MeshBasicMaterial({ color: new T.Color(2.6, 2.1, 1.5), side: T.BackSide });
+  const prof = [[.02, .16], [.05, .15], [.09, .1], [.15, .03], [.17, 0]].map(([r, y]) => new T.Vector2(r, y));
+  const rod = mesh(new T.CylinderGeometry(.012, .012, 1.5, 12), brassM, false, false); rod.rotation.z = Math.PI / 2; rod.position.set(0, 2.42, 0); scene.add(rod); overhead.push(rod);
+  for (const x of [-.55, 0, .55]) {
+    const sh = mesh(new T.LatheGeometry(prof, 32), shadeOutM, false, false); sh.position.set(x, 2.24, 0); scene.add(sh); overhead.push(sh);
+    const inn = new T.Mesh(new T.LatheGeometry(prof, 32), shadeInM); inn.scale.setScalar(.97); inn.position.set(x, 2.24, 0); scene.add(inn); overhead.push(inn);
+    const stem = mesh(new T.CylinderGeometry(.008, .008, .02, 8), brassM, false, false); stem.position.set(x, 2.41, 0); scene.add(stem); overhead.push(stem);
+  }
+  for (const x of [-.6, .6]) { const cable = mesh(new T.CylinderGeometry(.005, .005, H - 2.42, 6), std({ color: 0x0a0a0a }), false, false); cable.position.set(x, (H + 2.42) / 2, 0); scene.add(cable); overhead.push(cable); }
+  // дым в луче: светлый конус под лампой и медленно плывущие клубы
+  const shaftM = new T.ShaderMaterial({ transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide, uniforms: { c: { value: new T.Color(1, .82, .6) }, o: { value: .085 } },   // края луча мягкие: чем ближе к ребру — тем прозрачнее
+    vertexShader: 'varying vec3 vN; varying vec3 vV; varying float vY; void main() { vec4 wp = modelMatrix * vec4(position, 1.); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); vY = uv.y; gl_Position = projectionMatrix * viewMatrix * wp; }',
+    fragmentShader: 'uniform vec3 c; uniform float o; varying vec3 vN; varying vec3 vV; varying float vY; void main() { float f = pow(abs(dot(normalize(vN), normalize(vV))), 2.5); gl_FragColor = vec4(c * o * f * vY * vY, 1.); }' });
+  const beam = new T.Mesh(new T.CylinderGeometry(.55, 1.55, 1.35, 48, 1, true), shaftM);
+  beam.position.set(0, 2.2 - 1.35 / 2, 0); beam.scale.z = .62; scene.add(beam); overhead.push(beam);
+  const smokeT = tex(paintSmoke()), smoke = [];
+  for (let k = 0; k < 10; k++) {
+    const sp = new T.Sprite(new T.SpriteMaterial({ map: smokeT, color: 0x9a8574, transparent: true, opacity: .025 + Math.random() * .025, depthWrite: false, rotation: Math.random() * 6.28 }));
+    const r = .15 + Math.random() * .7, f = Math.random() * 6.28; sp.position.set(Math.cos(f) * r, 1.55 + Math.random() * .55, Math.sin(f) * r * .6);   // только над столом, выше глаз
+    const sz = .7 + Math.random() * .8; sp.scale.set(sz, sz, 1); scene.add(sp); overhead.push(sp); smoke.push({ sp, f, r, v: (Math.random() - .5) * .05, y0: sp.position.y, k: Math.random() * 9 });
+  }
+  // дымка по бокам (владелец 20.11): большие медленные клубы у стен и в углах, за спинами игроков; над столом и в центре её нет
+  const haze = [];
+  for (let k = 0; k < 22; k++) {
+    const f = k / 22 * Math.PI * 2 + Math.random() * .25, r = 2.9 + Math.random() * 1.5;
+    const sp = new T.Sprite(new T.SpriteMaterial({ map: smokeT, color: 0x7d6a5c, transparent: true, opacity: .07 + Math.random() * .06, depthWrite: false, rotation: Math.random() * 6.28 }));
+    sp.position.set(Math.cos(f) * r, .5 + Math.random() * 2.2, Math.sin(f) * r);
+    const sz = 2.2 + Math.random() * 2; sp.scale.set(sz, sz * .8, 1); scene.add(sp); overhead.push(sp);
+    haze.push({ sp, f, r, v: (Math.random() - .5) * .02, y0: sp.position.y, k: Math.random() * 9, rv: (Math.random() - .5) * .03 });
+  }
 
-  /* стол */
-  const tableM = std({ color: 0x1a1f25, roughness: .5, metalness: .4 });
-  const top = mesh(new RB(1.52, .05, 1.52, 3, .018), tableM); top.position.y = TOP - .026; scene.add(top);
-  const felt = mesh(new T.PlaneGeometry(1.4, 1.4), std({ map: tex(paintFelt()), roughness: .95 }), false, true); felt.rotation.x = -Math.PI / 2; felt.position.y = TOP + .0006; scene.add(felt);
-  [[-.66, -.66], [.66, -.66], [-.66, .66], [.66, .66]].forEach(([x, z]) => { const l = mesh(new T.BoxGeometry(.07, TOP - .05, .07), tableM); l.position.set(x, (TOP - .05) / 2, z); scene.add(l); });
+  /* покерный стол: овал — сукно, деревянная дорожка, мягкий кожаный бортик, корпус и две тумбы */
+  const ell = (a, b, n = 128) => { const s = new T.Shape(); for (let i = 0; i <= n; i++) { const f = i / n * Math.PI * 2, px = Math.sin(f) * a, py = Math.cos(f) * b; if (i) s.lineTo(px, py); else s.moveTo(px, py); } return s; };
+  const flat = g => { g.rotateX(-Math.PI / 2); return g; };   // фигура из плоскости XY — на стол (y вверх)
+  const RAIL = .15, WOOD = .09;                                // ширина бортика и деревянной дорожки (м)
+  const FA = TA - RAIL - WOOD, FB = TB - RAIL - WOOD;          // полуоси сукна
+  const bodyM = std({ color: 0x0f0d0c, roughness: .45, metalness: .25 });
+  const body = mesh(flat(new T.ExtrudeGeometry(ell(TA - .015, TB - .015), { depth: .1, bevelEnabled: true, bevelThickness: .01, bevelSize: .012, bevelSegments: 2, curveSegments: 128 })), bodyM);
+  body.position.y = TOP - .11; scene.add(body);
+  const feltG = flat(new T.ShapeGeometry(ell(FA + .004, FB + .004), 128));
+  { const p = feltG.attributes.position, uv = feltG.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / (2 * FA) + .5, -p.getZ(i) / (2 * FB) + .5); }
+  const feltM = std({ map: tex(paintPoker()), roughness: .96, metalness: 0 });
+  const felt = mesh(feltG, feltM, false, true); felt.position.y = TOP + .0006; scene.add(felt);
+  const woodS = ell(TA - RAIL + .01, TB - RAIL + .01); woodS.holes.push(ell(FA, FB));
+  const woodM = pbr('cherry', 10, .4, { color: 0xb07a62, roughness: .7 });
+  const wood = mesh(flat(new T.ShapeGeometry(woodS, 128)), woodM, false, true); wood.position.y = TOP + .004; scene.add(wood);
+  { const g = wood.geometry, p = g.attributes.position, uv = g.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, (Math.atan2(p.getX(i) / TA, -p.getZ(i) / TB) / Math.PI + 1) * .5, Math.hypot(p.getX(i) / TA, p.getZ(i) / TB)); }
+  const railPts = []; for (let i = 0; i < 128; i++) { const f = i / 128 * Math.PI * 2; railPts.push(V(Math.sin(f) * (TA - RAIL / 2), 0, Math.cos(f) * (TB - RAIL / 2))); }
+  const railM = pbr('leather', 9, .6, { color: 0x6a4a3c, roughness: .9 });
+  const rail = mesh(new T.TubeGeometry(new T.CatmullRomCurve3(railPts, true), 256, RAIL / 2, 18, true), railM);
+  rail.scale.y = .62; rail.position.y = TOP + .03; scene.add(rail);
+  const legM = std({ color: 0x15171a, roughness: .35, metalness: .75 });
+  { // одна ножка по центру (владелец): толстая колонна, юбка под столешницей и широкое основание
+    const col = mesh(new T.CylinderGeometry(.13, .17, TOP - .14, 32), legM); col.position.set(0, (TOP - .14) / 2 + .05, 0); scene.add(col);
+    const cap = mesh(new T.CylinderGeometry(.34, .2, .06, 40), legM); cap.position.set(0, TOP - .14, 0); scene.add(cap);
+    const foot = mesh(new T.CylinderGeometry(.5, .56, .05, 48), legM); foot.position.set(0, .025, 0); scene.add(foot);
+    const ring = mesh(new T.TorusGeometry(.2, .025, 12, 40), legM); ring.rotation.x = Math.PI / 2; ring.position.set(0, .07, 0); scene.add(ring);
+  }
+
+  /* револьвер посреди стола (пока из простых деталей; барабан — отдельная часть, чтобы крутился) */
+  const gun = (() => {
+    const g = new T.Group(), steel = std({ color: 0x3b4047, roughness: .28, metalness: .92 }), dark = std({ color: 0x1b1e22, roughness: .35, metalness: .85 });
+    const gripM = std({ map: tex(paintWood(), 1, 2), color: 0xc08a60, roughness: .5, metalness: .05 });
+    const frame = mesh(new RB(.1, .052, .026, 2, .006), steel); frame.position.set(0, 0, 0); g.add(frame);
+    const barrel = mesh(new T.CylinderGeometry(.0105, .0105, .165, 20), steel); barrel.rotation.z = Math.PI / 2; barrel.position.set(.13, .012, 0); g.add(barrel);
+    const rib = mesh(new T.BoxGeometry(.165, .008, .01), steel); rib.position.set(.13, .024, 0); g.add(rib);
+    const sight = mesh(new T.BoxGeometry(.008, .009, .004), steel); sight.position.set(.205, .031, 0); g.add(sight);
+    const ejector = mesh(new T.CylinderGeometry(.005, .005, .1, 12), dark); ejector.rotation.z = Math.PI / 2; ejector.position.set(.1, -.008, 0); g.add(ejector);
+    const drum = new T.Group(); drum.position.set(.005, .004, 0); g.add(drum);
+    const cyl6 = mesh(new T.CylinderGeometry(.024, .024, .046, 6 * 6), steel); cyl6.rotation.z = Math.PI / 2; drum.add(cyl6);
+    const holeM = new T.MeshStandardMaterial({ color: 0x050505, roughness: 1 });
+    for (let i = 0; i < 6; i++) {   // гнёзда спереди и канавки по бокам барабана
+      const f = i / 6 * Math.PI * 2;
+      const h = new T.Mesh(new T.CircleGeometry(.0058, 14), holeM); h.position.set(.0232, Math.cos(f) * .0145, Math.sin(f) * .0145); h.rotation.y = Math.PI / 2; drum.add(h);
+      const fl = mesh(new T.BoxGeometry(.03, .004, .006), dark, false); fl.position.set(0, Math.cos(f + Math.PI / 6) * .0232, Math.sin(f + Math.PI / 6) * .0232); fl.rotation.x = -(f + Math.PI / 6); drum.add(fl);
+    }
+    const grip = mesh(new RB(.034, .09, .028, 2, .01), gripM); grip.position.set(-.058, -.052, 0); grip.rotation.z = .42; g.add(grip);
+    const guard = mesh(new T.TorusGeometry(.018, .0035, 8, 24, Math.PI), steel); guard.rotation.z = Math.PI; guard.position.set(-.006, -.026, 0); g.add(guard);
+    const trig = mesh(new T.BoxGeometry(.004, .018, .006), dark); trig.position.set(-.004, -.032, 0); trig.rotation.z = .25; g.add(trig);
+    const ham = mesh(new T.BoxGeometry(.016, .014, .008), dark); ham.position.set(-.054, .028, 0); ham.rotation.z = -.5; g.add(ham);
+    g.rotation.order = 'YXZ'; g.rotation.set(-Math.PI / 2, .55, 0);   // лежит на боку, стволом чуть вбок
+    g.position.set(0, TOP + .025, 0);                                   // барабан (радиус 2,4 см) касается сукна
+    scene.add(g);
+    return { g, drum, axis: 'x', hammer: null, half: .025, seat: 0, muzzle: V(.215, .012, 0) };
+  })();
+  const flashL = new T.PointLight(0xffc27a, 0, 3.5, 2); flashL.position.set(0, -10, 0); scene.add(flashL);   // вспышка выстрела (лампа заранее: новая = подвисание)
+  W.gun = gun;
 
   /* контейнеры */
   const boxM = std({ color: 0x47505a, metalness: .55, roughness: .42 }), lidM = std({ color: 0x525c67, metalness: .55, roughness: .38 });
@@ -1060,35 +1434,57 @@ function makeWorld(T, RB, RE, cv) {
     const pad = new T.Mesh(new T.PlaneGeometry(.5, .4), padM); pad.rotation.x = -Math.PI / 2; pad.position.y = .003; g.add(pad);
     base.userData.n = lid.userData.n = n; hitList.push(base, lid);
     BX[n] = { n, g, base, lid, hinge, dec, decM, bandM, latches, pad, padM, open: 0, item: null, key: '', pa: 0 };
+    g.visible = false;   // рулетка: контейнеров «Крота» на столе нет (код останется до переделки игры, этап 3)
   }
-  const mine = new T.Sprite(new T.SpriteMaterial({ map: mineT, transparent: true, depthTest: false, opacity: 0 })); mine.scale.set(.2, .05, 1); mine.renderOrder = 9; scene.add(mine);
+  hitList.length = 0;    // по невидимым контейнерам не кликается
+  const mine = new T.Sprite(new T.SpriteMaterial({ map: mineT, transparent: true, depthTest: false, opacity: 0 })); mine.scale.set(.2, .05, 1); mine.renderOrder = 9; mine.visible = false; scene.add(mine);
 
   /* фигуры за столом (манекены; модели персонажей — этап 5) */
   const suitM = std({ color: 0x252b33, roughness: .72, metalness: .08 }), skinM = std({ color: 0x323a43, roughness: .55, metalness: .15 });
   const visorM = std({ color: 0x0a0e13, roughness: .1, metalness: .9, emissive: 0x0c3446, emissiveIntensity: .7 });
-  const chairM = std({ color: 0x14181d, roughness: .55, metalness: .45 }), gearM = std({ color: 0x15191d, roughness: .5, metalness: .5 });
+  const gearM = std({ color: 0x15191d, roughness: .5, metalness: .5 });
   const backT = tex(paintCardBack()), blankT = tex(paintCardFront(null)), spkT = tex(paintSpk()), glowDotT = tex(paintGlowDot());
   const btnBaseM = std({ color: 0x1b1f24, roughness: .45, metalness: .7 }), hazardM = new T.MeshStandardMaterial({ color: 0xd4a017, roughness: .6, metalness: .2, emissive: 0x3a2a00, emissiveIntensity: .4 });
   const myCardT = tex(paintCardFront(null));
+  // стулья (владелец 20.11: «нормальные», дерево + кожа): рама под вишню стола, мягкие сиденье и спинка из тёмной кожи, латунные гвоздики по краю спинки
+  const chWoodM = pbr('cherry', 1, 1, { color: 0x6e4535, roughness: .75 }), chLeatherM = pbr('leather', 1.2, 1.2, { color: 0x4a2620, roughness: .85 });
+  const nailM = std({ color: 0xc29a55, roughness: .35, metalness: .85 });
+  const nailG = new T.SphereGeometry(.0055, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2); nailG.rotateX(-Math.PI / 2);   // шляпка смотрит к столу (−z)
+  const chG = {
+    apron: new RB(.48, .06, .45, 2, .012), cush: new RB(.44, .055, .42, 3, .022), leg: new T.CylinderGeometry(.02, .015, .305, 10),
+    rod: new T.CylinderGeometry(.008, .008, .41, 6), post: new RB(.036, .64, .036, 2, .008), pan: new RB(.34, .40, .055, 3, .022),
+    rail: new RB(.47, .065, .045, 2, .014), low: new RB(.38, .035, .03, 2, .01)
+  };
+  const NAILS = [];   // по краю мягкой панели спинки (в системе спинки), шаг ~3 см
+  for (let i = 0; i <= 10; i++) { const x = -.156 + i * .0312; NAILS.push([x, .194, -.034], [x, .566, -.034]); }
+  for (let i = 1; i <= 11; i++) { const y = .194 + i * .031; NAILS.push([-.156, y, -.034], [.156, y, -.034]); }
   const AV = {};
   const cyl = (r, m) => mesh(new T.CylinderGeometry(r, r, 1, 12), m);
   const setLimb = (o, a, b) => { _c.subVectors(b, a); const L = _c.length() || .001; o.position.copy(a).addScaledVector(_c, .5); o.quaternion.setFromUnitVectors(UP, _c.divideScalar(L)); o.scale.set(1, L, 1); };
-  for (const s of [1, 2, 3, 4]) {
-    const th = (s - 1) * Math.PI / 2, a = { s, th, on: false, me: false, k: 0, kt: 0, hy: 0, hp: -.3, ty: 0, tp: -.3, tagKey: '', M: null, gk: 0 };
-    const g = new T.Group(); g.position.set(Math.sin(th) * R_SEAT, 0, Math.cos(th) * R_SEAT); g.rotation.y = th; scene.add(g); a.g = g;
+  for (const s of SEATS) {
+    const th = SEAT[s].yaw, a = { s, th, on: false, me: false, k: 0, kt: 0, hy: 0, hp: -.3, ty: 0, tp: -.3, tagKey: '', M: null, gk: 0 };
+    const g = new T.Group(); g.position.set(SEAT[s].x, 0, SEAT[s].z); g.rotation.y = th; scene.add(g); a.g = g;
     // стул
-    const seat = mesh(new RB(.46, .06, .44, 2, .015), chairM); seat.position.set(0, .37, .04); g.add(seat);
-    const back = mesh(new RB(.44, .5, .05, 2, .015), chairM); back.position.set(0, .76, .31); back.rotation.x = .08; g.add(back); a.cb = back;
-    [[-.19, -.15], [.19, -.15], [-.19, .23], [.19, .23]].forEach(([x, z]) => { const l = mesh(new T.CylinderGeometry(.016, .016, .35, 8), chairM); l.position.set(x, .175, z); g.add(l); });
+    { const apron = mesh(chG.apron, chWoodM); apron.position.set(0, .335, .055); g.add(apron);
+      const cush = mesh(chG.cush, chLeatherM); cush.position.set(0, .385, .05); g.add(cush);
+      [[-.2, -.15], [.2, -.15], [-.2, .26], [.2, .26]].forEach(([x, z]) => { const l = mesh(chG.leg, chWoodM); l.position.set(x, .1525, z); g.add(l); });
+      [-.2, .2].forEach(x => { const r = mesh(chG.rod, chWoodM, false); r.rotation.x = Math.PI / 2; r.position.set(x, .1, .055); g.add(r); });   // перекладины между ножками
+      const rx = mesh(chG.rod, chWoodM, false); rx.rotation.z = Math.PI / 2; rx.position.set(0, .12, .055); g.add(rx);
+      const bk = new T.Group(); bk.position.set(0, .365, .26); bk.rotation.x = .1; g.add(bk); a.cb = bk;   // спинка — от задних ножек, наклон назад
+      [-.2, .2].forEach(x => { const p = mesh(chG.post, chWoodM); p.position.set(x, .32, 0); bk.add(p); });
+      const pan = mesh(chG.pan, chLeatherM); pan.position.set(0, .38, -.005); bk.add(pan);
+      const top = mesh(chG.rail, chWoodM); top.position.set(0, .625, 0); bk.add(top);
+      const low = mesh(chG.low, chWoodM); low.position.set(0, .14, 0); bk.add(low);
+      const nails = new T.InstancedMesh(nailG, nailM, NAILS.length); NAILS.forEach((q, i) => { _m.makeTranslation(q[0], q[1], q[2]); nails.setMatrixAt(i, _m); }); bk.add(nails); }
     // красная кнопка «готов голосовать»
-    const bg = new T.Group(); bg.position.set(.2, TOP, -.46); g.add(bg);
+    const bg = new T.Group(); bg.position.set(.2, TOP, -.46); bg.visible = false; g.add(bg);   // в рулетке кнопки нет
     const bbase = mesh(new T.CylinderGeometry(.052, .06, .02, 28), btnBaseM); bbase.position.y = .01; bg.add(bbase);
     const bring = new T.Mesh(new T.RingGeometry(.06, .078, 36), hazardM); bring.rotation.x = -Math.PI / 2; bring.position.y = .0012; bg.add(bring);
     const capM = std({ color: 0xc8201c, roughness: .32, metalness: .1, emissive: 0xff2a1a, emissiveIntensity: .2 });
     const cap = mesh(new T.CylinderGeometry(.038, .04, .022, 28), capM); cap.position.y = .031; bg.add(cap);
     const dome = mesh(new T.SphereGeometry(.038, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2), capM); dome.scale.y = .32; dome.position.y = .042; bg.add(dome);
     const bglow = new T.Sprite(new T.SpriteMaterial({ map: glowDotT, color: 0xff3a2a, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })); bglow.scale.set(.24, .24, 1); bglow.position.y = .05; bg.add(bglow);
-    Object.assign(a, { bCap: cap, bDome: dome, bCapM: capM, bGlow: bglow, bHit: [bbase, cap, dome], bOn: false, bk: 0 });
+    Object.assign(a, { bCap: cap, bDome: dome, bCapM: capM, bGlow: bglow, bHit: [], bOn: false, bk: 0 });
     // тело
     const body = new T.Group(); g.add(body); a.body = body;
     const torso = mesh(new T.CapsuleGeometry(.16, .28, 6, 16), suitM); torso.scale.set(1.08, 1, .7); torso.position.set(0, .85, .05); torso.rotation.x = -.06; body.add(torso);
@@ -1126,20 +1522,23 @@ function makeWorld(T, RB, RE, cv) {
 
   /* состояние камеры и ввода */
   let btnActive = false, aimBtn = false;
-  let mySeat = 1, yaw = 0, pitch = -.38, readHold = false, locked = false, menuOn = true, clock = 0, userAt = 0, auto = null;
+  const SPEC_Y = 2.45, SPEC_R = 1.05;   // камера выбывшего: высота и радиус облёта
+  let spec = 0, specF = 0, mySeat = 1, yaw = 0, pitch = -.38, readHold = false, locked = false, menuOn = true, clock = 0, userAt = 0, auto = null;
   let mouseN = null, aimN = 0, aimOn = false, mk = { mine: 0, kind: '', cands: null }, roundId = 0, cardKey = '', hideMine = false;
   const tw = [];
   const ray = new T.Raycaster(), ndc = new T.Vector2();
   const tween = (dur, fn, delay = 0) => new Promise(res => tw.push({ t0: clock + delay, dur, fn, res }));
-  const seatYaw = s => (s - 1) * Math.PI / 2;
+  const seatYaw = s => SEAT[s].yaw;
 
   /* персонажи CS2 (этап 5): assets/krot/<имя>.glb (~1 МБ: без анимаций, WebP, meshopt). Грузятся после показа стола, до тех пор — манекены.
      Все четыре — один скелет CS2 (рост ~2 м, лицом в +z). Посадка — поворотом костей каждый кадр: корпус чуть вперёд, ноги — IK
      бедро→колено→щиколотка под столом, руки — IK к нижним углам карточки (ладони за карточкой), голова — head_0/neck_0 по взгляду игрока;
      дыхание, при речи — кивок и жест правой рукой. Кто где сидит — случайно на каждую игру (у всех одинаково: от номера комнаты).
      У своего места голова сжата в ноль (вид от первого лица). */
-  const CHARS = ['romanov', 'dragomir', 'fbi', 'prof'], MDL = [], MS = .84, HIP = V(0, .565, .035);
-  let mdlOrder = [0, 1, 2, 3], mdlKey = null, mdlAlive = true;
+  const CHARS = ['romanov', 'dragomir', 'fbi', 'prof'], MDL = [],
+    TWIN = { from: 1, tint: [.5, .58, .72] },   // 5-е место: копия Драгомира в другой одежде (пока нет 5-го персонажа); красим только одежду
+    MS = .84, HIP = V(0, .565, .035);
+  let mdlOrder = SEATS.map(s => s - 1), mdlKey = null, mdlAlive = true;
   const _p = V(0, 0, 0), _p3 = V(0, 0, 0), _d1 = V(0, 0, 0), _d2 = V(0, 0, 0), _n = V(0, 0, 0), _mv = V(0, 0, 0), _sc = V(0, 0, 0), _ps = V(0, 0, 0);
   const _e1 = V(0, 0, 0), _e2 = V(0, 0, 0), _e3 = V(0, 0, 0), _e4 = V(0, 0, 0), _f1 = V(0, 0, 0), _f2 = V(0, 0, 0), _f3 = V(0, 0, 0), _t1 = V(0, 0, 0), _t2 = V(0, 0, 0), _t3 = V(0, 0, 0);
   const _qa = new T.Quaternion(), _qb = new T.Quaternion(), _qc = new T.Quaternion(), _qg = new T.Quaternion(), _qs = new T.Quaternion(), _qh = new T.Quaternion(), _qh2 = new T.Quaternion(), _qI = new T.Quaternion(), _m2 = new T.Matrix4(), _mi = new T.Matrix4(), _eg = new T.Euler(0, 0, 0, 'YXZ');
@@ -1186,17 +1585,70 @@ function makeWorld(T, RB, RE, cv) {
     M.ankleY = ankleY;
     return M;
   };
+  // предметы комнаты (assets/rr/props.glb): Poly Haven (CC0) — ящики, бочка; владельца — канделябр на столе, снежный шар, напольные канделябры «Titanic»
+  const flames = [], snow = { pts: null, v: null };
+  const flameT = (() => { const c = cnv(64, 128), x = c.getContext('2d'), g = x.createRadialGradient(32, 84, 2, 32, 74, 46); g.addColorStop(0, 'rgba(255,248,220,1)'); g.addColorStop(.25, 'rgba(255,190,90,.85)'); g.addColorStop(.6, 'rgba(255,120,30,.25)'); g.addColorStop(1, 'rgba(255,90,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 128); return tex(c); })();
+  const tlGlowM = new T.MeshBasicMaterial({ color: new T.Color(2.6, 1.9, 1.2) });
+  function setupProps(P) {
+    P.traverse(o => {
+      if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true;
+      const m = o.material; if (m.map) m.map.anisotropy = ANI;
+      if (m.transmission > 0) { m.transmission = 0; m.transparent = true; m.opacity = .5; m.depthWrite = false; m.roughness = .06; m.envMapIntensity = 2; }   // стекло бутылок без дорогого прохода преломления
+      if (/^(usd|rub)_/.test(m.name)) { m.color.multiplyScalar(.5); m.roughness = .9; m.envMapIntensity = .35; }   // бумага под лампой иначе пересвечена (ореол bloom)
+      if (m.name === 'tlamp_glow') { o.material = tlGlowM; o.castShadow = false; return; }   // лампы-свечи канделябра светятся (ореол — bloom)
+      if (m.name === 'globe_glass') { m.transparent = true; m.opacity = .09; m.depthWrite = false; m.roughness = .05; m.metalness = 0; m.envMapIntensity = .9; o.castShadow = false; }
+    });
+    const put = (n, x, y, z, ry = 0, sc = 1) => { const src = P.getObjectByName(n); if (!src) return null; const o = src.clone(true); o.position.set(x, y, z); o.rotation.y = ry; o.scale.setScalar(sc); scene.add(o); return o; };
+    // ящики и бочки по углам
+    put('crate2', 3.95, 0, -3.55, .18); put('crate1', 3.9, .464, -3.5, -.22); put('barrel', 3.85, 0, -2.45, .7);
+    put('barrel', -3.95, 0, -3.85, 2.1); put('crate1', -4.05, 0, -2.85, 1.45);
+    put('crate1', 3.75, 0, 3.85, -.4); put('barrel', -3.9, 0, 3.8, .3); put('crate2', -3.35, 0, 4.35, 1.52);   // сдвинут: у экрана за местом 1 стоит канделябр
+    // напольные канделябры «Titanic» (владельца) под бра по бокам каждого экрана: лицом в комнату, 8 штук
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2, nx = -Math.sin(a), nz = -Math.cos(a), tx = Math.cos(a), tz = -Math.sin(a); for (const u of [-2.5, 2.5]) put('tlamp', nx * 4.7 + tx * u, 0, nz * 4.7 + tz * u, a, 1.36); }   // 1,36 — высота 1,5 м (владелец 20.11: крупнее)
+    // деньги на столе (владелец 20.11; пачки и купюры — его модели): у каждого места пачка ₽ или $ (иногда две) и веер купюр сбоку от места револьвера,
+    // в середине — «банк»: пачки и разбросанные купюры. Раскладка одинакова у всех (свой генератор, без Math.random)
+    { let h = 11; const r = () => { h = (h * 16807) % 2147483647; return h / 2147483647; };
+      const felt = (x, z) => (x / 1.0) ** 2 + (z / .52) ** 2 < 1;   // с запасом внутри сукна
+      const pile = (rub, x, z, ry) => { const n = rub ? 'cash_rub' : 'cash_usd'; put(n, x, TOP, z, ry); if (r() < .45) put(n, x + (r() - .5) * .012, TOP + .0132, z + (r() - .5) * .012, ry + (r() - .5) * .5); };
+      const bill = (x, z, ry, i) => put(r() < .65 ? 'note_rub' : 'note_usd', x, TOP + .0004 + (i % 5) * .0005, z, ry);
+      for (const s of SEATS) {
+        const p = SEAT[s], fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw), side = s % 2 ? 1 : -1;
+        const at = (d, l) => { let x = p.x + fx * d + rx * l, z = p.z + fz * d + rz * l; for (let i = 0; i < 10 && !felt(x, z); i++) { x *= .95; z *= .95; } return [x, z]; };
+        const [sx, sz] = at(.8, side * .34); pile(r() < .6, sx, sz, p.yaw + Math.PI / 2 + (r() - .5) * .5);
+        const n = 2 + Math.floor(r() * 3);
+        for (let i = 0; i < n; i++) { const [x, z] = at(.7 + r() * .1, side * (.14 + i * .04)); bill(x, z, p.yaw + Math.PI / 2 + (r() - .5) * 1.2, i); }
+      }
+      pile(true, .1, .06, .4); pile(false, -.12, -.07, -.7);   // банк в середине
+      for (let i = 0; i < 8; i++) { const a = r() * 6.28, d = .2 + r() * .13; bill(Math.cos(a) * d * 1.3, Math.sin(a) * d * .75, r() * 6.28, i); }
+    }
+    // канделябр с горящими свечами
+    const cd = put('candelabra', CAND.x, TOP, CAND.z, CAND.ry);
+    if (cd) {
+      cd.updateMatrixWorld(true);
+      for (let i = 0; i < 3; i++) { const e = cd.getObjectByName('flame_' + i); if (!e) continue; const sp = new T.Sprite(new T.SpriteMaterial({ map: flameT, color: 0xffd9a0, transparent: true, blending: T.AdditiveBlending, depthWrite: false })); e.getWorldPosition(sp.position); sp.scale.set(.026, .052, 1); sp.renderOrder = 8; scene.add(sp); flames.push({ sp, k: Math.random() * 9 }); }
+      candL.intensity = 1.6;
+    }
+    // снежный шар и снег внутри
+    const gb = put('snowglobe', GLOBE.x, TOP, GLOBE.z, GLOBE.ry);
+    if (gb) {
+      const n = 90, pos = new Float32Array(n * 3), v = new Float32Array(n);
+      for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - .5) * .1; pos[i * 3 + 1] = .05 + Math.random() * .06; pos[i * 3 + 2] = (Math.random() - .5) * .1; v[i] = .004 + Math.random() * .008; }
+      const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3));
+      snow.pts = new T.Points(g, new T.PointsMaterial({ color: 0xffffff, size: .0035, transparent: true, opacity: .9, depthWrite: false })); snow.v = v;
+      snow.pts.position.set(GLOBE.x, TOP, GLOBE.z); scene.add(snow.pts);
+    }
+  }
   const mdlFor = s => MDL[mdlOrder[s - 1]] || null;
   const showAV = a => {   // видимость фигуры: модель, пока не загружена — манекен; у себя без головы
     const vis = !menuOn && a.on, man = vis && !a.M;
-    a.body.visible = man; a.card.visible = vis;
+    a.body.visible = man; a.card.visible = false;   // рулетка: карточек нет
     a.arm.forEach(r => { r.up.visible = r.fo.visible = r.el.visible = r.hand.visible = man; r.shp.visible = man && !a.me; });
     a.headParts.forEach(o => { o.visible = !a.me; });
     if (a.M) { a.M.root.visible = vis; a.M.head.scale.setScalar(a.me ? 1e-4 : 1); a.M.root.position.z = a.me ? .1 : 0; }   // у себя модель на 10 см назад: глаза модели = камера, воротник не лезет в кадр
     a.cb.visible = !(a.me && a.M);   // свою спинку стула не видно, а сдвинутая спина в неё заходит
   };
   const mdlApply = () => {
-    for (const s of [1, 2, 3, 4]) {
+    for (const s of SEATS) {
       const a = AV[s], M = mdlFor(s);
       if (a.M !== M) { if (a.M) { a.M.root.visible = false; a.M.head.scale.setScalar(1); } a.M = M; if (M) { a.g.add(M.root); a.hd.position.set(0, 1.215, -.03); } else a.hd.position.set(0, 1.13, .02); }
       showAV(a);
@@ -1205,16 +1657,46 @@ function makeWorld(T, RB, RE, cv) {
   const mdlShuffle = key => {   // одинаковая у всех перестановка от номера комнаты
     let h = 2166136261; for (const ch of String(key)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
     const rnd2 = () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
-    const o = [0, 1, 2, 3]; for (let i = 3; i > 0; i--) { const j = Math.floor(rnd2() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; }
+    const o = SEATS.map(s => s - 1); for (let i = NS - 1; i > 0; i--) { const j = Math.floor(rnd2() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; }
     return o;
   };
   setTimeout(() => {
     if (!mdlAlive) return;
-    Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]).then(([{ GLTFLoader }, { MeshoptDecoder }]) => {
+    Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js'), import('three/addons/utils/SkeletonUtils.js')]).then(([{ GLTFLoader }, { MeshoptDecoder }, SKU]) => {
       const ld = new GLTFLoader(); ld.setMeshoptDecoder(MeshoptDecoder);
+      ld.load('assets/rr/props.glb?v=3', gl => {
+        if (!mdlAlive) return;
+        try { setupProps(gl.scene); } catch (e) { console.warn('RR props', e); }
+      }, undefined, e => console.warn('RR props', e));
+      ld.load('assets/rr/revolver.glb?v=1', gl => {
+        if (!mdlAlive) return;
+        try {
+          const sc = gl.scene;
+          sc.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const m = o.material; if (m.map) m.map.anisotropy = ANI; m.envMapIntensity = 1.5; } });
+          const wrap = new T.Group(); wrap.add(sc);
+          wrap.quaternion.setFromRotationMatrix(new T.Matrix4().set(0, 0, -1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1));   // оси модели (x вниз, ствол в −z) → оси стола (x — ствол, y — верх, z — бок)
+          wrap.updateMatrixWorld(true);
+          const bb = new T.Box3().setFromObject(wrap), c = bb.getCenter(V(0, 0, 0)); wrap.position.sub(c);
+          gun.g.children.forEach(o => { o.visible = false; });
+          gun.g.add(wrap);
+          const dr = sc.getObjectByName('drum'); if (dr) { gun.drum = dr; gun.axis = 'z'; }
+          gun.hammer = sc.getObjectByName('hammer') || null;
+          gun.half = (bb.max.z - bb.min.z) / 2; gun.muzzle = V(bb.max.x - c.x, .01, 0);
+          gun.g.position.y = TOP + gun.half;
+        } catch (e) { console.warn('RR revolver', e); }
+      }, undefined, e => console.warn('RR revolver', e));
       CHARS.forEach((n, i) => ld.load('assets/krot/' + n + '.glb?v=1', gl => {
         if (!mdlAlive) { gl.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { for (const k in o.material) { const v = o.material[k]; if (v && v.isTexture) v.dispose(); } o.material.dispose(); } }); return; }
-        try { MDL[i] = setupModel(gl, i); mdlApply(); } catch (e) { console.warn('KROT model', n, e); }
+        try {
+          const twin = i === TWIN.from && NS > CHARS.length ? SKU.clone(gl.scene) : null;   // копию — до setupModel (он двигает кости)
+          MDL[i] = setupModel(gl, i);
+          if (twin) {
+            const tc = new T.Color().setRGB(...TWIN.tint);
+            twin.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); if (/body/i.test(o.material.name)) o.material.color.multiply(tc); } });
+            MDL[CHARS.length] = setupModel({ scene: twin }, CHARS.length);
+          }
+          mdlApply();
+        } catch (e) { console.warn('KROT model', n, e); }
       }, undefined, e => console.warn('KROT model', n, e)));
     }).catch(e => console.warn('KROT models', e));
   }, 400);
@@ -1289,31 +1771,50 @@ function makeWorld(T, RB, RE, cv) {
   W.speak = (s, on) => { const a = AV[s]; if (a) a.spk = !!on; };
 
   // снимок сервера → кто за столом, что на контейнерах, что на моей карточке
+  // снимок сервера → кто за столом, кто ходит, кто выбыл; револьвер — перед тем, чей ход
   W.sync = d => {
-    const me = d.me.seat || 1;
-    if (me !== mySeat) { mySeat = me; for (const n in BX) BX[n].dec.rotation.y = seatYaw(me); }
-    else for (const n in BX) BX[n].dec.rotation.y = seatYaw(me);
-    const roles = d.round && d.round.roles;
+    mySeat = d.me.seat || 1;
     if (d.room && d.room.id != null && d.room.id !== mdlKey) { mdlKey = d.room.id; mdlOrder = mdlShuffle(mdlKey); mdlApply(); }
-    for (const s of [1, 2, 3, 4]) {
+    const g = d.game, ph = d.room.phase;
+    for (const s of SEATS) {
       const a = AV[s], p = d.players.find(x => x.seat === s);
-      a.on = !!p; a.me = !!(p && p.me); a.bOn = !!(p && p.vote_ready);
+      a.on = !!p; a.me = !!(p && p.me); a.bOn = false;
+      a.dead = !!(p && p.alive === false && ph !== 'lobby');
       showAV(a);
       a.tag.visible = !menuOn && !a.me;
-      const role = roles && (roles.find(x => x.seat === s) || {}).role;
-      const st2 = !p ? 'free' : d.room.phase === 'lobby' ? (p.online ? (p.ready ? 'ready' : 'wait') : 'off') : p.left ? 'left' : !p.online ? 'off' : role || '';
+      const st2 = !p ? 'free' : ph === 'lobby' ? (p.online ? (p.ready ? 'ready' : 'wait') : 'off') : p.left ? 'left' : a.dead ? 'dead' : ph === 'done' && p.place === 1 ? 'win' : g && ph === 'play' && g.turn === s ? 'turn' : !p.online ? 'off' : '';
       const key = (p ? p.name : '') + '|' + st2;
       if (key !== a.tagKey) { a.tagKey = key; if (a.tag.material.map) a.tag.material.map.dispose(); a.tag.material.map = tex(paintTag(s, p ? p.name : '', st2)); a.tag.material.needsUpdate = true; }
-      a.cf.material.map = a.me ? myCardT : blankT;
     }
-    // карточка в моих руках
-    const ck = (d.me.role || '') + JSON.stringify(d.me.card || {}) + hideMine;
-    if (ck !== cardKey) { cardKey = ck; const c = paintCardFront(d.me.role && !hideMine ? { role: d.me.role, card: d.me.card, dict: (d.round && d.round.dict) || DICT0 } : hideMine && d.me.role ? 'hidden' : null); myCardT.image = c; myCardT.needsUpdate = true; }
-    // контейнеры
-    btnActive = d.room.phase === 'talk' && !d.room.paused;
-    const rd = d.round, rid = rd ? rd.id : 0;
-    if (rid !== roundId) { roundId = rid; W.resetRound(true); }
-    setBoxes(rd);
+    btnActive = false;
+    gunTo(g && ['play', 'next'].includes(ph) ? g.turn : 0);
+  };
+  // револьвер лежит на сукне перед игроком, стволом вправо от него; seat 0 — посреди стола
+  function gunSpot(seat) {
+    if (!seat) return { x: 0, z: 0, yaw: .55 };
+    const p = SEAT[seat], k = SEAT_OFF + .15 + .09 + .2;   // от стула: бортик, дерево и ещё 20 см по сукну
+    return { x: p.x - Math.sin(p.yaw) * k, z: p.z - Math.cos(p.yaw) * k, yaw: p.yaw + .35 };
+  }
+  W.hold = ms => { gun.holdUntil = clock + ms / 1000; };   // пока звучит выстрел — револьвер не уезжает к следующему
+  function gunTo(seat) {
+    if (clock < (gun.holdUntil || 0)) { gun.pend = seat; return; }
+    if (gun.seat === seat) return; gun.seat = seat;
+    const o = gun.g, to = gunSpot(seat), x0 = o.position.x, z0 = o.position.z;
+    let y0 = o.rotation.y, y1 = to.yaw; while (y1 - y0 > Math.PI) y1 -= Math.PI * 2; while (y1 - y0 < -Math.PI) y1 += Math.PI * 2;
+    const id = (gun.mv = (gun.mv || 0) + 1);
+    tween(.85, k => { if (gun.mv !== id) return; const e = easeIO(k); o.position.x = x0 + (to.x - x0) * e; o.position.z = z0 + (to.z - z0) * e; o.position.y = TOP + gun.half + Math.sin(Math.PI * k) * .1; o.rotation.y = y0 + (y1 - y0) * e; });
+  }
+  // события стола: прокрутка барабана, щелчок курка, выстрел (вспышка у дула)
+  W.event = ev => {
+    const ax = gun.axis, dr = gun.drum, o = gun.g;
+    if (ev.kind === 'spin' && dr) { const a0 = dr.rotation[ax], a1 = a0 + (Math.PI / 3) * (12 + rnd(12)); tween(1.2, k => { dr.rotation[ax] = a0 + (a1 - a0) * (1 - Math.pow(1 - k, 3)); }); }
+    if (ev.kind === 'cock') { const r0 = o.rotation.z; tween(.18, k => { o.rotation.z = r0 + Math.sin(Math.PI * k) * .05; }); return; }   // взвели курок — короткий рывок
+    if ((ev.kind === 'click' || ev.kind === 'bang') && dr) { const a0 = dr.rotation[ax]; tween(.12, k => { dr.rotation[ax] = a0 + (Math.PI / 3) * k; }); }
+    if (ev.kind === 'click' || ev.kind === 'bang') { const big = ev.kind === 'bang' ? 1 : .35, y0 = TOP + gun.half; tween(.35, k => { o.position.y = y0 + Math.sin(Math.PI * k) * .025 * big; }); }
+    if (ev.kind === 'bang') {
+      o.updateMatrixWorld(); flashL.position.copy(gun.muzzle).applyMatrix4(o.matrixWorld); flashL.position.y += .05;
+      tween(.45, k => { flashL.intensity = 40 * Math.pow(1 - k, 2); });
+    }
   };
   function setBoxes(rd) {
     for (const n of [1, 2, 3, 4]) {
@@ -1378,7 +1879,7 @@ function makeWorld(T, RB, RE, cv) {
   /* размер холста */
   const ro = new ResizeObserver(() => {
     const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
-    ren.setSize(w, h, false); cam.aspect = w / h; cam.fov = w / h < 1 ? 74 : 62; cam.updateProjectionMatrix();
+    ren.setSize(w, h, false); if (comp) { comp.setPixelRatio(ren.getPixelRatio()); comp.setSize(w, h); } cam.aspect = w / h; cam.fov = w / h < 1 ? 74 : 62; cam.updateProjectionMatrix();
   });
   ro.observe(cv);
 
@@ -1389,31 +1890,63 @@ function makeWorld(T, RB, RE, cv) {
     // камера
     if (menuOn) {
       const a = t * .045; cam.position.set(Math.sin(a) * 2.75, 1.95, Math.cos(a) * 2.75); cam.lookAt(0, .78, 0);
+      if (tvD || tvK || spec) { tvD = null; tvKey = ''; tvK = 0; spec = 0; specF = 0; ren.domElement.style.filter = ''; }   // в меню — экран итога и вид выбывшего сбрасываем сразу
     } else {
       if (auto) { const f = 1 - Math.exp(-dt * 3); yaw += (auto.y - yaw) * f; pitch += (auto.p - pitch) * f; }
       const me = AV[mySeat]; me.g.updateMatrixWorld(); _a.set(0, EYE, -.02).applyMatrix4(me.g.matrixWorld);
       cam.position.copy(_a); cam.rotation.set(pitch, seatYaw(mySeat) + yaw, 0);
-      me.ty = yaw; me.tp = pitch; me.hy = yaw; me.hp = pitch;
+      // выбыл — камера плавно уходит под потолок и медленно облетает стол сверху (наблюдатель)
+      spec += ((me.dead ? 1 : 0) - spec) * (1 - Math.exp(-dt * 1.2));
+      if (spec > .002) {
+        const e = spec * spec * (3 - 2 * spec), ang = seatYaw(mySeat) + t * .05;
+        _q2.copy(cam.quaternion); _c.set(Math.sin(ang) * SPEC_R, SPEC_Y, Math.cos(ang) * SPEC_R);
+        cam.position.lerpVectors(_a, _c, e); cam.lookAt(0, TOP, 0); _q.copy(cam.quaternion); cam.quaternion.slerpQuaternions(_q2, _q, e);
+      }
+      // конец игры — камера подъезжает к экрану на стене, где итог (поверх и «сверху», и своего места)
+      tvK += ((tvD && clock >= tvAt ? 1 : 0) - tvK) * (1 - Math.exp(-dt * 1.5));
+      if (tvK > .002) {
+        if (tvD && clock - tvFitAt > .25) {   // где на холсте свободно: справа может быть чат, сверху — плашки
+          tvFitAt = clock; const cv = ren.domElement, b = cv.getBoundingClientRect(), kr = cv.closest('.kr');
+          let l = b.left + 16, r = b.right - 16; const t = b.top + 64, bt = b.bottom - 16;
+          const ch = kr && kr.classList.contains('chat-on') && kr.querySelector('.kr-chat');
+          if (ch) { const c2 = ch.getBoundingClientRect(); if (c2.width && c2.left > b.left + b.width * .45) r = Math.min(r, c2.left - 16); }
+          if (b.width > 50 && r - l > 50 && bt - t > 50) tvFit = [((l + r) / 2 - b.left) / b.width, ((t + bt) / 2 - b.top) / b.height, (r - l) / b.width, (bt - t) / b.height];
+        }
+        const e = tvK * tvK * (3 - 2 * tvK), tn = Math.tan(cam.fov * Math.PI / 360), as = cam.aspect, [fx, fy, fw, fh] = tvFit;
+        const dz = Math.max(.8 / (tn * fh), 1.44 / (tn * as * fw));   // экран 2,7 × 1,45 м с рамкой целиком в свободной части
+        _q2.copy(cam.quaternion); _b.copy(cam.position); _c.set(-(2 * fx - 1) * dz * tn * as, 2.05 - (1 - 2 * fy) * dz * tn, -4.94 + dz);
+        cam.position.lerpVectors(_b, _c, e); _q.identity(); cam.quaternion.slerpQuaternions(_q2, _q, e);
+        // «живая» камера: лёгкое дыхание — плавно качается и чуть поворачивается (несколько медленных синусов, не в такт)
+        cam.position.x += (Math.sin(t * .51) * .011 + Math.sin(t * 1.13 + 2.1) * .003) * e; cam.position.y += (Math.sin(t * .83 + 1.3) * .008 + Math.sin(t * 1.7) * .002) * e;
+        _e.set((Math.sin(t * .67 + .4) * .0035 + Math.sin(t * 1.31) * .001) * e, Math.sin(t * .43 + 2) * .0045 * e, Math.sin(t * .37 + .8) * .0025 * e); _q.setFromEuler(_e); cam.quaternion.multiply(_q);
+      }
+      { const k = Math.round(spec * (1 - tvK) * 50) / 50; if (k !== specF) { specF = k; ren.domElement.style.filter = k ? `grayscale(${(k * .85).toFixed(2)}) brightness(${(1 - k * .18).toFixed(2)})` : ""; } }   // выбывший видит мир серым
+      const watch = spec > .35;   // сверху виден свой персонаж целиком — голова опущена, как у остальных выбывших
+      if (me.M) { if ((me.M.head.scale.x > .5) !== watch) me.M.head.scale.setScalar(watch ? 1 : 1e-4); }
+      else if (me.headParts[0].visible !== watch) me.headParts.forEach(o => { o.visible = watch; });
+      if (watch) { me.hy += (0 - me.hy) * .05; me.hp += (-1 - me.hp) * .05; me.hd.rotation.set(me.hp * .85, me.hy * .9, 0); }
+      else { me.ty = yaw; me.tp = pitch; me.hy = yaw; me.hp = pitch; }
     }
     cam.updateMatrixWorld();
     // фигуры: голова, дыхание, карточка, руки
-    for (const s of [1, 2, 3, 4]) {
+    for (const s of SEATS) {
       const a = AV[s];
       { const on = a.bOn && btnActive && a.on, hov = a.me && aimBtn; a.bk += ((on ? 1 : 0) - a.bk) * (1 - Math.exp(-dt * 16));   // кнопка: утоплена и светится, когда нажата
         a.bCap.position.y = .031 - .009 * a.bk; a.bDome.position.y = .042 - .009 * a.bk; a.bCapM.emissiveIntensity = .2 + 1.7 * a.bk + (hov ? .35 : 0) + (btnActive && a.me && !on ? .15 * (1 + Math.sin(t * 4)) : 0); a.bGlow.material.opacity = .9 * a.bk; }
       if (!a.on || menuOn) continue;
       const f = 1 - Math.exp(-dt * 9);
+      if (a.dead && !a.me) { a.ty = 0; a.tp = -1; }   // выбыл — голова опущена (падение и кровь — этап 4)
       if (!a.me) { a.hy += (a.ty - a.hy) * f; a.hp += (a.tp - a.hp) * f; a.hd.rotation.set(a.hp * .85, a.hy * .9, 0); }
       if (!a.M) a.body.position.y = Math.sin(t * 1.7 + s * 1.3) * .004;
       { const o = a.sp.material, want = a.spk && !a.me ? 1 : 0; o.opacity += (want - o.opacity) * (1 - Math.exp(-dt * 14)); a.sp.visible = o.opacity > .02; const k2 = 1 + (a.spk ? Math.sin(t * 12) * .08 : 0); a.sp.scale.set(.1 * k2, .1 * k2, 1); }
-      a.kt = (a.me ? readHold || pitch < -.62 : a.hp < -.62) ? 1 : 0;
+      a.kt = 0;   // рулетка: карточку к глазам не подносим
       a.k += (a.kt - a.k) * (1 - Math.exp(-dt * 7));
       const k = easeIO(clamp(a.k, 0, 1));
       a.g.updateMatrixWorld(); a.body.updateMatrixWorld();
       // покой: у груди, наклонена к лицу
       _a.set(0, .96, -.33).applyMatrix4(a.body.matrixWorld); _e.set(-.75, 0, 0); _q.setFromEuler(_e); a.g.getWorldQuaternion(_q2); _q.premultiply(_q2);
       // чтение: перед глазами
-      if (a.me) { _b.set(0, -.035, -.27).applyMatrix4(cam.matrixWorld); _q2.copy(cam.quaternion); }
+      if (a.me && spec < .35 && tvK < .05) { _b.set(0, -.035, -.27).applyMatrix4(cam.matrixWorld); _q2.copy(cam.quaternion); }
       else { a.hd.updateMatrixWorld(); _b.set(0, .02, -.3).applyMatrix4(a.hd.matrixWorld); a.hd.getWorldQuaternion(_q2); }
       a.card.position.lerpVectors(_a, _b, k); a.card.quaternion.slerpQuaternions(_q, _q2, k);
       a.card.updateMatrixWorld();
@@ -1447,7 +1980,17 @@ function makeWorld(T, RB, RE, cv) {
     }
     if (mineN && !BX[mineN].open && !menuOn) { mine.position.set(BX[mineN].g.position.x, TOP + .27 + Math.sin(t * 2.4) * .006, BX[mineN].g.position.z); mine.material.opacity += (1 - mine.material.opacity) * .2; }
     else mine.material.opacity *= .8;
-    ren.render(scene, cam);
+    if (gun.pend != null && clock >= (gun.holdUntil || 0)) { const ps = gun.pend; gun.pend = null; gunTo(ps); }
+    if (flames.length) { const fl = .82 + .1 * Math.sin(t * 9.1) + .07 * Math.sin(t * 23.7 + 1.3) + .04 * Math.sin(t * 41); candL.intensity = 1.6 * fl; for (const f of flames) { const k = 1 + .12 * Math.sin(t * 13 + f.k) + .06 * Math.sin(t * 29 + f.k * 2); f.sp.scale.set(.026 * (2 - k) * .9, .052 * k, 1); } }
+    if (snow.pts) { const p = snow.pts.geometry.attributes.position, a = p.array; for (let i = 0; i < snow.v.length; i++) { a[i * 3 + 1] -= snow.v[i] * dt; a[i * 3] += Math.sin(t * .7 + i) * .0009 * dt; if (a[i * 3 + 1] < .042) { a[i * 3 + 1] = .11; a[i * 3] = (Math.random() - .5) * .1; a[i * 3 + 2] = (Math.random() - .5) * .1; } } p.needsUpdate = true; }
+    for (const m of haze) { m.f += m.v * dt; m.sp.position.x = Math.cos(m.f) * m.r; m.sp.position.z = Math.sin(m.f) * m.r; m.sp.position.y = m.y0 + Math.sin(t * .15 + m.k) * .12; m.sp.material.rotation += m.rv * dt; }
+    for (const m of smoke) { m.f += m.v * dt; m.sp.position.x = Math.cos(m.f) * m.r; m.sp.position.z = Math.sin(m.f) * m.r * .6; m.sp.position.y = m.y0 + Math.sin(t * .2 + m.k) * .08; m.sp.material.rotation += m.v * .4 * dt; }
+    cctvM.uniforms.uT.value = t;
+    const mix = clamp((tvK - .25) / .5, 0, 1); cctvM.uniforms.uMix.value = mix * mix * (3 - 2 * mix);
+    if (mix < 1 && (t - cctvAt > 1 / 15 || t < cctvAt)) { cctvAt = t; cctvDraw(); }   // итог на весь экран — камеру наблюдения не рисуем
+    if (Math.floor(t * 2) !== ovAt) { ovAt = Math.floor(t * 2); ovDraw(t); }
+    if (W._led) W._led.visible = Math.floor(t * 1.4) % 2 === 0;
+    if (comp) comp.render(); else ren.render(scene, cam);
   };
 
   W.dispose = () => {
@@ -1482,69 +2025,51 @@ function drawSym(x, k, cx, cy, size, lw) { const p = new Path2D(SYM[k] || ''); x
 function drawGun(x, k, cx, cy, w) { const p = new Path2D(GUN[k] || ''); x.save(); x.translate(cx - w / 2, cy - w / 4); x.scale(w / 48, w / 48); x.fill(p, 'evenodd'); x.restore(); }
 const F_H = n => `500 ${n}px Oswald, 'Arial Narrow', sans-serif`, F_B = (n, w = 700) => `${w} ${n}px Manrope, system-ui, sans-serif`;
 
-function paintFloor() {
-  const c = cnv(1024, 1024), x = c.getContext('2d');
-  x.fillStyle = '#22272d'; x.fillRect(0, 0, 1024, 1024);
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { x.fillStyle = `rgba(${Math.random() < .5 ? '255,255,255' : '0,0,0'},${.015 + Math.random() * .03})`; x.fillRect(i * 256, j * 256, 256, 256); }
-  noise(x, 1024, 1024, 26000, .07);
-  for (let i = 0; i < 6; i++) { const gx = Math.random() * 1024, gy = Math.random() * 1024, r = 60 + Math.random() * 160, g = x.createRadialGradient(gx, gy, 0, gx, gy, r); g.addColorStop(0, 'rgba(0,0,0,.22)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(gx - r, gy - r, r * 2, r * 2); }
-  x.strokeStyle = 'rgba(0,0,0,.55)'; x.lineWidth = 4; for (let i = 0; i <= 4; i++) { x.beginPath(); x.moveTo(i * 256, 0); x.lineTo(i * 256, 1024); x.moveTo(0, i * 256); x.lineTo(1024, i * 256); x.stroke(); }
-  x.strokeStyle = 'rgba(255,255,255,.04)'; x.lineWidth = 2; for (let i = 0; i <= 4; i++) { x.beginPath(); x.moveTo(i * 256 + 3, 0); x.lineTo(i * 256 + 3, 1024); x.stroke(); }
+function paintRug() {      // ковёр под столом: тёмно-красное поле, узорная кайма, медальон
+  const W2 = 1024, H2 = 768, c = cnv(W2, H2), x = c.getContext('2d');
+  x.fillStyle = '#3d0d10'; x.fillRect(0, 0, W2, H2);
+  const g = x.createRadialGradient(W2 / 2, H2 / 2, 40, W2 / 2, H2 / 2, W2 * .6); g.addColorStop(0, 'rgba(120,30,30,.55)'); g.addColorStop(1, 'rgba(0,0,0,.35)'); x.fillStyle = g; x.fillRect(0, 0, W2, H2);
+  const band = (m, w, col) => { x.strokeStyle = col; x.lineWidth = w; x.strokeRect(m, m, W2 - 2 * m, H2 - 2 * m); };
+  x.fillStyle = '#1a1420'; x.fillRect(0, 0, W2, 70); x.fillRect(0, H2 - 70, W2, 70); x.fillRect(0, 0, 70, H2); x.fillRect(W2 - 70, 0, 70, H2);
+  band(12, 6, '#b08a4a'); band(64, 5, '#b08a4a'); band(80, 2, 'rgba(176,138,74,.6)');
+  x.fillStyle = 'rgba(176,138,74,.75)';
+  for (let i = 0; i < 40; i++) { const px = 40 + i * (W2 - 80) / 39; for (const py of [38, H2 - 38]) { x.save(); x.translate(px, py); x.rotate(Math.PI / 4); x.fillRect(-7, -7, 14, 14); x.restore(); } }
+  for (let i = 0; i < 30; i++) { const py = 40 + i * (H2 - 80) / 29; for (const px of [38, W2 - 38]) { x.save(); x.translate(px, py); x.rotate(Math.PI / 4); x.fillRect(-7, -7, 14, 14); x.restore(); } }
+  x.save(); x.translate(W2 / 2, H2 / 2); x.strokeStyle = 'rgba(176,138,74,.55)'; x.lineWidth = 4;
+  for (let k = 0; k < 16; k++) { x.rotate(Math.PI / 8); x.beginPath(); x.ellipse(0, -90, 26, 70, 0, 0, Math.PI * 2); x.stroke(); }
+  x.beginPath(); x.arc(0, 0, 170, 0, Math.PI * 2); x.stroke(); x.beginPath(); x.arc(0, 0, 40, 0, Math.PI * 2); x.fillStyle = 'rgba(176,138,74,.5)'; x.fill(); x.restore();
+  noise(x, W2, H2, 90000, .07);
   return c;
 }
-function paintWall() {
-  const c = cnv(1024, 512), x = c.getContext('2d');
-  const g = x.createLinearGradient(0, 0, 0, 512); g.addColorStop(0, '#20252c'); g.addColorStop(1, '#2a3038'); x.fillStyle = g; x.fillRect(0, 0, 1024, 512);
-  noise(x, 1024, 512, 14000, .06);
-  x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = 4; for (let i = 0; i <= 4; i++) { x.beginPath(); x.moveTo(i * 256, 0); x.lineTo(i * 256, 430); x.stroke(); } x.beginPath(); x.moveTo(0, 300); x.lineTo(1024, 300); x.stroke();
-  x.fillStyle = 'rgba(255,255,255,.12)'; for (let i = 0; i < 4; i++) for (const yy of [20, 280, 320, 410]) { x.beginPath(); x.arc(i * 256 + 14, yy, 3, 0, 7); x.arc(i * 256 + 242, yy, 3, 0, 7); x.fill(); }
-  x.fillStyle = '#121418'; x.fillRect(0, 430, 1024, 82);
-  x.save(); x.beginPath(); x.rect(0, 440, 1024, 34); x.clip(); x.fillStyle = '#1a1b1d'; x.fillRect(0, 440, 1024, 34); x.fillStyle = 'rgba(196,150,52,.55)'; for (let i = -40; i < 1100; i += 44) { x.beginPath(); x.moveTo(i, 474); x.lineTo(i + 22, 474); x.lineTo(i + 56, 440); x.lineTo(i + 34, 440); x.fill(); } x.restore();
+function paintSmoke() {    // мягкий клуб дыма
+  const c = cnv(256, 256), x = c.getContext('2d');
+  for (let i = 0; i < 26; i++) { const px = 128 + (Math.random() - .5) * 120, py = 128 + (Math.random() - .5) * 120, r = 30 + Math.random() * 60, g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 256, 256); }
+  const m = x.createRadialGradient(128, 128, 60, 128, 128, 128); m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)'); x.globalCompositeOperation = 'destination-out'; x.fillStyle = m; x.fillRect(0, 0, 256, 256);
   return c;
 }
-function paintFelt() {
-  const c = cnv(1024, 1024), x = c.getContext('2d');
-  const g = x.createRadialGradient(512, 512, 60, 512, 512, 720); g.addColorStop(0, '#1c2733'); g.addColorStop(1, '#10161d'); x.fillStyle = g; x.fillRect(0, 0, 1024, 1024);
-  noise(x, 1024, 1024, 30000, .05);
-  x.strokeStyle = 'rgba(132,217,253,.05)'; x.lineWidth = 1; for (let i = 0; i <= 1024; i += 64) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 1024); x.moveTo(0, i); x.lineTo(1024, i); x.stroke(); }
-  x.strokeStyle = 'rgba(132,217,253,.16)'; x.lineWidth = 3; x.strokeRect(22, 22, 980, 980);
-  x.setLineDash([14, 10]); x.strokeStyle = 'rgba(220,230,240,.16)'; x.lineWidth = 3;
-  const s = 731; for (const n of [1, 2, 3, 4]) { const [bx, bz] = BOXP[n]; x.strokeRect(512 + bx * s - 137, 512 + bz * s - 96, 274, 192); }
-  x.setLineDash([]);
-  x.fillStyle = 'rgba(220,230,240,.07)'; x.font = F_H(46); x.textAlign = 'center'; x.fillText('RUSH CASE', 512, 92); x.font = F_H(30); x.fillText('ОПЕРАЦИЯ «КРОТ» · СЕКРЕТНО', 512, 960);
+function paintPoker() {   // сукно покерного стола: зелёный фетр, светлая дорожка для ставок, надпись по центру (читается с места 1)
+  const W2 = 2048, H2 = 1152, c = cnv(W2, H2), x = c.getContext('2d');
+  const g = x.createRadialGradient(W2 / 2, H2 / 2, 80, W2 / 2, H2 / 2, W2 * .62); g.addColorStop(0, '#22744b'); g.addColorStop(.6, '#185a39'); g.addColorStop(1, '#0c3522'); x.fillStyle = g; x.fillRect(0, 0, W2, H2);
+  noise(x, W2, H2, 160000, .05);
+  for (let i = 0; i < 9000; i++) { x.strokeStyle = `rgba(${Math.random() < .5 ? '255,255,255' : '0,0,0'},${Math.random() * .035})`; x.lineWidth = 1; const px = Math.random() * W2, py = Math.random() * H2, a = Math.random() * 7; x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * 6, py + Math.sin(a) * 6); x.stroke(); }
+  x.strokeStyle = 'rgba(236,214,150,.34)'; x.lineWidth = 6; x.beginPath(); x.ellipse(W2 / 2, H2 / 2, W2 * .37, H2 * .34, 0, 0, Math.PI * 2); x.stroke();
+  x.strokeStyle = 'rgba(236,214,150,.16)'; x.lineWidth = 2; x.beginPath(); x.ellipse(W2 / 2, H2 / 2, W2 * .37 - 18, H2 * .34 - 18, 0, 0, Math.PI * 2); x.stroke();
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillStyle = 'rgba(0,0,0,.22)'; x.font = F_H(190); x.fillText('RUSH CASE', W2 / 2 + 3, H2 / 2 - 38 + 4);
+  x.fillStyle = 'rgba(236,214,150,.2)'; x.fillText('RUSH CASE', W2 / 2, H2 / 2 - 38);
+  x.font = F_H(54); x.fillStyle = 'rgba(236,214,150,.22)'; x.fillText('Р У С С К А Я   Р У Л Е Т К А', W2 / 2, H2 / 2 + 92);
+  const v = x.createRadialGradient(W2 / 2, H2 / 2, H2 * .45, W2 / 2, H2 / 2, W2 * .56); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.38)'); x.fillStyle = v; x.fillRect(0, 0, W2, H2);
   return c;
 }
-function paintMap() {
-  const c = cnv(1024, 552), x = c.getContext('2d');
-  x.fillStyle = '#0c141d'; x.fillRect(0, 0, 1024, 552);
-  x.strokeStyle = 'rgba(132,217,253,.08)'; for (let i = 0; i < 1024; i += 32) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 552); x.stroke(); } for (let i = 0; i < 552; i += 32) { x.beginPath(); x.moveTo(0, i); x.lineTo(1024, i); x.stroke(); }
-  x.strokeStyle = 'rgba(132,217,253,.22)'; x.lineWidth = 2;
-  for (let k = 0; k < 9; k++) { x.beginPath(); let px = 0, py = 80 + k * 50 + Math.random() * 30; x.moveTo(px, py); while (px < 1024) { px += 60 + Math.random() * 80; py += (Math.random() - .5) * 60; x.lineTo(px, py); } x.stroke(); }
-  x.fillStyle = 'rgba(132,217,253,.12)'; x.fillRect(140, 150, 230, 140); x.fillRect(560, 260, 300, 170); x.fillRect(420, 90, 120, 90);
-  x.setLineDash([10, 8]); x.strokeStyle = '#e2493f'; x.lineWidth = 3; x.beginPath(); x.moveTo(200, 420); x.bezierCurveTo(340, 300, 500, 380, 700, 330); x.stroke(); x.setLineDash([]);
-  [[200, 420], [700, 330], [470, 140]].forEach(([px, py], i) => { x.fillStyle = i === 1 ? '#e2493f' : '#e3a33b'; x.beginPath(); x.arc(px, py, 10, 0, 7); x.fill(); x.strokeStyle = 'rgba(0,0,0,.6)'; x.stroke(); });
-  x.fillStyle = 'rgba(233,238,243,.85)'; x.font = F_H(40); x.textAlign = 'left'; x.fillText('ОПЕРАЦИЯ «КРОТ»', 36, 60);
-  x.font = F_B(20, 700); x.fillStyle = 'rgba(132,217,253,.8)'; x.fillText('СЕКТОР 4 · КОНТЕЙНЕРЫ 01–04', 38, 92);
-  x.fillStyle = 'rgba(226,73,63,.85)'; x.font = F_H(34); x.save(); x.translate(860, 110); x.rotate(-.18); x.strokeStyle = 'rgba(226,73,63,.85)'; x.lineWidth = 4; x.strokeRect(-110, -36, 220, 56); x.textAlign = 'center'; x.fillText('СЕКРЕТНО', 0, 6); x.restore();
-  return c;
-}
-function paintScreen(i) {
-  const c = cnv(512, 296), x = c.getContext('2d');
-  x.fillStyle = '#04111a'; x.fillRect(0, 0, 512, 296);
-  x.fillStyle = 'rgba(132,217,253,.16)'; x.fillRect(0, 0, 512, 34);
-  x.fillStyle = '#84d9fd'; x.font = F_B(18, 800); x.fillText(i ? 'ПЕРЕХВАТ · КАНАЛ 4' : 'СИГНАЛ · ШТАБ', 14, 23);
-  x.strokeStyle = '#84d9fd'; x.lineWidth = 2; x.beginPath(); for (let k = 0; k <= 480; k += 6) { const y = 150 + Math.sin(k * .05 + i) * 30 * Math.sin(k * .013) + (Math.random() - .5) * 10; k ? x.lineTo(16 + k, y) : x.moveTo(16, y); } x.stroke();
-  x.fillStyle = 'rgba(132,217,253,.5)'; x.font = '14px monospace';
-  for (let k = 0; k < 5; k++) x.fillText(`> ${(Math.random() * 1e8 | 0).toString(16).toUpperCase()} ${['OK', 'SYNC', 'LINK', 'WAIT', 'RX'][k]}`, 16, 214 + k * 16);
-  return c;
-}
-function paintCrate() {
-  const c = cnv(512, 512), x = c.getContext('2d');
-  x.fillStyle = '#3a402f'; x.fillRect(0, 0, 512, 512); noise(x, 512, 512, 9000, .1);
-  x.strokeStyle = 'rgba(0,0,0,.5)'; x.lineWidth = 6; for (let i = 0; i < 512; i += 102) { x.beginPath(); x.moveTo(0, i); x.lineTo(512, i); x.stroke(); }
-  x.lineWidth = 26; x.strokeStyle = '#2c3124'; x.strokeRect(13, 13, 486, 486);
-  x.fillStyle = 'rgba(230,230,210,.5)'; x.font = F_H(96); x.textAlign = 'center'; x.fillText('RUSH', 256, 290);
-  x.font = F_B(26, 800); x.fillText('▲ ВЕРХ ▲', 256, 340);
+function paintWood() {    // лакированное дерево (кант стола, рукоять): волокна вдоль длинной стороны
+  const c = cnv(1024, 256), x = c.getContext('2d');
+  x.fillStyle = '#6a3f22'; x.fillRect(0, 0, 1024, 256);
+  for (let i = 0; i < 140; i++) {
+    const y0 = Math.random() * 256, amp = 2 + Math.random() * 7, fr = .004 + Math.random() * .01, ph = Math.random() * 7, dark = Math.random() < .6;
+    x.strokeStyle = dark ? `rgba(30,14,6,${.08 + Math.random() * .22})` : `rgba(190,120,70,${.05 + Math.random() * .12})`; x.lineWidth = .6 + Math.random() * 2.2;
+    x.beginPath(); for (let px = 0; px <= 1024; px += 8) { const py = y0 + Math.sin(px * fr + ph) * amp; if (px) x.lineTo(px, py); else x.moveTo(px, py); } x.stroke();
+  }
+  noise(x, 1024, 256, 12000, .04);
   return c;
 }
 function paintGlow() {
@@ -1591,7 +2116,7 @@ function paintTag(s, name, st2) {
   const c = cnv(512, 128), x = c.getContext('2d'); name = String(name || 'Игрок');
   if (st2 === 'free') { x.fillStyle = 'rgba(12,15,19,.55)'; rr(x, 96, 34, 320, 60, 6); x.fill(); x.fillStyle = 'rgba(233,238,243,.5)'; x.font = F_H(34); x.textAlign = 'center'; x.fillText('СВОБОДНО', 256, 76); return c; }
   x.font = F_B(38, 800); const nm = name.length > 16 ? name.slice(0, 15) + '…' : name;
-  const lab = { ready: ['ГОТОВ', '#4fd08a'], wait: ['НЕ ГОТОВ', 'rgba(233,238,243,.55)'], off: ['НЕТ СВЯЗИ', '#ff6b61'], left: ['ВЫШЕЛ', '#ff6b61'], krot: ['КРОТ', '#ff6b61'], agent: ['ОПЕРАТИВНИК', '#84d9fd'] }[st2];
+  const lab = { ready: ['ГОТОВ', '#4fd08a'], wait: ['НЕ ГОТОВ', 'rgba(233,238,243,.55)'], off: ['НЕТ СВЯЗИ', '#ff6b61'], left: ['ВЫШЕЛ', '#ff6b61'], turn: ['ХОДИТ', '#84d9fd'], dead: ['ВЫБЫЛ', '#ff6b61'], win: ['ПОБЕДИТЕЛЬ', '#4fd08a'] }[st2];
   const w = Math.min(500, Math.max(220, x.measureText(nm).width + 104)), X = 256 - w / 2;
   x.fillStyle = 'rgba(12,15,19,.78)'; rr(x, X, 18, w, 62, 5); x.fill(); x.strokeStyle = 'rgba(255,255,255,.16)'; x.lineWidth = 2; x.stroke();
   x.fillStyle = '#84d9fd'; rr(x, X + 10, 28, 42, 42, 3); x.fill(); x.fillStyle = '#0a1016'; x.font = F_H(32); x.textAlign = 'center'; x.fillText(String(s), X + 31, 61);
@@ -1752,7 +2277,7 @@ function vcLeave() {
   if (VC.mic) VC.mic.getTracks().forEach(t => t.stop());
   if (VC.ac) VC.ac.close().catch(() => { /* уже */ });
   Object.assign(VC, { room: 0, seat: 0, ready: false, sendRaw: null, mic: null, track: null, ac: null, an: null, lvl: 0, tx: false, ptt: false });
-  if (G) for (const s of [1, 2, 3, 4]) G.speak(s, false);
+  if (G) for (const s of SEATS) G.speak(s, false);
 }
 function vcSend(m) { if (VC.ready && VC.sendRaw) { try { VC.sendRaw(m); } catch (e) { /* канал не готов */ } } }
 function vcSigReady(sendRaw) { VC.sendRaw = sendRaw; VC.ready = true; if (VC.core) VC.core.hello(); VC.helloAt = Date.now(); vcDraw(); }
@@ -1811,7 +2336,7 @@ function vcTick() {
   VC.lvl = VC.an ? Math.min(1, rms(VC.an, VC.buf) * 5) : 0;
   // кто говорит у остальных (по громкости); заодно — слышу ли я сейчас кого-то (heard)
   let heard = 0;
-  for (const s of [1, 2, 3, 4]) {
+  for (const s of SEATS) {
     if (s === VC.seat) continue;
     const r = VC.rem[s]; let on = false;
     if (r && r.an && !(r.audio && r.audio.muted)) { const l = rms(r.an, r.buf); heard = Math.max(heard, l); if (l > .02) r.until = now + 280; on = now < (r.until || 0); }
@@ -1825,7 +2350,7 @@ function vcTick() {
   if (VC.lvl > .25) VC.loudUntil = now + 500;
   const gate = VC.guard && heard > .02 && now > (VC.loudUntil || 0);
   if (VC.mode === 'vad' && VC.lvl > VC.thr) VC.txUntil = now + 400;
-  const want = !!VC.track && !VC.self && (VC.mode === 'ptt' ? VC.ptt : now < VC.txUntil), tx = want && !gate;
+  const want = !!VC.track && !VC.self && !rrSilent() && (VC.mode === 'ptt' ? VC.ptt : now < VC.txUntil), tx = want && !gate;
   if (VC.track && VC.track.enabled !== tx) VC.track.enabled = tx;
   if (want !== VC.tx) { VC.tx = want; vcDraw(); }   // «В эфире» — пока V зажата (подавление эха индикатором не мигает)
   // повторный привет тем, с кем ещё нет связи (новый игрок, обновил страницу, сорвалось)
@@ -2283,168 +2808,150 @@ const MMDemo = (() => {
 /* ============================================================
    Демо с ботами (только localhost): тот же протокол, что у сервера
    ============================================================ */
-const Demo = (() => {
+const Demo = (() => {   // «Русская рулетка» без сервера: боты, те же правила, что будут на сервере (supabase, этап 2)
   const D = { onPush: null, onHead: null };
   let st2 = null, iv = 0, heads = 0;
-  const DUR = { lobby: 4, brief: 9, talk: 120, vote: 14, revote: 10, open: 8, debrief: 40 };
   const NAMES = shuffle(['Viper', 'Сова', 'Grizzly', 'Lynx', 'Кобра', 'Shade', 'Гром']);
-  const TASKS = [['push', 'Продвинуть вариант', 'Добейся, чтобы команда чаще обсуждала контейнер %.'], ['split', 'Разделить мнения', 'Добейся, чтобы голоса команды разделились между двумя вариантами.'],
-    ['doubt', 'Посеять сомнение', 'Заставь Оперативников усомниться в одной из правдивых улик.'], ['rush', 'Ускорить решение', 'Подтолкни команду зафиксировать выбор раньше, чем все сверят данные.'],
-    ['lead', 'Перехватить лидерство', 'Стань главным в обсуждении и навяжи свою версию.']];
+  const LINES = { turn: ['Ну, с богом.', 'Моя очередь…', 'Руки трясутся, честно.', 'Давай уже.', 'Ладно, поехали.'], click: ['Фух.', 'Пусто!', 'Живой.', 'Следующий!'],
+    bang: ['Минус один…', 'Жёстко.', 'Вот и раунд.', 'Ох.'], chat: ['Ага.', 'Посмотрим.', 'Удачи всем.', 'Не тяни.', '😅'] };
   const now = () => Date.now();
+  const pl = (seat, me) => ({ seat, name: me ? myName() : NAMES[seat - 2], me: !!me, ready: false, online: true, left: false, loaded: false, alive: true, place: null, pts: null, clicks: 0, spins: 0 });
   function reset() {
-    st2 = { room: { id: 900001, code: 'DEMO42', kind: 'quick', points: true, phase: 'lobby', rev: 1, phase_at: now(), deadline: null, paused: false, owner: true, times: DUR },
-      players: [{ seat: 1, name: myName(), me: true, ready: false, online: true, left: false }], chat: [], cid: 0, rd: null, sec: {}, votes: { main: {}, revote: {} }, plan: [] };
-    sys('Демо-комната: это проба без сервера, вместо людей — боты.');
-    if (D.quick) {   // пришли из демо-подбора: все уже приняли — сразу брифинг
+    st2 = { room: { id: 900001, code: 'DEMO42', kind: 'quick', points: true, phase: 'lobby', rev: 1, phase_at: now(), deadline: null, paused: false, owner: true, turn_sec: RR.turn },
+      players: [pl(1, true)], chat: [], cid: 0, g: null, plan: [] };
+    sys('Демо-комната: проба без сервера, вместо людей — боты.');
+    clearInterval(iv); iv = setInterval(step, 200); clearInterval(heads); heads = setInterval(botHeads, 700);
+    if (D.quick) {   // пришли из демо-подбора: все уже приняли — экран загрузки
       D.quick = false;
-      NAMES.slice(0, 3).forEach((nm, i) => st2.players.push({ seat: i + 2, name: nm, me: false, ready: true, online: true, left: false, loaded: false }));
-      st2.players[0].ready = true; st2.players[0].loaded = false;
+      for (let s = 2; s <= NS; s++) { const p = pl(s); p.ready = true; st2.players.push(p); }
+      st2.players[0].ready = true;
       st2.room.mm = true; st2.room.load_at = now(); st2.room.deadline = now() + 10000;
-      [1, 2, 3].forEach(i => later(1200 + rnd(5500), () => { st2.players[i].loaded = true; bump(); }));
-      clearInterval(iv); iv = setInterval(step, 200); clearInterval(heads); heads = setInterval(botHeads, 700);
+      st2.players.slice(1).forEach(p => later(1200 + rnd(5500), () => { p.loaded = true; bump(); }));
       return;
     }
-    [1300, 2300, 3200].forEach((t, i) => later(t, () => { st2.players.push({ seat: i + 2, name: NAMES[i], me: false, ready: false, online: true, left: false }); sys(`Игрок ${NAMES[i]} вошёл в комнату.`); bump(); }));
-    later(4200, () => { st2.players.forEach(p => { if (!p.me) p.ready = true; }); bump(); });
-    later(4300, () => { if (st2.room.phase === 'lobby') { st2.room.deadline = now() + DUR.lobby * 1000; bump(); } });
-    clearInterval(iv); iv = setInterval(step, 200);
-    clearInterval(heads); heads = setInterval(botHeads, 700);
+    [1300, 2300, 3200, 4000].forEach((t, i) => later(t, () => { const p = pl(i + 2); st2.players.push(p); sys(`Игрок ${p.name} сел за стол.`); bump(); }));
+    later(4900, () => { st2.players.forEach(p => { if (!p.me) p.ready = true; }); bump(); });
+    later(5000, () => { if (st2.room.phase === 'lobby') { st2.room.phase_at = now(); st2.room.deadline = now() + 4000; bump(); } });
   }
-  const later = (ms, fn) => { const t0 = now() + ms; st2.plan.push([t0, fn]); };
+  const later = (ms, fn) => { st2.plan.push([now() + ms, fn]); };
+  const name = s => { const p = st2.players.find(x => x.seat === s); return p ? p.name : 'Игрок'; };
+  const alive = () => st2.players.filter(p => p.alive);
   function sys(t) { st2.chat.push({ id: ++st2.cid, kind: 'sys', seat: null, name: null, text: t, at: now() }); }
   function say(seat, t) {
-    if (D.onSpeak) D.onSpeak(seat); const p = st2.players.find(x => x.seat === seat); st2.chat.push({ id: ++st2.cid, kind: 'msg', seat, name: p ? p.name : 'Игрок', text: t, at: now() }); bump(); }
-  function botsReady() { if (st2.room.phase === 'talk' && st2.players.every(p => p.vote_ready)) { st2.room.deadline = now(); sys('Все нажали «готов голосовать».'); } }
+    const p = st2.players.find(x => x.seat === seat); if (!p || !p.alive) return;   // выбывшие молчат
+    if (D.onSpeak) D.onSpeak(seat); st2.chat.push({ id: ++st2.cid, kind: 'msg', seat, name: p.name, text: t, at: now() }); bump();
+  }
   function bump() { st2.room.rev++; if (D.onPush) D.onPush(); }
-  function phase(p, sec) { st2.room.phase = p; st2.room.phase_at = now(); st2.room.deadline = sec ? now() + sec * 1000 : null; bump(); }
-  function gen() {
-    const attrs = ['sym', 'gun', 'col'], pattern = Math.random() < .33 ? 'blank' : 'pair', k = pickOne(attrs), v = {};
-    attrs.forEach(a => { v[a] = shuffle(Object.keys(DICT0[a])).slice(0, 2); });
-    const rest = attrs.filter(a => a !== k), perm = shuffle([1, 2, 3, 4]), boxes = [];
-    for (let i = 0; i < 4; i++) { const r = i >> 1, q = i & 1; boxes.push({ n: perm[i], [rest[0]]: v[rest[0]][r], [rest[1]]: v[rest[1]][pattern === 'pair' ? r : q], [k]: v[k][pattern === 'pair' ? q : 0] }); }
-    boxes.sort((a, b) => a.n - b.n);
-    return { boxes, target: 1 + rnd(4) };
+  function ev(kind, seat, x) { const g = st2.g; g.evn++; g.evs.push(Object.assign({ n: g.evn, kind, seat, at: now() }, x || {})); if (g.evs.length > 12) g.evs.shift(); }
+  function start() {
+    st2.players.forEach(p => { p.alive = true; p.place = null; p.pts = null; p.clicks = 0; p.spins = 0; });
+    st2.g = { id: 70000 + rnd(9999), round: 0, n: 0, evn: 0, evs: [] };
+    sys('Игра начинается. Револьвер на шесть гнёзд, патроны — в случайных гнёздах.');
+    newRound();
   }
-  const clue = (a, v) => ({ attr: a, val: v, label: DICT0[a][v], text: (a === 'sym' ? 'Знак на цели — ' : a === 'gun' ? 'Внутри цели — ' : 'Маркировка цели — ') + DICT0[a][v] + '.' });
-  async function start() {
-    const g = gen(), tb = g.boxes.find(b => b.n === g.target);
-    const decoys = g.boxes.filter(b => b.n !== g.target && ['sym', 'gun', 'col'].filter(a => b[a] === tb[a]).length === 2);
-    const decoy = pickOne(decoys.length ? decoys : g.boxes.filter(b => b.n !== g.target));
-    const ks = 1 + rnd(4), salt = uuid().replace(/-/g, '') + uuid().replace(/-/g, ''), id = 70000 + rnd(9999);
-    const proof2 = 'RUSHKROT|' + id + '|' + g.boxes.map(b => [b.n, b.sym, b.gun, b.col].join(':')).join(';') + '|' + g.target + '|' + salt;
-    const tk = pickOne(TASKS), task = { id: tk[0], title: tk[1], text: tk[2].replace('%', nn(decoy.n)) };
-    st2.rd = { id, boxes: g.boxes, target: g.target, salt, proof: proof2, commit: await sha256hex(proof2), krot: ks, decoy: decoy.n, cands: null, chosen: null, outcome: null, reason: null, tally: null };
-    const attrs = shuffle(['sym', 'gun', 'col']); let i = 0;
-    st2.sec = {};
-    st2.players.forEach(p => { st2.sec[p.seat] = p.seat === ks ? { role: 'krot', card: { target: g.target, task, text: `Ты — КРОТ. Цель — контейнер ${nn(g.target)}.` } } : { role: 'agent', card: clue(attrs[i], tb[attrs[i++]]) }; });
-    st2.votes = { main: {}, revote: {} };
-    st2.players.forEach(p => { p.vote_ready = false; });
-    phase('brief', DUR.brief); sys('Операция начинается. Проверьте личные данные.');
-    planTalk(decoy);
+  function newRound() {
+    const g = st2.g, al = alive();
+    g.round++; g.bullets = RR.bul[al.length] || 1;
+    g.ch = shuffle([0, 1, 2, 3, 4, 5]).slice(0, g.bullets);   // гнёзда с патронами
+    g.pos = rnd(6); g.clicks = 0;
+    g.first = pickOne(al).seat; g.turn = g.first;
+    ev('start', g.first, { round: g.round, bullets: g.bullets });
+    sys(`Раунд ${g.round}: ${g.bullets} ${plural(g.bullets)} в барабане. Первым стреляет ${name(g.first)}.`);
+    turnStart(2200);
   }
-  function planTalk(decoy) {
-    const t0 = now() + DUR.brief * 1000, tb = st2.rd.boxes.find(b => b.n === st2.rd.target);
-    const diff = ['sym', 'gun', 'col'].find(a => decoy[a] !== tb[a]) || 'sym';
-    st2.players.filter(p => !p.me).forEach((p, j) => {
-      const s = st2.sec[p.seat];
-      const first = s.role === 'krot' ? `У меня: ${clueShort(diff, decoy[diff])}.` : pickOne(['Моя улика: ', 'У меня: ', 'Говорю сразу — ']) + clueShort(s.card.attr, s.card.val) + '.';
-      st2.plan.push([t0 + 2500 + j * 3800 + rnd(1500), () => say(p.seat, first)]);
-      st2.plan.push([t0 + 17000 + j * 4000 + rnd(3000), () => say(p.seat, pickOne(['Кто ещё не сказал свою улику?', 'Сверяем: у нас противоречие по одному признаку.', 'Не торопимся, проверим ещё раз.', 'Я бы не верил тому, кто первым назвал номер.', 'Хм, подозрительно складно…']))]);
-      st2.plan.push([t0 + 31000 + j * 3000 + rnd(2000), () => say(p.seat, `Я за ${nn(s.role === 'krot' ? decoy.n : Math.random() < .75 ? st2.rd.target : decoy.n)}.`)]);
-      st2.plan.push([t0 + 36000 + j * 4000 + rnd(4000), () => { if (st2.room.phase === 'talk') { p.vote_ready = true; botsReady(); bump(); } }]);
-    });
+  function turnStart(delay) {
+    const g = st2.g, r = st2.room; g.n++; g.spins = 0;
+    r.phase = 'play'; r.phase_at = now() + delay; r.deadline = r.phase_at + RR.turn * 1000; bump();
+    const p = st2.players.find(x => x.seat === g.turn);
+    if (!p.me) botTurn(p, g.n, delay);
   }
-  function botVotes(stage) {
-    st2.players.filter(p => !p.me).forEach(p => {
-      const s = st2.sec[p.seat], c = st2.rd.cands;
-      let b = s.role === 'krot' ? st2.rd.decoy : Math.random() < .72 ? st2.rd.target : st2.rd.decoy;
-      if (stage === 'revote') b = c.includes(b) ? b : pickOne(c);
-      st2.plan.push([now() + 1500 + rnd((stage === 'main' ? DUR.vote : DUR.revote) * 600), () => { if (st2.room.phase === (stage === 'main' ? 'vote' : 'revote')) st2.votes[stage][p.seat] = b; }]);
-    });
+  function botTurn(p, n, delay) {   // бот: если шанс вырос после пустых щелчков — чаще крутит
+    const g = st2.g, risky = rrChance(g.bullets, g.clicks) > g.bullets / 6 + .001;
+    const spins = risky ? (Math.random() < .85 ? 1 + rnd(2) : 0) : (Math.random() < .3 ? 1 : 0);
+    let t = delay + 1600 + rnd(2600);
+    if (Math.random() < .35) later(t - 900, () => { if (g.n === n) say(p.seat, pickOne(LINES.turn)); });
+    for (let i = 0; i < spins; i++) { later(t, () => { if (g.n === n && st2.room.phase === 'play') spin(p.seat); }); t += 1100 + rnd(700); }
+    later(t + 500 + rnd(1500), () => { if (g.n === n && st2.room.phase === 'play') shoot(p.seat, false); });
   }
-  function agentVotes(stage) { return st2.players.filter(p => st2.sec[p.seat].role === 'agent').sort((a, b) => a.seat - b.seat).map(p => st2.votes[stage][p.seat] || null); }
-  function tally(v) {
-    const got = v.filter(Boolean); if (got.length < 2) return { res: 'cancel', n: got.length, votes: v };
-    const cnt = {}; got.forEach(b => { cnt[b] = (cnt[b] || 0) + 1; }); const top = Math.max(...Object.values(cnt)), lead = Object.keys(cnt).filter(b => cnt[b] === top).map(Number).sort();
-    return top >= 2 ? { res: 'chosen', box: lead[0], n: got.length, votes: v } : { res: 'revote', cands: lead, n: got.length, votes: v };
+  function spin(seat) { const g = st2.g; g.pos = rnd(6); g.clicks = 0; g.spins++; const p = st2.players.find(x => x.seat === seat); if (p) p.spins++; ev('spin', seat); bump(); }
+  function nextSeat(s) { for (let i = 1; i <= NS; i++) { const t = (s - 1 + i) % NS + 1, p = st2.players.find(x => x.seat === t); if (p && p.alive) return t; } return s; }
+  function shoot(seat, auto) {
+    const g = st2.g, r = st2.room, p = st2.players.find(x => x.seat === seat);
+    if (p && p.me && D.dieMe) { D.dieMe = false; if (!g.ch.includes(g.pos)) g.ch[0] = g.pos; }   // проверка: KROT.dbg.die() — ваш следующий выстрел боевой (только демо)
+    if (!g.ch.includes(g.pos)) {   // пусто: барабан на гнездо дальше, ход следующему
+      g.pos = (g.pos + 1) % 6; g.clicks++; p.clicks++; ev('click', seat, { auto });
+      if (!p.me && Math.random() < .3) later(700, () => say(seat, pickOne(LINES.click)));
+      g.turn = nextSeat(seat); turnStart(1400); return;
+    }
+    const left = alive().length; p.alive = false; p.place = left;
+    ev('bang', seat, { auto, place: left });
+    sys(`${p.name} выбывает — ${left} место.`);
+    r.phase = 'next'; r.phase_at = now(); r.deadline = now() + RR.next * 1000; bump();
+    const w = alive().find(x => !x.me); if (w && Math.random() < .6) later(1600, () => say(w.seat, pickOne(LINES.bang)));
   }
-  function finish(chosen, reason, t) {
-    const rd = st2.rd; rd.chosen = chosen; rd.reason = reason; rd.outcome = chosen && chosen === rd.target ? 'team' : 'krot';
-    const pts = {}; st2.players.forEach(p => { const s = st2.sec[p.seat], w = (rd.outcome === 'team' && s.role === 'agent') || (rd.outcome === 'krot' && s.role === 'krot'); pts[p.seat] = w ? (s.role === 'agent' ? 10 : 15) : 0; });
-    rd.tally = Object.assign(t || {}, { pts });
-    phase('open', DUR.open); sys(chosen ? `Команда выбрала контейнер ${nn(chosen)}. Вскрываем…` : 'Команда не договорилась. Вскрываем контейнеры…');
+  function finish() {
+    const w = alive()[0]; if (w) w.place = 1;
+    st2.players.forEach(p => { p.pts = st2.room.points ? RR.pts[p.place] || 0 : null; });
+    const r = st2.room; r.phase = 'done'; r.phase_at = now(); r.deadline = null;
+    sys(`Победил ${w ? w.name : '—'}. Игра окончена.`); bump();
   }
   function step() {
     if (!st2) return;
     const t = now();
     for (let i = st2.plan.length - 1; i >= 0; i--) if (st2.plan[i][0] <= t) { const f = st2.plan[i][1]; st2.plan.splice(i, 1); f(); }
     const r = st2.room; if (!r.deadline || t < r.deadline) return;
-    if (r.phase === 'lobby') { if (r.mm && st2.players.some(p => !p.loaded) && t < r.load_at + 25000) return; if (st2.players.length === 4) start(); r.deadline = null; return; }
-    if (r.phase === 'brief') { phase('talk', DUR.talk); sys('Брифинг окончен. Обсуждайте — голосом и в чате.'); return; }
-    if (r.phase === 'talk') { phase('vote', DUR.vote); sys('Обсуждение завершено. Зафиксируйте контейнер.'); botVotes('main'); return; }
-    if (r.phase === 'vote') {
-      const tl = tally(agentVotes('main'));
-      if (tl.res === 'cancel') { st2.rd.outcome = 'cancel'; st2.rd.reason = 'few_votes'; st2.rd.tally = { main: tl }; phase('done'); sys('Раунд отменён: проголосовало меньше двух Оперативников.'); return; }
-      if (tl.res === 'chosen') return finish(tl.box, 'majority', { main: tl });
-      st2.rd.cands = tl.cands; st2.rd.tally = { main: tl }; phase('revote', DUR.revote); sys('Голоса разделились. Доп. голосование: ' + tl.cands.map(nn).join(' или ') + '.'); botVotes('revote'); return;
-    }
-    if (r.phase === 'revote') {
-      const c = st2.rd.cands, v1 = agentVotes('main'), v2 = agentVotes('revote'), eff = v1.map((v, i) => c.includes(v2[i]) ? v2[i] : c.includes(v) ? v : null);
-      const tl = tally(eff); return finish(tl.res === 'chosen' ? tl.box : null, tl.res === 'chosen' ? 'revote' : 'split', Object.assign(st2.rd.tally || {}, { revote: tl }));
-    }
-    if (r.phase === 'open') { phase('debrief', DUR.debrief); sys(`Цель — контейнер ${nn(st2.rd.target)}. Роли раскрыты.`); return; }
-    if (r.phase === 'debrief') { phase('done'); }
+    if (r.phase === 'lobby') { if (r.mm && st2.players.some(p => !p.loaded) && t < r.load_at + 25000) return; if (st2.players.length === NS) start(); else r.deadline = null; return; }
+    if (r.phase === 'play') { shoot(st2.g.turn, true); return; }   // время вышло — выстрел сам, без прокрутки
+    if (r.phase === 'next') { if (alive().length <= 1) finish(); else newRound(); }
   }
-  function botHeads() {
+  function botHeads() {   // куда смотрят боты: стреляющий — на револьвер, остальные — на него, выбывшие — вниз
     if (!st2 || !D.onHead) return;
+    const r = st2.room, g = st2.g, turn = g && r.phase === 'play' ? g.turn : 0;
     st2.players.forEach(p => {
-      if (p.me || Math.random() < .55) return;
-      const th = (p.seat - 1) * Math.PI / 2, ex = Math.sin(th) * (R_SEAT - .02), ez = Math.cos(th) * (R_SEAT - .02);
+      if (p.me) return;
+      if (!p.alive && r.phase !== 'lobby' && r.phase !== 'done') { D.onHead(p.seat, 0, -1); return; }
+      if (Math.random() < .5) return;
+      if (turn === p.seat) { D.onHead(p.seat, (Math.random() - .5) * .3, -.75); return; }
+      const ex = SEAT[p.seat].x, ez = SEAT[p.seat].z, th = SEAT[p.seat].yaw, q = Math.random();
       let tx, ty, tz;
-      const r = Math.random();
-      if (r < .4) { const b = BOXP[1 + rnd(4)]; tx = b[0]; ty = TOP + .1; tz = b[1]; }
-      else if (r < .8) { const o = st2.players[rnd(st2.players.length)], t2 = (o.seat - 1) * Math.PI / 2; tx = Math.sin(t2) * R_SEAT; ty = EYE; tz = Math.cos(t2) * R_SEAT; if (o.seat === p.seat) return; }
-      else { D.onHead(p.seat, (Math.random() - .5) * .3, -.85); return; }
+      if (turn && q < .7) { tx = SEAT[turn].x; ty = EYE; tz = SEAT[turn].z; }
+      else if (q < .85) { tx = 0; ty = TOP + .03; tz = 0; }
+      else { const o = st2.players[rnd(st2.players.length)]; if (o.seat === p.seat) return; tx = SEAT[o.seat].x; ty = EYE; tz = SEAT[o.seat].z; }
       const dx = tx - ex, dy = ty - EYE, dz = tz - ez; let y = Math.atan2(-dx, -dz) - th; y = Math.atan2(Math.sin(y), Math.cos(y));
       D.onHead(p.seat, y, Math.atan2(dy, Math.hypot(dx, dz)));
     });
   }
   function snap(after) {
-    const r = st2.room, rd = st2.rd, ph = r.phase, me = st2.players.find(p => p.me), sec = rd ? st2.sec[me.seat] : null;
-    const reveal = rd && rd.outcome && ['open', 'debrief', 'done'].includes(ph), roles = reveal && ['debrief', 'done'].includes(ph);
-    return { now: now(), room: Object.assign({}, r),
-      players: st2.players.map(p => Object.assign({}, p)),
-      me: { seat: me.seat, ready: me.ready, role: sec ? sec.role : null, card: sec ? sec.card : null, vote: rd ? st2.votes.main[me.seat] || null : null, revote: rd ? st2.votes.revote[me.seat] || null : null, locked: false },
-      round: !rd ? null : { id: rd.id, boxes: rd.boxes, dict: DICT0, commit: rd.commit, cands: rd.cands, target: reveal ? rd.target : null, salt: reveal ? rd.salt : null, proof: reveal ? rd.proof : null,
-        chosen: reveal ? rd.chosen : null, outcome: reveal ? rd.outcome : null, reason: reveal ? rd.reason : null,
-        roles: roles ? st2.players.map(p => ({ seat: p.seat, role: st2.sec[p.seat].role, card: st2.sec[p.seat].card })) : null,
-        votes: roles ? [].concat(...['main', 'revote'].map(s => Object.keys(st2.votes[s]).map(k => ({ seat: +k, stage: s, box: st2.votes[s][k] })))) : null,
-        tally: roles ? rd.tally : null },
+    const r = st2.room, g = st2.g, me = st2.players.find(p => p.me);
+    return { now: now(), room: Object.assign({}, r), players: st2.players.map(p => Object.assign({}, p)),
+      me: { seat: me.seat, ready: me.ready, alive: me.alive },
+      game: g ? { id: g.id, round: g.round, bullets: g.bullets, turn: g.turn, first: g.first, clicks: g.clicks, spins: g.spins, n: g.n, evs: g.evs.slice(), ev: g.evs[g.evs.length - 1] || null } : null,
       chat: st2.chat.filter(m => m.id > (after || 0)) };
   }
+  const tick = () => ({ now: now(), phase: st2.room.phase, rev: st2.room.rev, deadline: st2.room.deadline, paused: false });
   D.rpc = async (n, a) => {
-    await new Promise(r => setTimeout(r, 40 + rnd(80)));
+    await new Promise(res => setTimeout(res, 40 + rnd(80)));
     a = a || {};
     if (n === 'krot_quick' || n === 'krot_create' || n === 'krot_join') { reset(); return snap(0); }
     if (!st2) throw new Error('not in room');
     if (n === 'krot_state') return snap(a.p_after);
-    if (n === 'krot_tick') return { now: now(), phase: st2.room.phase, rev: st2.room.rev, deadline: st2.room.deadline, paused: false };
-    if (n === 'krot_ready') { const me = st2.players.find(p => p.me); me.ready = a.p_ready; if (st2.players.length === 4 && st2.players.every(p => p.ready)) st2.room.deadline = now() + 3000; bump(); return { ok: true }; }
-    if (n === 'krot_vote') {
-      const ph = st2.room.phase; if (ph !== 'vote' && ph !== 'revote') throw new Error('closed');
-      const stg = ph === 'vote' ? 'main' : 'revote'; if (stg === 'revote' && !st2.rd.cands.includes(a.p_box)) throw new Error('bad box');
-      st2.votes[stg][st2.players.find(p => p.me).seat] = a.p_box; return { ok: true, box: a.p_box, stage: stg };
+    if (n === 'krot_tick') return tick();
+    if (n === 'krot_ready') { const me = st2.players.find(p => p.me); me.ready = a.p_ready; if (st2.players.length === NS && st2.players.every(p => p.ready)) { st2.room.phase_at = now(); st2.room.deadline = now() + 3000; } bump(); return { ok: true }; }
+    if (n === 'rr_spin' || n === 'rr_shoot') {
+      const g = st2.g, me = st2.players.find(p => p.me);
+      if (!g || st2.room.phase !== 'play' || g.turn !== me.seat || !me.alive) throw new Error('not your turn');
+      if (a.p_turn != null && a.p_turn !== g.n) throw new Error('not your turn');
+      if (n === 'rr_spin') spin(me.seat); else shoot(me.seat, false);
+      return { ok: true };
     }
     if (n === 'krot_chat_send') {
       const t = String(a.p_text || '').trim(); if (!t) throw new Error('empty');
-      const me = st2.players.find(p => p.me); st2.chat.push({ id: ++st2.cid, kind: 'msg', seat: me.seat, name: me.name, text: t, at: now() });
-      const m = /\b0?([1-4])\b/.exec(t); const bot = st2.players.find(p => !p.me);
-      if (m && bot && ['talk', 'brief'].includes(st2.room.phase)) later(1800 + rnd(1500), () => say(bot.seat, pickOne([`Почему именно ${nn(+m[1])}?`, `${nn(+m[1])}? Давай сверим признаки.`, `С ${nn(+m[1])} не сходится моя улика.`])));
+      const me = st2.players.find(p => p.me); if (!me.alive && st2.room.phase !== 'done') throw new Error('dead');
+      st2.chat.push({ id: ++st2.cid, kind: 'msg', seat: me.seat, name: me.name, text: t, at: now() });
+      const bot = alive().find(p => !p.me); if (bot && Math.random() < .5) later(1500 + rnd(1500), () => say(bot.seat, pickOne(LINES.chat)));
       bump(); return { ok: true, id: st2.cid, text: t, at: now() };
     }
-    if (n === 'krot_vote_ready') { if (st2.room.phase !== 'talk') throw new Error('not talk'); st2.players.find(p => p.me).vote_ready = a.p_on !== false; botsReady(); bump(); return { now: now(), phase: st2.room.phase, rev: st2.room.rev, deadline: st2.room.deadline, paused: false }; }
-    if (n === 'krot_loaded') { const me = st2.players.find(p => p.me); me.loaded = true; bump(); return { now: now(), phase: st2.room.phase, rev: st2.room.rev, deadline: st2.room.deadline, paused: false }; }
+    if (n === 'krot_loaded') { st2.players.find(p => p.me).loaded = true; bump(); return tick(); }
     if (n === 'krot_leave') { D.stop(); return { ok: true }; }
     if (n === 'krot_report') return { ok: true };
     throw new Error('unknown ' + n);
@@ -2453,5 +2960,5 @@ const Demo = (() => {
   D.skip = () => { if (st2 && st2.room.deadline) st2.room.deadline = now(); };
   return D;
 })();
-K.dbg = { voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st), world: () => (DEMO_OK ? G : null) };   // для проверки из браузера (подставить состояние подбора — только localhost)
+K.dbg = { die: () => (DEMO_OK ? (Demo.dieMe = true) : null), coins: n => (DEMO_OK ? coinsFly(n || 6) : null), voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st), world: () => (DEMO_OK ? G : null) };   // для проверки из браузера (подставить состояние подбора — только localhost)
 })();

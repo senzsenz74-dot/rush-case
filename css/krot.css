@@ -16,6 +16,7 @@ body.pg-krot>div:has(>a[href*="freekassa"]){display:none}   /* баннер ка
 .kr.ready3d .kr-cv{opacity:1}
 .kr.in-room .kr-cv{cursor:grab}
 .kr.in-room.aim .kr-cv{cursor:pointer}
+.kr.in-room.tvh .kr-cv{cursor:pointer}
 .kr.lock .kr-cv{cursor:none}
 .kr-shade{position:absolute;inset:0;pointer-events:none;z-index:1;background:radial-gradient(ellipse 75% 70% at 50% 50%,transparent 55%,rgba(0,0,0,.55)),linear-gradient(180deg,rgba(0,0,0,.35),transparent 18%,transparent 78%,rgba(0,0,0,.45))}
 .kr-ui{position:absolute;inset:0;z-index:2;pointer-events:none}
@@ -95,6 +96,9 @@ kbd{display:inline-block;min-width:18px;margin-right:5px;padding:2px 5px;border-
 .kr-top.crit .kr-tm{animation:krBlink .5s steps(1) infinite}
 .kr-net{font-size:11px;font-style:normal;color:var(--red)}
 .kr.paused .kr-ph{color:var(--amb)}
+.kr-top.kr-glass{background:none;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}   /* владелец 20.11: таймер сверху — просто надпись, без подложки и полоски */
+.kr-top .kr-bar{display:none}
+.kr-top .kr-ph,.kr-top .kr-tm{text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 14px rgba(0,0,0,.75)}
 
 /* ---------- слева сверху: комната ---------- */
 .kr-rm{position:absolute;left:14px;top:14px;z-index:3;display:flex;align-items:stretch;gap:6px}
@@ -563,3 +567,256 @@ body.pg-krot .krmm-bar.float{display:none}
 .kr-rdy b{font:500 15px/1 'Oswald',var(--ff);color:#fff;font-variant-numeric:tabular-nums}
 .kr-rdy .kr-btn{min-height:28px}
 @media (max-width:900px){.kr-rdy{top:60px}}
+
+/* ===== «Русская рулетка»: интерфейс за столом (игроки, барабан, ход, события) ===== */
+.kr-top.mine .kr-ph{color:var(--go)}
+.kr-top.mine{box-shadow:inset 0 0 0 1px rgba(47,191,113,.55),0 16px 44px rgba(0,0,0,.45)}
+.rr-ev{position:absolute;left:50%;top:40%;z-index:5;max-width:calc(100% - 28px);transform:translate(-50%,-50%) scale(.96);text-align:center;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.rr-ev.in{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.rr-ev b{display:block;font:500 56px/1 'Oswald',var(--ff);letter-spacing:.06em;text-transform:uppercase;color:#fff;text-shadow:0 4px 26px rgba(0,0,0,.75)}
+.rr-ev small{display:block;margin-top:10px;font:500 15px/1.3 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase;color:var(--tx);text-shadow:0 2px 12px rgba(0,0,0,.8)}
+.rr-ev.start b{color:var(--a)}
+.rr-ev.click b{color:#dfe6ee}
+.rr-ev.bang b{color:var(--red);font-size:72px}
+.rr-ev.spin b{font-size:28px;color:var(--tx2)}
+.rr-fl{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0}
+.rr-fl.on{animation:rrFlash .7s ease-out}
+.rr-fl.on.me{animation:rrFlashMe 1.6s ease-out forwards}
+@keyframes rrFlash{0%{opacity:1;background:radial-gradient(circle at 50% 55%,rgba(255,230,190,.45),rgba(150,0,0,.35) 70%)}100%{opacity:0;background:radial-gradient(circle at 50% 55%,rgba(255,230,190,.45),rgba(150,0,0,.35) 70%)}}
+@keyframes rrFlashMe{0%{opacity:1;background:#fff}15%{opacity:1;background:#7a0000}100%{opacity:.0;background:#120000}}
+@keyframes rrIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+.kr.rr-dead .kr-cv{filter:grayscale(.85) brightness(.75)}
+.rr-nx{padding:12px 20px 13px;text-align:center}
+.rr-nx .kr-t{margin:4px 0 2px;font-size:24px}
+.rr-nx p{margin:4px 0 0;font-size:13px;color:var(--tx2)}
+.rr-nx p b{color:#fff}
+.rr-res::before{background:var(--a)}
+.rr-rl td.rr-plc{width:52px;font:500 18px/1 'Oswald',var(--ff);color:#fff}
+.rr-rl tr.win td{background:rgba(47,191,113,.08)}
+.rr-rl tr.win td.rr-plc{color:var(--go)}
+@media (max-width:900px){
+  .rr-ev b{font-size:40px}
+  .rr-ev.bang b{font-size:52px}
+}
+@media (prefers-reduced-motion:reduce){.rr-cap.in{animation:none}.rr-fl.on,.rr-fl.on.me{animation-duration:.01s}}
+.kr.in-room:not(.loading) .kr-shade{background:radial-gradient(ellipse 72% 68% at 50% 54%,transparent 42%,rgba(0,0,0,.42) 72%,rgba(0,0,0,.78)),linear-gradient(180deg,rgba(0,0,0,.3),transparent 16%,transparent 80%,rgba(0,0,0,.4))}   /* рулетка: виньетка, как в кино */
+.rr-ev.start b{color:#f4f1ea;letter-spacing:.14em}
+.rr-ev.start small{margin-top:14px;font-size:17px;letter-spacing:.32em;color:rgba(244,241,234,.85)}
+/* «Русская рулетка»: субтитры как в играх (владелец 20.11, образец — подпись реплики внизу экрана) */
+.rr-cap{position:absolute;left:50%;bottom:64px;z-index:4;display:flex;flex-direction:column;align-items:center;gap:20px;width:min(900px,calc(100% - 28px));transform:translateX(-50%);text-align:center;pointer-events:none}
+.rr-cap[hidden]{display:none}
+.rr-cap.in{animation:rrCap .6s ease}
+.rr-line{margin:0;padding:5px 46px 6px;background:linear-gradient(90deg,transparent,rgba(0,0,0,.58) 18%,rgba(0,0,0,.58) 82%,transparent);font:400 16px/1.35 Georgia,"Times New Roman",serif;color:#ece6da;letter-spacing:.01em;text-shadow:0 1px 2px rgba(0,0,0,.95)}
+.rr-who{font-weight:400;color:#d8b779}
+.rr-nar{font-style:italic;color:rgba(236,230,218,.82)}
+.rr-keys{display:flex;align-items:flex-end;gap:22px;pointer-events:auto}
+.rr-kb{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0;border:0;background:none;cursor:pointer;font:400 12px/1 Georgia,"Times New Roman",serif;color:rgba(236,230,218,.85);text-shadow:0 1px 2px rgba(0,0,0,.95)}
+.rr-kb:disabled{opacity:.4;cursor:default}
+.rr-k{position:relative;display:grid;place-items:center;min-width:42px;height:40px;padding:0 12px 6px;border-radius:8px;background:linear-gradient(180deg,#30353c,#121418 70%,#0b0c0f);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),inset 0 -2px 0 rgba(0,0,0,.7),0 2px 0 #050607,0 8px 16px rgba(0,0,0,.7);font:700 15px/1 Manrope,var(--ff);color:#f2f4f6;text-transform:uppercase;letter-spacing:.03em;transition:transform .07s,box-shadow .07s}
+.rr-k::before{content:"";position:absolute;left:4px;right:4px;top:3px;bottom:8px;border-radius:5px;background:radial-gradient(120% 90% at 50% 20%,#454b53,#272b31 55%,#1c1f24);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 -3px 6px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.5)}
+.rr-k::after{content:"";position:absolute;inset:-2px;border-radius:10px;box-shadow:0 0 0 1px rgba(255,236,205,.1);pointer-events:none}   /* без пульса (владелец 20.11): тонкая светлая обводка */
+.rr-k b{position:relative;margin-top:-4px;font-weight:700;text-shadow:0 1px 0 rgba(0,0,0,.6),0 0 8px rgba(255,255,255,.15)}
+.rr-k.wide{min-width:150px;font-size:10px;letter-spacing:.24em}
+.rr-kb:hover:not(:disabled) .rr-k::before{background:radial-gradient(120% 90% at 50% 20%,#50565f,#2d3238 55%,#202328)}
+.rr-kb:active:not(:disabled) .rr-k,.rr-k.down{transform:translateY(3px);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -1px 0 rgba(0,0,0,.7),0 0 0 #050607,0 3px 8px rgba(0,0,0,.6)}
+.rr-k.down::after{box-shadow:0 0 0 1px rgba(255,236,205,.45),0 0 14px rgba(255,236,205,.3)}
+.rr-wave{position:fixed;z-index:9999;pointer-events:none;border:1.5px solid rgba(255,236,205,.8);border-radius:8px;box-shadow:0 0 12px rgba(255,236,205,.35),inset 0 0 10px rgba(255,236,205,.18)}   /* волна от нажатия клавиши (keyWave в js/krot.js) */
+@keyframes rrCap{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+.kr.my-turn .kr-keys{display:none}
+.kr.rr-dead .rr-cap{bottom:150px}
+@media (max-width:900px){.rr-cap{bottom:16px}.rr-line{font-size:14px;padding:4px 24px}.rr-keys{gap:16px}.rr-k{height:38px;min-width:40px}.rr-k.wide{min-width:120px}}
+/* «Русская рулетка»: окно Tab в стиле таблицы счёта CS2 (образец владельца 20.11) */
+.kr-ov.players{background:rgba(0,0,0,.12);-webkit-backdrop-filter:none;backdrop-filter:none}
+.rr-sb{width:min(860px,100%);background:linear-gradient(180deg,rgba(52,55,60,.9),rgba(34,36,40,.9));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 0 0 1px rgba(255,255,255,.06),0 18px 50px rgba(0,0,0,.55);border-radius:2px;font:500 12px/1.2 Manrope,var(--ff);color:#d8dbdf}
+.rr-sbh{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 14px;background:rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.06)}
+.rr-sbt{display:flex;align-items:center;gap:8px;font:500 13px/1 Oswald,var(--ff);letter-spacing:.06em;text-transform:uppercase;color:#e9ecef}
+.rr-sbt svg{width:20px;height:20px;color:#c9ccd1}
+.rr-sbt i{font-style:normal;color:rgba(255,255,255,.3)}
+.rr-sbr{font:500 12px/1 Oswald,var(--ff);letter-spacing:.08em;text-transform:uppercase;color:#aeb3ba}
+.rr-sbsub{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:11px;color:#9ea3aa}
+.rr-sbsub svg{width:13px;height:13px}
+.rr-sbsep{width:1px;height:10px;background:rgba(255,255,255,.18)}
+.rr-sbb{display:flex;gap:14px;padding:8px 14px 12px}
+.rr-sbq{flex:none;display:flex;flex-direction:column;align-items:center;gap:4px;width:96px;padding-top:4px;text-align:center}
+.rr-sbn{display:grid;place-items:center;width:62px;height:62px;border-radius:4px;background:rgba(10,14,22,.55);box-shadow:inset 0 0 0 2px #6d8fc1,0 0 14px rgba(109,143,193,.25);font:500 34px/1 Oswald,var(--ff);color:#fff}
+.rr-sbq b{margin-top:4px;font:500 12px/1 Oswald,var(--ff);letter-spacing:.12em;text-transform:uppercase;color:#9fb6da}
+.rr-sbq small{font-size:10.5px;line-height:1.3;color:#8f949b}
+.rr-sbg{flex:1;min-width:0;border-collapse:separate;border-spacing:0 2px}
+.rr-sbg th{padding:0 8px 4px;font:600 10.5px/1 Manrope,var(--ff);color:#8f949b;text-align:right;white-space:nowrap}
+.rr-sbg td{height:28px;padding:0 8px;background:rgba(0,0,0,.22);text-align:right;font-variant-numeric:tabular-nums;color:#d4d7db;white-space:nowrap}
+.rr-sbg tbody tr:nth-child(even) td{background:rgba(0,0,0,.14)}
+.rr-sbg td.x{width:14px;padding:0 0 0 6px;text-align:center;color:#c9584f;font-size:11px;background:transparent!important}
+.rr-sbg td.mic,.rr-sbg td.av{width:22px;padding:0 3px;text-align:center}
+.rr-sbmic{display:inline-grid;place-items:center;color:rgba(255,255,255,.18)}
+.rr-sbmic svg{width:13px;height:13px}
+.rr-sbmic.on{color:#7ee2a2;filter:drop-shadow(0 0 4px rgba(126,226,162,.7))}
+.rr-sbg td.av b{display:grid;place-items:center;width:20px;height:20px;border-radius:2px;background:linear-gradient(180deg,#4a5260,#2b3038);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);font:600 10px/1 Oswald,var(--ff);color:#dfe3e8}
+.rr-sbg th.nm,.rr-sbg td.nm{width:100%;text-align:left}
+.rr-sbg td.nm span{font-weight:700;color:#e8eaed}
+.rr-sbg td.nm small{margin-left:6px;color:#8f949b}
+.rr-sbg td.nm .kr-vst{margin-left:8px;font-style:normal}
+.rr-sbg td.st{font:500 11px/1 Oswald,var(--ff);letter-spacing:.08em;text-transform:uppercase;color:#aeb3ba}
+.rr-sbg td.st.turn{color:#84d9fd}.rr-sbg td.st.dead,.rr-sbg td.st.off{color:#d06a60}.rr-sbg td.st.win{color:#7ee2a2}
+.rr-sbg td.pt{color:#e8eaed;font-weight:700}
+.rr-sbg tr.me td{background:linear-gradient(90deg,rgba(214,186,104,.42),rgba(214,186,104,.22))!important;color:#fff}
+.rr-sbg tr.me td.nm span{color:#fff}
+.rr-sbg tr.me td.x+td{box-shadow:inset 3px 0 0 #e2c46e}
+.rr-sbg tr.turn:not(.me) td{background:rgba(132,217,253,.1)!important}
+.rr-sbg tr.dead td:not(.x){opacity:.5}
+.rr-sbg td.ct{padding:0 4px;width:1px}
+.rr-sbc{display:inline-flex;align-items:center;gap:6px;opacity:0;transition:opacity .15s}
+.rr-sbg tr:hover .rr-sbc,.rr-sbc:focus-within{opacity:1}
+.rr-sbi{display:grid;place-items:center;width:22px;height:22px;padding:0;border:0;border-radius:2px;background:rgba(255,255,255,.06);color:#c9ccd1;cursor:pointer}
+.rr-sbi svg{width:13px;height:13px}.rr-sbi.on{color:#e0675d}
+.rr-sbc input[type=range]{width:70px;accent-color:#84d9fd}
+.rr-sbrep{padding:4px 7px;border:0;border-radius:2px;background:rgba(255,255,255,.06);font:500 10px/1 Oswald,var(--ff);letter-spacing:.06em;text-transform:uppercase;color:#aeb3ba;cursor:pointer}
+.rr-sbrep:hover,.rr-sbi:hover{background:rgba(255,255,255,.14);color:#fff}
+.rr-sbf{display:flex;justify-content:space-between;gap:12px;padding:6px 14px 8px;border-top:1px solid rgba(255,255,255,.05);font-size:10.5px;color:#7f848b}
+@media (max-width:700px){.rr-sbq{display:none}.rr-sbg th:nth-child(6),.rr-sbg td:nth-child(6),.rr-sbg th:nth-child(7),.rr-sbg td:nth-child(7){display:none}.rr-sbc{opacity:1}.rr-sbc input[type=range]{width:50px}}
+/* «Русская рулетка»: начало раунда — полоса через весь экран по центру, как «Бомба взорвалась» в «Краше» (.cr-boomtxt в style.css) */
+.rr-band{position:absolute;left:0;right:0;top:50%;z-index:6;display:none;flex-direction:column;align-items:center;gap:8px;padding:16px 0 18px;transform:translateY(-50%);pointer-events:none;background:linear-gradient(90deg,transparent,rgba(12,10,10,.8) 22%,rgba(12,10,10,.8) 78%,transparent);box-shadow:inset 0 1px 0 rgba(255,90,77,.55),inset 0 -1px 0 rgba(255,90,77,.55)}
+.rr-band.in,.rr-band.out{display:flex}
+.rr-band.in{animation:rrBandIn .45s cubic-bezier(.2,.9,.3,1) both}
+.rr-band.out{animation:rrBandOut .5s ease both}
+.rr-band b{font:500 clamp(48px,6vw,76px)/1 Oswald,var(--ff);letter-spacing:.04em;text-transform:uppercase;color:#ff5a4d;text-shadow:0 0 30px rgba(255,90,40,.55)}
+.rr-band small{font:500 14px/1 Oswald,var(--ff);letter-spacing:.32em;text-transform:uppercase;color:#ffb3a8}
+@keyframes rrBandIn{from{opacity:0;transform:translateY(-50%) scaleY(.2)}to{opacity:1;transform:translateY(-50%) scaleY(1)}}
+@keyframes rrBandOut{from{opacity:1}to{opacity:0;visibility:hidden}}
+@media (prefers-reduced-motion:reduce){.rr-band.in,.rr-band.out{animation:none}.rr-band.out{display:none}}
+/* ===== Русская рулетка: монетки-очки на главной («Играть ещё» → главная, владелец 20.11) ===== */
+.rr-coin{position:fixed;left:0;top:0;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;z-index:9999;pointer-events:none;will-change:transform,opacity;background:radial-gradient(circle at 34% 30%,#ffffff 0 10%,#e4e9ee 30%,#a9b2bc 62%,#6c7680 100%);box-shadow:inset 0 0 0 1.5px #5d6670,0 0 0 2px rgba(220,230,240,.22),0 0 14px rgba(200,220,240,.5)}
+.rr-coin::after{content:'';position:absolute;inset:6px;border-radius:50%;border:1.5px solid rgba(80,90,100,.55)}
+.rr-coin-tag{position:fixed;z-index:9999;pointer-events:none;white-space:nowrap;font:500 20px/1 Oswald,'Arial Narrow',sans-serif;letter-spacing:1px;text-transform:uppercase;color:#e8eef3;text-shadow:0 0 12px rgba(200,220,240,.45),0 2px 10px rgba(0,0,0,.7);transform:translate(0,-50%)}
+
+/* ===== Чат как на Twitch (владелец 20.11): без подложки и шапки, ник цветом места, новые снизу, старые уходят вверх и гаснут;
+   поле ввода — стекло, внутри микрофон и отправка; свернуть/открыть — кнопка «Чат» (видна всегда); поддержка сайта в режиме скрыта ===== */
+.kr-chat.kr-glass{background:none;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
+.kr-chat{top:auto;bottom:64px;height:min(48vh,440px);width:340px}
+.kr.chat-on .kr-chb{display:flex}
+.kr.chat-on .kr-chb{box-shadow:inset 0 0 0 1px rgba(132,217,253,.45);color:#fff}
+.kr-msgs{gap:3px;padding:6px 2px 4px;scrollbar-width:none;-webkit-mask-image:linear-gradient(180deg,transparent,#000 26%);mask-image:linear-gradient(180deg,transparent,#000 26%)}
+.kr-msgs::-webkit-scrollbar{display:none}
+.kr-msgs>:first-child{margin-top:auto}
+.kr-m{padding:1px 2px;font:500 14px/1.4 Manrope,var(--ff);color:#f1f4f6;text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 6px rgba(0,0,0,.85),0 0 1px #000;animation:krIn .22s ease both}
+.kr-mn{margin-right:0;font-weight:800}
+.kr-mn::after{content:':';margin-right:6px;color:#f1f4f6;font-weight:700}
+.kr-mn[data-s="1"]{color:#ff8a65}.kr-mn[data-s="2"]{color:#8be36b}.kr-mn[data-s="3"]{color:#c79bff}.kr-mn[data-s="4"]{color:#ffd45e}.kr-mn[data-s="5"]{color:#5fd4ff}
+.kr-m.me .kr-mn{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.kr-chf{position:relative;align-items:center;gap:2px;margin-top:8px;padding:4px 4px 4px 14px;border:0;border-radius:4px;background:linear-gradient(180deg,rgba(26,30,37,.78),rgba(12,14,18,.84));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.13),0 10px 28px rgba(0,0,0,.45);transition:box-shadow .15s}
+.kr-chf:focus-within{box-shadow:inset 0 0 0 1px rgba(132,217,253,.75),0 0 0 3px rgba(132,217,253,.13),0 10px 28px rgba(0,0,0,.45)}
+.kr-chf input{height:36px;padding:0;border-radius:0;background:none;box-shadow:none;font:500 14px Manrope,var(--ff);color:#fff}
+.kr-chf input:focus{box-shadow:none}
+.kr-chf input::placeholder{color:rgba(255,255,255,.4)}
+.kr-chf input:disabled{cursor:not-allowed}
+.kr-chf .kr-vc{flex:none;justify-content:center;width:34px;height:34px;margin:0;padding:0;border-radius:3px;background:none;box-shadow:none}
+.kr-chf .kr-vc span{display:none}
+.kr-chf .kr-vc svg{width:17px;height:17px}
+.kr-chf .kr-vc:hover{background:rgba(255,255,255,.08);box-shadow:none}
+.kr-chf .kr-vc.tap{width:auto;padding:0 9px}.kr-chf .kr-vc.tap span{display:inline}
+.kr-chf .kr-vc.tx{background:linear-gradient(180deg,#63e682,#2da450)}
+.kr-send{flex:none;width:34px;height:34px;border-radius:3px;background:none;box-shadow:none;color:rgba(255,255,255,.4);transition:background .15s,color .15s}
+.kr-send:hover{background:rgba(255,255,255,.08);color:#fff}
+.kr-chf:has(input:not(:placeholder-shown)) .kr-send{background:#84d9fd;color:#0b1a22}
+body.pg-krot #swFab,body.pg-krot #swPanel{display:none!important}
+@media (max-width:900px){.kr-chat{bottom:62px;height:46%}}
+
+/* ===== Окно «Связь» (голосовой чат) в стиле CS2 (владелец 20.11): стекло, разделы с подписями, переключатели, свои списки ===== */
+.kr-vs2{position:relative;width:min(480px,100%);max-height:calc(100% - 24px);overflow:auto;padding:22px 24px 20px;border-radius:4px;background:linear-gradient(180deg,rgba(32,37,45,.88),rgba(14,16,21,.93));-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),inset 0 1px 0 rgba(255,255,255,.1),0 30px 80px rgba(0,0,0,.6);color:#dfe5ea;font:500 13px/1.45 Manrope,var(--ff);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;animation:vsIn .28s cubic-bezier(.2,.9,.3,1.08) both}
+.kr-vs2 .kr-ovx{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:2px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:#aeb5c2}
+.kr-vs2 .kr-ovx:hover{background:rgba(255,255,255,.1);color:#fff}
+.vs-hd{margin:0 44px 16px 0}
+.vs-k{display:block;font:500 11px/1 'Oswald',var(--ff);letter-spacing:.26em;text-transform:uppercase;color:#84d9fd}
+.vs-hd h2{margin:7px 0 0;font:500 30px/1 'Oswald',var(--ff);letter-spacing:.03em;text-transform:uppercase;color:#fff}
+.vs-st{display:flex;align-items:center;gap:10px;min-height:42px;padding:8px 8px 8px 12px;border-radius:3px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);font-size:13px;line-height:1.4;color:#c9d1d8}
+.vs-st>i{flex:none;width:8px;height:8px;border-radius:50%;background:#7c858e;box-shadow:0 0 0 3px rgba(124,133,142,.18)}
+.vs-st>span{flex:1;min-width:0}
+.vs-st.ok>i{background:#4fdc8a;box-shadow:0 0 0 3px rgba(79,220,138,.18),0 0 10px rgba(79,220,138,.6)}
+.vs-st.warn>i{background:#f0b44c;box-shadow:0 0 0 3px rgba(240,180,76,.18)}
+.vs-st.bad{background:rgba(255,80,70,.07);box-shadow:inset 0 0 0 1px rgba(255,92,82,.35);color:#ffc9c4}
+.vs-st.bad>i{background:#ff5c52;box-shadow:0 0 0 3px rgba(255,92,82,.2),0 0 10px rgba(255,92,82,.6)}
+.vs-sec{margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.07)}
+.vs-lb{display:block;margin-bottom:10px;font:500 11px/1 'Oswald',var(--ff);letter-spacing:.2em;text-transform:uppercase;color:#7c858e}
+.kr-vs2 .kr-seg{margin:0;border-radius:3px;background:rgba(0,0,0,.22);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.kr-vs2 .kr-seg button{padding:11px 8px;font-size:13px;letter-spacing:.12em;transition:background .15s,color .15s}
+.kr-vs2 .kr-seg button:hover:not(.on){background:rgba(255,255,255,.05);color:#fff}
+.kr-vs2 .kr-vsm{height:6px;margin:12px 0 0;border-radius:3px;background:rgba(255,255,255,.07);box-shadow:none}
+.vs-hint{margin:9px 0 0;font-size:12px;color:#8a939b}
+.vs-row{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:12px;margin-top:10px;font-size:13px;color:#aab3bb}
+.vs-lb+.vs-row{margin-top:0}
+.vs-row select{width:100%;min-width:0;height:36px;padding:0 34px 0 12px;border:0;border-radius:3px;-webkit-appearance:none;appearance:none;background:rgba(0,0,0,.3) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23aab3bb' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 12px center/12px 8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:#fff;font:600 13px Manrope,var(--ff);cursor:pointer;outline:none;transition:box-shadow .15s}
+.vs-row select:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.26)}
+.vs-row select:focus{box-shadow:inset 0 0 0 1px #84d9fd}
+.vs-row select option{background:#14181d;color:#fff}
+.vs-row input[type=range]{width:100%;accent-color:#84d9fd}
+.vs-tgs{padding-top:6px}
+.vs-tg{display:flex;align-items:center;gap:14px;padding:10px 0;cursor:pointer}
+.vs-tg+.vs-tg{border-top:1px solid rgba(255,255,255,.05)}
+.vs-tg>span{flex:1;font-size:13.5px;color:#e6ebef}
+.vs-tg small{display:block;margin-top:2px;font-size:12px;color:#7f8890}
+.vs-tg input{flex:none;position:relative;width:38px;height:20px;margin:0;border-radius:10px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);cursor:pointer;transition:background .18s,box-shadow .18s}
+.vs-tg input::before{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#aeb5bd;transition:transform .2s cubic-bezier(.3,1.3,.5,1),background .18s,box-shadow .18s}
+.vs-tg input:checked{background:rgba(132,217,253,.26);box-shadow:inset 0 0 0 1px rgba(132,217,253,.7)}
+.vs-tg input:checked::before{transform:translateX(18px);background:#84d9fd;box-shadow:0 0 8px rgba(132,217,253,.7)}
+.vs-tg input:focus-visible{outline:2px solid #84d9fd;outline-offset:2px}
+.vs-tg:hover>span{color:#fff}
+.vs-warn{margin:8px 0 0;padding:8px 10px;border-radius:3px;background:rgba(240,180,76,.08);box-shadow:inset 0 0 0 1px rgba(240,180,76,.3);color:#ffe3b5;font-size:12.5px}
+.vs-ft{display:flex;gap:8px;margin-top:16px}
+.vs-btn{flex:1;height:40px;border:0;border-radius:3px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#e6ebef;font:500 13px/1 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}
+.vs-btn:hover{background:rgba(255,255,255,.11);box-shadow:inset 0 0 0 1px rgba(132,217,253,.5);color:#fff}
+.vs-go{flex:none;height:30px;padding:0 12px;border:0;border-radius:3px;background:linear-gradient(180deg,#3d9a5c,#2a7543);box-shadow:inset 0 0 0 1px rgba(140,240,170,.45);color:#effff3;font:500 11.5px/1 'Oswald',var(--ff);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.vs-go:hover{background:linear-gradient(180deg,#47ad69,#2f824b)}
+.vs-help{margin-top:14px;font-size:12px;color:#8a939b}
+.vs-help summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer;color:#aab3bb;font:500 11.5px/1 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase}
+.vs-help summary::-webkit-details-marker{display:none}
+.vs-help summary::before{content:'+';display:grid;place-items:center;width:16px;height:16px;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);font:600 12px/1 Manrope,var(--ff);color:#84d9fd}
+.vs-help[open] summary::before{content:'−'}
+.vs-help summary:hover{color:#fff}
+.vs-help p{margin:8px 0 0;line-height:1.5}
+@keyframes vsIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.kr-vs2{animation:none}}
+
+/* ===== Чат компактнее (владелец 20.11): сообщения видны всегда (поверх игры, клики сквозь них), поле ввода — только когда чат открыт
+   (кнопка «Чат» или Enter); микрофон — отдельная квадратная кнопка слева от «Чат» ===== */
+.kr-chat{height:min(32vh,280px)}
+.kr:not(.chat-on) .kr-chat{transform:none;opacity:1;pointer-events:none}
+.kr:not(.chat-on) .kr-chf{display:none}
+.kr:not(.chat-on) .kr-msgs{overflow:hidden}
+.kr-dock{position:absolute;right:14px;bottom:14px;z-index:3;display:flex;align-items:center;gap:8px}
+.kr-dock .kr-chb{position:static}
+.kr-chb #krUnr{display:none}
+.kr-dock .kr-vc{display:grid;place-items:center;width:40px;height:40px;margin:0;padding:0;border:0;border-radius:3px;background:linear-gradient(180deg,rgba(30,35,43,.74),rgba(13,16,21,.8));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),0 10px 26px rgba(0,0,0,.4);color:#c9d1d8;cursor:pointer;transition:box-shadow .15s,color .15s}
+.kr-dock .kr-vc span{display:none}
+.kr-dock .kr-vc svg{width:18px;height:18px}
+.kr-dock .kr-vc:hover{color:#fff;box-shadow:inset 0 0 0 1px rgba(132,217,253,.55),0 10px 26px rgba(0,0,0,.4)}
+.kr-dock .kr-vc.ok{color:#9ff5c2}
+.kr-dock .kr-vc.bad{color:#ff8a80;box-shadow:inset 0 0 0 1px rgba(255,92,82,.5),0 10px 26px rgba(0,0,0,.4)}
+.kr-dock .kr-vc.warn{color:#ffe3b5}
+.kr-dock .kr-vc.tx{color:#0b3516;background:linear-gradient(180deg,#63e682,#2da450);box-shadow:0 0 14px rgba(94,226,124,.55)}
+.kr-dock .kr-vc.tap{display:flex;gap:6px;width:auto;padding:0 12px;color:#fff;font:500 11px/1 'Oswald',var(--ff);letter-spacing:.1em;text-transform:uppercase}
+.kr-dock .kr-vc.tap span{display:inline}
+.kr.loading .kr-dock{display:none}
+@media (max-width:900px){.kr-dock{right:12px;bottom:12px}.kr-chat{height:34%}}
+/* ===== Фразы событий (владелец 20.11): полосой, как «Раунд» — фон гаснет к краям, тонкие черты сверху и снизу тоже гаснут; не во всю ширину;
+   цвет по событию: «В барабане пусто» — голубой, «Выстрел» — красный, с дрожью ===== */
+.rr-ev{top:38%;width:min(620px,calc(100% - 28px));max-width:none;padding:15px 0 17px;background:linear-gradient(90deg,transparent,rgba(10,12,16,.8) 22%,rgba(10,12,16,.8) 78%,transparent);transition:none}
+.rr-ev::before,.rr-ev::after{content:'';position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--evl,#84d9fd) 22%,var(--evl,#84d9fd) 78%,transparent);transform:scaleX(0)}
+.rr-ev::before{top:0}
+.rr-ev::after{bottom:0}
+.rr-ev b{font-size:44px;letter-spacing:.05em;text-shadow:0 0 26px var(--evg,transparent),0 2px 14px rgba(0,0,0,.6)}
+.rr-ev small{margin-top:8px;font-size:13px;letter-spacing:.3em;color:var(--evs,rgba(236,240,244,.82))}
+.rr-ev.click{--evl:rgba(132,217,253,.85);--evg:rgba(132,217,253,.3);--evs:#bfe9fb}
+.rr-ev.click b{color:#eef6fb}
+.rr-ev.bang{--evl:rgba(255,90,77,.9);--evg:rgba(255,90,40,.55);--evs:#ffb3a8}
+.rr-ev.bang b{font-size:56px;color:#ff5a4d}
+.rr-ev.in{opacity:1;animation:rrEvIn .42s cubic-bezier(.2,.9,.3,1) both}
+.rr-ev.bang.in{animation:rrEvIn .42s cubic-bezier(.2,.9,.3,1) both,rrEvShake .4s .05s both}
+.rr-ev.in::before,.rr-ev.in::after{animation:rrEvLine .55s .06s cubic-bezier(.2,.8,.2,1) both}
+.rr-ev.out::before,.rr-ev.out::after{transform:scaleX(1)}
+.rr-ev.out{animation:rrEvOut .3s ease both}
+@keyframes rrEvIn{from{opacity:0;transform:translate(-50%,-50%) scaleY(.35)}to{opacity:1;transform:translate(-50%,-50%) scaleY(1)}}
+@keyframes rrEvOut{from{opacity:1}to{opacity:0;transform:translate(-50%,-50%) scaleY(.85)}}
+@keyframes rrEvShake{0%,100%{margin-left:0}20%{margin-left:-7px}40%{margin-left:6px}60%{margin-left:-4px}80%{margin-left:2px}}
+@keyframes rrEvLine{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (max-width:900px){.rr-ev b{font-size:32px}.rr-ev.bang b{font-size:40px}}
+@media (prefers-reduced-motion:reduce){.rr-ev.in,.rr-ev.out,.rr-ev.in::before,.rr-ev.in::after{animation:none}.rr-ev.in::before,.rr-ev.in::after{transform:scaleX(1)}}
+.kr-msgs .kr-m{text-align:right}   /* владелец 20.11: чат выровнен по правому краю — строки заканчиваются у края, как кнопки под ним */
