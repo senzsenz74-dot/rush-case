@@ -50,7 +50,7 @@ const GUN = {   // силуэты оружия, 48×24, дулом вправо
 const PH = { lobby: 'Сбор игроков', play: 'Раунд', next: 'Раунд окончен', done: 'Игра окончена' };
 const HINT = { lobby: 'Ждём пятерых игроков.' };
 // правила «Русской рулетки» (сервер берёт те же числа из настроек): ход, патроны по числу живых, очки за место, пауза между раундами
-const RR = { turn: 20, bul: { 5: 1, 4: 2, 3: 3, 2: 5 }, pts: { 1: 10, 2: 6, 3: 3, 4: 1, 5: 0 }, next: 5 };
+const RR = { turn: 20, bul: { 5: 1, 4: 2, 3: 3, 2: 5 }, pts: { 1: 10, 2: 6, 3: 3, 4: 1, 5: 0 }, next: 5, intro: 15 };   // intro — знакомство за столом до раунда 1 (сервер: site_cfg 'rr'.intro)
 // шанс выстрела: патроны в случайных гнёздах; после k пустых щелчков без прокрутки — b из (6 − k)
 const rrChance = (b, k) => (6 - k > 0 ? Math.min(1, b / (6 - k)) : 1);
 const pct = v => Math.round(v * 100) + '%';
@@ -61,13 +61,14 @@ const REASON = { majority: 'большинством голосов', revote: '�
 const CANCEL = { disconnect: 'игрок не вернулся вовремя', few_votes: 'проголосовало меньше двух Оперативников', abandoned: 'все игроки вышли' };
 const REPORT = [['abuse', 'Оскорбления'], ['cheat', 'Подсказки со стороны или сговор'], ['spam', 'Спам в чате'], ['afk', 'Не участвует в игре'], ['other', 'Другое']];
 const ERR = { 'not authenticated': 'Войдите в аккаунт, чтобы играть', 'not in room': 'Вы не в этой комнате', 'room not found': 'Комната с таким кодом не найдена',
-  'already started': 'В этой комнате игра уже идёт', 'room full': 'В комнате уже 4 игрока', 'too many rooms': 'Слишком много комнат за час — попробуйте позже',
+  'already started': 'В этой комнате игра уже идёт', 'room full': 'В комнате уже 5 игроков', 'too many rooms': 'Слишком много комнат за час — попробуйте позже',
   'not lobby': 'Игра уже началась', 'not talk': 'Кнопка работает только во время обсуждения', 'closed': 'Голосование уже закрыто', 'vote locked': 'Ваш голос уже зафиксирован', 'bad box': 'Этот контейнер сейчас выбрать нельзя',
   'empty': 'Пустое сообщение', 'too long': 'Слишком длинное сообщение', 'too fast': 'Не так быстро — подождите секунду', 'repeat': 'Такое сообщение уже было',
   'too many reports': 'Слишком много жалоб — попробуйте позже', 'bad player': 'Этого игрока выбрать нельзя',
   'not leader': 'Поиск запускает лидер группы', 'member in game': 'Кто-то из группы ещё доигрывает матч', 'in game': 'Сначала доиграйте текущий матч',
-  'party not found': 'Группа с таким кодом не найдена', 'party full': 'В группе уже 4 человека', 'party busy': 'Группа сейчас принимает матч — попробуйте через полминуты',
-  'match pending': 'Сначала ответьте на «Ваша игра готова!»', 'no match': 'Матч уже не ждёт ответа', 'too late': 'Время на «Принять» вышло' };
+  'party not found': 'Группа с таким кодом не найдена', 'party full': 'В группе уже 5 человек', 'party busy': 'Группа сейчас принимает матч — попробуйте через полминуты',
+  'match pending': 'Сначала ответьте на «Ваша игра готова!»', 'no match': 'Матч уже не ждёт ответа', 'too late': 'Время на «Принять» вышло',
+  'not your turn': 'Сейчас не ваш ход', 'dead': 'Выбывшие только читают чат' };
 const ICO = {
   eye: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>',
   eyeOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.3 6.4C3.6 8.2 2 12 2 12s3.6 7 10 7c1.8 0 3.3-.5 4.6-1.2M9.9 9.9a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>',
@@ -123,7 +124,8 @@ let lastSec = -1, lastKick = 0, sent = { y: 9, p: 9, t: 0 }, drag = null;
 const H = {};
 
 /* ---------- связь с сервером (или демо) ---------- */
-const SRV = { async rpc(n, a) { const { data, error } = await sb.rpc(n, a || {}); if (error) throw error; return data; } };
+// сервер «Русской рулетки» — функции rr_* (supabase/roulette.sql); имена krot_* в коде остались от «Крота» (их же понимают демо и демо-подбор)
+const SRV = { async rpc(n, a) { const { data, error } = await sb.rpc(n.replace(/^krot_/, 'rr_'), a || {}); if (error) throw error; return data; } };
 
 /* ============================================================
    Вход на страницу / уход
@@ -186,7 +188,7 @@ function listen() {
     else if (e.button === 0 && drag && !drag.moved && G) { if (G.aimBtn() && canBtn()) voteReady(); else { const a = G.aim(); if (a && canPick()) vote(a); } }   // клик без перетаскивания — выбор контейнера
     drag = null; if (root) root.classList.remove('drag');
   };
-  H.bu = e => { if (S && room && ['brief', 'talk', 'vote', 'revote'].includes(S.room.phase)) { e.preventDefault(); e.returnValue = ''; } };
+  H.bu = e => { if (S && room && ['play', 'next'].includes(S.room.phase) && S.me && S.me.alive !== false) { e.preventDefault(); e.returnValue = ''; } };
   H.blur = () => { if (plTemp) showPlayers(false); vcKey(false); };
   window.addEventListener('keydown', H.kd, true); window.addEventListener('keyup', H.ku, true);
   document.addEventListener('pointerlockchange', H.plc); window.addEventListener('resize', H.res); window.addEventListener('scroll', H.scr, { passive: true });
@@ -388,7 +390,7 @@ async function ready() {
   try { await api.rpc('krot_ready', { p_room: room, p_ready: !S.me.ready }); await refresh(); } catch (e) { note(errText(e), 'err'); } finally { busy = false; }
 }
 function leaveAsk() {
-  if (S && ['brief', 'talk', 'vote', 'revote'].includes(S.room.phase)) openOv('leave'); else leave();
+  if (S && ['play', 'next'].includes(S.room.phase) && S.me && S.me.alive !== false) openOv('leave'); else leave();
 }
 async function leave() {
   const id = room, ph = S && S.room.phase;
@@ -549,20 +551,20 @@ async function realtime(id, g) {
   if (!sb) return;
   try { const { data } = await sb.auth.getSession(); if (data && data.session && sb.realtime.setAuth) sb.realtime.setAuth(data.session.access_token); } catch (e) { /* без токена Realtime молчит, выручит пульс */ }
   if (g !== gen || id !== room) return;
-  chDb = sb.channel('krot-db-' + id)
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'krot_rooms', filter: 'id=eq.' + id }, () => soon())
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'krot_chat', filter: 'room_id=eq.' + id }, p => { if (p && p.new) addChat([rowMsg(p.new)]); })
+  chDb = sb.channel('rr-db-' + id)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rr_rooms', filter: 'id=eq.' + id }, () => soon())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rr_chat', filter: 'room_id=eq.' + id }, p => { if (p && p.new) addChat([rowMsg(p.new)]); })
     .subscribe();
   const onRt = ch => ch.on('broadcast', { event: 'h' }, m => { const q = m && m.payload; if (G && q && q.s) G.head(q.s, q.y, q.p); })
     .on('broadcast', { event: 'rtc' }, m => { if (m && m.payload && VC.core) VC.core.onSig(m.payload); });
   const sendOn = ch => p => ch.send({ type: 'broadcast', event: 'rtc', payload: p });
-  chRt = onRt(sb.channel('krot:' + id, { config: { private: true, broadcast: { self: false } } }));
+  chRt = onRt(sb.channel('rr:' + id, { config: { private: true, broadcast: { self: false } } }));
   chRt.subscribe(st3 => {
     if (g !== gen || id !== room) return;
     if (st3 === 'SUBSCRIBED') vcSigReady(sendOn(chRt));
     else if ((st3 === 'CHANNEL_ERROR' || st3 === 'TIMED_OUT') && !chRt._pub) {   // закрытый канал не пустили — запасной (имя знают только игроки комнаты)
       try { sb.removeChannel(chRt); } catch (e) { /* уже */ }
-      chRt = onRt(sb.channel('krotpub:' + id + ':' + ((S && S.room.code) || ''), { config: { broadcast: { self: false } } })); chRt._pub = true;
+      chRt = onRt(sb.channel('rrpub:' + id + ':' + ((S && S.room.code) || ''), { config: { broadcast: { self: false } } })); chRt._pub = true;
       const ch = chRt; ch.subscribe(st4 => { if (st4 === 'SUBSCRIBED' && g === gen && id === room) vcSigReady(sendOn(ch)); });
     }
   });
@@ -632,13 +634,13 @@ async function checkProof() {
    ============================================================ */
 function drawMenu(wait) {
   if (!root) return;
-  view = 'menu'; root.classList.remove('in-room', 'chat-on', 'lock', 'show-res', 'aim', 'can-pick', 'paused'); root.classList.add('in-menu'); delete root.dataset.ph;
+  view = 'menu'; document.body.classList.remove('krot-room'); setTimeout(setTop); root.classList.remove('in-room', 'chat-on', 'lock', 'show-res', 'aim', 'can-pick', 'paused'); root.classList.add('in-menu'); delete root.dataset.ph;
   if (G) G.menu(true);
   const can = authed() || api === Demo;
   ui.innerHTML = `<div class="kr-menu"><section class="kr-mbox kr-glass">
-    <img class="kr-logo" src="assets/main/krot-logo.webp" alt="Режим КРОТ — RUSH CASE" draggable="false">
-    <p class="kr-tag">Четыре контейнера, одна цель и один предатель. Три Оперативника ищут цель по уликам — Крот уводит их разговором.</p>
-    <ul class="kr-facts"><li><b>4</b><span>игрока</span></li><li><b>~3</b><span>минуты</span></li><li><b>1</b><span>Крот</span></li></ul>
+    <img class="kr-logo" src="assets/main/rr-logo.webp" alt="Русская рулетка — RUSH CASE" draggable="false">
+    <p class="kr-tag">Пять игроков, один револьвер. Крутите барабан сколько угодно — но выстрелить придётся. Остаётся один.</p>
+    <ul class="kr-facts"><li><b>5</b><span>игроков</span></li><li><b>6</b><span>гнёзд</span></li><li><b>1</b><span>выживет</span></li></ul>
     ${wait ? '<p class="kr-wait"><i class="kr-spin"></i>Проверяем, нет ли у вас идущего матча…</p>' : can ? `
     ${menuPlay()}
     <form class="kr-join" id="krJoin" autocomplete="off"><input id="krCode" maxlength="6" placeholder="Код группы друга" spellcheck="false" aria-label="Код группы друга"><button class="kr-btn">В группу</button></form>` : `
@@ -650,8 +652,8 @@ function drawMenu(wait) {
 // кнопки меню: поиск и группа (подбор как в CS2 — раздел «Подбор матча»)
 function menuPlay() {
   const p = MM.st && MM.st.party, srch = !!(p && p.state === 'search'), n = p ? p.members.length : 1;
-  return `<button class="kr-btn ${srch ? 'red' : 'go'} kr-big" data-a="play"><span>${srch ? 'Отменить поиск' : 'Найти игру'}</span><small>${srch ? 'Идёт поиск: <b id="krMmT">0:00</b>' : n > 1 ? `Группа ${n}/4 · без очков недели` : 'Случайные игроки · очки недели'}</small></button>
-    <button class="kr-btn kr-big" data-a="invite"><span>${n > 1 ? `Группа ${n}/4` : 'Пригласить друзей'}</span><small>Код или ссылка · до 4 человек</small></button>`;
+  return `<button class="kr-btn ${srch ? 'red' : 'go'} kr-big" data-a="play"><span>${srch ? 'Отменить поиск' : 'Найти игру'}</span><small>${srch ? 'Идёт поиск: <b id="krMmT">0:00</b>' : n > 1 ? `Лобби ${n}/5${n >= 5 ? " · без очков недели" : ""}` : 'Случайные игроки · очки недели'}</small></button>
+    <button class="kr-btn kr-big" data-a="invite"><span>${n > 1 ? `Лобби ${n}/5` : 'Создать лобби'}</span><small>Код или ссылка · до 5 человек</small></button>`;
 }
 function drawBusy(on) { if (root) root.classList.toggle('busy', on); }
 function ensureHandlers() {
@@ -664,7 +666,7 @@ function ensureHandlers() {
 }
 
 function drawRoom() {
-  view = 'room'; root.classList.remove('in-menu'); root.classList.add('in-room');
+  view = 'room'; root.classList.remove('in-menu'); root.classList.add('in-room'); document.body.classList.add('krot-room'); setTop();   // владелец 20.11: в игре шапка сайта скрыта
   if (G) G.menu(false);
   ui.innerHTML = `
   <header class="kr-top kr-glass" id="krTop"><span class="kr-ph" id="krPh"></span><b class="kr-tm" id="krTm"></b><i class="kr-bar"><i id="krBar"></i></i><em class="kr-net" id="krNet" hidden>Нет связи — переподключаемся…</em></header>
@@ -677,7 +679,7 @@ function drawRoom() {
   <div class="kr-mid" id="krMid"></div>
   <div class="rr-ev" id="rrEv" aria-live="assertive"></div>
   <div class="rr-band" id="rrBand" aria-live="assertive"></div>
-  <div class="rr-fl" id="rrFl"></div>
+  <div class="rr-fl" id="rrFl"></div><div class="rr-fear" id="rrFear"></div>
   <div class="rr-cap" id="rrAct" hidden></div>
   <div class="kr-hint" id="krHint"></div>
   <div class="kr-air" id="krAir" hidden>${ICO.mic}<span>В эфире</span></div>
@@ -704,7 +706,7 @@ function drawTop() {
   const r = S.room, g = S.game, tp = g && S.players.find(p => p.seat === g.turn), mine = !!(tp && tp.me && r.phase === 'play');
   let t = r.paused ? 'Пауза' : r.phase === 'lobby' ? (r.deadline ? 'Старт через' : PH.lobby) : PH[r.phase] || '';
   if (g && r.phase === 'play') t = `Раунд ${g.round} · ${mine ? 'ваш ход' : 'ход: ' + (tp ? tp.name : '—')}`;
-  if (g && r.phase === 'next') t = `Раунд ${g.round} окончен`;
+  if (g && r.phase === 'next') t = g.round ? `Раунд ${g.round} окончен` : '';   // round 0 — знакомство до раунда 1: без надписей (владелец 20.11)
   ph.textContent = t;
   const top = $('#krTop', root); top.dataset.ph = r.phase; top.classList.toggle('mine', mine);
 }
@@ -751,9 +753,9 @@ function keyWave(kind) {   // от нажатия клавиши на экран
 async function rrAct(kind) {
   if (!myTurn() || actBusy || Date.now() < actLock) return;
   keyDown = kind; keyDownAt = Date.now();   // клавиша на экране вдавливается
-  actBusy = true; drawAct(); keyWave(kind);
+  actBusy = true; drawAct(); keyWave(kind); if (kind === 'shoot') rrFear(true);
   try { await api.rpc(kind === 'spin' ? 'rr_spin' : 'rr_shoot', { p_room: room, p_turn: S.game.n }); }
-  catch (e) { note(errText(e), 'err'); }
+  catch (e) { note(errText(e), 'err'); rrFear(false); }
   finally { actBusy = false; actLock = Date.now() + (kind === 'spin' ? 1250 : 500); soon(); }
 }
 // выбывший смотрит молча: микрофон не передаёт, чат — только чтение
@@ -787,7 +789,7 @@ function rrShot(ev) {   // щелчок и выстрел — после взв�
 function rrEvent(ev) {
   const p = S && S.players.find(x => x.seat === ev.seat), me = !!(p && p.me), nm = p ? (me ? 'вы' : p.name) : '';
   if (G && G.event) G.event(ev);
-  rrSound(ev.kind);
+  rrSound(ev.kind); if (me && (ev.kind === 'click' || ev.kind === 'bang')) rrFear(false); if (me && ev.kind === 'bang' && G && G.specGo) G.specGo(1.5);
   const auto = ev.auto ? 'время вышло · ' : '';
   if (ev.kind === 'start') showBand('Раунд ' + ev.round, (ev.bullets === RR.bul[2] ? 'Финал · ' : '') + 'в револьвере ' + ev.bullets + ' ' + plural(ev.bullets), 3200);   // владелец: «РАУНД №, В РЕВОЛЬВЕРЕ 1 ПАТРОН», в рамке как в «Краше»
   else if (ev.kind === 'spin') { if (!me) { spinNote = { seat: ev.seat, until: Date.now() + 1400 }; drawAct(); } }
@@ -798,12 +800,31 @@ function rrEvent(ev) {
   }
 }
 // звуки владельца (assets/rr/snd, откуда — ПЛАН_РУЛЕТКА.md «Звуки»): прокрутка, взвод курка, пустой выстрел, выстрел; громкость умеренная (владелец не любит громко)
-const SND = { spin: { f: 'spin', vol: .5 }, cock: { f: 'cock', vol: .6 }, click: { f: 'click', vol: .6 }, bang: { f: 'bang', vol: .5 } }, sndBuf = {};
+const SND = { spin: { f: 'spin', vol: .5 }, cock: { f: 'cock', vol: .6 }, click: { f: 'click', vol: .6 }, bang: { f: 'bang', vol: .5 },
+  hum: { f: 'tv-hum', vol: .12 }, tvon: { f: 'tv-on', vol: .5 }, tvoff: { f: 'tv-off', vol: .5 }, heart: { f: 'heart', vol: .55 }, slide: { f: 'slide', vol: .35 }, breath: { f: 'breath', vol: .09 }, music: { f: 'music', vol: .03 } }, sndBuf = {};   // владелец 20.11: гул и вкл/выкл телевизора, сердце, револьвер по столу, дыхание (ПЛАН_РУЛЕТКА.md «Звуки»)
 const COCK_MS = 480;   // взвели курок → через столько мс щелчок или выстрел
 let AC = null;
 function sndLoad() {   // загрузить звуки заранее (при входе за стол)
   try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
-  for (const k in SND) if (!sndBuf[k]) { sndBuf[k] = 1; fetch('assets/rr/snd/' + SND[k].f + '.mp3?v=1').then(r => r.arrayBuffer()).then(b => AC.decodeAudioData(b)).then(buf => { sndBuf[k] = buf; }).catch(() => { delete sndBuf[k]; }); }
+  for (const k in SND) if (!sndBuf[k]) { sndBuf[k] = 1; fetch('assets/rr/snd/' + SND[k].f + '.mp3?v=2').then(r => r.arrayBuffer()).then(b => AC.decodeAudioData(b)).then(buf => { sndBuf[k] = buf; }).catch(() => { delete sndBuf[k]; }); }
+}
+const sndLoop = {};
+function rrLoop(kind, on, fade = .4) {   // фоновые петли (гул телевизора, сердце, дыхание): плавно включить / выключить
+  try {
+    if (!on) { const L = sndLoop[kind]; if (!L) return; delete sndLoop[kind]; const t = AC.currentTime; L.g.gain.cancelScheduledValues(t); L.g.gain.setValueAtTime(L.g.gain.value, t); L.g.gain.linearRampToValueAtTime(0, t + fade); L.src.stop(t + fade + .05); return; }
+    if (sndLoop[kind] || !soundOn()) return;
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const sb = sndBuf[kind]; if (!sb || !sb.duration) return;
+    const src = AC.createBufferSource(), g = AC.createGain(), t = AC.currentTime; src.buffer = sb; src.loop = true;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(SND[kind].vol, t + fade); src.connect(g); g.connect(AC.destination);
+    src.start(t, kind === 'hum' || kind === 'breath' ? Math.random() * sb.duration * .8 : 0); sndLoop[kind] = { src, g, v: SND[kind].vol };
+  } catch (e) { /* звук недоступен */ }
+}
+let fearT = 0;
+function rrFear(on) {   // сердце + страх: с нажатия «Выстрел» до щелчка или выстрела (владелец 20.11)
+  clearTimeout(fearT); rrLoop('heart', on, on ? .05 : .15);
+  const f = root && $('#rrFear', root); if (f) f.classList.toggle('on', on);
+  if (on) fearT = setTimeout(() => rrFear(false), 4000);   // на случай, если ответ сервера потерялся
 }
 function rrSound(kind) {
   if (!soundOn()) return;
@@ -839,9 +860,14 @@ function drawMid() {
   el.className = 'kr-mid'; root.classList.remove('show-res');
   if (G && G.tv) G.tv(ph === 'done' ? tvData() : null);   // итог — на экране на стене (3D)
   if (r.paused) { const p = S.players.find(x => x.seat === r.pause_seat); el.innerHTML = `<section class="kr-pause kr-glass"><span class="kr-h">Пауза</span><h2 class="kr-t">Игрок потерял связь</h2><p>${p ? seatB(p.seat) + esc(p.name) : 'Игрок'} — ждём <b id="krPl">…</b>.</p></section>`; return; }
-  if (ph === 'lobby' && r.mm) { el.className = 'kr-mid ld'; el.innerHTML = loadHtml(); micFill(); return; }   // все приняли — экран загрузки
+  if (ph === 'lobby' && r.mm) { el.className = 'kr-mid ld'; const pl = $('#rlPl', el); if (pl) pl.innerHTML = loadPlayers(); else el.innerHTML = loadHtml(); return; }   // все приняли — экран загрузки
   if (ph === 'lobby') { el.className = 'kr-mid lob'; el.innerHTML = lobbyHtml(); return; }
   if (ph === 'done') { el.className = 'kr-mid res'; root.classList.add('show-res'); el.innerHTML = ''; return; }
+  if (ph === 'next' && g && !g.round) {   // знакомство до раунда 1 (владелец 20.11): «Подготовка к раунду» и отсчёт — только текст, без подложек
+    el.className = 'kr-mid rr-iw';
+    if (!$('#rrInN', el)) el.innerHTML = '<div class="rr-in"><span class="rr-in-t">Подготовка к раунду</span><b class="rr-in-n" id="rrInN"></b></div>';
+    introTick(); return;
+  }
   if (ph === 'next' && g && g.ev && g.ev.kind === 'bang') {
     const d = S.players.find(p => p.seat === g.ev.seat), left = S.players.filter(p => p.alive !== false).length, nb = RR.bul[left];
     el.innerHTML = '';   // владелец 20.11: плашки «Раунд N / ник выбыл» нет — кто выбыл, видно по центру («Выстрел / ник выбыл»)
@@ -850,11 +876,15 @@ function drawMid() {
   if (ph === 'play' && me && me.alive === false) { el.className = 'kr-mid low'; el.innerHTML = `<section class="rr-nx kr-glass"><span class="kr-h">Вы выбыли · ${me.place} место</span><p>Смотрите игру до конца. Живые вас не слышат, чат — только чтение.</p></section>`; return; }
   el.innerHTML = '';
 }
+function introTick() {   // отсчёт «Подготовка к раунду»: новое число раз в секунду, с лёгким «щелчком»; последние 3 — голубым
+  const n = root && $('#rrInN', root); if (!n || !S || !S.room.deadline) return;
+  const sec = Math.max(0, Math.ceil((S.room.deadline - (Date.now() + off)) / 1000)), t = String(sec);
+  if (n.textContent === t) return;
+  n.textContent = t; n.classList.toggle('end', sec <= 3); n.classList.remove('tk'); void n.offsetWidth; n.classList.add('tk');
+}
 // ---------- экран загрузки: все приняли → ~10 с, все успевают открыть игру, проверить микрофон и звук ----------
-const TIPS = ['Зажмите ЛКМ и ведите мышью — осмотритесь за столом.', 'На своём ходу барабан можно крутить сколько угодно раз — клавиша R.',
-  'Не крутили — выстрел из следующего гнезда. После пустых щелчков шанс растёт.', 'Раунд идёт до первого выстрела, потом в барабане на патрон больше.',
-  'Финал один на один: пять патронов из шести.', 'Кто стреляет первым в раунде, сервер решает случайно.', 'Не успели за 20 секунд — револьвер выстрелит сам, без прокрутки.'];
-let loadSent = 0, tipN = rnd(TIPS.length), tipAt = 0, lastLd = null;
+const TIPS = ['Крутить барабан можно сколько угодно раз — но выстрелить всё равно придётся.', 'Не крутили барабан — выстрел будет из следующего гнезда.', 'На ход — 20 секунд. Не успели — револьвер решит за вас.', 'Кто стреляет первым в раунде, решает случай.', 'С каждым раундом патронов больше: один, два, три.', 'В финале один на один в барабане пять патронов из шести.', 'После пустых щелчков шанс растёт. Может, стоит крутануть?', 'Выбывшие смотрят молча — живые их не слышат.', 'Здесь не бывает ничьих. Остаётся один.', 'Удача любит тех, у кого не дрожат руки.', 'Зажмите ЛКМ и ведите мышью — осмотритесь за столом.', 'Tab — таблица игроков: щелчки, прокрутки, места.', 'Победитель получает больше всех очков недели.', 'Деньги на столе — для антуража. Ставка здесь — жизнь.'];   // фразы экрана загрузки (владелец 20.11: тематические)
+let loadSent = 0, tipN = rnd(TIPS.length), tipAt = 0, lastLd = null, slideAt = 0;
 function markLoaded() {   // игра у меня загрузилась (3D готово или без 3D) — сообщаем серверу
   if (!S || !room || loadSent === room || S.room.phase !== 'lobby' || !S.room.mm) return;
   if (!(G || root.classList.contains('no3d'))) return;
@@ -862,27 +892,28 @@ function markLoaded() {   // игра у меня загрузилась (3D г�
   loadSent = room; const id = room;
   api.rpc('krot_loaded', { p_room: id }).then(() => { if (room === id) refresh(); }, () => { loadSent = 0; });
 }
-function loadHtml() {
-  const ps = S.players, n = ps.filter(p => p.loaded).length;
-  const rows = SEATS.map(s2 => {
-    const p = ps.find(q => q.seat === s2); if (!p) return '';
-    return `<li class="${p.loaded ? 'ok' : ''}${p.me ? ' me' : ''}">${seatB(s2)}<span>${esc(p.name)}${p.me ? ' <small>(вы)</small>' : ''}</span><em>${p.loaded ? ICO.ok + 'готов' : '<i class="kr-spin"></i>загрузка'}</em></li>`;
+// экран загрузки как в CS2 (владелец 20.11): кадры комнаты (assets/rr/load/1–6.webp) сменяются с медленным наездом, логотип, игроки,
+// внизу — место, режим, тематические фразы и полоска загрузки; настроек микрофона нет. Перерисовывается только список игроков (иначе сбрасывается показ кадров)
+const LOAD_N = 6;
+function loadPlayers() {
+  return SEATS.map(s2 => {
+    const p = S.players.find(q => q.seat === s2);
+    if (!p) return `<li class="wait"><b>${s2}</b><span>ждём игрока…</span></li>`;
+    return `<li class="${p.loaded ? 'ok' : ''}${p.me ? ' me' : ''}"><b>${s2}</b><span>${esc(p.name)}</span><em>${p.loaded ? ICO.ok : '<i class="kr-spin"></i>'}</em></li>`;
   }).join('');
-  return `<section class="kr-ld">
-    <div class="kr-ldm"><span class="kr-ldk">КРОТ · ${S.room.points ? 'Быстрая игра' : 'Игра с группой'}</span><h1 class="kr-ldt">Бункер</h1>
-      <p class="kr-ldtip" id="krTip">${esc(TIPS[tipN % TIPS.length])}</p>
-      <div class="kr-ldb"><i id="krLdBar"></i></div><p class="kr-lds" id="krLdSt">Операция начнётся через <b>…</b></p></div>
-    <aside class="kr-lda">
-      <section class="kr-glass kr-ldp"><span class="kr-h">Игроки · ${n}/${NS} загрузились</span><ul>${rows}</ul></section>
-      <section class="kr-glass kr-ldmic"><span class="kr-h">Голосовой чат</span>
-        <label class="kr-micl"><span>Микрофон</span><select id="krMicSel" data-dev="mic" aria-label="Микрофон"><option value="">По умолчанию</option></select></label>
-        <div class="kr-meter" aria-hidden="true"><i id="krLdLvl"></i></div>
-        <p class="kr-micst" id="krLdVs">${esc(VC.micErr || vcSummary().t)}</p>
-        <div class="kr-seg kr-seg-sm"><button class="${VC.mode === 'ptt' ? 'on' : ''}" data-a="vmode" data-v="ptt">Зажать V</button><button class="${VC.mode === 'vad' ? 'on' : ''}" data-a="vmode" data-v="vad">Голосом</button></div>
-        <div class="kr-la">${VC.micErr ? '<button class="kr-btn sm go" data-a="mic-retry">Включить микрофон</button>' : ''}<button class="kr-btn sm" data-a="spk">Проверить звук</button></div>
-        <p class="kr-fine">Скажите что-нибудь — полоска покажет громкость. ${VC.mode === 'ptt' ? 'Зажмите V и поздоровайтесь — за столом вас уже слышат.' : 'Вас слышно, когда говорите громче порога.'}</p></section>
-      <button class="kr-btn ghost sm kr-ldx" data-a="leave">Выйти</button>
-    </aside></section>`;
+}
+function loadHtml() {
+  const n0 = rnd(LOAD_N); slideAt = Date.now();
+  return `<section class="rrl">
+    <div class="rrl-bg" id="rlBg">${Array.from({ length: LOAD_N }, (_, i) => `<i class="${i === n0 ? 'on' : ''}" style="background-image:url(assets/rr/load/${i + 1}.webp)"></i>`).join('')}</div>
+    <div class="rrl-top"><img class="rrl-logo" src="assets/main/rr-logo.webp" alt="Русская рулетка" draggable="false"><button class="rrl-x" data-a="leave" type="button">Выйти</button></div>
+    <aside class="rrl-pl"><span class="rrl-h">Игроки</span><ol id="rlPl">${loadPlayers()}</ol></aside>
+    <div class="rrl-bot">
+      <div class="rrl-map"><span class="rrl-mode">${S.room.points ? 'Быстрая игра' : 'Игра с друзьями'}</span><h1>Подпольное казино</h1></div>
+      <p class="rrl-tip in" id="krTip">${esc(TIPS[tipN % TIPS.length])}</p>
+      <div class="rrl-st" id="krLdSt">Загрузка…</div>
+      <div class="rrl-bar"><i id="krLdBar"></i></div>
+    </div></section>`;
 }
 // экран загрузки: отсчёт, полоска, кого ждём, смена подсказок (из uiTick)
 function loadTick() {
@@ -890,8 +921,9 @@ function loadTick() {
   const r = S.room, now = Date.now() + off, left = Math.max(0, (r.deadline || now) - now), tot = Math.max(1, (r.deadline || now) - (r.load_at || now));
   if (bar) bar.style.transform = `scaleX(${clamp(1 - left / tot, 0, 1).toFixed(3)})`;
   const wait = S.players.filter(p => !p.loaded);
-  st2.innerHTML = left > 0 ? `Операция начнётся через <b>${fmt(Math.ceil(left / 1000))}</b>` : wait.length ? `Ждём: <b>${esc(wait.map(p => p.name).join(', '))}</b>` : 'Начинаем…';
-  if (Date.now() - tipAt > 4000) { tipAt = Date.now(); tipN++; const t = $('#krTip', root); if (t) { t.classList.remove('in'); void t.offsetWidth; t.textContent = TIPS[tipN % TIPS.length]; t.classList.add('in'); } }
+  st2.innerHTML = left > 0 ? `Игра начнётся через <b>${fmt(Math.ceil(left / 1000))}</b>` : wait.length ? `Ждём: <b>${esc(wait.map(p => p.name).join(', '))}</b>` : 'Начинаем…';
+  if (Date.now() - slideAt > 6500) { slideAt = Date.now(); const bg = $('#rlBg', root); if (bg) { const k = bg.children, c = [...k].findIndex(x => x.classList.contains('on')); if (c >= 0) k[c].classList.remove('on'); k[(c + 1) % k.length].classList.add('on'); } }   // смена кадра
+  if (Date.now() - tipAt > 5000) { tipAt = Date.now(); tipN++; const t = $('#krTip', root); if (t) { t.classList.remove('in'); void t.offsetWidth; t.textContent = TIPS[tipN % TIPS.length]; t.classList.add('in'); } }
 }
 // микрофон экрана загрузки — общий с голосовым чатом (VC)
 function micStart() { const sel = root && $('#krMicSel', root); vcMic(sel ? sel.value : undefined); }
@@ -938,6 +970,8 @@ function tvData() {   // итог для экрана на стене (рису�
   };
 }
 function tvAct(a) {   // кнопка на экране = та же кнопка интерфейса (onClick по data-a)
+  if (a === 'again') rrSound('tvon');
+  if (a === 'menu') { rrSound('tvoff'); leave(true); location.hash = '#/'; return; }   // владелец 20.11: «В меню» — выключить режим и на главный экран сайта
   const b = document.createElement('button'); b.type = 'button'; b.hidden = true; b.dataset.a = a; root.appendChild(b); b.click(); b.remove();
 }
 function resultText() {
@@ -1031,7 +1065,7 @@ function ovHtml(kind, arg) {
       <div class="vs-ft"><button class="vs-btn" data-a="spk" type="button">Проверить звук</button></div>
       <details class="vs-help"><summary>Слышите себя с задержкой?</summary><p>Нажмите Tab и говорите: у кого при этом загорается значок — у того микрофон ловит звук из наушников (или идёт трансляция игры со звуком, например в Discord). Заглушите его кнопкой динамика. Голос идёт напрямую между игроками; если с кем-то не соединилось — пишите в чат.</p></details></section>`;
   }
-  if (kind === 'leave') return `<section class="kr-rep kr-glass">${x}<span class="kr-h">Выход</span><h2 class="kr-t">Покинуть матч?</h2><p>Матч поставят на паузу, а если вы не вернётесь за 30 секунд — раунд отменят для всех.</p>
+  if (kind === 'leave') return `<section class="kr-rep kr-glass">${x}<span class="kr-h">Выход</span><h2 class="kr-t">Покинуть игру?</h2><p>В ваш ход за вас выстрелят сами, без прокрутки барабана. Вернуться в эту игру будет нельзя.</p>
     <div class="kr-la"><button class="kr-btn red" data-a="leave-yes">Выйти</button><button class="kr-btn go" data-a="close">Остаться</button></div></section>`;
   return '';
 }
@@ -1061,6 +1095,9 @@ function loop(t) {
   if (G && !document.hidden) { G.frame(dt, t / 1000); aimHint(); sendHead(t); }
 }
 function uiTick() {
+  { const g = S && S.game; rrLoop('music', !!(g && view === 'room' && ['play', 'next'].includes(S.room.phase) && g.round >= 1 && g.bullets !== RR.bul[2]), 2.5);
+    const L = sndLoop.music, me = myPlayer(), v = me && me.alive === false ? .008 : SND.music.vol; if (L && L.v !== v) { L.v = v; try { const t = AC.currentTime, cur = L.g.gain.value; L.g.gain.cancelScheduledValues(t); L.g.gain.setValueAtTime(cur, t); L.g.gain.setTargetAtTime(v, t, .8);   /* без опоры громкость прыгала на 1 — «начало очень громкое» */ } catch (e) { /* без звука */ } } }   // выбыл и смотрит — музыка почти выключена   // владелец 20.11: музыка напряжения — с 1-го раунда, в финале (1 на 1) тишина; почти не слышно
+  rrLoop('breath', !!(S && view === 'room' && ['play', 'next'].includes(S.room.phase) && myPlayer() && myPlayer().alive !== false), 1.5);   // дыхание своего персонажа — тихо, пока жив
   if (view !== 'room' || !S || !root) return;
   if (S.room.phase === 'lobby' && S.room.mm) loadTick();
   if (capHoldUntil && Date.now() >= capHoldUntil) { capHoldUntil = 0; drawAct(); }
@@ -1073,7 +1110,13 @@ function uiTick() {
     if (left <= 0 && Date.now() - lastKick > 1500) { lastKick = Date.now(); pulse(); }
     return;
   }
-  if (!r.deadline) { if (lastSec !== -2) { lastSec = -2; tm.textContent = ''; bar.style.transform = 'scaleX(0)'; $('#krTop', root).classList.remove('warn', 'crit'); } return; }
+  const intro = r.phase === 'next' && S.game && !S.game.round;   // 15 с знакомства до раунда 1 — таймер не показываем (владелец 20.11)
+  if (!r.deadline || intro) {
+    if (lastSec !== -2) { lastSec = -2; tm.textContent = ''; bar.style.transform = 'scaleX(0)'; $('#krTop', root).classList.remove('warn', 'crit'); }
+    if (intro) introTick();
+    if (intro && r.deadline - (Date.now() + off) <= 0 && Date.now() - lastKick > 1200) { lastKick = Date.now(); pulse(); }
+    return;
+  }
   const left = Math.max(0, r.deadline - (Date.now() + off)), s = Math.ceil(left / 1000);
   const total = (r.deadline - r.phase_at) || 1;   // ход (20 с), пауза между раундами, отсчёт старта
   bar.style.transform = `scaleX(${clamp(left / total, 0, 1)})`;
@@ -1221,7 +1264,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   const TVW = 1280, TVH = 688, tvC = cnv(TVW, TVH), tvT = tex(tvC);
   const TV_BTN = [[72, 584, 404, 68], [490, 584, 230, 68], [734, 584, 230, 68], [978, 584, 230, 68]];   // x, y, ширина, высота — в пикселях картинки экрана (поля 72 px: края экрана прикрывает рамка и выпуклость)
   const tvSkull = new Image(); tvSkull.onload = () => tvDraw(); tvSkull.src = 'assets/rr/dead.svg';   // значок «выбыл» (владелец, Оформление сайта/СМЕРТЬ РР.svg)
-  let tvD = null, tvKey = '', tvAt = 0, tvK = 0, tvHov = null, tvFit = [.5, .5, 1, 1], tvFitAt = -1;   // tvFit — свободная часть холста (без чата и верхних плашек): центр x, y и ширина, высота в долях
+  let tvHum = false, tvD = null, tvKey = '', tvAt = 0, tvK = 0, tvHov = null, tvFit = [.5, .5, 1, 1], tvFitAt = -1;   // tvFit — свободная часть холста (без чата и верхних плашек): центр x, y и ширина, высота в долях
   const cctvM = new T.ShaderMaterial({ uniforms: { tFeed: { value: cctvRT.texture }, tOver: { value: ovT }, uT: { value: 0 }, tRes: { value: tvT }, uMix: { value: 0 } }, vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }",
     fragmentShader: "uniform sampler2D tFeed; uniform sampler2D tOver; uniform sampler2D tRes; uniform float uT; uniform float uMix; varying vec2 vUv;\nfloat rnd(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 c = vUv - .5; vec2 uv = .5 + c * (1. - .16 * dot(c, c) * 4.) * .97;\n  float ln = floor(uv.y * 220.); uv.x += (rnd(vec2(ln, floor(uT * 15.))) - .5) * .0025;\n  float band = 1. - smoothstep(0., .03, abs(fract(uv.y + uT * .06) - .5)); uv.x += band * .006;\n  vec3 col = vec3(texture2D(tFeed, uv + vec2(.0018, 0.)).r, texture2D(tFeed, uv).g, texture2D(tFeed, uv - vec2(.0018, 0.)).b);\n  col *= 2.5; col = col / (1. + col) * 1.25;\n  float l = dot(col, vec3(.3, .59, .11)); col = mix(vec3(l), col, .22) * vec3(.86, 1., .9);\n  col *= .86 + .14 * sin(vUv.y * 1100.);\n  col += (rnd(vUv * 517. + fract(uT) * 91.) - .5) * .075 + band * .04;\n  col *= 1. - smoothstep(.3, .8, length(c * vec2(1., .9)));\n  if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) col = vec3(0.);\n  vec4 o = texture2D(tOver, vUv); col = mix(col, o.rgb, o.a);\n  col = max(col, 0.) * .85;\n  if (uMix > .001) {\n    vec2 ru = .5 + c * (1. - .18 * dot(c, c)); vec3 rs = texture2D(tRes, ru).rgb;\n    rs *= .93 + .07 * sin(vUv.y * 1100.); rs += (rnd(vUv * 731. + fract(uT) * 37.) - .5) * .022;\n    rs *= 1. - .3 * smoothstep(.4, .9, length(c * vec2(1., .9)));\n    if (ru.x < 0. || ru.x > 1. || ru.y < 0. || ru.y > 1.) rs = vec3(0.);\n    col = mix(col, rs, uMix);\n  }\n  gl_FragColor = vec4(col, 1.);\n}" });
   const board = new T.Mesh(new T.PlaneGeometry(2.7, 1.45), cctvM); board.position.set(0, 2.05, -4.94); scene.add(board);
@@ -1523,7 +1566,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   /* состояние камеры и ввода */
   let btnActive = false, aimBtn = false;
   const SPEC_Y = 2.45, SPEC_R = 1.05;   // камера выбывшего: высота и радиус облёта
-  let spec = 0, specF = 0, mySeat = 1, yaw = 0, pitch = -.38, readHold = false, locked = false, menuOn = true, clock = 0, userAt = 0, auto = null;
+  let specAt = Infinity, spec = 0, specF = 0, mySeat = 1, yaw = 0, pitch = -.38, readHold = false, locked = false, menuOn = true, clock = 0, userAt = 0, auto = null;
   let mouseN = null, aimN = 0, aimOn = false, mk = { mine: 0, kind: '', cands: null }, roundId = 0, cardKey = '', hideMine = false;
   const tw = [];
   const ray = new T.Raycaster(), ndc = new T.Vector2();
@@ -1787,7 +1830,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       if (key !== a.tagKey) { a.tagKey = key; if (a.tag.material.map) a.tag.material.map.dispose(); a.tag.material.map = tex(paintTag(s, p ? p.name : '', st2)); a.tag.material.needsUpdate = true; }
     }
     btnActive = false;
-    gunTo(g && ['play', 'next'].includes(ph) ? g.turn : 0);
+    gunTo(g && ['play', 'next'].includes(ph) ? g.turn || 0 : 0);
   };
   // револьвер лежит на сукне перед игроком, стволом вправо от него; seat 0 — посреди стола
   function gunSpot(seat) {
@@ -1795,6 +1838,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     const p = SEAT[seat], k = SEAT_OFF + .15 + .09 + .2;   // от стула: бортик, дерево и ещё 20 см по сукну
     return { x: p.x - Math.sin(p.yaw) * k, z: p.z - Math.cos(p.yaw) * k, yaw: p.yaw + .35 };
   }
+  W.specGo = s => { specAt = clock + s; };   // свой выстрел показан — через s с камера улетает в наблюдатели
   W.hold = ms => { gun.holdUntil = clock + ms / 1000; };   // пока звучит выстрел — револьвер не уезжает к следующему
   function gunTo(seat) {
     if (clock < (gun.holdUntil || 0)) { gun.pend = seat; return; }
@@ -1802,7 +1846,8 @@ function makeWorld(T, RB, RE, cv, PP) {
     const o = gun.g, to = gunSpot(seat), x0 = o.position.x, z0 = o.position.z;
     let y0 = o.rotation.y, y1 = to.yaw; while (y1 - y0 > Math.PI) y1 -= Math.PI * 2; while (y1 - y0 < -Math.PI) y1 += Math.PI * 2;
     const id = (gun.mv = (gun.mv || 0) + 1);
-    tween(.85, k => { if (gun.mv !== id) return; const e = easeIO(k); o.position.x = x0 + (to.x - x0) * e; o.position.z = z0 + (to.z - z0) * e; o.position.y = TOP + gun.half + Math.sin(Math.PI * k) * .1; o.rotation.y = y0 + (y1 - y0) * e; });
+    if (!menuOn && Math.hypot(to.x - x0, to.z - z0) > .05) rrSound('slide');   // револьвер едет по столу (звук подогнан под 0,85 с)
+    tween(.85, k => { if (gun.mv !== id) return; const e = easeIO(k); o.position.x = x0 + (to.x - x0) * e; o.position.z = z0 + (to.z - z0) * e; o.position.y = TOP + gun.half;   /* владелец 20.11: скользит по сукну, без подлёта */ o.rotation.y = y0 + (y1 - y0) * e; });
   }
   // события стола: прокрутка барабана, щелчок курка, выстрел (вспышка у дула)
   W.event = ev => {
@@ -1890,13 +1935,15 @@ function makeWorld(T, RB, RE, cv, PP) {
     // камера
     if (menuOn) {
       const a = t * .045; cam.position.set(Math.sin(a) * 2.75, 1.95, Math.cos(a) * 2.75); cam.lookAt(0, .78, 0);
+      if (tvHum) { tvHum = false; rrLoop('hum', false, .3); }
       if (tvD || tvK || spec) { tvD = null; tvKey = ''; tvK = 0; spec = 0; specF = 0; ren.domElement.style.filter = ''; }   // в меню — экран итога и вид выбывшего сбрасываем сразу
     } else {
       if (auto) { const f = 1 - Math.exp(-dt * 3); yaw += (auto.y - yaw) * f; pitch += (auto.p - pitch) * f; }
       const me = AV[mySeat]; me.g.updateMatrixWorld(); _a.set(0, EYE, -.02).applyMatrix4(me.g.matrixWorld);
       cam.position.copy(_a); cam.rotation.set(pitch, seatYaw(mySeat) + yaw, 0);
       // выбыл — камера плавно уходит под потолок и медленно облетает стол сверху (наблюдатель)
-      spec += ((me.dead ? 1 : 0) - spec) * (1 - Math.exp(-dt * 1.2));
+      if (!me.dead) specAt = Infinity; else if (specAt === Infinity) specAt = clock + 3;   // владелец 20.11: сначала выстрел, потом камера вверх (specGo из rrEvent; без события — через 3 с)
+      spec += ((me.dead && clock >= specAt ? 1 : 0) - spec) * (1 - Math.exp(-dt * 1.2));
       if (spec > .002) {
         const e = spec * spec * (3 - 2 * spec), ang = seatYaw(mySeat) + t * .05;
         _q2.copy(cam.quaternion); _c.set(Math.sin(ang) * SPEC_R, SPEC_Y, Math.cos(ang) * SPEC_R);
@@ -1904,6 +1951,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       }
       // конец игры — камера подъезжает к экрану на стене, где итог (поверх и «сверху», и своего места)
       tvK += ((tvD && clock >= tvAt ? 1 : 0) - tvK) * (1 - Math.exp(-dt * 1.5));
+      if ((tvK > .5) !== tvHum) { tvHum = tvK > .5; rrLoop('hum', tvHum, 1.2); }   // гул старого телевизора — тихо, пока камера у экрана
       if (tvK > .002) {
         if (tvD && clock - tvFitAt > .25) {   // где на холсте свободно: справа может быть чат, сверху — плашки
           tvFitAt = clock; const cv = ren.domElement, b = cv.getBoundingClientRect(), kr = cv.closest('.kr');
@@ -2170,8 +2218,8 @@ function paintItem(good, gun) {
 
 /* ============================================================
    Голосовой чат (этап 3): WebRTC браузер-браузер, у каждого до трёх соединений, своего сервера голоса нет.
-   Сигналы — закрытый канал Realtime 'krot:<room>' (событие 'rtc'); если закрытый канал не пустили —
-   запасной 'krotpub:<room>:<код>'. Только публичный STUN, без TURN: у части игроков голос может не соединиться —
+   Сигналы — закрытый канал Realtime 'rr:<room>' (событие 'rtc'); если закрытый канал не пустили —
+   запасной 'rrpub:<room>:<код>'. Только публичный STUN, без TURN: у части игроков голос может не соединиться —
    тогда видно «нет голосовой связи, пишите в чат». Поворот головы после соединения идёт напрямую (канал данных).
    Говорить: зажать V (по умолчанию) или «голосом» с порогом. Громкость и «заглушить» — у каждого, «выключить весь звук».
    ============================================================ */
@@ -2440,8 +2488,8 @@ async function voiceSelfTest(n = 4) {
 /* ============================================================
    Подбор матча как в CS2 — работает на любой странице сайта.
    Группа на главном (плюс у агента) → «Играть» → «Поиск игры» вместо баланса → «Ваша игра готова!» →
-   «Принять» (15 с) → квадратики «Готово: N/4» → все приняли → игра (#/krot).
-   Сервер: krot_mm_state, krot_search, krot_accept, krot_party_* (supabase/krot.sql, раздел «Группы и подбор матча»).
+   «Принять» (15 с) → квадратики «Готово: N/5» → все приняли → игра (#/krot).
+   Сервер: rr_mm_state, rr_search, rr_accept, rr_party_* (supabase/roulette.sql, раздел «Группы и подбор»; в коде — имена krot_*, SRV меняет их на rr_*).
    На localhost без входа — демо-подбор с ботами (MMDemo), на сайте его нет.
    ============================================================ */
 const MM = { on: false, st: null, at: 0, off: 0, busy: false, t: 0, w: null, clock: 0, lastNote: 0, game: 0, match: 0, accepted: false,
@@ -2465,6 +2513,7 @@ K.mmPlay = async () => {
   const s = MM.st, p = s && s.party;
   if (p && p.state === 'search') return mmCancel();
   if (s && s.match) return;                        // окно «Принять» уже на экране
+  if (s && s.game && !MM.demo) return goGame(s.game);   // ваша игра ещё идёт (ушли со стола на главную) — «Найти игру» возвращает в неё
   if (p && !p.leader) return mmToast('Поиск запускает лидер группы', 'warn');
   if (MM.busy) return; MM.busy = true;
   try { MM.on = true; mmApply(await mmApi('krot_search', { p_on: true })); mmSchedule(); }
@@ -2497,18 +2546,21 @@ function mmStop() {
 }
 
 /* опрос: в поиске — 2 с, «Принять» — 1 с, группа — 4 с, во время игры — 8 с. Таймер — в отдельном потоке (фоновая вкладка) */
-function mmTick(ms) {
-  clearTimeout(MM.t);
+function mmTick(ms) {   // срабатывает только последний заказанный таймер — два опроса параллельно не идут
+  clearTimeout(MM.t); const tk = MM.tk = (MM.tk || 0) + 1;
   try {
-    if (!MM.w) { MM.w = new Worker(URL.createObjectURL(new Blob(['onmessage=function(e){setTimeout(function(){postMessage(0)},e.data)}'], { type: 'text/javascript' }))); MM.w.onmessage = () => mmPoll(); }
-    MM.w.postMessage(ms);
-  } catch (e) { MM.t = setTimeout(mmPoll, ms); }
+    if (!MM.w) { MM.w = new Worker(URL.createObjectURL(new Blob(['onmessage=function(e){setTimeout(function(){postMessage(e.data.tk)},e.data.ms)}'], { type: 'text/javascript' }))); MM.w.onmessage = e => { if (e.data === MM.tk) mmPoll(); }; }
+    MM.w.postMessage({ ms, tk });
+  } catch (e) { MM.t = setTimeout(() => { if (tk === MM.tk) mmPoll(); }, ms); }
 }
 async function mmPoll() {
   if (!MM.on) return;
   if (!MM.demo && !authed()) return mmStop();
-  try { mmApply(await mmApi('krot_mm_state')); }
-  catch (e) { if (/not authenticated/.test(errMsg(e))) return mmStop(); }
+  try {   // ответ опроса устарел, если пока он шёл, сработало действие («Играть», «Принять»…) — его не применяем
+    const q = MM.seq, d = await mmApi('krot_mm_state');
+    if (q !== MM.seq || MM.busy) return mmTick(1000);
+    mmApply(d);
+  } catch (e) { if (/not authenticated/.test(errMsg(e))) return mmStop(); }
   mmSchedule();
 }
 function mmSchedule() {
@@ -2516,7 +2568,8 @@ function mmSchedule() {
   const s = MM.st, p = s && s.party;
   if (!p && !(s && s.game)) return mmStop();   // группы нет — опрашивать нечего
   if (p && p.members.length === 1 && p.state === 'idle' && !s.game && !s.match && !MM.hold) {   // один и не ищет — группа не нужна
-    mmApi('krot_party_leave').then(mmApply, () => { /* не важно */ }).then(() => mmStop());
+    if (MM.busy) return mmTick(1000);   // идёт «Играть» — состояние «один, без поиска» могло устареть
+    mmApi('krot_party_leave').then(x => { mmApply(x); mmSchedule(); }, () => mmTick(2000));   // не вышли (сервер: идёт «Принять») — опрос не останавливаем
     return;
   }
   mmTick(s.match ? 1000 : p && p.state === 'search' ? 2000 : s.game ? 8000 : 4000);
@@ -2524,6 +2577,7 @@ function mmSchedule() {
 
 function mmApply(s) {
   if (!s) return;
+  MM.seq = (MM.seq || 0) + 1;
   const prev = MM.st; MM.st = s; MM.at = Date.now(); MM.off = (s.now || Date.now()) - Date.now();
   try { if (s.party || s.game) localStorage.setItem('krot:mm', '1'); else localStorage.removeItem('krot:mm'); } catch (e) { /* приватный режим */ }
   const p = s.party;
@@ -2538,7 +2592,7 @@ function mmApply(s) {
     if (MM.match !== s.match.room) { MM.match = s.match.room; MM.accepted = false; mmSound('ready'); mmTitle(true); }
     mmPopup(s.match);
   } else if (MM.match) { MM.match = 0; mmTitle(false); if (!gameNew) { mmSound('ready', false); mmPopupClose(); } }
-  // все приняли → звук запуска, 4/4 на секунду, экран загрузки игры
+  // все приняли → звук запуска, 5/5 на секунду, экран загрузки игры
   if (gameNew) {
     MM.game = s.game; mmTitle(false); mmSound('ready', false);
     const g = s.game, ov = document.getElementById('krmmOv');
@@ -2571,7 +2625,7 @@ function mmPopup(m) {
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'krmmOv'; ov.className = 'krmm-ov';
     ov.innerHTML = `<section class="krmm-ready" role="alertdialog" aria-labelledby="krmmH"><h2 id="krmmH">Ваша игра готова!</h2>
-      <p class="krmm-mode"><i>${ICO_MODE}</i><b>КРОТ</b><span>•</span><span>Бункер</span></p><div class="krmm-body"></div><b class="krmm-t" id="krmmT"></b></section>`;
+      <p class="krmm-mode"><i>${ICO_MODE}</i><b>Русская рулетка</b><span>•</span><span>Подпольное казино</span></p><div class="krmm-body"></div><b class="krmm-t" id="krmmT"></b></section>`;
     ov.addEventListener('click', e => { if (e.target.closest('.krmm-acc')) mmAccept(); });
     document.body.appendChild(ov);
     requestAnimationFrame(() => ov.classList.add('in'));
@@ -2582,8 +2636,8 @@ function mmPopup(m) {
   if (body.dataset.k !== key) {
     body.dataset.k = key;
     body.innerHTML = mine
-      ? `<div class="krmm-sq">${[0, 1, 2, 3].map(i => `<i class="${i < acc ? 'on' : ''}">${ICO_MAN}</i>`).join('')}</div><p class="krmm-n">Готово: <b>${acc}</b> / 4</p>`
-      : '<button class="krmm-acc" type="button">Принять</button><p class="krmm-srv">4 игрока · игровой сервер RUSH CASE</p>';
+      ? `<div class="krmm-sq">${[0, 1, 2, 3, 4].map(i => `<i class="${i < acc ? 'on' : ''}">${ICO_MAN}</i>`).join('')}</div><p class="krmm-n">Готово: <b>${acc}</b> / 5</p>`
+      : '<button class="krmm-acc" type="button">Принять</button><p class="krmm-srv">5 игроков · игровой сервер RUSH CASE</p>';
   }
   mmPopupClock();
 }
@@ -2593,7 +2647,7 @@ function mmPopupClock() {
 }
 function mmPopupAll() {   // все приняли: четыре зелёных квадрата
   const b = document.querySelector('#krmmOv .krmm-body'); if (!b) return;
-  b.dataset.k = 'all'; b.innerHTML = `<div class="krmm-sq">${[0, 1, 2, 3].map(() => `<i class="on">${ICO_MAN}</i>`).join('')}</div><p class="krmm-n">Готово: <b>4</b> / 4</p>`;
+  b.dataset.k = 'all'; b.innerHTML = `<div class="krmm-sq">${[0, 1, 2, 3, 4].map(() => `<i class="on">${ICO_MAN}</i>`).join('')}</div><p class="krmm-n">Готово: <b>5</b> / 5</p>`;
 }
 function mmPopupClose() {
   const ov = document.getElementById('krmmOv'); if (!ov) return;
@@ -2653,7 +2707,7 @@ function mmDraw() {
       bar.addEventListener('click', e => { if (e.target.closest('.krmm-x')) mmCancel(); });
     }
     bar.querySelector('.krmm-bh').textContent = found ? 'Игра найдена' : 'Поиск игры';
-    bar.querySelector('.krmm-bm').innerHTML = 'КРОТ · Бункер' + (p && p.members.length > 1 ? `<br>группа ${p.members.length}/4` : '');
+    bar.querySelector('.krmm-bm').innerHTML = 'Русская рулетка' + (p && p.members.length > 1 ? `<br>лобби ${p.members.length}/${NS}` : '');
     bar.querySelector('.krmm-x').hidden = found;
     bar.classList.toggle('found', found);
     mmPlace(bar);
@@ -2682,23 +2736,22 @@ function mmClock() {
   mmPopupClock();
 }
 const avaHtml = m => m && m.ava && /^(https?:|\/|assets\/|data:image)/.test(m.ava) ? `<img src="${esc(m.ava)}" alt="" loading="lazy">` : `<b>${esc(((m && m.name) || '?').trim().charAt(0).toUpperCase() || '?')}</b>`;
-function mmSlots() {
-  const inv = document.getElementById('mnInvite'); if (!inv) return;
+function mmSlots() {   // владелец 20.11: друзья в лобби — компактный список справа от карточки режима на главной (клик — окно лобби); у «плюса» больше не показываем
+  const inv = document.getElementById('mnInvite');
+  if (inv) { const old = inv.querySelector('.krmm-mates'); if (old) { old.remove(); inv.classList.remove('krmm-has'); const lab = inv.querySelector(':scope > span'); if (lab && lab.dataset.t) lab.textContent = lab.dataset.t; } }
+  const card = document.getElementById('mnKrot'); if (!card) return;
   const p = MM.st && MM.st.party, mates = p ? p.members.filter(m => !m.me) : [];
-  const lab = inv.querySelector(':scope > span:not(.krmm-mates)');
-  if (lab && !lab.dataset.t) lab.dataset.t = lab.textContent;
-  let box = inv.querySelector('.krmm-mates');
-  if (!mates.length) { if (box) box.remove(); if (lab && lab.dataset.t) lab.textContent = lab.dataset.t; inv.classList.remove('krmm-has'); return; }
-  if (!box) { box = document.createElement('span'); box.className = 'krmm-mates'; inv.prepend(box); }
-  box.innerHTML = mates.map(m => `<span class="krmm-mate${m.online ? '' : ' off'}${m.leader ? ' lead' : ''}" title="${esc(m.name)}${m.leader ? ' — лидер группы' : ''}">${avaHtml(m)}<em>${esc(m.name)}</em></span>`).join('');
-  if (lab) lab.textContent = `Группа ${p.members.length}/4`;
-  inv.classList.add('krmm-has');
+  let box = document.getElementById('krmmFr');
+  if (!mates.length) { if (box) box.remove(); return; }
+  if (!box) { box = document.createElement('div'); box.id = 'krmmFr'; box.className = 'krmm-fr'; box.addEventListener('click', () => K.mmInvite()); card.appendChild(box); }
+  box.innerHTML = `<span class="krmm-frh">Лобби · ${p.members.length}/${NS}</span>` + mates.map(m => `<span class="krmm-fri${m.online ? '' : ' off'}" title="${esc(m.name)}${m.leader ? ' — лидер лобби' : ''}${m.online ? '' : ' — нет связи'}"><i>${avaHtml(m)}</i><em>${esc(m.name)}</em>${m.leader ? '<s>лидер</s>' : ''}</span>`).join('');
 }
 function mmCard() {
   const b = document.querySelector('.mnk-go'); if (!b) return;
   const s = MM.st, p = s && s.party, srch = !!(p && p.state === 'search');
   b.textContent = s && s.match ? 'Игра найдена' : srch ? 'Отменить поиск' : 'Играть';
   b.classList.toggle('krmm-srch', srch);
+  const lb = document.querySelector('.mnk-lb'); if (lb) { const n = p ? p.members.length : 0; lb.textContent = n > 1 ? `Лобби · ${n}/${NS}` : 'Создать лобби'; }
 }
 function mmMenu() {
   if (!root || view !== 'menu') return;
@@ -2724,19 +2777,19 @@ function mmWin(on) {
   const key = JSON.stringify([p.code, p.state, p.leader, p.members]);
   if (w.dataset.k === key) return; w.dataset.k = key;
   const link = location.origin + location.pathname + '#/krot/' + p.code;
-  const rows = [0, 1, 2, 3].map(i => {
+  const rows = [0, 1, 2, 3, 4].map(i => {
     const m = p.members[i];
     if (!m) return '<li class="free"><span class="krmm-av"><b>+</b></span><span class="krmm-nm">Свободное место</span></li>';
     return `<li class="${m.online ? '' : 'off'}"><span class="krmm-av">${avaHtml(m)}</span><span class="krmm-nm">${esc(m.name)}${m.me ? ' <small>(вы)</small>' : ''}</span>${m.leader ? '<em class="krmm-ld">Лидер</em>' : ''}${!m.online ? '<em class="krmm-off">нет связи</em>' : ''}${p.leader && !m.me ? `<button class="kr-btn sm ghost" data-mm="kick" data-n="${i + 1}">Убрать</button>` : ''}</li>`;
   }).join('');
   w.innerHTML = `<section class="krmm-wp kr-glass" role="dialog" aria-labelledby="krmmWh"><button class="kr-ib krmm-wx" data-mm="close" aria-label="Закрыть">${ICO.close}</button>
-    <span class="kr-h">Режим «КРОТ»</span><h2 class="kr-t" id="krmmWh">Ваша группа · ${p.members.length}/4</h2>
-    <p class="krmm-wl">Позовите друзей: им нужен этот код или ссылка. Группа ищет игру вместе, недостающих добавит подбор.</p>
-    <div class="kr-cbig"><span>Код группы</span><b>${esc(p.code)}</b><div><button class="kr-btn sm" data-mm="copy">Скопировать код</button><button class="kr-btn sm" data-mm="link" data-link="${esc(link)}">Ссылка-приглашение</button></div></div>
+    <span class="kr-h">Русская рулетка</span><h2 class="kr-t" id="krmmWh">Лобби · ${p.members.length}/${NS}</h2>
+    <p class="krmm-wl">Позовите друзей: им нужен этот код или ссылка. Лобби ищет игру вместе, недостающих добавит подбор.</p>
+    <div class="kr-cbig"><span>Код лобби</span><b>${esc(p.code)}</b><div><button class="kr-btn sm" data-mm="copy">Скопировать код</button><button class="kr-btn sm" data-mm="link" data-link="${esc(link)}">Ссылка-приглашение</button></div></div>
     <ul class="krmm-ml">${rows}</ul>
-    <form class="kr-join krmm-join" autocomplete="off"><input id="krmmCode" maxlength="6" placeholder="Код группы друга" spellcheck="false" aria-label="Код группы друга"><button class="kr-btn">В группу</button></form>
+    <form class="kr-join krmm-join" autocomplete="off"><input id="krmmCode" maxlength="6" placeholder="Код лобби друга" spellcheck="false" aria-label="Код лобби друга"><button class="kr-btn">Войти</button></form>
     <p class="kr-fine">Очки недели получают только те, кто ищет игру в одиночку: так друзья не смогут подыгрывать друг другу.</p>
-    <div class="krmm-wa">${p.members.length > 1 ? '<button class="kr-btn ghost sm" data-mm="leave">Выйти из группы</button>' : '<span></span>'}<a class="kr-link" href="#/invite" data-mm="close">Реферальная программа — скоро</a></div></section>`;
+    <div class="krmm-wa">${p.members.length > 1 ? '<button class="kr-btn ghost sm" data-mm="leave">Выйти из лобби</button>' : '<span></span>'}<a class="kr-link" href="#/invite" data-mm="close">Реферальная программа — скоро</a></div></section>`;
 }
 async function mmWinClick(e) {
   const w = document.getElementById('krmmWin'); if (!w) return;
@@ -2775,13 +2828,13 @@ const MMDemo = (() => {
     const p = st.party, t = now(); if (!p) return;
     if (p.state === 'search' && st.foundAt && t >= st.foundAt) {
       st.foundAt = 0; p.state = 'match';
-      st.match = { room: 777, deadline: t + 15000, total: 15, accepted: 0, me_ready: false, players: [1, 2, 3, 4].map(i => ({ seat: i, ready: false, me: i === 1, mine: i === 1 })) };
-      st.bots = [t + 1400 + rnd(800), t + 2600 + rnd(1200), t + 4000 + rnd(2500)];
+      st.match = { room: 777, deadline: t + 15000, total: 15, accepted: 0, me_ready: false, players: [1, 2, 3, 4, 5].map(i => ({ seat: i, ready: false, me: i === 1, mine: i === 1 })) };
+      st.bots = [t + 1400 + rnd(800), t + 2600 + rnd(1200), t + 3400 + rnd(1800), t + 4000 + rnd(2500)];
     }
     if (st.match) {
       st.match.players.forEach((pl, i) => { if (i && !pl.ready && t >= st.bots[i - 1]) pl.ready = true; });
       st.match.accepted = st.match.players.filter(x => x.ready).length;
-      if (st.match.accepted === 4) { if (!st.goAt) st.goAt = t + 1500; if (t >= st.goAt) { st.match = null; st.goAt = 0; st.game = 'demo'; st.gameAt = t; } }
+      if (st.match.accepted === 5) { if (!st.goAt) st.goAt = t + 1500; if (t >= st.goAt) { st.match = null; st.goAt = 0; st.game = 'demo'; st.gameAt = t; } }
       else if (t >= st.match.deadline) { const me = st.match.players[0].ready; st.match = null; p.state = me ? 'search' : 'idle'; if (me) st.foundAt = t + 3000; else p.search_at = null;
         p.note = { kind: me ? 'requeue' : 'missed', names: [me ? 'Бот' : myName()], me: !me, at: t }; }
     }
@@ -2847,7 +2900,7 @@ const Demo = (() => {   // «Русская рулетка» без сервер
     st2.players.forEach(p => { p.alive = true; p.place = null; p.pts = null; p.clicks = 0; p.spins = 0; });
     st2.g = { id: 70000 + rnd(9999), round: 0, n: 0, evn: 0, evs: [] };
     sys('Игра начинается. Револьвер на шесть гнёзд, патроны — в случайных гнёздах.');
-    newRound();
+    const r = st2.room; r.phase = 'next'; r.phase_at = now(); r.deadline = now() + RR.intro * 1000; bump();   // знакомство за столом, потом раунд 1 (как на сервере)
   }
   function newRound() {
     const g = st2.g, al = alive();

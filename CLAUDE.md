@@ -63,7 +63,7 @@
 `.claude/launch.json` → `preview_start {name: "rushcase"}` (http://localhost:5178, `tools/serve.js`).
 
 ## Незаконченное (на 04.11.2026)
-- **«Русская рулетка» вместо «Крота»** (с 20.11, НЕ выложено): ветка `roulette`, папка `D:/Кейсы/.claude/worktrees/roulette`. Перед работой прочитать там `ПЛАН_РУЛЕТКА.md` (раздел «Как продолжить») и верхние записи `ЖУРНАЛ.md`. Просмотр — `preview_start {name: "roulette"}` → http://localhost:5200/#/krot/demo.
+- **«Русская рулетка» вместо «Крота» — ВЫЛОЖЕНА 20.11 и открыта всем** (адрес #/krot, сервер supabase/roulette.sql запущен). Дальше — анимации (выстрел, кровь, падение) на локалке в ветке `roulette`, папка `D:/Кейсы/.claude/worktrees/roulette`: сначала `ПЛАН_РУЛЕТКА.md` («Как продолжить») и верх `ЖУРНАЛ.md`. Просмотр — `preview_start {name: "roulette"}` → http://localhost:5200/#/krot/demo; настоящий режим с ботами — tools/rr/fake-server.mjs.
 - **Оплата не проверена реальным платежом** (1plata, Skinslink, SkinsMoney) — см. ЖУРНАЛ.md, «ИТОГ 04.11». После проверки SkinsMoney удалить секрет SM_ALLOW_TEST и выключить их Test Mode.
 - «Башня» (#/tower) — отложена: код есть, меню/маршрут/админка скрыты, supabase/tower.sql не запущен.
 - «Тактика» — сделан этап 1 из 5; дальше этап 2 (калибровка, `tools/tac-calibrate.js`), см. `ПЛАН_ТАКТИКА.md`.

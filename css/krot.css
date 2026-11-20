@@ -820,3 +820,81 @@ body.pg-krot #swFab,body.pg-krot #swPanel{display:none!important}
 @media (max-width:900px){.rr-ev b{font-size:32px}.rr-ev.bang b{font-size:40px}}
 @media (prefers-reduced-motion:reduce){.rr-ev.in,.rr-ev.out,.rr-ev.in::before,.rr-ev.in::after{animation:none}.rr-ev.in::before,.rr-ev.in::after{transform:scaleX(1)}}
 .kr-msgs .kr-m{text-align:right}   /* владелец 20.11: чат выровнен по правому краю — строки заканчиваются у края, как кнопки под ним */
+
+/* ===== Экран загрузки как в CS2 (владелец 20.11): кадры комнаты сменяются с медленным наездом, логотип, игроки справа,
+   внизу — место «Подпольное казино», режим, тематические фразы и полоска загрузки; настроек микрофона нет ===== */
+.rrl{position:absolute;inset:0;overflow:hidden;background:#07090b;color:#e9edf0}
+.rrl-bg{position:absolute;inset:0}
+.rrl-bg i{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transform:scale(1.04);transition:opacity 1.4s ease}
+.rrl-bg i.on{opacity:1;animation:rlKB 9s ease-out both}
+@keyframes rlKB{from{transform:scale(1.04)}to{transform:scale(1.13)}}
+.rrl::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.5),transparent 22%,transparent 48%,rgba(0,0,0,.9) 90%),linear-gradient(90deg,rgba(0,0,0,.5),transparent 48%)}
+.rrl-top,.rrl-pl,.rrl-bot{z-index:1}
+.rrl-top{position:absolute;left:32px;right:32px;top:24px;display:flex;align-items:flex-start;justify-content:space-between;pointer-events:none}
+.rrl-logo{width:min(250px,30vw);height:auto;filter:drop-shadow(0 6px 18px rgba(0,0,0,.6))}
+.rrl-x{pointer-events:auto;height:34px;padding:0 14px;border:0;border-radius:3px;background:rgba(10,12,16,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#c9d1d8;font:500 12px/1 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+.rrl-x:hover{color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)}
+.rrl-pl{position:absolute;right:32px;bottom:112px;width:250px;padding:12px 12px 10px;border-radius:3px;background:linear-gradient(180deg,rgba(26,30,37,.62),rgba(10,12,16,.72));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.rrl-h{display:block;margin:0 0 8px 2px;font:500 11px/1 'Oswald',var(--ff);letter-spacing:.22em;text-transform:uppercase;color:#8a939b}
+.rrl-pl ol{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.rrl-pl li{display:flex;align-items:center;gap:9px;height:30px;padding:0 9px;border-radius:2px;background:rgba(255,255,255,.04)}
+.rrl-pl li b{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:2px;background:rgba(132,217,253,.14);color:#84d9fd;font:500 11px/1 'Oswald',var(--ff)}
+.rrl-pl li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 13px Manrope,var(--ff);color:#e9edf0}
+.rrl-pl li.me{box-shadow:inset 0 0 0 1px rgba(132,217,253,.45)}
+.rrl-pl li.wait span{font-weight:500;color:#5c656d}
+.rrl-pl li em{display:flex;color:#7c858e}
+.rrl-pl li em svg{width:14px;height:14px}
+.rrl-pl li.ok em{color:#5fe39a}
+.rrl-pl .kr-spin{width:11px;height:11px}
+.rrl-bot{position:absolute;left:0;right:0;bottom:0;padding:0 32px 24px}
+.rrl-map{margin-bottom:12px}
+.rrl-mode{display:inline-block;font:500 12px/1 'Oswald',var(--ff);letter-spacing:.28em;text-transform:uppercase;color:#ff5a4d}
+.rrl-map h1{margin:8px 0 0;font:500 clamp(40px,5.2vw,72px)/.95 'Oswald',var(--ff);letter-spacing:.02em;text-transform:uppercase;color:#fff;text-shadow:0 4px 24px rgba(0,0,0,.6)}
+.rrl-tip{max-width:640px;min-height:22px;margin:0 0 18px;font:500 15px/1.45 Manrope,var(--ff);color:#d6dde3;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+.rrl-tip.in{animation:krIn .5s ease both}
+.rrl-st{margin:0 0 8px;text-align:right;font:500 13px/1 'Oswald',var(--ff);letter-spacing:.12em;text-transform:uppercase;color:#aab3bb}
+.rrl-st b{color:#fff;font-weight:500}
+.rrl-bar{position:relative;height:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.rrl-bar i{display:block;height:100%;background:linear-gradient(90deg,#b8222a,#ff5a4d 70%,#ffd0c8);box-shadow:0 0 10px rgba(255,90,77,.7);transform:scaleX(0);transform-origin:left center;transition:transform .3s linear}
+@media (max-width:900px){.rrl-top{left:16px;right:16px;top:16px}.rrl-pl{left:16px;right:16px;width:auto;bottom:auto;top:96px}.rrl-bot{padding:0 16px 18px}.rrl-tip{font-size:13px}}
+@media (prefers-reduced-motion:reduce){.rrl-bg i.on{animation:none}}
+.kr-mid.ld .rrl-logo{position:static;top:auto;left:auto;width:min(250px,30vw);height:auto;transform:none;transition:none;filter:drop-shadow(0 6px 18px rgba(0,0,0,.6))}   /* у сайта есть .ld img (лента выигрышей) — здесь не применять */
+.kr-mid.ld,.kr-mid.ld:hover{padding:0;border:0;background:none;filter:none}   /* и общий .ld сайта (рамка, фон, подсветка при наведении) — тоже не применять */
+
+/* ===== Лобби на главной (владелец 20.11): друзья — компактный список справа от карточки «Русская рулетка», клик — окно лобби ===== */
+.krmm-fr{position:absolute;left:calc(100% + 10px);bottom:0;display:flex;flex-direction:column;gap:4px;width:168px;cursor:pointer;animation:krIn .25s ease both}
+.krmm-frh{padding:0 2px 2px;font:500 10px/1 'Oswald',var(--ff);letter-spacing:.2em;text-transform:uppercase;color:#aab3bb;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.krmm-fri{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px 0 4px;border-radius:3px;background:linear-gradient(180deg,rgba(30,35,43,.72),rgba(12,14,18,.8));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);transition:box-shadow .15s}
+.krmm-fr:hover .krmm-fri{box-shadow:inset 0 0 0 1px rgba(132,217,253,.45)}
+.krmm-fri i{position:relative;flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:2px;overflow:hidden;background:#26303a;font-style:normal}
+.krmm-fri i img{width:100%;height:100%;object-fit:cover}
+.krmm-fri i b{font:700 11px/1 Manrope,var(--ff);color:#84d9fd}
+.krmm-fri i::after{content:'';position:absolute;right:1px;bottom:1px;width:6px;height:6px;border-radius:50%;background:#4fdc8a;box-shadow:0 0 0 1.5px #12161b}
+.krmm-fri.off i::after{background:#6b747c}
+.krmm-fri em{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 12.5px/1 Manrope,var(--ff);font-style:normal;color:#e9edf0}
+.krmm-fri.off em{color:#8a939b}
+.krmm-fri s{flex:none;font:500 9px/1 'Oswald',var(--ff);letter-spacing:.12em;text-transform:uppercase;text-decoration:none;color:#f0b44c}
+@media (max-width:900px){.krmm-fr{left:auto;right:0;bottom:calc(100% + 8px);width:150px}}
+
+/* ===== Русская рулетка: подготовка к раунду 1 (15 с знакомства, владелец 20.11) — только текст, без подложек ===== */
+.kr-mid.rr-iw{top:40%;width:auto;max-width:calc(100% - 28px);pointer-events:none}
+.rr-in{display:flex;flex-direction:column;align-items:center;text-align:center;animation:rrInIn .9s cubic-bezier(.2,.7,.3,1) both}
+.rr-in-t{font:500 17px/1 'Oswald',var(--ff);letter-spacing:.42em;margin-right:-.42em;text-transform:uppercase;color:rgba(244,241,234,.86);
+  text-shadow:0 2px 14px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.6)}
+.rr-in-n{display:block;margin-top:10px;min-width:2ch;font:500 112px/1 'Oswald',var(--ff);font-variant-numeric:tabular-nums;letter-spacing:.02em;color:#f4f1ea;
+  text-shadow:0 6px 30px rgba(0,0,0,.8),0 0 3px rgba(0,0,0,.5);transition:color .3s}
+.rr-in-n.end{color:var(--a);text-shadow:0 6px 30px rgba(0,0,0,.8),0 0 26px rgba(132,217,253,.35)}
+.rr-in-n.tk{animation:rrInTk .85s cubic-bezier(.2,.7,.3,1)}
+@keyframes rrInIn{from{opacity:0;transform:translateY(6px);letter-spacing:.06em}to{opacity:1;transform:none}}
+@keyframes rrInTk{0%{opacity:.25;transform:scale(1.14)}30%{opacity:1}100%{opacity:1;transform:scale(1)}}
+@media (max-width:640px){.rr-in-t{font-size:13px;letter-spacing:.3em;margin-right:-.3em}.rr-in-n{font-size:76px;margin-top:8px}}
+@media (prefers-reduced-motion:reduce){.rr-in,.rr-in-n.tk{animation:none}}
+
+/* ===== Страх при выстреле (владелец 20.11): края экрана темнеют и краснеют в такт сердцу (удар-удар каждые 0,75 с, как в звуке) ===== */
+.rr-fear{position:absolute;inset:0;z-index:4;pointer-events:none;opacity:0;transition:opacity .25s;background:radial-gradient(ellipse 70% 62% at 50% 52%,transparent 38%,rgba(40,0,0,.55) 78%,rgba(10,0,0,.9))}
+.rr-fear.on{opacity:1;animation:rrBeat .75s ease-out infinite}
+@keyframes rrBeat{0%{transform:scale(1.04);filter:brightness(1.25)}12%{transform:scale(1);filter:brightness(1)}33%{transform:scale(1.025);filter:brightness(1.15)}45%,100%{transform:scale(1);filter:brightness(.9)}}
+@media (prefers-reduced-motion:reduce){.rr-fear.on{animation:none}}
+
+body.pg-krot.krot-room #header{display:none}   /* владелец 20.11: во время игры шапка сайта (логотип и меню) скрыта */
+body.pg-krot.krot-room #app{padding-top:0;margin-top:0}

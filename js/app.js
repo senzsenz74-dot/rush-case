@@ -2557,7 +2557,7 @@ const newsCol = () => newsList().map(newsCard).join('');
 function pageMain() {
   // справа от первой новости — значок «?»: при наведении (или нажатии) стеклянная подложка с реквизитами продавца (подвала на главной нет);
   // в самом низу — мелкая приписка про Valve
-  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><img src="${MNA.dir}krot-logo.webp?v=${MNA.v}" alt="Режим КРОТ — RUSH CASE" decoding="async"><a class="mnk-go" href="#/krot">${krotOpen() ? 'Играть' : 'Скоро'}</a></div>
+  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><img src="${MNA.dir}rr-logo.webp?v=${MNA.v}" alt="Русская рулетка — RUSH CASE" decoding="async"><a class="mnk-go" href="#/krot">${krotOpen() ? 'Играть' : 'Скоро'}</a>${krotOpen() ? '<button class="mnk-lb" type="button">Создать лобби</button>' : ''}</div>
     <div class="mn-info"><button class="mn-q" id="mnQ" aria-label="Реквизиты продавца" aria-expanded="false"><i></i></button>
       <div class="mn-req" role="tooltip"><small>Продавец</small><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}</span><span>ОГРНИП ${LEGAL.ogrnip}</span>
         <span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span>
@@ -3176,7 +3176,7 @@ async function gaStrWin() {
 // режим «КРОТ» (#/krot): сама игра — js/krot.js + css/krot.css, грузятся только на этой странице (сервер — supabase/krot.sql)
 // «Крот» пока закрыт для игроков (владелец 15.11: «не готов на 100%») — открыт только админам и на localhost (разработка, демо).
 // Открыть всем: krotOpen = () => true.
-const krotOpen = () => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || !!(st.user && st.user.admin);
+const krotOpen = () => true;   // «Русская рулетка» открыта всем (владелец 20.11); раньше — только localhost и админ
 function pageKrot() {
   if (!krotOpen()) return `<section class="krp"><div class="krp-box"><img class="krp-logo" src="${MNA.dir}krot-logo.webp?v=${MNA.v}" alt="Режим КРОТ — RUSH CASE">
     <h1 class="krp-h">Режим «Крот» — скоро</h1><p class="krp-t">Новый режим почти готов: доводим и проверяем. Откроем совсем скоро — следите за новостями на главной.</p><a class="krp-go" href="#/">На главную</a></div></section>`;
@@ -3190,6 +3190,10 @@ function krotLoad() {
   return (krotLib = Promise.all([one('link', { rel: 'stylesheet', href: 'css/krot.css?v=' + v }), one('script', { src: 'js/krot.js?v=' + v })]).catch(e => { krotLib = null; throw e; }));
 }
 const krotDeps = () => ({ sb, esc, openAuth, user: () => st.user, sound: () => !!st.sound });
+document.addEventListener('click', e => {   // «Создать лобби» под карточкой (владелец 20.11): окно лобби с кодом и ссылкой
+  const l = e.target.closest && e.target.closest('.mnk-lb'); if (!l || !krotOpen()) return;
+  krotLoad().then(() => { window.KROT.mmInit(krotDeps()); window.KROT.mmInvite(); }).catch(() => toast('Не удалось загрузить режим. Обновите страницу.', 'err'));
+});
 // главная: «Играть» на карточке «Крота» — поиск матча (как в CS2). Работает и до загрузки js/krot.js.
 // «Плюс» у агента — всегда рефералка #/invite (владелец 15.11); пригласить в группу «Крота» — внутри режима.
 document.addEventListener('click', e => {
@@ -11356,7 +11360,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Режим КРОТ', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', news: 'Новости', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Русская рулетка', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', news: 'Новости', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
