@@ -2446,7 +2446,7 @@ const newsCol = () => newsList().map(newsCard).join('');
 function pageMain() {
   // справа от первой новости — значок «?»: при наведении (или нажатии) стеклянная подложка с реквизитами продавца (подвала на главной нет);
   // в самом низу — мелкая приписка про Valve
-  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><img src="${MNA.dir}rr-logo.webp?v=${MNA.v}" alt="Русская рулетка — RUSH CASE" decoding="async"><a class="mnk-go" href="#/krot">${krotOpen() ? 'Играть' : 'Скоро'}</a>${krotOpen() ? '<button class="mnk-lb" type="button">Создать лобби</button>' : ''}</div><div class="mnr" id="mnRank" hidden></div>
+  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><img src="${MNA.dir}rr-logo.webp?v=${MNA.v}" alt="Русская рулетка — RUSH CASE" decoding="async"><a class="mnk-go" href="#/krot">${krotOpen() ? 'Играть' : 'Скоро'}</a>${krotOpen() ? '<div class="mnk-fly"><div class="mnk-fbox" role="menu"><button class="mnk-fi mnk-qp" type="button" role="menuitem">Быстрая игра</button><button class="mnk-fi mnk-lb" type="button" role="menuitem">Лобби</button><a class="mnk-fi" href="#/rrtop" role="menuitem">Рейтинг</a></div></div>' : ''}</div><div class="mnr" id="mnRank" hidden></div>
     <div class="mn-info"><button class="mn-q" id="mnQ" aria-label="Реквизиты продавца" aria-expanded="false"><i></i></button>
       <div class="mn-req" role="tooltip"><small>Продавец</small><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}</span><span>ОГРНИП ${LEGAL.ogrnip}</span>
         <span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span>
@@ -3096,14 +3096,14 @@ function krotLoad() {
   return (krotLib = Promise.all([one('link', { rel: 'stylesheet', href: 'css/krot.css?v=' + v }), one('script', { src: 'js/krot.js?v=' + v })]).catch(e => { krotLib = null; throw e; }));
 }
 const krotDeps = () => ({ sb, esc, openAuth, user: () => st.user, sound: () => !!st.sound });
-document.addEventListener('click', e => {   // «Создать лобби» под карточкой (владелец 20.11): окно лобби с кодом и ссылкой
+document.addEventListener('click', e => {   // «Лобби» в табличке у «Играть» (владелец 21.11; было кнопкой под карточкой): окно лобби с кодом и ссылкой
   const l = e.target.closest && e.target.closest('.mnk-lb'); if (!l || !krotOpen()) return;
   krotLoad().then(() => { window.KROT.mmInit(krotDeps()); window.KROT.mmInvite(); }).catch(() => toast('Не удалось загрузить режим. Обновите страницу.', 'err'));
 });
 // главная: «Играть» на карточке «Крота» — поиск матча (как в CS2). Работает и до загрузки js/krot.js.
 // «Плюс» у агента — всегда рефералка #/invite (владелец 15.11); пригласить в группу «Крота» — внутри режима.
 document.addEventListener('click', e => {
-  const a = e.target.closest && e.target.closest('.mnk-go'); if (!a || !krotOpen()) return;   // закрыт — обычный переход по ссылке
+  const a = e.target.closest && e.target.closest('.mnk-go, .mnk-qp'); if (!a || !krotOpen()) return;   // «Играть» или «Быстрая игра» в табличке   // закрыт — обычный переход по ссылке
   e.preventDefault();
   try { const AC = window.AudioContext || window.webkitAudioContext; if (AC && !window.__krAC) window.__krAC = new AC(); if (window.__krAC && window.__krAC.state === 'suspended') window.__krAC.resume(); } catch (x) { /* без звука */ }
   krotLoad().then(() => { window.KROT.mmInit(krotDeps()); window.KROT.mmPlay(); })

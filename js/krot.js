@@ -3026,7 +3026,7 @@ function mmCard() {
   const s = MM.st, p = s && s.party, srch = !!(p && p.state === 'search');
   b.textContent = s && s.match ? 'Игра найдена' : srch ? 'Отменить поиск' : 'Играть';
   b.classList.toggle('krmm-srch', srch);
-  const lb = document.querySelector('.mnk-lb'); if (lb) { const n = pnum(p); lb.textContent = n > 1 ? `Лобби · ${n}/${NS}` : 'Создать лобби'; }
+  const lb = document.querySelector('.mnk-lb'); if (lb) { const n = pnum(p); lb.textContent = n > 1 ? `Лобби · ${n}/${NS}` : 'Лобби'; }
 }
 function mmMenu() {
   if (!root || view !== 'menu') return;
