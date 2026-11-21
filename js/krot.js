@@ -1701,7 +1701,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       _cvU.set(0, .1, 0).applyQuaternion(a.hq).add(_cv).project(c); const ux = (_cvU.x * .5 + .5) * w - sx, uy = (_cvU.y * .5 + .5) * h - sy;
       const ang = ux * ux + uy * uy > 1 ? Math.atan2(uy, ux) - Math.PI / 2 : 0;   // сетка повёрнута по «верху» головы
       U.uHc.value[n].set(_cv.x, _cv.y, _cv.z, 1); U.uHe.value[n].copy(_ce); U.uHr.value[n].setFromMatrix4(_cm4.makeRotationFromQuaternion(a.hq)); U.uHs.value[n].set(sx, sy, b, ang); U.uS.value[n] = b; n++;
-      if (cc && nb < 4) cctvM.uniforms.uBx.value[nb++].set(sx, sy, em * ppm * 1.3 + 2, Math.min(1, a.cen));   // красная рамка «выбыл» на экране камеры
+      if (cc && nb < 4) cctvM.uniforms.uBx.value[nb++].set(sx, sy, ea * ppm * 1.05 + 1, Math.min(1, a.cen));   // красная рамка «выбыл» на экране камеры — плотно к голове (владелец 22.11: меньше)
     }
     U.uHn.value = n; if (cc) cctvM.uniforms.uBn.value = nb; return n;
   }
