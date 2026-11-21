@@ -140,32 +140,29 @@ let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 214748364
 // огонь: язычки пламени слоями (красный → оранжевый → жёлтый → белая сердцевина) + размытое свечение под ними
 const tongue = (w, h, b) => `M${f(-w / 2)},0C${f(-w * .62)},${f(-h * .4)} ${f(b - w * .35)},${f(-h * .62)} ${f(b)},${f(-h)}C${f(b + w * .12)},${f(-h * .68)} ${f(w * .72)},${f(-h * .42)} ${f(w / 2)},0Q0,${f(h * .12)} ${f(-w / 2)},0Z`;
 const FIRE_OUT = [['#d9380e', 1], ['#ff8f1c', .74], ['#ffd257', .5], ['#fff5cf', .26]];
-const FIRE_IN = [['#a8200a', 1], ['#e85a12', .76], ['#ffa22a', .52], ['#ffe08a', .3]];
+const FIRE_IN = [['#d8480f', 1], ['#ff8a1c', .7], ['#ffc24a', .45], ['#ffe9a8', .22]];
 function fireLayers(list, cols, glow) {
   const T = ([x, y, r, w, h, b], sx, sy) => `<path d="${tongue(w, h, b)}" transform="translate(${f(x)},${f(y)}) rotate(${f(r)}) scale(${f(sx)},${f(sy)})"/>`;
-  let s = glow ? `<g filter="url(#${glow})" fill="#ff5a00" opacity=".8">${list.map(t => T(t, 1.2, 1.12)).join('')}</g>` : '';
+  let s = glow ? `<g filter="url(#${glow})" fill="#ff5a00" opacity=".55">${list.map(t => T(t, 1.1, 1.08)).join('')}</g>` : '';
   for (const [c, k] of cols) s += `<g fill="${c}">${list.map(t => T(t, .5 + .5 * k, k)).join('')}</g>`;
   return s;
 }
 function flames(p, inner) {
   const L = [];
-  if (inner) {
-    for (let x = 4; x <= 316; x += 17) { const c = Math.abs(x - 160) / 160; L.push([x + rnd() * 6, 128, (rnd() - .5) * 14, 30 + rnd() * 12, 58 + 40 * c + rnd() * 22, (rnd() - .5) * 18]); }
-    return `<g filter="url(#${p}ib)">${fireLayers(L, FIRE_IN)}</g>`;
+  if (inner) { // внутри плашки: низкая стена огня снизу, верх остаётся тёмным — череп читается
+    for (let x = 10; x <= 310; x += 36) { const c = Math.abs(x - 160) / 160;
+      L.push([x + rnd() * 6, 126, (rnd() - .5) * 10, 58 + rnd() * 12, 34 + 30 * c + rnd() * 12, (rnd() - .5) * 30]); }
+    return `<g filter="url(#${p}ib)" opacity=".85">${fireLayers(L, FIRE_IN)}</g>`;
   }
-  for (let x = 36; x <= 284; x += 12) { const c = 1 - Math.abs(x - 160) / 140, h = 20 + 34 * c + rnd() * 16;
-    L.push([x + rnd() * 5, 15 + rnd() * 4, (x - 160) * .09 + (rnd() - .5) * 12, 15 + 9 * c + rnd() * 6, h, (rnd() - .5) * h * .4]); }
-  const side = [];
-  for (const t of [.12, .38, .64, .9]) side.push([3 + 27 * t, 62 - 50 * t, -38 - rnd() * 18, 14 + rnd() * 5, 22 + rnd() * 14, (rnd() - .5) * 8]);
-  side.push([2, 68, -62, 16, 26, -4]);
-  for (const s of side) { L.push(s); L.push([320 - s[0], s[1], -s[2], s[3], s[4] * (.9 + rnd() * .2), -s[5]]); }
-  for (let x = 52; x <= 268; x += 24) L.push([x + rnd() * 8, 122, (rnd() - .5) * 16, 12 + rnd() * 5, 10 + rnd() * 9, (rnd() - .5) * 5]);
+  // снаружи: только небольшая «корона» языков над центром верхней рамки, рамка видна целиком
+  [100, 117, 134, 151, 169, 186, 203, 220].forEach((x, i) => { const c = 1 - Math.abs(x - 160) / 80, h = 12 + 22 * c + rnd() * 6;
+    L.push([x + (rnd() - .5) * 4, 15, (x - 160) * .12, 13 + 4 * c, h, (i % 2 ? 1 : -1) * h * (.2 + rnd() * .15)]); });
   return fireLayers(L, FIRE_OUT, p + 'fg');
 }
 function sparks(p) {
   let a = '';
-  for (let i = 0; i < 44; i++) { const x = -6 + rnd() * 332, y = -18 + rnd() * (rnd() < .7 ? 70 : 165);
-    a += `<ellipse cx="${f(x)}" cy="${f(y)}" rx="${f(.7 + rnd() * .9)}" ry="${f(1.6 + rnd() * 2.6)}" transform="rotate(${f((rnd() - .5) * 40)} ${f(x)} ${f(y)})" fill="${rnd() < .5 ? '#fff2c0' : '#ffc45a'}"/>`; }
+  for (let i = 0; i < 16; i++) { const x = 84 + rnd() * 152, y = -18 + rnd() * 50;
+    a += `<ellipse cx="${f(x)}" cy="${f(y)}" rx="${f(.6 + rnd() * .7)}" ry="${f(1.4 + rnd() * 2)}" transform="rotate(${f((rnd() - .5) * 40)} ${f(x)} ${f(y)})" fill="${rnd() < .5 ? '#fff2c0' : '#ffc45a'}"/>`; }
   return `<g filter="url(#${p}sg)" fill="#ff8a1a">${a.replace(/ fill="[^"]+"/g, '')}</g><g>${a}</g>`;
 }
 
@@ -199,11 +196,11 @@ function build(i) {
     + `<filter id="${p}ds" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="2.5"/><feOffset dx="1.5" dy="3"/><feComponentTransfer><feFuncA type="linear" slope=".6"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
   if (C.fire) defs += `<radialGradient id="${p}bg" cx=".5" cy="1" r="1"><stop offset="0" stop-color="#ffd27a"/><stop offset=".35" stop-color="#f0701a"/><stop offset=".7" stop-color="#8a1a08"/><stop offset="1" stop-color="#2a0503"/></radialGradient>`
     + `<radialGradient id="${p}eye"><stop offset="0" stop-color="#fffbe0"/><stop offset=".45" stop-color="#ffb020"/><stop offset="1" stop-color="#c02a00"/></radialGradient>`
-    + `<radialGradient id="${p}glow"><stop offset="0" stop-color="#fffbe6" stop-opacity=".85"/><stop offset="1" stop-color="#ffd060" stop-opacity="0"/></radialGradient>`
+    + `<radialGradient id="${p}glow"><stop offset="0" stop-color="#fffbe6" stop-opacity=".55"/><stop offset="1" stop-color="#ffd060" stop-opacity="0"/></radialGradient>`
     + `<filter id="${p}gl" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation=".8"/></filter>`
-    + `<filter id="${p}fg" filterUnits="userSpaceOnUse" x="-40" y="-60" width="400" height="240"><feGaussianBlur stdDeviation="5"/></filter>`
+    + `<filter id="${p}fg" filterUnits="userSpaceOnUse" x="-40" y="-60" width="400" height="240"><feGaussianBlur stdDeviation="3"/></filter>`
     + `<filter id="${p}sg" filterUnits="userSpaceOnUse" x="-40" y="-60" width="400" height="240"><feGaussianBlur stdDeviation="1.6"/></filter>`
-    + `<filter id="${p}ib" filterUnits="userSpaceOnUse" x="-40" y="-60" width="400" height="240"><feGaussianBlur stdDeviation="1.4"/></filter>`;
+    + `<filter id="${p}ib" filterUnits="userSpaceOnUse" x="-40" y="-60" width="400" height="240"><feGaussianBlur stdDeviation="2.2"/></filter>`;
   else defs += lg(p + 'bg', [[0, C.bg[0]], [1, C.bg[1]]]);
 
   // фон плашки
