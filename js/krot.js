@@ -1434,13 +1434,30 @@ function makeWorld(T, RB, RE, cv, PP) {
   let comp = null;   // ореолы вокруг ламп, бра и свечей (bloom); нет модулей — рисуем без них
   // мозаика на голове убитого (владелец 22.11, как цензура в видео): крупные квадраты, сетка привязана к голове — при движении камеры не съезжает;
   // кровь вокруг видна. Одна и та же мозаика — в основном виде (и у выбывшего-зрителя) и в кадре камеры наблюдения (экраны на стенах, телевизор в конце)
+  // 22.11 (владелец): квадраты не поворачиваются вместе с камерой, а закреплены на голове — сетка объёмная, в осях головы
+  // (как будто голова собрана из кубиков): луч из камеры входит в шар вокруг головы, точка попадает в кубик сетки (ребро uS),
+  // весь кубик — один цвет (среднее 4 точек вокруг его центра на экране). «Жизнь»: 8 раз в секунду цвет каждого кубика чуть сдвигается
+  const CEN_U = () => ({ tDiffuse: { value: null }, uIVP: { value: new T.Matrix4() }, uVP: { value: new T.Matrix4() }, uCam: { value: new T.Vector3() }, uT: { value: 0 },
+    uHc: { value: [0, 1, 2, 3].map(() => new T.Vector4()) }, uHe: { value: [0, 1, 2, 3].map(() => new T.Vector3()) }, uHr: { value: [0, 1, 2, 3].map(() => new T.Matrix3()) }, uS: { value: [0, 0, 0, 0] }, uHn: { value: 0 } });
   const CEN_SH = {
-    uniforms: { tDiffuse: { value: null }, uRes: { value: new T.Vector2(1, 1) }, uHd: { value: [0, 1, 2, 3].map(() => new T.Vector4()) }, uHn: { value: 0 } },
+    uniforms: CEN_U(),
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-    fragmentShader: 'uniform sampler2D tDiffuse; uniform vec2 uRes; uniform vec4 uHd[4]; uniform int uHn; varying vec2 vUv;\n'
-      + 'void main() {\n  vec2 px = vUv * uRes; vec4 col = texture2D(tDiffuse, vUv);\n'
-      + '  for (int i = 0; i < 4; i++) { if (i >= uHn) break; vec4 h = uHd[i]; vec2 cell = floor((px - h.xy) / h.w), cc = (cell + .5) * h.w;\n'
-      + '    if (dot(cc, cc) < h.z * h.z) { vec4 a = vec4(0.); for (int y = 0; y < 3; y++) for (int x = 0; x < 3; x++) a += texture2D(tDiffuse, (h.xy + (cell + (vec2(float(x), float(y)) + .5) / 3.) * h.w) / uRes); col = a / 9.; } }\n'
+    fragmentShader: 'uniform sampler2D tDiffuse; uniform mat4 uIVP; uniform mat4 uVP; uniform vec3 uCam; uniform float uT; uniform vec4 uHc[4]; uniform vec3 uHe[4]; uniform mat3 uHr[4]; uniform float uS[4]; uniform int uHn; varying vec2 vUv;\n'
+      + 'float h1(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }\n'
+      + 'vec2 toUv(vec3 w) { vec4 c = uVP * vec4(w, 1.); return c.xy / c.w * .5 + .5; }\n'
+      + 'void main() {\n  vec4 col = texture2D(tDiffuse, vUv);\n  vec2 nd = vUv * 2. - 1.;\n'
+      + '  vec4 a0 = uIVP * vec4(nd, -1., 1.), a1 = uIVP * vec4(nd, 1., 1.);\n  vec3 ro = uCam, rd = normalize(a1.xyz / a1.w - a0.xyz / a0.w);\n  float best = 1e9;\n'
+      + '  for (int i = 0; i < 4; i++) {\n    if (i >= uHn) break;\n    vec3 c = uHc[i].xyz, E = uHe[i]; float s = uS[i]; mat3 M = uHr[i];\n'
+      + '    vec3 ol = (ro - c) * M, dl = rd * M, E2 = E + s, os = ol / E2, ds = dl / E2;\n'
+      + '    float A = dot(ds, ds), B = dot(os, ds), d = B * B - A * (dot(os, os) - 1.);\n    if (d < 0.) continue;\n'
+      + '    float sq = sqrt(d), t0 = max((-B - sq) / A, 0.), t1 = (-B + sq) / A;\n    if (t1 < 0. || t0 > best) continue;\n'
+      + '    for (int k = 0; k < 16; k++) {\n      float t = t0 + float(k) * s * .5; if (t > t1) break;\n'
+      + '      vec3 L = ol + dl * t, cell = floor(L / s), cc = (cell + .5) * s;\n'
+      + '      if (length(cc / E) < 1.) {\n        float fr = floor(uT * 8.);\n'
+      + '        vec3 j = (vec3(h1(cell + fr), h1(cell + fr + 7.1), h1(cell + fr + 3.7)) - .5) * s * .35;\n'
+      + '        vec3 W = c + M * (cc + j), ex = M * vec3(s * .3, 0., 0.), ey = M * vec3(0., s * .3, 0.);\n'
+      + '        vec4 a = texture2D(tDiffuse, toUv(W + ex)) + texture2D(tDiffuse, toUv(W - ex)) + texture2D(tDiffuse, toUv(W + ey)) + texture2D(tDiffuse, toUv(W - ey));\n'
+      + '        col = a * .25 * (.94 + .12 * h1(cell * 1.3 + fr + 11.)); best = t; break;\n      }\n    }\n  }\n'
       + '  gl_FragColor = col;\n}'
   };
   let cenMain = null;
@@ -1517,7 +1534,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   // экран на задней стене (владелец: оставить) — над панелями
   // экран на задней стене (владелец: оставить) — камера наблюдения: снимает стол из угла в реальном времени (15 кадров/с, эффект CCTV)
   const cctvRT = new T.WebGLRenderTarget(640, 344, { type: T.HalfFloatType }), cctvRT2 = new T.WebGLRenderTarget(640, 344, { type: T.HalfFloatType });
-  const cenCC = PP && PP.ShaderPass ? new PP.ShaderPass(CEN_SH) : null; if (cenCC) cenCC.uniforms.uHd.value = [0, 1, 2, 3].map(() => new T.Vector4());   // мозаика в кадре камеры (свои векторы: clone копирует массив поверхностно)
+  const cenCC = PP && PP.ShaderPass ? new PP.ShaderPass(CEN_SH) : null; if (cenCC) { const u = CEN_U(); for (const k of ['uHc', 'uHe', 'uHr', 'uS']) cenCC.uniforms[k].value = u[k].value; }   // мозаика в кадре камеры (свои векторы: clone копирует массив поверхностно)
   const cctvCam = new T.PerspectiveCamera(60, 2.7 / 1.45, .05, 30); cctvCam.position.set(0, H - .27, 0); cctvCam.up.set(0, 0, -1); cctvCam.lookAt(0, TOP, 0); scene.add(cctvCam);
   const overhead = [];   // что висит между камерой и столом (лампа, провода, луч, дым) — в кадре камеры не рисуем
   const ovC = cnv(640, 344), ovT = tex(ovC);
@@ -1548,7 +1565,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   const boards = [board];   // тот же экран (камера, в конце — итог) на всех 4 стенах: вместо полок и за спиной места 1 — чтобы все видели (владелец 20.11)
   for (const [x, z, ry] of [[-4.94, 0, Math.PI / 2], [4.94, 0, -Math.PI / 2], [0, 4.94, Math.PI]]) { const b = new T.Mesh(board.geometry, cctvM); b.position.set(x, 2.05, z); b.rotation.y = ry; scene.add(b); boards.push(b); }   // на 1 см перед рамкой (иначе рамка перекрывает)
   let cctvAt = -1, ovAt = -1;
-  W._cctv = { rt: cctvRT, rt2: cctvRT2, cam: cctvCam, m: cctvM };   // для проверки (KROT.dbg.world()._cctv)
+  W._cctv = { rt: cctvRT, rt2: cctvRT2, cam: cctvCam, m: cctvM, cen: cenCC, main: () => cenMain };   // для проверки (KROT.dbg.world()._cctv)
   function tvDraw() {
     const d = tvD; if (!d) return; const x = tvC.getContext('2d'), L = 72, R = TVW - 72, C = TVW / 2;
     let g = x.createLinearGradient(0, 0, 0, TVH); g.addColorStop(0, '#121820'); g.addColorStop(1, '#090c0f'); x.fillStyle = g; x.fillRect(0, 0, TVW, TVH);
@@ -1644,17 +1661,42 @@ function makeWorld(T, RB, RE, cv, PP) {
     if (!FIN.fired && ((FIN.fireAt && clock >= FIN.fireAt) || t > 14)) { FIN.fired = true; finFire(); FIN.resAt = clock + 2.2; }   // убитая камера видна ~2,2 с   // t > 14 — страховка
     if (FIN.resAt && clock >= FIN.resAt) { FIN.mix = 1; FIN.crack = 0; FIN.gl = 0; FIN.on = false; FIN.done = true; tvHov = null; tvDraw(); }   // резкий переход к итогу (владелец 21.11)
   }
-  const _cv3 = new T.Vector2(), _cv = V(0, 0, 0), _cv2 = V(0, 0, 0), CEN_C = V(0, .075, -.01), CEN_R = .135;
-  function cenSet(p, c, w, h, cc) {
+  const _cv3 = new T.Vector2(), _cv = V(0, 0, 0), _cv2 = V(0, 0, 0), CEN_C = V(0, .075, -.01), CEN_R = .135, CEN_S = .017;   // центр черепа от кости head_0; радиус шара; ребро кубика (~16 поперёк, владелец 22.11: «ещё мельче»)
+  const _cm4 = new T.Matrix4(), HB_T = V(0, 0, 0), HB_Q = new T.Quaternion(), _ce = V(0, 0, 0);
+  // голова персонажа (владелец 22.11: мозаика не должна выходить за голову): один раз на модель — все точки, привязанные к костям головы
+  // (лицо, волосы, шлем), в осях головы (a.hq) от кости head_0 → центр и полуоси овала. Своя голова от первого лица скрыта — меряем, когда видна
+  function headBox(a) {
+    const M = a.M; if (M.cenBox !== undefined) return M.cenBox;
+    if (M.head.scale.x < .5) return null;
+    const hb = [M.B.head_0, M.B.head_0_twist].filter(Boolean), h0 = wp(M.B.head_0, V(0, 0, 0)); HB_Q.copy(a.hq).invert();
+    const mn = V(1e9, 1e9, 1e9), mx = V(-1e9, -1e9, -1e9); let cnt = 0;
+    try {
+      M.root.traverse(o => {
+        if (!o.isSkinnedMesh || !o.skeleton) return;
+        const bi = hb.map(b => o.skeleton.bones.indexOf(b)).filter(i => i >= 0); if (!bi.length) return;
+        const g = o.geometry, P = g.attributes.position, SI = g.attributes.skinIndex, SW = g.attributes.skinWeight; if (!P || !SI || !SW) return;
+        for (let i = 0; i < P.count; i++) {
+          let w = 0; for (let k = 0; k < 4; k++) if (bi.includes(SI.getComponent(i, k))) w += SW.getComponent(i, k);
+          if (w < .5) continue;
+          HB_T.fromBufferAttribute(P, i); o.applyBoneTransform(i, HB_T); HB_T.applyMatrix4(o.matrixWorld).sub(h0).applyQuaternion(HB_Q); mn.min(HB_T); mx.max(HB_T); cnt++;
+        }
+      });
+    } catch (e) { console.warn('RR headBox', e); cnt = 0; }
+    M.cenBox = cnt > 50 ? { c: mn.clone().add(mx).multiplyScalar(.5), e: mx.clone().sub(mn).multiplyScalar(.5 * 1.04) } : null;   // чуть с запасом — нос и подбородок в углах
+    return M.cenBox;
+  }
+  function cenSet(p, c, w, h, cc) {   // h — высота кадра в пикселях (для наименьшего кубика)
     if (!p) return 0; const U = p.uniforms; let n = 0;
-    U.uRes.value.set(w, h); c.updateMatrixWorld(); const th = Math.tan(c.fov * Math.PI / 360);
+    c.updateMatrixWorld(); U.uVP.value.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); U.uIVP.value.copy(U.uVP.value).invert(); c.getWorldPosition(U.uCam.value); U.uT.value = clock;
     for (const s of SEATS) {
       const a = AV[s]; if (n >= 4) break;
       if (!a || !a.on || !a.M || !a.cen || !a.hq || (!cc && a.me && a.M.head.scale.x < .5)) continue;   // своя голова от первого лица скрыта — нечего закрывать
-      _cv.copy(CEN_C).applyQuaternion(a.hq).add(wp(a.M.B.head_0, _cv2));
-      _cv2.copy(_cv).applyMatrix4(c.matrixWorldInverse); const dz = -_cv2.z; if (dz < c.near) continue;
-      _cv.project(c); const r = CEN_R * a.cen * h / (2 * dz * th); if (r < 1.5) continue;
-      U.uHd.value[n++].set((_cv.x * .5 + .5) * w, (_cv.y * .5 + .5) * h, r, Math.max(2, CEN_R * h / (2 * dz * th) / 5));
+      const hb = headBox(a); _ce.copy(hb ? hb.e : _cv2.set(CEN_R, CEN_R, CEN_R)).multiplyScalar(a.cen);
+      _cv.copy(hb ? hb.c : CEN_C).applyQuaternion(a.hq).add(wp(a.M.B.head_0, _cv2));
+      const dz = -_cv2.copy(_cv).applyMatrix4(c.matrixWorldInverse).z; if (dz < c.near) continue;   // голова за камерой
+      const px = 2 * dz * Math.tan(c.fov * Math.PI / 360) / h, need = (cc ? 4 : 5) * px;   // кубик не мельче 4–5 пикселей (камера наблюдения — 640×344, голова там ~25 px)
+      const sz = need > CEN_S ? CEN_S * Math.pow(2, Math.ceil(Math.log2(need / CEN_S))) : CEN_S;   // крупнее — скачками ×2, чтобы сетка не дрожала при движении камеры
+      U.uHc.value[n].set(_cv.x, _cv.y, _cv.z, 1); U.uHe.value[n].copy(_ce); U.uHr.value[n].setFromMatrix4(_cm4.makeRotationFromQuaternion(a.hq)); U.uS.value[n] = sz; n++;
     }
     U.uHn.value = n; return n;
   }
