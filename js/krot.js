@@ -1015,9 +1015,10 @@ function rrEvent(ev) {
   if (!(ev.kind === 'spin' && (me || (G && G.drum)))) rrSound(ev.kind);   // прокрутку озвучивает сам барабан: щелчок на деление (без 3D — старый звук)
   if (me && (ev.kind === 'click' || ev.kind === 'bang')) rrFear(false); if (me && ev.kind === 'bang' && G && G.specGo) G.specGo(1.5);
   const auto = ev.auto ? 'время вышло · ' : '';
+  if (ev.kind === 'start' && G && G.load) { const nb = Math.min(4, ev.bullets || 1), w = G.load(nb); for (let i = 0; i < nb; i++) setTimeout(() => { if (root) rrSound('load'); }, w + i * (G.loadMs || 550)); }   // патроны заходят в барабан (владелец 22.11)
   if (ev.kind === 'start') showBand('Раунд ' + ev.round, (S && S.players.filter(p => p.alive !== false).length === 2 ? 'Финал · ' : '') + 'в револьвере ' + ev.bullets + ' ' + plural(ev.bullets), 3200);   // владелец: «РАУНД №, В РЕВОЛЬВЕРЕ 1 ПАТРОН», в рамке как в «Краше»
   else if (ev.kind === 'vote_end') { voteRes = { ok: !!ev.ok, yes: ev.yes || 0, no: ev.no || 0, bullets: ev.bullets, until: Date.now() + 4500,
-      v: voteLast && voteLast.by === ev.seat ? voteLast : { by: ev.seat, at: 0, yes: [], no: [], need: '', cost: 0 } }; voteLast = null; drawVote(); if (ev.ok) rrSound('load'); if (ev.ok && ev.cost) bankSpend(ev.cost); }   // +1 патрон — звук зарядки (владелец 21.11)
+      v: voteLast && voteLast.by === ev.seat ? voteLast : { by: ev.seat, at: 0, yes: [], no: [], need: '', cost: 0 } }; voteLast = null; drawVote(); if (ev.ok) { rrSound('load'); if (G && G.load) G.load(1); } if (ev.ok && ev.cost) bankSpend(ev.cost); }   // +1 патрон — звук зарядки (владелец 21.11)
   else if (ev.kind === 'spin') { if (!me) { spinNote = { seat: ev.seat, until: Date.now() + 1400 }; drawAct(); } }
   else if (ev.kind === 'click') { showEv('В барабане пусто', me ? 'вы живы' : nm + ' жив', 'click', 1600);
     if (p && !me && (p.bot || api === Demo) && G && G.gest) { const h = (((S.game && S.game.id) || 0) * 31 + (ev.n || 0) * 7 + ev.seat) % 20; if (h < 6) setTimeout(() => { const q = S && S.players.find(x => x.seat === ev.seat); if (G && q && q.alive !== false) G.gest(ev.seat, GESTS[h % 4].k); }, 1400); } }   // бот выжил — иногда жест рукой   // владелец 20.11: без «Щелчок» и без «время вышло»
@@ -2024,7 +2025,7 @@ function makeWorld(T, RB, RE, cv, PP) {
           const bb = new T.Box3().setFromObject(wrap), c = bb.getCenter(V(0, 0, 0)); wrap.position.sub(c);
           gun.g.children.forEach(o => { o.visible = false; });
           gun.g.add(wrap);
-          const dr = sc.getObjectByName('drum'); if (dr) { gun.drum = dr; gun.axis = 'z'; }
+          const dr = sc.getObjectByName('drum'); if (dr) { gun.drum = dr; gun.axis = 'z'; drumSetup(dr); }
           gun.hammer = sc.getObjectByName('hammer') || null;
           gun.half = (bb.max.z - bb.min.z) / 2; gun.muzzle = V(bb.max.x - c.x, .039, 0);   // ось ствола — на 3,9 см выше центра (замер 20.11)
         } catch (e) { console.warn('RR revolver', e); }
@@ -2284,6 +2285,74 @@ function makeWorld(T, RB, RE, cv, PP) {
     gun.seat = 0; gun.pend = null; gun.sl = null;
   };
   const DR = { tgt: null, v: 0, hold: false, idx: null, sndUntil: 0 }, DSTEP = Math.PI / 3;
+  // золотые патроны в барабане (владелец 22.11). Где патроны — секрет сервера, поэтому пока идёт раунд их не видно:
+  // в начале раунда и при «+1 патрон» патрон по одному заходит в барабан сзади и скрывается; после боевого выстрела барабан
+  // откидывается вбок и показывает настоящие гнёзда (сервер присылает chambers и pos в событии bang): напротив ствола — стреляная гильза.
+  // Гнёзда в модели — на радиусе 11,8 мм через 60°; ствол — сверху (−x модели). Барабан после щелчка/выстрела довёрнут на 60° —
+  // сверху стоит то гнездо, из которого только что стреляли, следующий выстрел — гнездо дальше (как pos + 1 на сервере).
+  const CH_R = .0118, CR_P = [.016, .014], CR_SW = -Math.PI / 2;   // ось откидывания (под барабаном, справа), угол — вправо: на столе револьвер лежит правым боком вверх
+  const CR = { crane: null, slots: [], p: 0, pt: 0, ld: null, rv: null };
+  const cartMat = {
+    gold: new T.MeshStandardMaterial({ color: 0xffd772, metalness: 1, roughness: .16, envMapIntensity: 2.4, emissive: 0x3a2804 }),
+    tip: new T.MeshStandardMaterial({ color: 0xffc865, metalness: 1, roughness: .2, envMapIntensity: 2.2, emissive: 0x302004 }),
+    used: new T.MeshStandardMaterial({ color: 0xa88a4a, metalness: 1, roughness: .55, envMapIntensity: 1.2 }),
+    prim: new T.MeshStandardMaterial({ color: 0xd8d2c2, metalness: 1, roughness: .35 }),
+    dent: new T.MeshStandardMaterial({ color: 0x6d6050, metalness: .8, roughness: .6 }),
+    hole: new T.MeshBasicMaterial({ color: 0x070605 })
+  };
+  const cartGeo = (() => {
+    const zf = -.0095, zr = .0183;   // гильза: от дульца (вперёд, к стволу) до закраины сзади
+    const cyl = (r, z0, z1, seg = 20) => { const g = new T.CylinderGeometry(r, r, z1 - z0, seg); g.rotateX(Math.PI / 2); g.translate(0, 0, (z0 + z1) / 2); return g; };
+    const pts = []; for (let i = 0; i <= 8; i++) { const k = i / 8; pts.push(new T.Vector2(.0041 * Math.sqrt(Math.max(0, 1 - k * k * .92)), -k * .0085)); }   // пуля — оживальная, вершина вперёд (−z)
+    const tip = new T.LatheGeometry(pts, 18); tip.rotateX(Math.PI / 2); tip.translate(0, 0, zf);
+    const disc = (r, z, back) => { const g = new T.CircleGeometry(r, 18); if (back) g.rotateY(Math.PI); g.translate(0, 0, z); return g; };
+    return { body: cyl(.0043, zf, zr), rim: cyl(.005, zr, zr + .0012), tip, prim: disc(.0016, zr + .00125), mouth: disc(.0037, zf - .0002, true) };
+  })();
+  function drumSetup(dr) {
+    try {
+      dr.geometry.rotateZ(Math.PI / 6);   // в модели гнёзда стояли на 30° мимо ствола — теперь одно гнездо ровно напротив
+      const par = dr.parent, cr = new T.Group(); cr.name = 'crane'; cr.position.set(CR_P[0], CR_P[1], 0); par.add(cr); cr.add(dr); dr.position.set(-CR_P[0], -CR_P[1], 0); CR.crane = cr;
+      for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3, g = new T.Group(); g.position.set(CH_R * Math.cos(a), CH_R * Math.sin(a), 0); g.visible = false;
+        const live = new T.Group(), used = new T.Group();
+        live.add(new T.Mesh(cartGeo.body, cartMat.gold), new T.Mesh(cartGeo.rim, cartMat.gold), new T.Mesh(cartGeo.tip, cartMat.tip), new T.Mesh(cartGeo.prim, cartMat.prim));
+        used.add(new T.Mesh(cartGeo.body, cartMat.used), new T.Mesh(cartGeo.rim, cartMat.used), new T.Mesh(cartGeo.prim, cartMat.dent), new T.Mesh(cartGeo.mouth, cartMat.hole));
+        g.add(live, used);
+        dr.add(g); CR.slots.push({ g, live, used });
+      }
+    } catch (e) { console.warn('RR drum', e); }
+  }
+  const slotAt = ang => { const R = gun.drum.rotation[gun.axis]; return ((Math.round((ang - R) / DSTEP) % 6) + 6) % 6; };   // какое гнездо сейчас под углом ang (π — у ствола)
+  const crHide = () => CR.slots.forEach(o => { o.g.visible = false; o.g.position.z = 0; });
+  // зарядка: n патронов по одному в гнездо справа снизу (60°), каждый скрывается в барабане; между ними барабан на деление. Вернёт задержку до первого, мс
+  W.load = n => {
+    if (!gun.drum || !CR.slots.length || !(n > 0)) return 0;
+    CR.rv = null; const wait = CR.p > 0 ? 450 : 0; CR.pt = 0;   // барабан был откинут после выстрела — сначала закрыть
+    CR.ld = { n: Math.min(4, n), i: 0, t: -wait / 1000, slot: -1 };
+    return wait;
+  };
+  W.loadMs = 550;   // один патрон: 0,42 с заходит + 0,13 с поворот
+  // после боевого: через 2,2 с (револьвер уже лёг) барабан откидывается — патроны в настоящих гнёздах, у ствола — стреляная гильза
+  W.bulShow = (ch, pos) => { if (!gun.drum || !CR.slots.length || !Array.isArray(ch) || pos == null) return; CR.rv = { at: clock + 2.2, ch: ch.map(Number), pos: +pos }; };
+  function crStep(dt) {
+    if (!CR.crane) return;
+    if (CR.rv && clock >= CR.rv.at && !CR.ld) {
+      const { ch, pos } = CR.rv; CR.rv = null; const top = slotAt(Math.PI);
+      CR.slots.forEach((o, i) => { const c = (((pos + top - i) % 6) + 6) % 6, on = ch.includes(c); o.g.visible = on; o.g.position.z = 0; o.live.visible = on && c !== pos; o.used.visible = on && c === pos; });
+      CR.pt = 1;
+    }
+    if (CR.p !== CR.pt) { CR.p = CR.pt > CR.p ? Math.min(CR.pt, CR.p + dt / .55) : Math.max(CR.pt, CR.p - dt / .42); if (!CR.p && !CR.ld) crHide(); }
+    CR.crane.rotation.z = CR_SW * smS(CR.p);
+    const L = CR.ld; if (!L || CR.p > 0) return;
+    L.t += dt; if (L.t < 0) return;
+    if (L.slot < 0) { crHide(); L.slot = slotAt(Math.PI / 3); const o = CR.slots[L.slot]; o.g.visible = true; o.live.visible = true; o.used.visible = false; }
+    const o = CR.slots[L.slot], k = Math.min(1, L.t / .42);
+    o.g.position.z = .065 * Math.pow(1 - k, 3);   // заходит сзади и встаёт в гнездо
+    if (k < 1) return;
+    o.g.visible = false; o.g.position.z = 0; L.i++; L.slot = -1;
+    if (L.i >= L.n) { CR.ld = null; return; }
+    L.t = -.13; const dr = gun.drum, ax = gun.axis, a0 = dr.rotation[ax]; tween(.13, q => { dr.rotation[ax] = a0 + DSTEP * smS(q); });   // следующее гнездо
+  }
   W.drum = m => {   // 'tap' — на одно деление, 'hold' — крутится, 'up' — отпустили: тормозит до деления
     const dr = gun.drum; if (!dr) return;
     if (gun.who !== mySeat || gun.lw < 1) gun.rush = true;   // револьвер ещё не у виска — догоняем
@@ -2357,7 +2426,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   const _eg2 = new T.Euler(0, 0, 0, 'YXZ'), _gp = V(0, 0, 0), _gq = new T.Quaternion(), _gt = V(0, 0, 0), _gtq = new T.Quaternion(), _gu = V(0, 0, 0), _gd = V(0, 0, 0), _gw = V(0, 0, 0), _gfq = new T.Quaternion(), _qh3 = new T.Quaternion();
   const gunStep = dt => {
     const sp = gun.rush ? 4 : 1;
-    drumStep(dt); chipStep(dt);   // нажали «Выстрел»/«Крутить», а револьвер ещё не у виска — всё быстрее
+    drumStep(dt); crStep(dt); chipStep(dt);   // нажали «Выстрел»/«Крутить», а револьвер ещё не у виска — всё быстрее
     if (gun.sl) { const s = gun.sl; s.k = Math.min(1, s.k + dt / .85 * sp); const e = easeIO(s.k); gun.tp.x = s.x0 + (s.x1 - s.x0) * e; gun.tp.z = s.z0 + (s.z1 - s.z0) * e; gun.tp.yaw = s.y0 + (s.y1 - s.y0) * e; if (s.k >= 1) gun.sl = null; }
     if (gun.roul) {   // жребий: в центр стола → крутится как рулетка → ствол на первого → едет к нему
       const R = gun.roul;
@@ -2565,6 +2634,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       }
       o.updateMatrixWorld(); flashL.position.copy(gun.muzzle).applyMatrix4(o.matrixWorld); flashL.position.y += .05;
       tween(.45, k => { flashL.intensity = 40 * Math.pow(1 - k, 2); });
+      if (ev.chambers) W.bulShow(ev.chambers, ev.pos);   // раунд раскрыт: барабан покажет, где были патроны
     }
   };
   function setBoxes(rd) {
@@ -2766,7 +2836,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     if (scene.environment) scene.environment.dispose();
     ren.dispose(); try { ren.forceContextLoss(); } catch (e) { /* уже потерян */ }
   };
-  W.dbg = { AV, MDL, cam, ren, scene, order: o => { mdlOrder = o; mdlApply(); }, look: (y, p) => { yaw = y; pitch = p; userAt = clock; auto = null; } };   // для проверки из браузера (KROT.dbg.world().dbg)
+  W.dbg = { AV, MDL, cam, ren, scene, CR, order: o => { mdlOrder = o; mdlApply(); }, look: (y, p) => { yaw = y; pitch = p; userAt = clock; auto = null; } };   // для проверки из браузера (KROT.dbg.world().dbg)
   W.resetRound();
   return W;
 }
@@ -3706,7 +3776,7 @@ const Demo = (() => {   // «Русская рулетка» без сервер
       g.turn = nextSeat(seat); turnStart(1400); return;
     }
     const left = alive().length; p.alive = false; p.place = left;
-    ev('bang', seat, { auto, place: left });
+    ev('bang', seat, { auto, place: left, chambers: g.ch.slice(), pos: g.pos });   // раунд раскрыт — как на сервере
     sys(`${p.name} выбывает — ${left} место.`);
     r.phase = 'next'; r.phase_at = now(); r.deadline = now() + RR.next * 1000; bump();
     const w = alive().find(x => !x.me); if (w && Math.random() < .6) later(1600, () => say(w.seat, pickOne(LINES.bang)));

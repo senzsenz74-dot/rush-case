@@ -574,7 +574,7 @@ begin
       'seats', to_jsonb(g.seats), 'first', g.first, 'commit', g.commit, 'seed', g.seed, 'proof', v_proof,
       'chambers', to_jsonb(g.chambers), 'spins', g.rspins, 'loser', p_seat))
   where id = g.id;
-  perform public._rr_ev(p_room, 'bang', p_seat, jsonb_build_object('auto', p_auto, 'place', v_left));
+  perform public._rr_ev(p_room, 'bang', p_seat, jsonb_build_object('auto', p_auto, 'place', v_left, 'chambers', to_jsonb(g.chambers), 'pos', g.pos));   -- раунд раскрыт: сайт показывает патроны в настоящих гнёздах (владелец 22.11)
   perform public._rr_log(p_room, g.id, 'bang', jsonb_build_object('round', g.round, 'seat', p_seat, 'auto', p_auto, 'place', v_left,
     'pos', g.pos, 'turn', g.n, 'seed', g.seed, 'proof', v_proof));
   perform public._rr_sys(p_room, format('%s выбывает — %s место.', coalesce(v_nm, 'Игрок'), v_left));
