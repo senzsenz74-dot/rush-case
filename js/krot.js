@@ -582,6 +582,7 @@ async function realtime(id, g) {
     .subscribe();
   const onRt = ch => ch.on('broadcast', { event: 'h' }, m => { const q = m && m.payload; if (G && q && q.s) G.head(q.s, q.y, q.p); })
     .on('broadcast', { event: 'rtc' }, m => { if (m && m.payload && VC.core) VC.core.onSig(m.payload); })
+    .on('broadcast', { event: 'sp' }, m => { const q = m && m.payload; if (!q || !q.s || !G || !G.drum || !S || !S.game || S.game.turn !== q.s) return; spinMirror[q.s] = Date.now(); G.drum(q.k); })   // чужая прокрутка — как у него
     .on('broadcast', { event: 'v' }, m => { const q = m && m.payload; if (!q || !q.s) return; if (q.k === 'start') { voteLocal = { seat: q.s, until: Date.now() + 3000 }; if (G && G.vote) G.vote(q.s); } soon(); });   // кто-то поднял руку / проголосовал — сразу
   const sendOn = ch => p => ch.send({ type: 'broadcast', event: 'rtc', payload: p });
   chRt = onRt(sb.channel('rr:' + id, { config: { private: true, broadcast: { self: false } } }));
@@ -803,19 +804,22 @@ async function rrAct(kind) {
 // Сервер на любую прокрутку перемешивает гнездо (иначе можно вернуть барабан на только что щёлкнувшее пустое гнездо и выжить наверняка);
 // прокрутка уходит на сервер одна — через 0,45 с после последнего отпускания (не чаще spin_gap 0,8 с)
 let spinHeld = 0, spinHoldT = 0, spinSendT = 0, spinPend = false, spinLast = 0, spinBlur = false;
+// чужая прокрутка (владелец 21.11): крутящий шлёт нажал / зажал / отпустил по каналу комнаты — у остальных барабан крутится так же (и звук тот же)
+const spinMirror = {};
+const spinCast = k => { try { const me = myPlayer(); if (chRt && me) chRt.send({ type: 'broadcast', event: 'sp', payload: { s: me.seat, k } }); } catch (e) { /* канал не готов */ } };
 function spinDown() {
   if (myTurn() && S.game.vote) { voteWarn(); return; }
   if (!myTurn() || actBusy || rrPre()) return;
   if (!spinBlur) { spinBlur = true; addEventListener('blur', spinUp); }
   spinHeld = Date.now(); clearTimeout(spinHoldT); clearTimeout(spinSendT);
   keyDown = 'spin'; keyDownAt = Date.now(); drawAct(); keyWave('spin');
-  if (G && G.drum) G.drum('tap');   // звук — щелчок на каждое деление (drumStep)
-  spinHoldT = setTimeout(() => { if (spinHeld && G && G.drum) G.drum('hold'); }, 260);
+  if (G && G.drum) G.drum('tap'); spinCast('tap');   // звук — щелчок на каждое деление (drumStep)
+  spinHoldT = setTimeout(() => { if (spinHeld && G && G.drum) { G.drum('hold'); spinCast('hold'); } }, 260);
 }
 function spinUp() {
   if (!spinHeld) return;
   spinHeld = 0; clearTimeout(spinHoldT);
-  if (G && G.drum) G.drum('up');
+  if (G && G.drum) G.drum('up'); spinCast('up');
   spinPend = true; clearTimeout(spinSendT); spinSendT = setTimeout(() => spinSend(false), 450);
 }
 async function spinSend(now) {
@@ -2185,12 +2189,13 @@ function makeWorld(T, RB, RE, cv, PP) {
     const dr = gun.drum; if (!dr) return;
     if (gun.who !== mySeat || gun.lw < 1) gun.rush = true;   // револьвер ещё не у виска — догоняем
     if (m === 'tap') DR.tgt = (DR.tgt != null ? DR.tgt : Math.round(dr.rotation[gun.axis] / DSTEP) * DSTEP) + DSTEP;
-    else if (m === 'hold') DR.hold = true;
+    else if (m === 'hold') { DR.hold = true; DR.holdUntil = clock + 8; }   // страховка: «отпустил» потерялся — через 8 с сам остановится
     else if (m === 'up') DR.hold = false;
   };
   function drumStep(dt) {   // звук: щелчок на каждое пройденное деление — сколько бы барабан ни крутился (владелец 21.11)
     const dr = gun.drum; if (!dr) return; const ax = gun.axis;
     const live = DR.hold || DR.v > 0 || DR.tgt != null || clock < DR.sndUntil;
+    if (DR.hold && clock > (DR.holdUntil || 0)) DR.hold = false;
     if (DR.hold) { DR.v = Math.min(18, DR.v + dt * 34); dr.rotation[ax] += DR.v * dt; DR.tgt = null; }
     else if (DR.v > 0) { DR.v = Math.max(0, DR.v - dt * 26); dr.rotation[ax] += DR.v * dt; if (!DR.v) DR.tgt = Math.ceil(dr.rotation[ax] / DSTEP - 1e-3) * DSTEP; }
     else if (DR.tgt != null) { const d = DR.tgt - dr.rotation[ax]; if (Math.abs(d) < .002) { dr.rotation[ax] = DR.tgt; DR.tgt = null; } else dr.rotation[ax] += d * Math.min(1, dt * 20); }
@@ -2446,7 +2451,8 @@ function makeWorld(T, RB, RE, cv, PP) {
     const ax = gun.axis, dr = gun.drum, o = gun.g;
     if ((ev.kind === 'spin' || ev.kind === 'cock') && ev.seat && (gun.who !== ev.seat || gun.lw < 1)) gun.rush = true;   // нажали раньше, чем револьвер у виска — догоняем
     if (ev.kind === 'start' && ev.seat) W.roul(ev.seat);   // жребий: револьвер крутится в центре (владелец 21.11)
-    if (ev.kind === 'spin' && dr && ev.seat !== mySeat) { DR.sndUntil = clock + 1.3; const a0 = dr.rotation[ax], a1 = a0 + (Math.PI / 3) * (12 + rnd(12)); tween(1.2, k => { dr.rotation[ax] = a0 + (a1 - a0) * (1 - Math.pow(1 - k, 3)); }); }
+    if (ev.kind === 'spin' && dr && ev.seat !== mySeat && spinMirror[ev.seat] > Date.now() - 6000) DR.hold = false;   // прокрутку уже показали по сигналу крутящего — сервер только подтвердил
+    else if (ev.kind === 'spin' && dr && ev.seat !== mySeat) { const st = Math.random() < .4 ? 1 : 6 + rnd(9), du = st === 1 ? .2 : .9; DR.sndUntil = clock + du + .1; const a0 = dr.rotation[ax], a1 = a0 + (Math.PI / 3) * st; tween(du, k => { dr.rotation[ax] = a0 + (a1 - a0) * (1 - Math.pow(1 - k, 3)); }); }
     if (ev.kind === 'cock') { tween(.18, k => { gun.kz = k < 1 ? Math.sin(Math.PI * k) * .05 : 0; }); return; }   // взвели курок — короткий рывок
     if ((ev.kind === 'click' || ev.kind === 'bang') && dr) { const a0 = dr.rotation[ax]; tween(.12, k => { dr.rotation[ax] = a0 + (Math.PI / 3) * k; }); }
     if (ev.kind === 'click' || ev.kind === 'bang') { const big = ev.kind === 'bang' ? 1 : .35; tween(.35, k => { const s = k < 1 ? Math.sin(Math.PI * k) * big : 0; gun.hop = s * .025; gun.kick = s; }); }   // на столе подпрыгивает, в руке — дуло вверх
