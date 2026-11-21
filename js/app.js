@@ -3366,6 +3366,10 @@ function mountCases() {
   const root = $('.ixp'); if (!root) return;
   const bar = $('#ixBar'), nav = $('#ixTabs'), tw = $('#ixTw'), ind = $('#ixInd'), tabs = $$('.ix-t', nav), secs = $$('.ix-sec', root);
   const cards = () => $$('.ix, .ixs', root);
+  // карточка за пределами экрана — анимации поверх кейса на паузе (.ix-away, style.css; 22.11, оптимизация): когда ни одной
+  // живой карточки не видно, браузеру нечего перерисовывать
+  if (mountCases.io) mountCases.io.disconnect();
+  if ('IntersectionObserver' in window) { const io = mountCases.io = new IntersectionObserver(es => es.forEach(e => e.target.classList.toggle('ix-away', !e.isIntersecting)), { rootMargin: '120px 0px' }); cards().forEach(c => io.observe(c)); }
   const calm = matchMedia('(prefers-reduced-motion:reduce)').matches;
   let f = 'all', curSec = null, lock = 0;
   // голубая полоска под открытой вкладкой
