@@ -333,10 +333,13 @@ begin
   while jsonb_array_length(arr) > 12 loop arr := arr - 0; end loop;
   update public.rr_games set evn = g.evn + 1, evs = arr where id = g.id;
 end $$;
--- будут ли очки: только быстрая игра и не группа из 5 друзей, собравшаяся сама с собой
+-- будут ли очки (и рейтинг): быстрая игра без ботов, кроме группы из 5 друзей, собравшейся сама с собой;
+-- игра с ботами — тоже, если людей хотя бы двое (как деньги, владелец 22.11): очки, игры, победы и выигрыш — только людям
 create or replace function public._rr_pts_on(p_room bigint) returns boolean language sql stable as $$
-  select r.kind = 'quick' and not exists (select 1 from public.rr_players b where b.room_id = r.id and b.bot) and not coalesce((select count(*) = 5 and count(distinct p.party_id) = 1 and bool_and(p.party_id is not null)
-    from public.rr_players p where p.room_id = r.id), false)
+  select (r.kind = 'quick' and not exists (select 1 from public.rr_players b where b.room_id = r.id and b.bot) and not coalesce((select count(*) = 5 and count(distinct p.party_id) = 1 and bool_and(p.party_id is not null)
+    from public.rr_players p where p.room_id = r.id), false))
+    or (exists (select 1 from public.rr_players b where b.room_id = r.id and b.bot)
+      and (select count(*) from public.rr_players h where h.room_id = r.id and not h.bot) >= 2)
   from public.rr_rooms r where r.id = p_room
 $$;
 
@@ -613,7 +616,7 @@ begin
     mon := jsonb_build_object('bank', v_bank, 'votes', coalesce(g.votes, 0), 'cost', v_cost, 'pay', v_pay, 'site', v_bank - v_pay);
   end if;
   for p in select * from public.rr_players where room_id = p_room order by seat loop
-    if rm.points then
+    if rm.points and not p.bot then   -- боту очков нет (и в рейтинг он не попадает)
       v_add := coalesce((c->'pts'->>coalesce(p.place, 5)::text)::int, 0);
       select pts into v_cur from public.rr_points where uid = p.uid and day = d;
       v_add := greatest(0, least(v_add, (c->>'day_cap')::int - coalesce(v_cur, 0)));

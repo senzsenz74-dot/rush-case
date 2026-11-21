@@ -139,7 +139,7 @@ function checkFinal(s, points) {
   ok(JSON.stringify(pl.map(p => p.place).sort()) === '[1,2,3,4,5]', 'места 1–5 без повторов', pl.map(p => p.place));
   ok(pl.filter(p => p.alive).length === 1 && pl.find(p => p.alive).place === 1, 'жив один — первое место');
   ok(s.room.points === points, 'очки ' + (points ? 'есть' : 'нет'));
-  for (const p of pl) ok(points ? p.pts === ({ 1: 10, 2: 6, 3: 3, 4: 1, 5: 0 })[p.place] : p.pts === null, `очки места ${p.place}`, p.pts);
+  for (const p of pl) ok(points && !p.bot ? p.pts === ({ 1: 10, 2: 6, 3: 3, 4: 1, 5: 0 })[p.place] : p.pts === null, `очки места ${p.place}${p.bot ? ' (бот — без очков)' : ''}`, p.pts);
   const evs = s.game.evs;
   ok(evs.length > 0 && evs.length <= 12 && s.game.ev && s.game.ev.n === evs[evs.length - 1].n, 'события: последние ≤ 12, ev = последнее');
   const keys = ['seat', 'name', 'me', 'ready', 'online', 'left', 'loaded', 'alive', 'place', 'pts', 'clicks', 'spins'];
@@ -406,7 +406,7 @@ const phaseOf = async room => (await db.query(`select phase from public.rr_rooms
   await rpc(H, 'rr_ready', { p_room: room, p_ready: true });
   await shift(3.1);
   s = await rpc(A, 'rr_state', { p_room: room });
-  ok(s.room.phase === 'next' && s.room.points === false, 'все готовы — игра, без очков');
+  ok(s.room.phase === 'next' && s.room.points === true && s.room.money === true, 'все готовы — игра; 2 человека и боты — на деньги и очки');
   ok(/not lobby/.test(await err(rpc(A, 'rr_bot_add', { p_room: room }))), 'в игре ботов не добавить');
   await staff(false);
   // люди стреляют, как только их ход; боты — сами; пульс раз в 1 с
@@ -421,7 +421,7 @@ const phaseOf = async room => (await db.query(`select phase from public.rr_rooms
     }
     await shift(s.room.phase === 'next' ? 5.1 : 1);
   }
-  checkFinal(s, false);
+  checkFinal(s, true);   // 2 человека + боты — очки людям (владелец 22.11), ботам нет
   const botSeats = s.players.filter(p => p.bot).map(p => p.seat);
   const lg = (await db.query(`select kind, data, at from public.rr_log where room_id = $1 and kind in ('spin', 'click', 'bang') order by id`, [room])).rows;
   const botShots = lg.filter(e => e.kind !== 'spin' && botSeats.includes(e.data.seat));
@@ -615,7 +615,7 @@ log('M. игра админа с ботами: ставят только люд�
   await shift(1); for (const u of [A, B]) await rpc(u, 'rr_loaded', { p_room: room });
   for (let i = 0; i < 20 && (await phaseOf(room)) === 'lobby'; i++) { await shift(1); await rpc(A, 'rr_tick', { p_room: room }); }
   let s = await rpc(A, 'rr_state', { p_room: room });
-  ok(s.room.money === true && s.room.points === false, 'с ботами и двумя людьми — на деньги, без очков', s.room);
+  ok(s.room.money === true && s.room.points === true, 'с ботами и двумя людьми — на деньги и на очки (владелец 22.11)', s.room);
   ok(s.players.filter(p => p.bot).every(p => p.bet === null) && s.players.filter(p => !p.bot).every(p => p.bet === 100), 'ставят только люди (по 100), боты — нет');
   ok(s.room.bank === 200 && await bal(A) === 900 && await bal(B) === 900, 'банк 200 — только люди', [s.room.bank, await bal(A)]);
   await rpc(B, 'rr_bet', { p_room: room, p_amount: 300 });
@@ -630,7 +630,13 @@ log('M. игра админа с ботами: ставят только люд�
     }
     await shift(s.room.phase === 'next' ? 5.1 : 1);
   }
-  checkFinal(s, false);
+  checkFinal(s, true);
+  { // рейтинг: людям — очки по месту, игра, победа, выигрыш; ботам — ничего
+    const r = (await db.query(`select uid, pts, games, wins, won from public.rr_points where uid in ($1, $2)`, [A, B])).rows, PT = { 1: 10, 2: 6, 3: 3, 4: 1, 5: 0 };
+    const want = await Promise.all(s.players.filter(p => !p.bot).map(async p => ({ uid: await seatUid(room, p.seat), pts: PT[p.place], win: p.place === 1 ? 1 : 0, won: +p.won || 0 })));
+    ok(r.length === 2 && want.every(w => { const x = r.find(y => y.uid === w.uid); return x && x.pts === w.pts && x.games === 1 && x.wins === w.win && +x.won === w.won; }), 'с ботами: людям в рейтинг очки, игра, победа, выигрыш', [r, want]);
+    ok(+(await db.query(`select count(*) n from public.rr_points x where not exists (select 1 from public.profiles f where f.id = x.uid)`)).rows[0].n === 0, 'ботов в рейтинге нет');
+  }
   const hs = s.players.filter(p => !p.bot).sort((x, y) => x.place - y.place), W = hs[0], L = hs[1];
   const t = Math.min(L.bet, W.bet), pay = Math.floor((W.bet + t) * 0.95);
   ok(+W.won === pay && +L.back === L.bet - t, 'банк забрал лучший из людей (место ' + W.place + '), проигравшему — сверх ставки назад', [W, L]);

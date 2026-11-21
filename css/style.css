@@ -5107,6 +5107,7 @@ body.pg-main::after{background:linear-gradient(90deg,rgba(6,8,12,.38),rgba(6,8,1
 .nw-pass .nw-tx{left:calc(var(--nu)*10);right:calc(var(--nu)*10);bottom:calc(var(--nu)*12)}
 .nw-pass .nw-t{font:800 calc(var(--nu)*19)/1 'Sofia Sans Semi Condensed',var(--ff);font-style:italic;color:#67dc8f;text-shadow:0 1px 4px rgba(0,0,0,.35)}
 .nw-pass .nw-s{font-size:calc(var(--nu)*10)}
+.pf2-cpn.pre .pf2-inp{border-color:#84d9fd;box-shadow:0 0 0 1px rgba(132,217,253,.35)}
 
 /* 4 — «Новое и популярное»: листалка кейсов, внизу стрелки и квадратики */
 .nw-feed{height:calc(var(--nu)*239);background:linear-gradient(180deg,rgba(98,88,62,.9),rgba(58,55,64,.92));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
@@ -5126,6 +5127,16 @@ body.pg-main::after{background:linear-gradient(90deg,rgba(6,8,12,.38),rgba(6,8,1
 #nwDots{display:flex;gap:calc(var(--nu)*3)}
 #nwDots i{width:calc(var(--nu)*11);height:calc(var(--nu)*11);background:rgba(255,255,255,.2);cursor:pointer;transition:background .2s}
 #nwDots i.on{background:#dcdcdc}
+/* 3 — листалка промокодов (владелец 22.11): как «Новое и популярное» — коричневая подложка, шапка, стрелки и квадратики;
+   слайды — картинки владельца на всё окно слайда (170nu высотой, ~1,62:1; картинка 1,53:1 — чуть обрезается сверху и снизу); можно и видео */
+.nw-promos{height:calc(var(--nu)*226)}   /* высота прежней третьей карточки — колонка не вырастает */
+.nw-ps{position:absolute;inset:0;display:block;opacity:0;pointer-events:none;transition:opacity .35s}
+.nw-ps.on{opacity:1;pointer-events:auto}
+.nw-ps video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.nw-ps img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.nw-ps:hover video,.nw-ps:hover img{filter:brightness(1.08)}
+.nw-dots{display:flex;gap:calc(var(--nu)*3)}
+.nw-dots i{width:calc(var(--nu)*11);height:calc(var(--nu)*11);background:rgba(255,255,255,.2);cursor:pointer;transition:background .2s}.nw-dots i.on{background:#dcdcdc}
 @media (max-width:1024px){
   .mn{min-height:0}
   .nw-col{--nu:1.25px;scroll-padding-inline:16px;flex-direction:row;width:auto;overflow-x:auto;padding:14px 16px;scroll-snap-type:x mandatory;scrollbar-width:none}

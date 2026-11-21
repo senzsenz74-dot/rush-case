@@ -2307,7 +2307,7 @@ async function loadCaseCfg() {
   const nw = data.find(r => r.k === 'news'), nwWas = JSON.stringify(NEWS); // новости главного экрана (вкладка «Новости» в админке)
   NEWS = nw && Array.isArray(nw.v) ? nw.v : null;
   try { if (NEWS) localStorage.setItem('rc.news', JSON.stringify(NEWS)); else localStorage.removeItem('rc.news'); } catch (e) { /* */ }
-  if (JSON.stringify(NEWS) !== nwWas && $('#nwCol')) { $('#nwCol').innerHTML = newsCol(); nwFeed(); nwDropSync(); }
+  if (JSON.stringify(NEWS) !== nwWas && $('#nwCol')) { $('#nwCol').innerHTML = newsCol(); nwFeed(); nwPromos(); nwDropSync(); }
   const an = data.find(r => r.k === 'announce'); ANN = an && an.v && typeof an.v === 'object' ? an.v : null; annMaybe(); // объявление при входе (вкладка «Объявление»)
   const tc = data.find(r => r.k === 'tower'); if (tc && tc.v) { if (+tc.v.rtp >= .3 && +tc.v.rtp <= .98) TOWER.rtp = +tc.v.rtp; TOWER.off = !!tc.v.off; if (Array.isArray(tc.v.top) && tc.v.top.length === 3) TOWER.top = tc.v.top.map(Number); if ($('#twTower') && !tw.game) drawTower(); }
   const sk = data.find(r => r.k === 'skins'); if (sk && sk.v && sk.v.hold != null) SK_HOLD = Math.max(0, +sk.v.hold || 0);
@@ -2419,8 +2419,11 @@ const NEWS_DEF = [
   // новый id «drop»: старая верхняя новость в site_cfg 'news' лежит под id n1 и сюда больше не подмешивается
   { id: 'drop', kind: 'top', look: 'drop', tag: 'Ивентовые кейсы', note: '', title: 'Реальный гарант', sub: 'уже ждёт тебя', img: 'assets/news-drop.webp', video: 'assets/news-drop.webm', video2: 'assets/news-drop.mp4', link: '#/cases' },
   { id: 'rr', kind: 'promo', kicker: 'Новый режим', title: 'Русская рулетка', sub: 'Пять игроков. Один револьвер. Выживет один.', img: 'assets/news-roulette.webp', link: '#/krot', look: 'dark' },   // #/krot — сразу поиск игры (владелец 21.11)
-  { id: 'n3', kind: 'pass', title: 'Собери сам', sub: 'Собери свой кейс из любых скинов — цена и шансы считаются сразу.',
-    text: 'Выбери скины, задай шансы — сайт сам посчитает цену кейса. Здесь будет полный текст новости.', img: 'assets/case-build.webp', link: '#/build', btn: 'Собрать кейс' },
+  // третья — листалка промокодов (владелец 22.11, как нижняя «Новое и популярное»): видео 640×396 из promo-banners (site-welcome / site-corner) под окно слайда,
+  // каждое играет до конца и сменяется следующим (слайд может быть и картинкой — img без video, смена через dur с); нажатие — профиль, код уже в поле «Купон» (data-cpn). Новый id «promos»: старая «Собери сам» (id n3) не подмешивается
+  { id: 'promos', kind: 'promos', tag: 'Промокоды', slides: [
+    { code: 'WELCOME', video: 'assets/news-welcome.webm?v=4', img: 'assets/news-welcome.webp?v=4', dur: 8, link: '#/profile' },     // +50 на баланс
+    { code: 'RUSH35', video: 'assets/news-rush35.webm?v=4', img: 'assets/news-rush35.webp?v=4', dur: 15, link: '#/profile' } ] }, // +35% к пополнению
   { id: 'feed', kind: 'feed', tag: 'Новое и популярное', more: 'Показать все…' },
 ];
 let NEWS = null; try { NEWS = JSON.parse(localStorage.getItem('rc.news') || 'null'); } catch (e) { /* */ }
@@ -2431,12 +2434,17 @@ function newsMedia(x, cls = 'nw-bg') {
   if (x.video) return `<video class="${cls}" autoplay muted loop playsinline preload="auto"${x.img ? ` poster="${esc(x.img)}"` : ''}><source src="${esc(x.video)}" type="${vType(x.video)}">${x.video2 ? `<source src="${esc(x.video2)}" type="${vType(x.video2)}">` : ''}</video>`;
   return x.img ? `<img class="${cls}" src="${esc(x.img)}" alt="" decoding="async">` : '';
 }
+// нажали слайд промокода — запомнить код для поля «Купон» в профиле (sessionStorage переживает и вход через Steam в этой же вкладке)
+document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('[data-cpn]'); if (a) try { sessionStorage.setItem('rc.cpn', a.dataset.cpn); } catch (er) { /* */ } }, true);
 const NW_ARR = d => `<svg viewBox="0 0 10 12" aria-hidden="true"><path d="${d < 0 ? 'M9 1 2 6l7 5z' : 'M1 1l7 5-7 5z'}" fill="currentColor"/></svg>`;
 function newsCard(x) {
   if (x.off) return '';
   const lk = (x.link || '').replace(/^https?:\/\/(www\.)?rush-case\.online\/?(?=#|$)/, '') || (x.link && x.link.indexOf(location.origin + '/#') === 0 ? x.link.slice(location.origin.length + 1) : x.link || ''), href = lk ? `" href="${esc(lk)}${/^https?:/.test(lk) ? '" target="_blank" rel="noopener' : ''}` : '', sub = x.sub ? `<span class="nw-s">${esc(x.sub)}</span>` : '';   // без ссылки — не нажимается
   if (x.kind === 'top') return `<a class="nw-c nw-top${x.look === 'drop' ? ' nw-drop' : ''}${href}">${newsMedia(x)}<span class="nw-hd"><b>${esc(x.tag || '')}</b>${x.note ? `<i>${esc(x.note)}</i>` : ''}</span><span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
   if (x.kind === 'promo') return `<a class="nw-c nw-promo${x.look === 'dark' ? ' nw-dark' : ''}${href}">${newsMedia(x)}<span class="nw-band">${x.kicker ? `<i class="nw-k">${esc(x.kicker)}</i>` : ''}<b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
+  if (x.kind === 'promos') { const S = x.slides || []; return `<div class="nw-c nw-feed nw-promos"><span class="nw-hd"><b>${esc(x.tag || '')}</b></span>
+    <div class="nw-fs" id="nwPs">${S.map((s, i) => `<a class="nw-ps${i ? '' : ' on'}" href="${esc(s.link || '#/profile')}" data-cpn="${esc(s.code)}" data-dur="${+s.dur || 8}" aria-label="Промокод ${esc(s.code)}">${s.video ? `<video muted playsinline preload="${i ? 'metadata' : 'auto'}"${s.img ? ` poster="${esc(s.img)}"` : ''}><source src="${esc(s.video)}" type="${vType(s.video)}"></video>` : `<img src="${esc(s.img)}" alt="Промокод ${esc(s.code)}" decoding="async">`}</a>`).join('')}</div>
+    <div class="nw-pg"><button data-pd="-1" aria-label="Назад">${NW_ARR(-1)}</button><span class="nw-dots" id="nwPDots">${S.map((s, i) => `<i class="${i ? '' : 'on'}" data-i="${i}"></i>`).join('')}</span><button data-pd="1" aria-label="Вперёд">${NW_ARR(1)}</button></div></div>`; }
   if (x.kind === 'pass') return `<a class="nw-c nw-pass${href}"><i class="nw-rays"></i>${newsMedia(x)}<span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
   return `<div class="nw-c nw-feed"><span class="nw-hd"><b>${esc(x.tag || '')}</b><a href="#/cases">${esc(x.more || 'Показать все…')}</a></span>
     <div class="nw-fs" id="nwFeed"></div><div class="nw-pg"><button data-d="-1" aria-label="Назад">${NW_ARR(-1)}</button><span id="nwDots"></span><button data-d="1" aria-label="Вперёд">${NW_ARR(1)}</button></div></div>`;
@@ -2485,6 +2493,24 @@ function nwFeed() {
   $$('.nw-pg [data-d]').forEach(b => b.onclick = () => user(nwI + +b.dataset.d));
   $$('i', dots).forEach(d => d.onclick = () => user(+d.dataset.i));
 }
+// листалка промокодов: картинка — смена через data-dur с; видео играет с начала, по концу (ended) — следующее (запас — data-dur + 1 с)
+let nwPI = 0, nwPT = 0;   // nwPT — один таймер на всю страницу
+function nwPromos() {
+  const box = $('#nwPs'), dots = $('#nwPDots'); if (!box || !dots) return;
+  const sl = $$('.nw-ps', box); if (!sl.length || box.dataset.ok) return;   // повторный вызов на той же карточке — не запускать второй раз
+  box.dataset.ok = '1';
+  const show = i => {
+    nwPI = ((i % sl.length) + sl.length) % sl.length;
+    sl.forEach((a, j) => { const on = j === nwPI, v = $('video', a); a.classList.toggle('on', on); if (!v) return;
+      if (on) { try { v.currentTime = 0; } catch (e) { /* */ } const p = v.play(); if (p) p.catch(() => {}); } else v.pause(); });
+    $$('i', dots).forEach((d, j) => d.classList.toggle('on', j === nwPI));
+    clearTimeout(nwPT); nwPT = setTimeout(() => { if (box.isConnected) show(nwPI + 1); }, (+sl[nwPI].dataset.dur + ($('video', sl[nwPI]) ? 1 : 0)) * 1000);
+  };
+  sl.forEach((a, j) => { const v = $('video', a); if (v) v.addEventListener('ended', () => { if (j === nwPI && box.isConnected) show(nwPI + 1); }); });
+  $$('[data-pd]', box.parentElement).forEach(b => b.onclick = () => show(nwPI + +b.dataset.pd));
+  $$('i', dots).forEach(d => d.onclick = () => show(+d.dataset.i));
+  show(nwPI);
+}
 const INVITE_SVG = '<svg viewBox="0 0 15 14" aria-hidden="true"><path d="M0.817197 5.34773H5.9052V0.0677261H9.2972V5.34773H14.3852V8.38773H9.2972V13.6677H5.9052V8.38773H0.817197V5.34773Z" fill="currentColor"/></svg>'; // «Оформление сайта/ИНВАЙТ.svg»
 const MNK_SND = 'assets/main/play.mp3?v=1'; // звук кнопки «Играть» в карточке КРОТ (cs2.mp3 владельца); громкость 0,2 — владелец 12.11: «намного тише»
 // звания «Русской рулетки» за очки за всё время (владелец 21.11): значки assets/rr/ranks (генератор tools/rr/ranks.js), с 780 — высшее
@@ -2504,7 +2530,7 @@ async function mnRank() {   // очки за всё время — сумма rr
   mnRankDraw((data || []).reduce((s, r) => s + (r.pts || 0), 0));
 }
 function mountMain() {
-  nwFeed(); mnCfgUi(); mnRank(); nwDropSync();
+  nwFeed(); nwPromos(); mnCfgUi(); mnRank(); nwDropSync();
   Snd.preloadSet({ k: MNK_SND }); const kgo = $('.mnk-go'); if (kgo) kgo.addEventListener('click', () => Snd.playCtl(MNK_SND, .2).then(t => { if (!t) Snd.file(MNK_SND, .2); })); // если звук ещё не скачался — обычным плеером (при выключенном звуке молчит)
   mnLampsPos(); later(mnLampsPos, 700); if (!mnLampsPos.on) { mnLampsPos.on = 1; addEventListener('resize', mnLampsPos); $('#app').addEventListener('animationend', e => { if (e.target.id === 'app') mnLampsPos(); }); } // второй раз — после «въезда» страницы
   later(() => (window.requestIdleCallback || (f => f()))(mnAgent, { timeout: 1200 }), 300); // 3D-агент — после показа страницы
@@ -5873,6 +5899,7 @@ function pfTopMount() {
   $('#pfBalHist').onclick = e => { e.stopPropagation(); pfEvOpen('bal'); };
   $('#pfGear').onclick = () => pfSettings();
   $('#pfOut').onclick = () => pfWdWin();
+  try { const pre = sessionStorage.getItem('rc.cpn'); if (pre) { sessionStorage.removeItem('rc.cpn'); const i = $('#pfCpnInp'); i.value = pre; i.focus(); $('#pfCpn').classList.add('pre'); } } catch (e) { /* */ }   // пришли со слайда промокода на главной
   $('#pfCpn').onsubmit = async e => {
     e.preventDefault();
     const i = $('#pfCpnInp'), v = i.value.trim(); if (!v) return i.focus();
@@ -8427,11 +8454,12 @@ function admBlocks(done) {
 }
 /* ---------- новости главного экрана (вкладка «Новости», только владелец): 4 карточки — тексты, картинка или видео, куда ведёт кнопка, скрыть.
    Сохраняются в site_cfg 'news'; картинки и видео — в хранилище case-img ---------- */
-const NEWS_SLOTS = { top: 'Верхняя — видео или картинка', promo: 'Вторая — промо со светлой полосой', pass: 'Третья — зелёная', feed: 'Нижняя — «Новое и популярное» (сама листает новые и популярные кейсы)' };
+const NEWS_SLOTS = { top: 'Верхняя — видео или картинка', promo: 'Вторая — промо со светлой полосой', pass: 'Третья — зелёная', promos: 'Третья — листалка промокодов (видео)', feed: 'Нижняя — «Новое и популярное» (сама листает новые и популярные кейсы)' };
 const NEWS_FIELDS = {
   top: [['tag', 'Метка', 'Новость'], ['note', 'Рядом с меткой', 'сегодня'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/krot, #/case/… или https://…']],
   promo: [['kicker', 'Надпись над заголовком', 'Играть'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/krot, #/case/… или https://…']],
   pass: [['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/build или https://…']],
+  promos: [['tag', 'Заголовок', 'Промокоды']],
   feed: [['tag', 'Заголовок', 'Новое и популярное'], ['more', 'Ссылка на все кейсы', 'Показать все…']],
 };
 // картинка новости: не шире 1280 px, WebP (или JPG, если браузер не умеет WebP)
@@ -8453,7 +8481,7 @@ function admNews(el) {
         Фон карточки — картинка (PNG, JPG, WebP до 12 МБ) или видео (MP4 или WebM до 25 МБ; звук не играет, видео идёт по кругу).</p>
       <div class="nwa-list">${L.map((x, i) => `<div class="nwa-row${x.off ? ' off' : ''}" data-i="${i}">
         <div class="nwa-hd"><b>${i + 1}. ${NEWS_SLOTS[x.kind]}</b><span class="bn-st ${x.off ? 'neg' : 'pos'}">${x.off ? 'скрыта' : 'на главной'}</span><button class="ax-btn ax-sm" data-off>${x.off ? 'Показать' : 'Скрыть'}</button></div>
-        <div class="nwa-body">${x.kind === 'feed' ? '' : `<div class="nwa-media">${newsMedia(x, 'nwa-prev') || '<i class="nwa-prev"></i>'}<div class="nwa-mb">
+        <div class="nwa-body">${x.kind === 'feed' || x.kind === 'promos' ? '' : `<div class="nwa-media">${newsMedia(x, 'nwa-prev') || '<i class="nwa-prev"></i>'}<div class="nwa-mb">
             <label class="ax-btn ax-sm">Картинка<input type="file" data-up="img" accept="image/png,image/jpeg,image/webp" hidden></label>
             <label class="ax-btn ax-sm">Видео<input type="file" data-up="video" accept="video/mp4,video/webm" hidden></label>
             ${x.video ? '<button class="ax-btn ax-sm" data-novid>Убрать видео</button>' : ''}</div></div>`}
