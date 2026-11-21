@@ -2415,8 +2415,9 @@ function bonusMini() {
    4 карточки: верхняя (видео или картинка), промо со светлой полосой, зелёная, «Новое и популярное» (листает кейсы сама).
    Тексты и картинки — site_cfg 'news' (вкладка «Новости» в админке); нет — NEWS_DEF. Нажатие — ссылка «Карточка ведёт» из админки (страницы «Новости» больше нет, владелец 21.11) ---------- */
 const NEWS_DEF = [
-  { id: 'n1', kind: 'top', tag: 'Новость', note: 'сегодня', title: 'Заголовок первой новости', sub: 'Короткое описание: одна-две строки о главном.',
-    text: 'Здесь будет полный текст новости. Его можно поменять во вкладке «Новости» в админ-панели.', img: 'assets/news-1.webp', video: 'assets/news-1.webm', video2: 'assets/news-1.mp4', link: '', btn: '' },
+  // верхняя — падение кейсов BLAST → MAJOR → «Всемирная элита» (владелец 21.11; видео снято со сцены сайта: tools/news-drop.mjs + news-drop-encode.cjs).
+  // новый id «drop»: старая верхняя новость в site_cfg 'news' лежит под id n1 и сюда больше не подмешивается
+  { id: 'drop', kind: 'top', look: 'drop', tag: 'Ивентовые кейсы', note: '', title: 'Реальный гарант', sub: 'уже ждёт тебя', img: 'assets/news-drop.webp', video: 'assets/news-drop.webm', video2: 'assets/news-drop.mp4', link: '#/cases' },
   { id: 'rr', kind: 'promo', kicker: 'Новый режим', title: 'Русская рулетка', sub: 'Пять игроков. Один револьвер. Выживет один.', img: 'assets/news-roulette.webp', link: '#/krot', look: 'dark' },   // #/krot — сразу поиск игры (владелец 21.11)
   { id: 'n3', kind: 'pass', title: 'Собери сам', sub: 'Собери свой кейс из любых скинов — цена и шансы считаются сразу.',
     text: 'Выбери скины, задай шансы — сайт сам посчитает цену кейса. Здесь будет полный текст новости.', img: 'assets/case-build.webp', link: '#/build', btn: 'Собрать кейс' },
@@ -2434,7 +2435,7 @@ const NW_ARR = d => `<svg viewBox="0 0 10 12" aria-hidden="true"><path d="${d < 
 function newsCard(x) {
   if (x.off) return '';
   const lk = (x.link || '').replace(/^https?:\/\/(www\.)?rush-case\.online\/?(?=#|$)/, '') || (x.link && x.link.indexOf(location.origin + '/#') === 0 ? x.link.slice(location.origin.length + 1) : x.link || ''), href = lk ? `" href="${esc(lk)}${/^https?:/.test(lk) ? '" target="_blank" rel="noopener' : ''}` : '', sub = x.sub ? `<span class="nw-s">${esc(x.sub)}</span>` : '';   // без ссылки — не нажимается
-  if (x.kind === 'top') return `<a class="nw-c nw-top${href}">${newsMedia(x)}<span class="nw-hd"><b>${esc(x.tag || '')}</b>${x.note ? `<i>${esc(x.note)}</i>` : ''}</span><span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
+  if (x.kind === 'top') return `<a class="nw-c nw-top${x.look === 'drop' ? ' nw-drop' : ''}${href}">${newsMedia(x)}<span class="nw-hd"><b>${esc(x.tag || '')}</b>${x.note ? `<i>${esc(x.note)}</i>` : ''}</span><span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
   if (x.kind === 'promo') return `<a class="nw-c nw-promo${x.look === 'dark' ? ' nw-dark' : ''}${href}">${newsMedia(x)}<span class="nw-band">${x.kicker ? `<i class="nw-k">${esc(x.kicker)}</i>` : ''}<b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
   if (x.kind === 'pass') return `<a class="nw-c nw-pass${href}"><i class="nw-rays"></i>${newsMedia(x)}<span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
   return `<div class="nw-c nw-feed"><span class="nw-hd"><b>${esc(x.tag || '')}</b><a href="#/cases">${esc(x.more || 'Показать все…')}</a></span>

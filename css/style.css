@@ -5070,6 +5070,12 @@ body.pg-main::after{background:linear-gradient(90deg,rgba(6,8,12,.38),rgba(6,8,1
 .nw-top .nw-hd{border-bottom:1px solid rgba(255,255,255,.3)}
 .nw-top .nw-tx{left:47%;right:calc(var(--nu)*9);bottom:calc(var(--nu)*12)}
 .nw-top .nw-t{font:800 calc(var(--nu)*15)/1.02 'Sofia Sans Extra Condensed',var(--ff);text-transform:uppercase;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+/* верхняя новость «падение кейсов» (look:'drop', владелец 21.11): видео по центру, снизу по центру — белый заголовок и золотая строка */
+.nw-top.nw-drop .nw-bg{object-position:50% 50%}
+.nw-top.nw-drop::after{background:linear-gradient(180deg,rgba(10,12,20,.65),rgba(10,12,20,0) calc(var(--nu)*30)),linear-gradient(180deg,rgba(8,8,12,0) 50%,rgba(8,8,12,.92) 90%)}
+.nw-top.nw-drop .nw-tx{left:calc(var(--nu)*8);right:calc(var(--nu)*8);bottom:calc(var(--nu)*10);align-items:center;gap:calc(var(--nu)*3);text-align:center}
+.nw-top.nw-drop .nw-t{font:500 calc(var(--nu)*21)/1 'Oswald',var(--ff);letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 calc(var(--nu)*1) calc(var(--nu)*6) rgba(0,0,0,.85)}
+.nw-top.nw-drop .nw-s{font:500 calc(var(--nu)*10)/1 'Oswald',var(--ff);letter-spacing:.32em;margin-right:-.32em;text-transform:uppercase;color:#f2c94c;text-shadow:0 0 calc(var(--nu)*6) rgba(242,201,76,.45)}
 .nw-top .nw-s{color:rgba(255,255,255,.85)}
 
 /* 2 — промо: картинка, снизу светлая полоса «ИГРАТЬ / НАЗВАНИЕ / подпись» */
