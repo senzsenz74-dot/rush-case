@@ -3110,7 +3110,7 @@ function krotLoad() {
   const one = (tag, attrs) => new Promise((ok, no) => { const e = document.createElement(tag); Object.assign(e, attrs); e.onload = ok; e.onerror = no; document.head.appendChild(e); });
   return (krotLib = Promise.all([one('link', { rel: 'stylesheet', href: 'css/krot.css?v=' + v }), one('script', { src: 'js/krot.js?v=' + v })]).catch(e => { krotLib = null; throw e; }));
 }
-const krotDeps = () => ({ sb, esc, openAuth, toast, user: () => st.user, sound: () => !!st.sound });
+const krotDeps = () => ({ sb, esc, openAuth, toast, user: () => st.user, sound: () => !!st.sound, prc, apply: sbApply, refresh: sbRefresh }); // рулетка на деньги (владелец 21.11): цена, баланс
 document.addEventListener('click', e => {   // «Лобби» в табличке у «Играть» (владелец 21.11; было кнопкой под карточкой): окно лобби с кодом и ссылкой
   const l = e.target.closest && e.target.closest('.mnk-lb'); if (!l || !krotOpen()) return;
   krotLoad().then(() => { window.KROT.mmInit(krotDeps()); window.KROT.mmInvite(); }).catch(() => toast('Не удалось загрузить режим. Обновите страницу.', 'err'));
@@ -10896,17 +10896,17 @@ function rrtRow(r) {
   return `<div class="rrt-r${r.me ? ' me' : ''}${r.place && r.place <= 3 ? ' p' + r.place : ''}"><span class="rrt-pl">${r.place || '—'}</span>`
     + `<${tag}${r.pid ? ` href="#/u/${r.pid}"` : ''} class="rrt-pn">${rrAva(r)}<b>${esc(r.name || 'Игрок')}</b>${r.me ? '<i>Вы</i>' : ''}</${tag}>`
     + `<span class="rrt-rk"><img src="assets/rr/ranks/rank-${i + 1}.svg" alt=""><em>${RR_RANKS[i][0]}</em></span>`
-    + `<span class="rrt-g">${r.games || 0}</span><span class="rrt-w">${r.wins || 0}</span><span class="rrt-pt">${r.pts || 0}</span></div>`;
+    + `<span class="rrt-g">${r.games || 0}</span><span class="rrt-w">${r.wins || 0}</span><span class="rrt-wn">${+r.won ? prc(r.won) : "—"}</span><span class="rrt-pt">${r.pts || 0}</span></div>`;
 }
 function pageRrTop() {
   return `<section class="rrt"><div class="rrt-hd"><div class="rrt-tl"><span class="rrt-k">Русская рулетка</span><h1>Рейтинг игроков</h1></div></div>`
     + `<div class="rrt-ranks">${RR_RANKS.map(([n, p], i) => `<div class="rrt-rc"><img src="assets/rr/ranks/rank-${i + 1}.svg" alt="${n}"><b>${n}</b><span>от ${p}</span></div>`).join('')}</div>`
-    + `<div class="rrt-tb"><div class="rrt-r rrt-th"><span>#</span><span>Игрок</span><span>Звание</span><span class="rrt-g">Игр</span><span class="rrt-w">Побед</span><span class="rrt-pt">Очки</span></div>`
+    + `<div class="rrt-tb"><div class="rrt-r rrt-th"><span>#</span><span>Игрок</span><span>Звание</span><span class="rrt-g">Игр</span><span class="rrt-w">Побед</span><span class="rrt-wn">Выиграно</span><span class="rrt-pt">Очки</span></div>`
     + `<div id="rrtList"><div class="rrt-msg">Загружаем рейтинг…</div></div></div><div id="rrtMe"></div></section>`;
 }
 function rrTopDemo() {   // только для localhost: выдуманные строки, чтобы видеть вёрстку
   const N = ['Lynx', 'Сова', 'Grizzly', 'Shade', 'Кот Бегемот', 'AWP_Master', 'Дракон', 'Mirage_Pro', 'Фантом', 'Rush_B'];
-  let p = 1240; const rows = Array.from({ length: 24 }, (_, i) => { p = Math.max(4, p - Math.round(30 + Math.random() * 90)); const g = Math.round(p / 4); return { place: i + 1, pid: 100100 + i, name: N[i % 10] + (i >= 10 ? ' ' + i : ''), ava: null, pts: p, games: g, wins: Math.round(g / 5), me: false }; });
+  let p = 1240; const rows = Array.from({ length: 24 }, (_, i) => { p = Math.max(4, p - Math.round(30 + Math.random() * 90)); const g = Math.round(p / 4); return { place: i + 1, pid: 100100 + i, won: Math.round(p * .73) * 10, name: N[i % 10] + (i >= 10 ? ' ' + i : ''), ava: null, pts: p, games: g, wins: Math.round(g / 5), me: false }; });
   return { rows, me: { place: 57, pts: 64, games: 15, wins: 2, name: 'Вы', ava: null, pid: 100003, me: true }, total: 140, pts: { 1: 10, 2: 6, 3: 3, 4: 1, 5: 0 } };
 }
 async function mountRrTop() {

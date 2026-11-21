@@ -23,7 +23,7 @@ await db.exec(`
   create role anon; create role authenticated;
   create schema auth;
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('test.uid', true), '')::uuid $$;
-  create table public.profiles (id uuid primary key, name text, ava text, pid bigint);
+  create table public.profiles (id uuid primary key, name text, ava text, pid bigint, data jsonb not null default '{"balance": 1000}'::jsonb);
   create table public.site_cfg (k text primary key, v jsonb);
   create table public.t_clock (shift interval not null);
   insert into public.t_clock values (interval '0');
@@ -65,24 +65,26 @@ const h = (seed, tag) => parseInt(sha(seed + ':' + tag).slice(0, 8), 16);
 const chambers = (seed, b) => [0, 1, 2, 3, 4, 5].sort((a, c) => h(seed, 'c' + a) - h(seed, 'c' + c) || a - c).slice(0, b).sort((a, c) => a - c);
 async function verifyGame(room) {
   const g = (await db.query(`select * from public.rr_games where room_id = $1`, [room])).rows[0];
-  const lg = (await db.query(`select kind, data from public.rr_log where game_id = $1 and kind in ('round', 'spin', 'click', 'bang') order by id`, [g.id])).rows;
+  const lg = (await db.query(`select kind, data from public.rr_log where game_id = $1 and kind in ('round', 'spin', 'click', 'bang', 'vote_end') order by id`, [g.id])).rows;
   ok(g.rounds.length === 4, 'раскрыто 4 раунда', g.rounds.length);
+  let carried = 0;   // купленные патроны переходят в следующие раунды
   for (const r of g.rounds) {
     ok(sha(r.proof) === r.commit, `раунд ${r.round}: sha256(proof) = commit`);
     ok(r.proof === `RUSHRR|${g.id}|${r.round}|${r.seats.join(',')}|${r.bullets}|${r.seed}`, `раунд ${r.round}: формат proof`);
-    ok(JSON.stringify(chambers(r.seed, r.bullets)) === JSON.stringify(r.chambers), `раунд ${r.round}: патроны пересчитываются из seed`, [chambers(r.seed, r.bullets), r.chambers]);
+    ok(JSON.stringify(chambers(r.seed, r.bullets + (r.added || 0))) === JSON.stringify(r.chambers), `раунд ${r.round}: патроны пересчитываются из seed (+ голосования)`, [chambers(r.seed, r.bullets + (r.added || 0)), r.chambers]);
     ok(r.first === r.seats[h(r.seed, 'f') % r.seats.length], `раунд ${r.round}: первый стрелок из seed`);
-    ok(r.bullets === ({ 5: 1, 4: 2, 3: 3, 2: 5 })[r.seats.length], `раунд ${r.round}: патронов ${r.bullets} при ${r.seats.length} живых`);
+    ok(r.bullets === Math.min(4, 1 + carried), `раунд ${r.round}: в начале 1 + купленные раньше (${carried}) = ${r.bullets}`); carried += r.added || 0;
     // проигрываем журнал раунда: каждое гнездо выстрела совпадает с пересчётом
-    let pos = null, round = null, seen = 0, prevSeat = null;
+    let pos = null, round = null, seen = 0, prevSeat = null, cur = r.bullets;   // cur — патронов сейчас (голосование добавляет следующий по порядку из seed)
     for (const e of lg) {
       const d = e.data;
       if (e.kind === 'round') { round = d.round; if (round === r.round) { pos = h(r.seed, 'p0') % 6; ok(d.commit === r.commit, `раунд ${r.round}: commit в журнале с начала раунда`); } continue; }
       if (d.round !== r.round) continue;
       if (e.kind === 'spin') { pos = h(r.seed, 'p' + d.k) % 6; continue; }
+      if (e.kind === 'vote_end') { if (d.ok) cur = d.bullets; continue; }
       seen++;
       ok(d.pos === pos, `раунд ${r.round}: гнездо выстрела №${seen} пересчитано`, [d.pos, pos]);
-      const live = r.chambers.includes(pos);
+      const live = chambers(r.seed, cur).includes(pos);
       ok(live === (e.kind === 'bang'), `раунд ${r.round}: ${e.kind} совпадает с патронами`);
       if (prevSeat == null) ok(d.seat === r.first, `раунд ${r.round}: первым стрелял первый стрелок`);
       else ok(d.seat === r.seats[(r.seats.indexOf(prevSeat) + 1) % r.seats.length], `раунд ${r.round}: ход по кругу`, [prevSeat, d.seat, r.seats]);
@@ -117,6 +119,17 @@ async function play(room, players, opt = {}) {
     ok(/not your turn/.test(await err(rpc(who, 'rr_shoot', { p_room: room, p_turn: g.n }))), 'повтор того же нажатия отклонён');
   }
   return { s: last, order };
+}
+const bal = async u => +(await db.query(`select data->>'balance' b from public.profiles where id = $1`, [u])).rows[0].b;
+// выстрел без смерти: крутим (по честным правилам), пока напротив ствола пусто
+async function safeShootIn(room) {
+  for (let i = 0; i < 12; i++) {
+    const g = (await db.query(`select turn, n, pos, chambers from public.rr_games where room_id = $1`, [room])).rows[0];
+    const who = (await db.query(`select uid from public.rr_players where room_id = $1 and seat = $2`, [room, g.turn])).rows[0].uid;
+    if (!g.chambers.includes(g.pos)) { await rpc(who, 'rr_shoot', { p_room: room, p_turn: g.n }); return g.turn; }
+    await rpc(who, 'rr_spin', { p_room: room, p_turn: g.n }); await shift(0.9);
+  }
+  throw new Error('не нашлось пустого гнезда');
 }
 const seatUid = async (room, seat) => (await db.query(`select uid from public.rr_players where room_id = $1 and seat = $2`, [room, seat])).rows[0].uid;
 
@@ -163,9 +176,26 @@ log('A. подбор групп 2+1+2, полная игра с прокрутк
   s = await rpc(a, 'rr_state', { p_room: room });
   ok(s.room.phase === 'next' && s.game && s.game.round === 0 && s.game.ev === null && s.game.turn === null, 'после загрузки — знакомство (next, раунд 0, без событий)', s.game);
   ok(s.room.deadline - s.room.phase_at === 15000, 'знакомство 15 с', s.room.deadline - s.room.phase_at);
+  ok(s.room.money === true && s.room.bank === 500 && s.players.every(p => p.bet === 100), 'игра на деньги: у всех по 100, банк 500', [s.room.money, s.room.bank]);
+  ok(await bal(a) === 900 && s.me.bal === 900, 'минимальная ставка 100 списана', await bal(a));
+  ok(/bad bet/.test(await err(rpc(a, 'rr_bet', { p_room: room, p_amount: 50 }))), 'ставка меньше 100 — нельзя');
+  ok(/low balance/.test(await err(rpc(a, 'rr_bet', { p_room: room, p_amount: 5000 }))), 'ставка больше баланса — нельзя');
+  let rb = await rpc(a, 'rr_bet', { p_room: room, p_amount: 400 });
+  ok(rb.ok && +rb.data.balance === 600, 'ставка 400: баланс 600', rb);
+  rb = await rpc(a, 'rr_bet', { p_room: room, p_amount: 300 });
+  ok(+rb.data.balance === 700, 'ставку можно уменьшить: 300 → баланс 700', rb);
+  await rpc(b, 'rr_bet', { p_room: room, p_amount: 250 });
+  await rpc(c, 'rr_bet', { p_room: room, p_amount: 1100 }).catch(() => null);
+  ok(await bal(c) === 900, 'на 1100 не хватило (баланс 900) — ставка прежняя');
+  await rpc(c, 'rr_bet', { p_room: room, p_amount: 1000 - 100 });
+  ok(await bal(c) === 100, 'ставка 900: баланс 100');
+  s = await rpc(a, 'rr_state', { p_room: room });
+  ok(s.room.bank === 300 + 250 + 900 + 100 + 100, 'банк = сумма ставок', s.room.bank);
+  ok(s.room.vote_cost === 50, 'патрон стоит половину самой маленькой ставки (100 → 50)', s.room.vote_cost);
   await shift(14);
   s = await rpc(a, 'rr_state', { p_room: room });
   ok(s.room.phase === 'next' && s.game.round === 0, 'через 14 с ещё знакомство');
+  ok(/bets closed/.test(await err(rpc(a, 'rr_bet', { p_room: room, p_amount: 500 }))), 'за секунду до конца знакомства ставки закрыты');
   await shift(1.1);
   s = await rpc(a, 'rr_state', { p_room: room });
   ok(s.room.phase === 'play' && s.game && s.game.round === 1 && s.game.bullets === 1, 'игра началась: раунд 1, 1 патрон', s.room);
@@ -175,8 +205,38 @@ log('A. подбор групп 2+1+2, полная игра с прокрутк
   const notMe = s.players.find(p => p.seat !== s.game.turn).seat;
   ok(/not your turn/.test(await err(rpc(await seatUid(room, notMe), 'rr_shoot', { p_room: room, p_turn: s.game.n }))), 'стрелять не в свой ход нельзя');
   ok(/not your turn/.test(await err(rpc(await seatUid(room, s.game.turn), 'rr_shoot', { p_room: room, p_turn: s.game.n + 1 }))), 'неверный номер хода');
+  {   // купили патрон: из банка −50, событие с ценой
+    await shift(4);
+    const A = await safeShootIn(room); let v = await rpc(a, 'rr_state', { p_room: room });
+    await rpc(await seatUid(room, A), 'rr_vote_start', { p_room: room });
+    v = await rpc(a, 'rr_state', { p_room: room });
+    ok(v.game.vote && v.game.vote.cost === 50, 'в игре на деньги голосование стоит 50', v.game.vote);
+    for (const p of v.players.filter(p => p.seat !== A).slice(0, 2)) await rpc(await seatUid(room, p.seat), 'rr_vote', { p_room: room, p_yes: true });
+    v = await rpc(a, 'rr_state', { p_room: room });
+    const ve = v.game.evs.find(x => x.kind === 'vote_end');
+    ok(!v.game.vote && v.game.bullets === 2 && v.room.bank === 1650 - 50 && ve && ve.ok && ve.cost === 50, 'патрон куплен: банк 1600, в событии −50', [v.room.bank, ve]);
+  }
   const r = await play(room, [a, b, c, d, e]);
   checkFinal(r.s, true);
+  {   // деньги: победитель берёт с каждого не больше своей ставки, минус 5%; остальное — назад
+    const fin = r.s.players, W = fin.find(p => p.place === 1);
+    let bank = W.bet, sum = 0;
+    for (const p of fin) {
+      const u = await seatUid(room, p.seat);
+      if (p === W) continue;
+      const t = Math.min(p.bet, W.bet); bank += t;
+      ok(+p.back === p.bet - t, `место ${p.place}: возврат ${p.bet - t}`, p);
+      ok(await bal(u) === 1000 - p.bet + (p.bet - t), `место ${p.place}: баланс после игры`, [await bal(u), p.bet, t]);
+    }
+    const pay = Math.floor((bank - 50) * 0.95);   // минус купленный патрон
+    ok(+W.won === pay && await bal(await seatUid(room, W.seat)) === 1000 - W.bet + pay, 'победитель: банк минус 5%', [W.won, pay, W.bet]);
+    for (const p of fin) sum += await bal(await seatUid(room, p.seat));
+    ok(Math.abs(5000 - sum - (bank - pay)) < 0.01, 'деньги сходятся: сайту комиссия и патрон', [5000 - sum, bank - pay]);
+    const wn = (await db.query(`select sum(won)::numeric w from public.rr_points`)).rows[0];
+    ok(+wn.w === pay, 'rr_points.won = выигрыш', wn);
+    const t = await rpc(a, 'rr_top', { p_limit: 100 });
+    ok(t.rows.some(x => +x.won === pay), 'в рейтинге есть выигрыш', t.rows.map(x => x.won));
+  }
   // по кругу: в раунде ходы идут по возрастанию места среди живых
   await verifyGame(room);
   const pts = (await db.query(`select sum(pts)::int s, sum(games)::int g, sum(wins)::int w from public.rr_points`)).rows[0];
@@ -456,6 +516,87 @@ log('I. рейтинг за всё время (rr_top) и очки за всё �
   ok(g && g.me === null && Array.isArray(g.rows) && g.rows.every(r => r.me === false), 'rr_top: гость видит рейтинг без «своего места»', g && g.me);
   const pr = await as(null, `select has_function_privilege('anon', 'public.rr_top(int)', 'execute') and has_function_privilege('authenticated', 'public.rr_top(int)', 'execute')`);
   ok(pr === true, 'rr_top: доступна гостям и игрокам');
+}
+
+log('J. голосование за патрон (комната друзей, без денег): предлагает только выживший и только 1 ход');
+{
+  const P = U.slice(5, 10);
+  let s = await rpc(P[0], 'rr_create', { p_private: true });
+  const room = s.room.id;
+  for (const u of P.slice(1)) s = await rpc(u, 'rr_join', { p_code: s.room.code });
+  for (const u of P) await rpc(u, 'rr_ready', { p_room: room, p_ready: true });
+  await shift(3.1); s = await rpc(P[0], 'rr_state', { p_room: room });
+  ok(s.room.money === false && s.players.every(p => p.bet === null), 'комната друзей — без денег');
+  ok(/no money game/.test(await err(rpc(P[0], 'rr_bet', { p_room: room, p_amount: 200 }))), 'ставка в комнате друзей — нельзя');
+  await shift(15.1); s = await rpc(P[0], 'rr_state', { p_room: room });
+  ok(s.room.phase === 'play' && s.game.bullets === 1 && s.room.max_bul === 4, 'раунд 1: 1 патрон, максимум 4');
+  // выстрел без смерти: крутим (по честным правилам), пока напротив ствола пусто
+  const safeShoot = async () => {
+    for (let i = 0; i < 12; i++) {
+      const g = (await db.query(`select turn, n, pos, chambers from public.rr_games where room_id = $1`, [room])).rows[0];
+      const who = await seatUid(room, g.turn);
+      if (!g.chambers.includes(g.pos)) { await rpc(who, 'rr_shoot', { p_room: room, p_turn: g.n }); return g.turn; }
+      await rpc(who, 'rr_spin', { p_room: room, p_turn: g.n }); await shift(0.9);
+    }
+    throw new Error('не нашлось пустого гнезда');
+  };
+  const st = () => rpc(P[0], 'rr_state', { p_room: room });
+  ok(/vote not yours/.test(await err(rpc(await seatUid(room, s.game.turn), 'rr_vote_start', { p_room: room }))), 'до первого выстрела предложить некому');
+  const A = await safeShoot(); s = await st();
+  const B = s.game.turn, others = s.players.filter(p => p.seat !== A && p.seat !== B).map(p => p.seat);
+  ok(s.game.vby === A && s.game.vn === s.game.n, 'выжил A — он может предложить в ход B', [s.game.vby, s.game.vn, s.game.n]);
+  ok(/vote not yours/.test(await err(rpc(await seatUid(room, others[0]), 'rr_vote_start', { p_room: room }))), 'не выживший — нельзя');
+  ok(/vote not yours/.test(await err(rpc(await seatUid(room, B), 'rr_vote_start', { p_room: room }))), 'ходящий — нельзя');
+  const uA = await seatUid(room, A), uB = await seatUid(room, B);
+  await rpc(uA, 'rr_vote_start', { p_room: room });
+  s = await st();
+  ok(s.game.vote && s.game.vote.by === A && s.game.vote.need === 3 && s.game.vote.yes.length === 1 && s.game.vote.cost === 0, 'голосование: A «за», нужно 3 из 5, бесплатно', s.game.vote);
+  ok(s.game.ev.kind === 'vote' && s.game.ev.seat === A, 'событие vote — рука вверх');
+  ok(/vote on/.test(await err(rpc(uB, 'rr_shoot', { p_room: room, p_turn: s.game.n }))), 'во время голосования стрелять нельзя');
+  ok(/voted/.test(await err(rpc(uA, 'rr_vote', { p_room: room, p_yes: true }))), 'голосовать второй раз — нельзя');
+  await rpc(await seatUid(room, others[0]), 'rr_vote', { p_room: room, p_yes: false });
+  await rpc(await seatUid(room, others[1]), 'rr_vote', { p_room: room, p_yes: true });
+  s = await st();
+  ok(s.game.vote && s.game.vote.yes.length === 2 && s.game.vote.no.length === 1, 'пока 2 «за» — голосование идёт');
+  await rpc(uB, 'rr_vote', { p_room: room, p_yes: true });
+  s = await st();
+  ok(!s.game.vote && s.game.bullets === 2 && s.game.added === 1 && s.game.votes === 1, '3 «за» — +1 патрон', s.game);
+  ok(s.room.deadline - s.now >= 5900, 'после голосования на ход снова есть время', s.room.deadline - s.now);
+  ok(/vote not yours/.test(await err(rpc(uA, 'rr_vote_start', { p_room: room }))), 'второй раз в тот же ход — нельзя');
+  // B выжил: A уже не может (ход прошёл), B — может; 3 «против» — не прошло
+  await safeShoot(); s = await st();
+  ok(/vote not yours/.test(await err(rpc(uA, 'rr_vote_start', { p_room: room }))), 'следующий выстрелил — у A право пропало');
+  await rpc(uB, 'rr_vote_start', { p_room: room });
+  s = await st();
+  for (const p of s.players.filter(p => p.seat !== B).slice(0, 3)) await rpc(await seatUid(room, p.seat), 'rr_vote', { p_room: room, p_yes: false });
+  s = await st();
+  ok(!s.game.vote && s.game.bullets === 2, '3 «против» — не прошло, патронов 2', s.game);
+  // время вышло: 2 «за» из 3 нужных — не прошло, ход продолжается
+  const C = await safeShoot(); s = await st();
+  await rpc(await seatUid(room, C), 'rr_vote_start', { p_room: room });
+  await rpc(uA, 'rr_vote', { p_room: room, p_yes: true });
+  await shift(10.1);
+  s = await st();
+  ok(!s.game.vote && s.game.bullets === 2 && s.room.phase === 'play', 'время голосования вышло — не прошло, ход продолжается', s.game);
+  await shift(1);
+  const rr = await play(room, P);
+  checkFinal(rr.s, false);
+  await verifyGame(room);
+  const g = (await db.query(`select rounds from public.rr_games where room_id = $1`, [room])).rows[0];
+  ok(g.rounds[0].added === 1 && g.rounds[0].final === 2, 'в раскрытом раунде видно: добавлено 1, итого 2', g.rounds[0]);
+}
+
+log('K. не хватает баланса');
+{
+  const x = '00000000-0000-0000-0000-0000000000a1', y = '00000000-0000-0000-0000-0000000000a2';
+  await db.query(`insert into public.profiles (id, name, pid) values ($1, 'Бедный', 200001), ($2, 'Друг', 200002)`, [x, y]);
+  await db.query(`update public.profiles set data = '{"balance": 50}' where id = $1`, [x]);
+  ok(/low balance/.test(await err(rpc(x, 'rr_search', { p_on: true }))), 'поиск с балансом 50 — нельзя');
+  let m = await rpc(y, 'rr_party_open');
+  await rpc(x, 'rr_party_join', { p_code: m.party.code });
+  const e1 = await err(rpc(y, 'rr_search', { p_on: true }));
+  ok(/low balance/.test(e1) && e1.includes('Бедный'), 'группа: у друга мало — поиск не идёт, видно кто', e1);
+  ok(/low balance/.test(await err(rpc(x, 'rr_quick'))), 'открытое лобби быстрой игры — тоже нельзя');
 }
 
 log(`\nПроверок: ${checks}, ошибок: ${fails}`);

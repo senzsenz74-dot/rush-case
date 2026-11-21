@@ -5797,9 +5797,10 @@ html.phone .mnk-fi{flex:1;justify-content:center;height:24px;padding:0 4px;font-
 .rrt-rc img{display:block;width:100%;max-width:92px;height:auto}
 .rrt-rc b{font:500 11px/1.15 'Oswald',var(--ff);letter-spacing:.04em;text-transform:uppercase;color:#e9eef3}
 .rrt-rc span{font-size:11px;color:rgba(233,238,243,.5)}
-.rrt-r{display:grid;grid-template-columns:56px minmax(0,1fr) 230px 64px 64px 84px;align-items:center;gap:10px;min-height:52px;padding:0 16px;border-top:1px solid rgba(255,255,255,.06)}
+.rrt-r{display:grid;grid-template-columns:56px minmax(0,1fr) 210px 56px 60px 116px 76px;align-items:center;gap:10px;min-height:52px;padding:0 16px;border-top:1px solid rgba(255,255,255,.06)}
 .rrt-th{min-height:40px;border-top:0;font:500 12px/1 'Oswald',var(--ff);letter-spacing:.12em;text-transform:uppercase;color:rgba(233,238,243,.5)}
-.rrt-g,.rrt-w,.rrt-pt{text-align:right}
+.rrt-g,.rrt-w,.rrt-wn,.rrt-pt{text-align:right}
+.rrt-r .rrt-wn{font:500 15px/1 'Oswald',var(--ff);color:#7ee2a2;white-space:nowrap}.rrt-th .rrt-wn{font:500 12px/1 'Oswald',var(--ff);letter-spacing:.12em;color:rgba(233,238,243,.5)}
 .rrt-pl{font:500 18px/1 'Oswald',var(--ff);color:rgba(233,238,243,.6)}
 .rrt-r.p1 .rrt-pl{color:#f2c94c}.rrt-r.p2 .rrt-pl{color:#d6dde4}.rrt-r.p3 .rrt-pl{color:#d08c55}
 .rrt-pn{display:flex;align-items:center;gap:10px;min-width:0;color:#fff;text-decoration:none}
@@ -5818,7 +5819,7 @@ a.rrt-pn:hover b{color:#84d9fd}
 .rrt-mine{position:sticky;bottom:10px;margin-top:8px}
 .rrt-mine .rrt-r{border-top:0}
 .rrt-msg{padding:28px 16px;text-align:center;font-size:14px;color:rgba(233,238,243,.6)}
-@media (max-width:760px){.rrt h1{font-size:26px}.rrt-hd{flex-direction:column;align-items:flex-start}.rrt-ranks{grid-template-columns:repeat(5,minmax(0,1fr));row-gap:10px}.rrt-r{grid-template-columns:34px minmax(0,1fr) 64px 52px;gap:8px;padding:0 10px}.rrt-g,.rrt-w,.rrt-rk em{display:none}.rrt-rk img{width:62px}}
+@media (max-width:760px){.rrt h1{font-size:26px}.rrt-hd{flex-direction:column;align-items:flex-start}.rrt-ranks{grid-template-columns:repeat(5,minmax(0,1fr));row-gap:10px}.rrt-r{grid-template-columns:30px minmax(0,1fr) 52px 78px 44px;gap:6px;padding:0 10px}.rrt-g,.rrt-w,.rrt-rk em{display:none}.rrt-rk img{width:62px}}
 
 /* ===== страница-заглушка «Режим КРОТ» (#/krot, pageKrot) ===== */
 .krp{display:grid;place-items:center;min-height:calc(100vh - var(--hd));padding:40px 16px}

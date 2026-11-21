@@ -5,7 +5,13 @@
 -- В конце файл сам прогоняет самопроверку (rr_selftest) — в ответе должно быть "ok": true.
 -- Свои таблицы и функции rr_*: «Крот» (krot_*) на сайте работает как раньше, пока рулетку не выложат.
 --
--- Правила: за столом ровно 5 игроков. Револьвер на 6 гнёзд; патронов по числу живых: 5 → 1, 4 → 2, 3 → 3, финал 1 на 1 → 5.
+-- Правила: за столом ровно 5 игроков. Револьвер на 6 гнёзд; игра начинается с 1 патрона; купленные голосованием патроны остаются и в следующих раундах (владелец 21.11), всего не больше 4
+--   (владелец 21.11: максимум 4, два гнезда всегда пустые). Внутри раунда +1 патрон — только голосованием живых: начал — рука вверх,
+--   нужно не меньше половины «за» (rr_vote_start / rr_vote), в игре на деньги из банка — половина самой маленькой ставки (все по 100 → 50 ₽); не больше 4.
+--   Предложить патрон может только тот, кто выстрелил и выжил, и только пока следующий не выстрелил (один ход; владелец 21.11).
+-- Деньги (владелец 21.11): только быстрая игра (без ботов и не группа из 5 друзей — там же, где очки). На старте у каждого списывается
+--   100 ₽ (у кого меньше — поиск и запуск не проходят), за 15 с знакомства ставку можно поднять (rr_bet). Победитель забирает с каждого
+--   не больше своей ставки (остальное возвращается проигравшему), минус купленные патроны (vspent), минус 5% сайту (site_cfg 'rr': fee).
 --   Патроны — в случайных гнёздах. Кто стреляет первым в раунде — случайно, дальше по кругу (по возрастанию места).
 --   В свой ход (20 с) можно крутить барабан сколько угодно раз, потом выстрел в себя. Не крутил — выстрел из следующего гнезда.
 --   Не успел — выстрел сам, без прокрутки; вышел из игры — то же, но сразу (через 2 с после начала его хода).
@@ -17,7 +23,7 @@
 -- Честность (проверяемо): в начале раунда сервер берёт случайный seed и сразу публикует commit = sha256(proof),
 --   proof = 'RUSHRR|<игра>|<раунд>|<места живых через запятую>|<патронов>|<seed>'. Всё в раунде выводится из seed:
 --   h(тег) = первые 8 hex-знаков sha256('<seed>:<тег>') как число;
---   патроны — гнёзда 0–5, упорядоченные по h('c0')…h('c5'), первые <патронов>;
+--   патроны — гнёзда 0–5, упорядоченные по h('c0')…h('c5'), первые <патронов>; патрон за голосование — следующий по этому порядку;
 --   первый стрелок — места живых по возрастанию, номер h('f') mod <живых>;
 --   гнездо в начале раунда — h('p0') mod 6, после k-й прокрутки в раунде — h('p<k>') mod 6; пустой выстрел — гнездо +1 (mod 6).
 --   После выстрела боевым seed и proof раунда открываются (game.rounds) — любой может пересчитать.
@@ -27,6 +33,7 @@
 --   rr_quick() / rr_create(true) / rr_join('КОД') → снимок комнаты (как rr_state); 'rejoin': true — вернули в идущую игру.
 --   rr_tick(room) каждые 3 с — «пульс» и ленивый таймер; изменился rev (или Realtime по rr_rooms) → rr_state(room, номер_сообщения).
 --   rr_spin(room, n) / rr_shoot(room, n) — n = game.n (номер хода): защита от двойного нажатия.
+--   rr_bet(room, ₽) — ставка за 15 с знакомства; rr_vote_start(room) / rr_vote(room, да/нет) — голосование за патрон.
 --   rr_ready, rr_loaded, rr_leave, rr_chat_send, rr_report; подбор и группы — rr_mm_state, rr_party_*, rr_search, rr_accept.
 --   Закрытый канал Realtime 'rr:<room_id>' — только участники комнаты (голос, поворот головы).
 -- ============================================================
@@ -75,6 +82,11 @@ create index if not exists rr_players_uid on public.rr_players (uid);
 -- боты (владелец 20.11): админ добавляет их в комнату друзей кнопкой «+ Бот»; uid бота — случайный, профиля нет (поэтому без ссылки на profiles)
 alter table public.rr_players add column if not exists bot boolean not null default false;
 alter table public.rr_players drop constraint if exists rr_players_uid_fkey;
+-- деньги (владелец 21.11)
+alter table public.rr_players add column if not exists bet int;        -- ставка ₽ (null — игра без денег)
+alter table public.rr_players add column if not exists back numeric;   -- возвращено после игры (часть ставки сверх ставки победителя)
+alter table public.rr_players add column if not exists won numeric;    -- выплачено победителю
+alter table public.rr_rooms add column if not exists money boolean not null default false;   -- игра на деньги (решается на старте)
 
 create table if not exists public.rr_games (   -- барабан и ход; из браузера не читается (тайна: где патроны)
   id bigserial primary key,
@@ -102,6 +114,14 @@ create table if not exists public.rr_games (   -- барабан и ход; из
 alter table public.rr_games add column if not exists bot_n int;            -- ход бота (n), для которого план ниже
 alter table public.rr_games add column if not exists bot_at timestamptz;   -- когда бот сделает следующее действие
 alter table public.rr_games add column if not exists bot_spins smallint;   -- сколько ещё раз бот крутит перед выстрелом
+alter table public.rr_games add column if not exists bul0 smallint;                          -- патронов в начале раунда (входит в proof)
+alter table public.rr_games add column if not exists added smallint not null default 0;      -- добавлено голосованием в этом раунде
+alter table public.rr_games add column if not exists votes int not null default 0;           -- принятых голосований за игру
+alter table public.rr_games add column if not exists vspent numeric not null default 0;      -- потрачено из банка на патроны (₽)
+alter table public.rr_games add column if not exists vote jsonb;                             -- идущее голосование {by, at, until, need, yes, no, rem, cost}
+alter table public.rr_games add column if not exists vused smallint[] not null default '{}'; -- кто уже начинал голосование в этом раунде (для журнала)
+alter table public.rr_games add column if not exists vby smallint;   -- кто последним выстрелил и выжил — он может предложить патрон…
+alter table public.rr_games add column if not exists vn int;         -- …только в этот ход (n); предложил — null
 
 create table if not exists public.rr_chat (
   id bigserial primary key,                 -- серверный порядковый номер (догрузка после переподключения)
@@ -122,6 +142,7 @@ create table if not exists public.rr_points (   -- очки быстрой иг�
   wins int not null default 0,
   primary key (uid, day)
 );
+alter table public.rr_points add column if not exists won numeric not null default 0;   -- выиграно ₽ (владелец 21.11: в рейтинг)
 
 create table if not exists public.rr_reports (   -- жалобы (разбирает админка)
   id bigserial primary key,
@@ -216,11 +237,11 @@ create or replace function public._rr_cfg() returns jsonb language sql stable as
     'turn', 20,          -- секунд на ход
     'next', 5,           -- пауза после выстрела боевым
     'intro', 15,         -- после загрузки: знакомство за столом до раунда 1 (владелец 20.11, без надписей на экране)
-    'round_delay', 2.2,  -- заставка «Раунд N» — до первого хода раунда
+    'round_delay', 5,    -- заставка «Раунд N» и жребий: револьвер крутится в центре и показывает на первого (владелец 21.11) — до первого хода
     'click_delay', 1.4,  -- после пустого щелчка — до хода следующего
     'gone_shot', 2,      -- вышел из игры: выстрел за него через столько секунд после начала его хода
     'spin_gap', 0.8,     -- прокрутки не чаще (сайт сам ждёт 1,25 с)
-    'bul', jsonb_build_object('5', 1, '4', 2, '3', 3, '2', 5),          -- патронов при стольких живых
+    'bul', jsonb_build_object('5', 1, '4', 1, '3', 1, '2', 1), 'max_bul', 4,   -- владелец 21.11: в каждом раунде 1 патрон (дальше — покупают голосованием), максимум 4, два гнезда всегда пустые          -- патронов при стольких живых
     'pts', jsonb_build_object('1', 10, '2', 6, '3', 3, '4', 1, '5', 0), -- очки по местам
     'day_cap', 300,
     'lobby', 20, 'ready', 3,   -- открытое лобби быстрой игры: старт через 20 с после пятого, все «Готов» — через 3 с
@@ -231,7 +252,9 @@ create or replace function public._rr_cfg() returns jsonb language sql stable as
     'accept', 15,        -- окно «Ваша игра готова!» — столько секунд на «Принять»
     'load', 10,          -- экран загрузки после «Принять»: проверка микрофона и звука
     'load_max', 25,      -- кто не загрузился — ждём его до стольких секунд, потом старт без него
-    'mm_stale', 45)      -- без «пульса» столько секунд — человек выходит из группы
+    'mm_stale', 45,      -- без «пульса» столько секунд — человек выходит из группы
+    'min_bet', 100, 'max_bet', 100000, 'fee', 0.05,   -- деньги (владелец 21.11): ставка от / до ₽, комиссия сайта с банка
+    'vote_pct', 0.5, 'vote_sec', 10)                   -- патрон из банка: доля самой маленькой ставки (100 → 50 ₽); секунд на голосование
   || coalesce((select v from public.site_cfg where k = 'rr' and jsonb_typeof(v) = 'object'), '{}'::jsonb)
 $$;
 create or replace function public._rr_dur(c jsonb, k text) returns interval language sql immutable as $$
@@ -337,6 +360,102 @@ begin
     values (p_room, p.uid, p.seat, p.name || ' · БОТ', 'msg', l[1 + floor(random() * cardinality(l))::int], public._rr_now());
 end $$;
 -- прокрутка барабана места p_seat (и для игрока — rr_spin, и для бота): гнездо — h('p<k>') из seed раунда
+-- ---------- деньги и голосование (владелец 21.11) ----------
+-- баланс игрока (profiles.data.balance): + / −; меньше нуля — 'low balance'; профиля нет — null
+create or replace function public._rr_bal(p_uid uuid, p_add numeric) returns numeric language plpgsql as $$
+declare b numeric;
+begin
+  select coalesce((data->>'balance')::numeric, 0) into b from public.profiles where id = p_uid for update;
+  if not found then return null; end if;
+  if round(b + p_add, 2) < 0 then raise exception 'low balance'; end if;
+  update public.profiles set data = jsonb_set(coalesce(data, '{}'::jsonb), '{balance}', to_jsonb(round(b + p_add, 2))) where id = p_uid;
+  return round(b + p_add, 2);
+end $$;
+
+-- цена патрона (владелец 21.11): половина самой маленькой ставки за столом; игра без денег — 0
+create or replace function public._rr_vcost(p_room bigint) returns int language sql stable as $$
+  select case when r.money then coalesce((select floor(min(p.bet) * (public._rr_cfg()->>'vote_pct')::numeric)::int
+    from public.rr_players p where p.room_id = r.id and p.bet is not null), 0) else 0 end
+  from public.rr_rooms r where r.id = p_room
+$$;
+
+-- итог голосования: «за» не меньше половины живых — +1 патрон (следующий по порядку из seed), иначе нет; p_force — время вышло
+create or replace function public._rr_vote_check(p_room bigint, p_force boolean) returns boolean language plpgsql as $$
+declare c jsonb := public._rr_cfg(); g public.rr_games; v_yes int; v_no int; v_alive int; v_need int; v_ok boolean; v_nb int;
+  now_ts timestamptz := public._rr_now();
+begin
+  select * into g from public.rr_games where room_id = p_room for update;
+  if g.vote is null then return false; end if;
+  v_yes := jsonb_array_length(g.vote->'yes'); v_no := jsonb_array_length(g.vote->'no'); v_need := (g.vote->>'need')::int;
+  select count(*) into v_alive from public.rr_players where room_id = p_room and alive;
+  if v_yes >= v_need then v_ok := true;
+  elsif p_force or v_yes + greatest(0, v_alive - v_yes - v_no) < v_need then v_ok := false;
+  else return false;
+  end if;
+  v_ok := v_ok and g.bullets < (c->>'max_bul')::int;
+  v_nb := g.bullets + v_ok::int;
+  update public.rr_games set vote = null, bullets = v_nb, added = added + v_ok::int, votes = votes + v_ok::int,
+    vspent = vspent + case when v_ok then coalesce((g.vote->>'cost')::numeric, 0) else 0 end,
+    chambers = case when v_ok then public._rr_chambers(seed, v_nb) else chambers end,
+    bot_at = greatest(coalesce(bot_at, now_ts), now_ts + interval '1.5 seconds')
+  where id = g.id;
+  -- ход продолжается: сколько оставалось до голосования (не меньше 6 с)
+  update public.rr_rooms set phase_deadline = now_ts + make_interval(secs => greatest(6, coalesce((g.vote->>'rem')::numeric, 6))),
+    rev = rev + 1, updated_at = now_ts
+  where id = p_room and phase = 'play';
+  perform public._rr_ev(p_room, 'vote_end', (g.vote->>'by')::int, jsonb_build_object('ok', v_ok, 'yes', v_yes, 'no', v_no, 'bullets', v_nb,
+    'cost', case when v_ok then coalesce((g.vote->>'cost')::int, 0) else 0 end));
+  perform public._rr_log(p_room, g.id, 'vote_end', jsonb_build_object('round', g.round, 'ok', v_ok, 'yes', g.vote->'yes', 'no', g.vote->'no', 'bullets', v_nb));
+  perform public._rr_sys(p_room, case when v_ok then format('Голосование прошло (%s «за»): в барабане %s патрона.', v_yes, v_nb)
+    else format('Голосование не прошло (%s «за» из %s нужных).', v_yes, v_need) end);
+  return true;
+end $$;
+
+-- голос места p_seat (сам игрок или бот)
+create or replace function public._rr_vote_cast(p_room bigint, p_seat int, p_yes boolean) returns void language plpgsql as $$
+declare k text := case when p_yes then 'yes' else 'no' end;
+begin
+  update public.rr_games set vote = jsonb_set(vote, array[k], (vote->k) || to_jsonb(p_seat)) where room_id = p_room and vote is not null;
+  update public.rr_rooms set rev = rev + 1, updated_at = public._rr_now() where id = p_room;
+  perform public._rr_vote_check(p_room, false);
+end $$;
+
+-- боты голосуют (через 1,5 с после начала): «за» чуть чаще
+create or replace function public._rr_vote_bots(p_room bigint) returns boolean language plpgsql as $$
+declare g public.rr_games; b record; v_any boolean := false;
+begin
+  select * into g from public.rr_games where room_id = p_room;
+  for b in select seat from public.rr_players where room_id = p_room and bot and alive
+      and not ((g.vote->'yes') @> to_jsonb(seat::int) or (g.vote->'no') @> to_jsonb(seat::int)) order by seat loop
+    exit when (select vote from public.rr_games where room_id = p_room) is null;
+    perform public._rr_vote_cast(p_room, b.seat, random() < .55);
+    v_any := true;
+  end loop;
+  return v_any;
+end $$;
+
+-- начать голосование: ход стоит (срок хода — на время голосования), начавший — сразу «за»
+create or replace function public._rr_vote_open(p_room bigint, p_seat int) returns void language plpgsql as $$
+declare c jsonb := public._rr_cfg(); rm public.rr_rooms; v_alive int; v_need int; v_cost int; now_ts timestamptz := public._rr_now();
+begin
+  select * into rm from public.rr_rooms where id = p_room;
+  select count(*) into v_alive from public.rr_players where room_id = p_room and alive;
+  v_need := ceil(v_alive / 2.0)::int;
+  v_cost := public._rr_vcost(p_room);
+  update public.rr_games set vused = vused || p_seat::smallint, vn = null,
+    vote = jsonb_build_object('by', p_seat, 'at', public._rr_ms(now_ts), 'until', public._rr_ms(now_ts + public._rr_dur(c, 'vote_sec')),
+      'need', v_need, 'yes', jsonb_build_array(p_seat), 'no', '[]'::jsonb, 'cost', v_cost,
+      'rem', extract(epoch from rm.phase_deadline - now_ts))
+  where room_id = p_room;
+  update public.rr_rooms set phase_deadline = now_ts + public._rr_dur(c, 'vote_sec') + interval '1 second', rev = rev + 1, updated_at = now_ts where id = p_room;
+  perform public._rr_ev(p_room, 'vote', p_seat, jsonb_build_object('need', v_need, 'cost', v_cost));
+  perform public._rr_log(p_room, rm.game_id, 'vote', jsonb_build_object('seat', p_seat, 'need', v_need, 'cost', v_cost));
+  perform public._rr_sys(p_room, format('%s поднимает руку: добавить патрон%s. Нужно «за»: %s из %s.',
+    coalesce((select name from public.rr_players where room_id = p_room and seat = p_seat), 'Игрок'),
+    case when v_cost > 0 then format(' (−%s ₽ из банка)', v_cost) else '' end, v_need, v_alive));
+  perform public._rr_vote_check(p_room, false);
+end $$;
+
 create or replace function public._rr_spin_at(p_room bigint, p_seat int) returns void language plpgsql as $$
 declare g public.rr_games; now_ts timestamptz := public._rr_now();
 begin
@@ -370,13 +489,14 @@ begin
   select * into g from public.rr_games where room_id = p_room for update;
   v_seats := array(select seat from public.rr_players where room_id = p_room and alive order by seat);
   v_round := g.round + 1;
-  v_bul := greatest(1, least(5, coalesce((c->'bul'->>cardinality(v_seats)::text)::int, 1)));
+  -- 1 патрон + все купленные за игру (переходят из раунда в раунд, владелец 21.11), не больше max_bul
+  v_bul := greatest(1, least(coalesce((c->>'max_bul')::int, 4), coalesce((c->'bul'->>cardinality(v_seats)::text)::int, 1) + coalesce(g.votes, 0)));
   v_seed := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
   v_first := v_seats[1 + (public._rr_h(v_seed, 'f') % cardinality(v_seats))::int];
   v_cm := public._rr_hash(public._rr_proof(g.id, v_round, v_seats, v_bul, v_seed));
   update public.rr_games set round = v_round, seats = v_seats, bullets = v_bul, seed = v_seed, commit = v_cm,
     chambers = public._rr_chambers(v_seed, v_bul), pos = (public._rr_h(v_seed, 'p0') % 6)::smallint,
-    rspins = 0, clicks = 0, first = v_first
+    rspins = 0, clicks = 0, first = v_first, bul0 = v_bul, added = 0, vote = null, vused = '{}', vby = null, vn = null
   where id = g.id;
   perform public._rr_ev(p_room, 'start', v_first, jsonb_build_object('round', v_round, 'bullets', v_bul, 'commit', v_cm));
   perform public._rr_log(p_room, g.id, 'round', jsonb_build_object('round', v_round, 'seats', to_jsonb(v_seats), 'bullets', v_bul,
@@ -388,12 +508,33 @@ end $$;
 
 -- старт игры (все пятеро за столом)
 create or replace function public._rr_start(p_room bigint) returns void language plpgsql as $$
-declare v_gid bigint; v_pts boolean := public._rr_pts_on(p_room);
+declare c jsonb := public._rr_cfg(); v_gid bigint; v_pts boolean := public._rr_pts_on(p_room); v_min int := (c->>'min_bet')::int; v_low text; pl public.rr_players;
 begin
+  -- деньги (владелец 21.11): у кого на балансе меньше минимальной ставки — запуск не проходит; он — как «не принял»
+  -- (его группа выходит из поиска, остальные снова в поиске — _rr_mm_sync)
+  if v_pts then
+    select string_agg(coalesce(p.name, 'Игрок'), ', ' order by p.seat) into v_low from public.rr_players p left join public.profiles f on f.id = p.uid
+      where p.room_id = p_room and not p.bot and coalesce((f.data->>'balance')::numeric, 0) < v_min;
+    if v_low is not null then
+      update public.rr_players x set ready = false where x.room_id = p_room and not x.bot
+        and coalesce((select (f.data->>'balance')::numeric from public.profiles f where f.id = x.uid), 0) < v_min;
+      perform public._rr_log(p_room, null, 'low_balance', jsonb_build_object('names', v_low, 'min', v_min));
+      perform public._rr_sys(p_room, format('Игра не началась: не хватает баланса (нужно %s ₽) — %s.', v_min, v_low));
+      update public.rr_rooms set phase = 'done', load_at = null, phase_deadline = null, rev = rev + 1, updated_at = public._rr_now() where id = p_room;
+      return;
+    end if;
+  end if;
   insert into public.rr_games (room_id) values (p_room) returning id into v_gid;
-  update public.rr_players set alive = true, place = null, pts = null, clicks = 0, spins = 0, seen_at = public._rr_now() where room_id = p_room;
-  update public.rr_rooms set game_id = v_gid, points = v_pts where id = p_room;
-  perform public._rr_log(p_room, v_gid, 'start', jsonb_build_object('points', v_pts, 'players',
+  update public.rr_players set alive = true, place = null, pts = null, clicks = 0, spins = 0, seen_at = public._rr_now(),
+    bet = null, back = null, won = null where room_id = p_room;
+  if v_pts then   -- минимальная ставка списывается сразу; поднять — rr_bet за 15 с знакомства
+    for pl in select * from public.rr_players where room_id = p_room and not bot order by seat loop
+      perform public._rr_bal(pl.uid, -v_min);
+      update public.rr_players set bet = v_min where room_id = p_room and uid = pl.uid;
+    end loop;
+  end if;
+  update public.rr_rooms set game_id = v_gid, points = v_pts, money = v_pts where id = p_room;
+  perform public._rr_log(p_room, v_gid, 'start', jsonb_build_object('points', v_pts, 'money', v_pts, 'players',
     (select jsonb_agg(jsonb_build_object('seat', seat, 'uid', uid, 'party', party_id) order by seat) from public.rr_players where room_id = p_room)));
   perform public._rr_sys(p_room, 'Игра начинается. Револьвер на шесть гнёзд, патроны — в случайных гнёздах.');
   -- 15 с знакомства (фаза next при game.round = 0): потом обычный шаг next запускает раунд 1
@@ -409,7 +550,7 @@ begin
   select * into g from public.rr_games where room_id = p_room for update;
   select name into v_nm from public.rr_players where room_id = p_room and seat = p_seat;
   if not (g.pos = any (g.chambers)) then   -- пусто: барабан на гнездо дальше, ход следующему живому по кругу
-    update public.rr_games set pos = ((pos + 1) % 6)::smallint, clicks = clicks + 1 where id = g.id;
+    update public.rr_games set pos = ((pos + 1) % 6)::smallint, clicks = clicks + 1, vby = p_seat, vn = g.n + 1 where id = g.id;   -- vn: следующий ход (_rr_turn: n + 1)
     update public.rr_players set clicks = clicks + 1 where room_id = p_room and seat = p_seat;
     perform public._rr_ev(p_room, 'click', p_seat, jsonb_build_object('auto', p_auto));
     if random() < .3 then perform public._rr_bot_say(p_room, p_seat, 'click'); end if;
@@ -421,8 +562,9 @@ begin
   -- боевой: игрок выбывает, место = сколько было живых; раунд раскрывается
   select count(*) into v_left from public.rr_players where room_id = p_room and alive;
   update public.rr_players set alive = false, place = v_left where room_id = p_room and seat = p_seat;
-  v_proof := public._rr_proof(g.id, g.round, g.seats, g.bullets, g.seed);
-  update public.rr_games set rounds = rounds || jsonb_build_array(jsonb_build_object('round', g.round, 'bullets', g.bullets,
+  v_proof := public._rr_proof(g.id, g.round, g.seats, coalesce(g.bul0, g.bullets), g.seed);
+  update public.rr_games set rounds = rounds || jsonb_build_array(jsonb_build_object('round', g.round, 'bullets', coalesce(g.bul0, g.bullets),
+      'added', g.added, 'final', g.bullets,
       'seats', to_jsonb(g.seats), 'first', g.first, 'commit', g.commit, 'seed', g.seed, 'proof', v_proof,
       'chambers', to_jsonb(g.chambers), 'spins', g.rspins, 'loser', p_seat))
   where id = g.id;
@@ -438,23 +580,41 @@ begin
   where id = p_room;
 end $$;
 
--- конец игры: последний живой — 1-е место, очки недели (быстрая игра), день по Москве
+-- конец игры: последний живой — 1-е место, очки недели (быстрая игра), день по Москве; деньги (владелец 21.11)
 create or replace function public._rr_finish(p_room bigint) returns void language plpgsql as $$
-declare c jsonb := public._rr_cfg(); rm public.rr_rooms; p public.rr_players; v_win int; v_add int; v_cur int; res jsonb := '{}'::jsonb;
+declare c jsonb := public._rr_cfg(); rm public.rr_rooms; g public.rr_games; p public.rr_players; w public.rr_players; v_win int; v_add int; v_cur int;
+  res jsonb := '{}'::jsonb; mon jsonb; v_bank numeric := 0; v_t numeric; v_cost numeric := 0; v_pay numeric := 0;
   d date := (public._rr_now() at time zone 'Europe/Moscow')::date;
 begin
   select * into rm from public.rr_rooms where id = p_room;
+  select * into g from public.rr_games where room_id = p_room;
   select seat into v_win from public.rr_players where room_id = p_room and alive order by seat limit 1;
   update public.rr_players set place = 1 where room_id = p_room and seat = v_win;
+  -- победитель берёт с каждого не больше своей ставки (остальное — назад проигравшему); из банка — голосования и комиссия сайта
+  if rm.money then
+    select * into w from public.rr_players where room_id = p_room and seat = v_win;
+    v_bank := coalesce(w.bet, 0);
+    for p in select * from public.rr_players where room_id = p_room and seat <> v_win and bet is not null order by seat loop
+      v_t := least(p.bet, coalesce(w.bet, 0));
+      v_bank := v_bank + v_t;
+      if p.bet > v_t then perform public._rr_bal(p.uid, p.bet - v_t); end if;
+      update public.rr_players set back = p.bet - v_t where room_id = p_room and uid = p.uid;
+    end loop;
+    v_cost := least(v_bank, coalesce(g.vspent, 0));
+    v_pay := greatest(0, floor((v_bank - v_cost) * (1 - (c->>'fee')::numeric)));
+    if v_pay > 0 then perform public._rr_bal(w.uid, v_pay); end if;
+    update public.rr_players set won = v_pay, back = 0 where room_id = p_room and seat = v_win;
+    mon := jsonb_build_object('bank', v_bank, 'votes', coalesce(g.votes, 0), 'cost', v_cost, 'pay', v_pay, 'site', v_bank - v_pay);
+  end if;
   for p in select * from public.rr_players where room_id = p_room order by seat loop
     if rm.points then
       v_add := coalesce((c->'pts'->>coalesce(p.place, 5)::text)::int, 0);
       select pts into v_cur from public.rr_points where uid = p.uid and day = d;
       v_add := greatest(0, least(v_add, (c->>'day_cap')::int - coalesce(v_cur, 0)));
       begin
-        insert into public.rr_points (uid, day, pts, games, wins) values (p.uid, d, v_add, 1, (p.place = 1)::int)
+        insert into public.rr_points (uid, day, pts, games, wins, won) values (p.uid, d, v_add, 1, (p.place = 1)::int, case when p.seat = v_win then v_pay else 0 end)
           on conflict (uid, day) do update set pts = public.rr_points.pts + excluded.pts,
-            games = public.rr_points.games + 1, wins = public.rr_points.wins + excluded.wins;
+            games = public.rr_points.games + 1, wins = public.rr_points.wins + excluded.wins, won = public.rr_points.won + excluded.won;
       exception when foreign_key_violation then v_add := 0;   -- профиль удалён
       end;
       update public.rr_players set pts = v_add where room_id = p_room and uid = p.uid;
@@ -464,10 +624,11 @@ begin
   update public.rr_games set winner = v_win, ended_at = public._rr_now() where room_id = p_room;
   update public.rr_rooms set phase = 'done', phase_at = public._rr_now(), phase_deadline = null, rev = rev + 1, updated_at = public._rr_now()
   where id = p_room;
-  perform public._rr_log(p_room, rm.game_id, 'result', jsonb_build_object('winner', v_win, 'points', rm.points, 'pts', res,
+  perform public._rr_log(p_room, rm.game_id, 'result', jsonb_build_object('winner', v_win, 'points', rm.points, 'pts', res, 'money', mon,
     'places', (select jsonb_object_agg(seat::text, place) from public.rr_players where room_id = p_room)));
-  perform public._rr_sys(p_room, format('Победил %s. Игра окончена.',
-    coalesce((select name from public.rr_players where room_id = p_room and seat = v_win), '—')));
+  perform public._rr_sys(p_room, format('Победил %s%s. Игра окончена.',
+    coalesce((select name from public.rr_players where room_id = p_room and seat = v_win), '—'),
+    case when rm.money then format(' и забирает %s ₽', v_pay) else '' end));
 end $$;
 
 -- один шаг «ленивого таймера»: true — что-то изменилось (тогда шагаем ещё раз)
@@ -540,6 +701,11 @@ begin
   v_away := not exists (select 1 from public.rr_players where room_id = rm.id and not bot and left_at is null
     and seen_at >= now_ts - public._rr_dur(c, 'offline') - public._rr_dur(c, 'reconnect'));   -- боты не в счёт
   if rm.phase = 'play' then
+    if g.vote is not null then   -- идёт голосование за патрон: ход стоит; боты голосуют; срок вышел (или все ушли) — итог
+      if v_away or public._rr_ms(now_ts) >= (g.vote->>'until')::bigint then perform public._rr_vote_check(rm.id, true); return true; end if;
+      if public._rr_ms(now_ts) >= (g.vote->>'at')::bigint + 1500 and public._rr_vote_bots(rm.id) then return true; end if;
+      return false;
+    end if;
     if v_away or now_ts >= rm.phase_deadline then   -- время вышло — выстрел сам, без прокрутки
       perform public._rr_fire(rm.id, g.turn, true);
       return true;
@@ -663,19 +829,25 @@ begin
       'points', case when rm.game_id is not null then rm.points else public._rr_pts_on(rm.id) end,
       'phase', rm.phase, 'rev', rm.rev, 'phase_at', public._rr_ms(rm.phase_at), 'deadline', public._rr_ms(rm.phase_deadline),
       'load_at', public._rr_ms(rm.load_at), 'paused', false, 'owner', rm.owner = auth.uid(),
-      'turn_sec', (c->>'turn')::numeric, 'next_sec', (c->>'next')::numeric, 'intro_sec', (c->>'intro')::numeric),
+      'turn_sec', (c->>'turn')::numeric, 'next_sec', (c->>'next')::numeric, 'intro_sec', (c->>'intro')::numeric,
+      -- деньги (владелец 21.11): игра на деньги, банк (сумма ставок), правила ставок и голосования
+      'money', case when rm.game_id is not null then rm.money else public._rr_pts_on(rm.id) end,
+      'bank', greatest(0, (select coalesce(sum(x.bet), 0) from public.rr_players x where x.room_id = rm.id) - coalesce(g.vspent, 0)),   -- минус купленные патроны
+      'min_bet', (c->>'min_bet')::numeric, 'max_bet', (c->>'max_bet')::numeric, 'fee', (c->>'fee')::numeric,
+      'vote_cost', public._rr_vcost(rm.id), 'vote_sec', (c->>'vote_sec')::numeric, 'max_bul', (c->>'max_bul')::int),
     'players', coalesce((select jsonb_agg(jsonb_build_object('seat', p.seat, 'name', p.name, 'ava', p.ava, 'pid', p.pid,
         'me', p.uid = auth.uid(), 'ready', p.ready, 'loaded', p.loaded, 'bot', p.bot,
         'online', p.bot or (p.left_at is null and p.seen_at >= now_ts - public._rr_dur(c, 'offline')), 'left', p.left_at is not null,
-        'alive', p.alive, 'place', p.place, 'pts', p.pts, 'clicks', p.clicks, 'spins', p.spins,
+        'alive', p.alive, 'place', p.place, 'pts', p.pts, 'clicks', p.clicks, 'spins', p.spins, 'bet', p.bet, 'won', p.won, 'back', p.back,
         -- очки за всё время — звание над головой в комнате (владелец 21.11); у ботов звание рисует сайт
         'tp', case when p.bot then null else (select coalesce(sum(x.pts), 0) from public.rr_points x where x.uid = p.uid) end) order by p.seat)
       from public.rr_players p where p.room_id = rm.id), '[]'::jsonb),
-    'me', jsonb_build_object('seat', me.seat, 'ready', me.ready, 'alive', me.alive, 'admin', public._rr_staff()),
+    'me', jsonb_build_object('seat', me.seat, 'ready', me.ready, 'alive', me.alive, 'admin', public._rr_staff(),
+      'bal', (select coalesce((f.data->>'balance')::numeric, 0) from public.profiles f where f.id = auth.uid())),
     'game', case when g.id is null then null else jsonb_build_object('id', g.id, 'round', g.round, 'bullets', g.bullets,
       'turn', g.turn, 'first', g.first, 'clicks', g.clicks, 'spins', g.spins, 'n', g.n,
       'evs', g.evs, 'ev', case when jsonb_array_length(g.evs) > 0 then g.evs->-1 end,
-      'commit', g.commit, 'rounds', g.rounds) end,
+      'commit', g.commit, 'rounds', g.rounds, 'vote', g.vote, 'votes', g.votes, 'added', g.added, 'bul0', g.bul0, 'vby', g.vby, 'vn', g.vn) end,
     'chat', coalesce((select jsonb_agg(jsonb_build_object('id', m.id, 'kind', m.kind, 'seat', m.seat, 'name', m.name, 'text', m.text,
         'at', public._rr_ms(m.created_at)) order by m.id)
       from (select * from public.rr_chat where room_id = rm.id and id > coalesce(p_after, 0) order by id desc limit 100) m), '[]'::jsonb));
@@ -786,6 +958,9 @@ begin
     if rm.kind = 'quick' then return public.rr_state(rid); end if;
     perform public.rr_leave(rid);   -- был в комнате друзей — выходим
   end if;
+  if coalesce((select (data->>'balance')::numeric from public.profiles where id = auth.uid()), 0) < (public._rr_cfg()->>'min_bet')::numeric then
+    raise exception 'low balance';   -- владелец 21.11: быстрая игра — на деньги, минимум 100 ₽
+  end if;
   perform pg_advisory_xact_lock(hashtext('rush-rr-quick'));
   for cand in select r.id from public.rr_rooms r where r.kind = 'quick' and r.phase = 'lobby' and not r.mm
       order by (select count(*) from public.rr_players p where p.room_id = r.id) desc, r.id limit 20 loop
@@ -831,6 +1006,7 @@ begin
   select * into rm from public.rr_rooms where id = p_room;
   select * into me from public.rr_players where room_id = p_room and uid = auth.uid();
   select * into g from public.rr_games where room_id = p_room;
+  if g.vote is not null then raise exception 'vote on'; end if;   -- идёт голосование за патрон — ход стоит
   if rm.phase <> 'play' or g.turn is distinct from me.seat or not me.alive or public._rr_now() >= rm.phase_deadline
      or (p_turn is not null and p_turn <> g.n) then
     raise exception 'not your turn';
@@ -860,6 +1036,70 @@ begin
   select * into g from public.rr_games where room_id = p_room;
   perform public._rr_fire(p_room, me.seat, false);
   return jsonb_build_object('ok', true, 'n', g.n);
+end $$;
+
+-- ставка за 15 с знакомства (только игра на деньги): от min_bet до max_bet; разница списывается / возвращается сразу
+create or replace function public.rr_bet(p_room bigint, p_amount int) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare c jsonb := public._rr_cfg(); rm public.rr_rooms; me public.rr_players; g public.rr_games;
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  perform 1 from public.rr_rooms where id = p_room for no key update;
+  me := public._rr_touch(p_room);
+  if me.uid is null then raise exception 'not in room'; end if;
+  perform public._rr_advance(p_room);
+  select * into rm from public.rr_rooms where id = p_room;
+  select * into me from public.rr_players where room_id = p_room and uid = auth.uid();
+  select * into g from public.rr_games where room_id = p_room;
+  if not rm.money or me.bet is null then raise exception 'no money game'; end if;
+  if rm.phase <> 'next' or g.round <> 0 or public._rr_now() >= rm.phase_deadline - interval '1 second' then raise exception 'bets closed'; end if;
+  if p_amount is null or p_amount < (c->>'min_bet')::int or p_amount > (c->>'max_bet')::int then raise exception 'bad bet'; end if;
+  if p_amount <> me.bet then
+    perform public._rr_bal(auth.uid(), me.bet - p_amount);   -- не хватает — 'low balance'
+    update public.rr_players set bet = p_amount where room_id = p_room and uid = auth.uid();
+    perform public._rr_ev(p_room, 'bet', me.seat, jsonb_build_object('bet', p_amount));
+    update public.rr_rooms set rev = rev + 1, updated_at = public._rr_now() where id = p_room;
+  end if;
+  return jsonb_build_object('ok', true, 'bet', p_amount, 'data', (select data from public.profiles where id = auth.uid()));
+end $$;
+
+-- голосование за патрон: начать (живой, патронов меньше max_bul, раз за раунд) и голосовать (живые, один раз)
+create or replace function public.rr_vote_start(p_room bigint) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare c jsonb := public._rr_cfg(); rm public.rr_rooms; me public.rr_players; g public.rr_games;
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  perform 1 from public.rr_rooms where id = p_room for no key update;
+  me := public._rr_touch(p_room);
+  if me.uid is null then raise exception 'not in room'; end if;
+  perform public._rr_advance(p_room);
+  select * into rm from public.rr_rooms where id = p_room;
+  select * into me from public.rr_players where room_id = p_room and uid = auth.uid();
+  select * into g from public.rr_games where room_id = p_room;
+  if rm.phase <> 'play' or not me.alive or public._rr_now() >= rm.phase_deadline - interval '2 seconds' then raise exception 'not vote time'; end if;
+  if g.vote is not null then raise exception 'vote on'; end if;
+  if g.bullets >= (c->>'max_bul')::int then raise exception 'max bullets'; end if;
+  if g.vby is distinct from me.seat or g.vn is distinct from g.n then raise exception 'vote not yours'; end if;   -- только выживший и только этот ход
+  perform public._rr_vote_open(p_room, me.seat);
+  return public.rr_tick(p_room);
+end $$;
+
+create or replace function public.rr_vote(p_room bigint, p_yes boolean default true) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me public.rr_players; g public.rr_games;
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  perform 1 from public.rr_rooms where id = p_room for no key update;
+  me := public._rr_touch(p_room);
+  if me.uid is null then raise exception 'not in room'; end if;
+  perform public._rr_advance(p_room);
+  select * into me from public.rr_players where room_id = p_room and uid = auth.uid();
+  select * into g from public.rr_games where room_id = p_room;
+  if g.vote is null then raise exception 'no vote'; end if;
+  if not me.alive then raise exception 'not alive'; end if;
+  if (g.vote->'yes') @> to_jsonb(me.seat::int) or (g.vote->'no') @> to_jsonb(me.seat::int) then raise exception 'voted'; end if;
+  perform public._rr_vote_cast(p_room, me.seat, coalesce(p_yes, true));
+  return public.rr_tick(p_room);
 end $$;
 
 -- сообщение в чат комнаты: длина, частота, повторы, фильтр мата; выбывшие во время игры только читают
@@ -1209,7 +1449,7 @@ end $$;
 -- «Играть» (лидер) / отмена поиска (любой участник)
 create or replace function public.rr_search(p_on boolean default true) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare me public.rr_party_members; pt public.rr_party; rm public.rr_rooms;
+declare me public.rr_party_members; pt public.rr_party; rm public.rr_rooms; v_low text;
 begin
   if auth.uid() is null then raise exception 'not authenticated'; end if;
   perform pg_advisory_xact_lock(hashtext('rush-rr-mm'));
@@ -1237,6 +1477,12 @@ begin
   if exists (select 1 from public.rr_party_members mb join public.rr_players p on p.uid = mb.uid join public.rr_rooms r on r.id = p.room_id
       where mb.party_id = pt.id and r.phase in ('play', 'next') and p.left_at is null) then
     raise exception 'member in game';
+  end if;
+  -- деньги (владелец 21.11): у всех в группе — не меньше минимальной ставки; группа с ботами и группа из 5 — без денег
+  if cardinality(pt.bots) = 0 and (select count(*) from public.rr_party_members where party_id = pt.id) < 5 then
+    select string_agg(coalesce(mb.name, 'Игрок'), ', ') into v_low from public.rr_party_members mb left join public.profiles f on f.id = mb.uid
+      where mb.party_id = pt.id and coalesce((f.data->>'balance')::numeric, 0) < (public._rr_cfg()->>'min_bet')::numeric;
+    if v_low is not null then raise exception 'low balance: %', v_low; end if;
   end if;
   update public.rr_party set state = 'search', search_at = public._rr_now(), room_id = null, note = null, rev = rev + 1, updated_at = public._rr_now() where id = pt.id;
   update public.rr_party_members set seen_at = public._rr_now() where uid = auth.uid();
@@ -1371,16 +1617,16 @@ language plpgsql stable security definer set search_path = public as $$
 declare lim int := least(greatest(coalesce(p_limit, 100), 1), 100); v_rows jsonb; v_me jsonb; v_total int;
 begin
   with t as (
-    select uid, sum(pts)::int as pts, sum(games)::int as games, sum(wins)::int as wins
-      from public.rr_points group by uid having sum(pts) > 0
+    select uid, sum(pts)::int as pts, sum(games)::int as games, sum(wins)::int as wins, sum(won) as won
+      from public.rr_points group by uid having sum(pts) > 0 or sum(won) > 0
   ), r as (
     select t.*, rank() over (order by t.pts desc, t.wins desc) as place from t
   )
   select
     (select coalesce(jsonb_agg(jsonb_build_object('place', x.place, 'pid', x.pid, 'name', coalesce(x.name, 'Игрок'), 'ava', x.ava,
-        'pts', x.pts, 'games', x.games, 'wins', x.wins, 'me', coalesce(x.uid = auth.uid(), false)) order by x.place, x.pid), '[]'::jsonb)
+        'pts', x.pts, 'games', x.games, 'wins', x.wins, 'won', x.won, 'me', coalesce(x.uid = auth.uid(), false)) order by x.place, x.pid), '[]'::jsonb)
        from (select r.*, p.pid, p.name, p.ava from r join public.profiles p on p.id = r.uid order by r.place, p.pid limit lim) x),
-    (select jsonb_build_object('place', r.place, 'pts', coalesce(r.pts, 0), 'games', coalesce(r.games, 0), 'wins', coalesce(r.wins, 0),
+    (select jsonb_build_object('place', r.place, 'pts', coalesce(r.pts, 0), 'games', coalesce(r.games, 0), 'wins', coalesce(r.wins, 0), 'won', coalesce(r.won, 0),
         'pid', p.pid, 'name', coalesce(p.name, 'Игрок'), 'ava', p.ava, 'me', true)
        from public.profiles p left join r on r.uid = p.id where p.id = auth.uid()),
     (select count(*)::int from r)
@@ -1400,7 +1646,8 @@ grant execute on function public.rr_state(bigint, bigint), public.rr_tick(bigint
   public.rr_create(boolean), public.rr_join(text), public.rr_quick(), public.rr_ready(bigint, boolean),
   public.rr_spin(bigint, int), public.rr_shoot(bigint, int), public.rr_chat_send(bigint, text), public.rr_report(bigint, int, text, text),
   public.rr_loaded(bigint), public.rr_mm_state(), public.rr_party_open(), public.rr_party_join(text), public.rr_party_leave(),
-  public.rr_party_kick(int), public.rr_search(boolean), public.rr_accept(), public.rr_bot_add(bigint), public.rr_bot_del(bigint, int), public.rr_party_bot(boolean, int) to authenticated;
+  public.rr_party_kick(int), public.rr_search(boolean), public.rr_accept(), public.rr_bot_add(bigint), public.rr_bot_del(bigint, int), public.rr_party_bot(boolean, int),
+  public.rr_bet(bigint, int), public.rr_vote_start(bigint), public.rr_vote(bigint, boolean) to authenticated;
 grant execute on function public.rr_top(int) to anon, authenticated;   -- рейтинг видят и гости
 -- rr_selftest — только из SQL Editor
 

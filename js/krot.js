@@ -15,7 +15,9 @@ const DEMO_OK = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 const $ = (s, r = document) => r.querySelector(s);
 let esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let sb = null, openAuth = null, getUser = () => null, soundOn = () => true, siteToast = null;   // из app.js (KROT.mount / KROT.mmInit)
-function setDeps(dep) { if (!dep) return; if (dep.sb) sb = dep.sb; if (dep.openAuth) openAuth = dep.openAuth; if (dep.toast) siteToast = dep.toast; if (dep.esc) esc = dep.esc; if (dep.user) getUser = dep.user; if (dep.sound) soundOn = dep.sound; }
+let prcF = null, applyProf = null, refreshProf = null;   // цена (prc), применить профиль с сервера (баланс), перечитать профиль
+const money = v => prcF ? prcF(Math.round(+v || 0)) : Math.round(+v || 0) + ' ₽';
+function setDeps(dep) { if (!dep) return; if (dep.prc) prcF = dep.prc; if (dep.apply) applyProf = dep.apply; if (dep.refresh) refreshProf = dep.refresh; if (dep.sb) sb = dep.sb; if (dep.openAuth) openAuth = dep.openAuth; if (dep.toast) siteToast = dep.toast; if (dep.esc) esc = dep.esc; if (dep.user) getUser = dep.user; if (dep.sound) soundOn = dep.sound; }
 
 /* ---------- константы ---------- */
 const EYE = 1.28, TOP = .765;                                                  // высота глаз, высота сукна (м)
@@ -50,7 +52,9 @@ const GUN = {   // силуэты оружия, 48×24, дулом вправо
 const PH = { lobby: 'Сбор игроков', play: 'Раунд', next: 'Раунд окончен', done: 'Игра окончена' };
 const HINT = { lobby: 'Ждём пятерых игроков.' };
 // правила «Русской рулетки» (сервер берёт те же числа из настроек): ход, патроны по числу живых, очки за место, пауза между раундами
-const RR = { turn: 20, bul: { 5: 1, 4: 2, 3: 3, 2: 5 }, pts: { 1: 10, 2: 6, 3: 3, 4: 1, 5: 0 }, next: 5, intro: 15 };   // intro — знакомство за столом до раунда 1 (сервер: site_cfg 'rr'.intro)
+const RR = { turn: 20, bul: { 5: 1, 4: 1, 3: 1, 2: 1 },   // владелец 21.11: в каждом раунде 1 патрон, остальные покупают
+  pts: { 1: 10, 2: 6, 3: 3, 4: 1, 5: 0 }, next: 5, intro: 15,
+  maxBul: 4, minBet: 100, maxBet: 100000, fee: .05, votePct: .5, voteSec: 10, rdelay: 5000 };   // владелец 21.11: максимум 4 патрона, ставки, голосование, жребий 5 с   // intro — знакомство за столом до раунда 1 (сервер: site_cfg 'rr'.intro)
 // шанс выстрела: патроны в случайных гнёздах; после k пустых щелчков без прокрутки — b из (6 − k)
 const rrChance = (b, k) => (6 - k > 0 ? Math.min(1, b / (6 - k)) : 1);
 const pct = v => Math.round(v * 100) + '%';
@@ -99,7 +103,13 @@ const LS = { get(k, d) { try { const v = localStorage.getItem('krot:' + k); retu
 const authed = () => { try { const u = getUser(); return !!(u && u.sb); } catch (e) { return false; } };
 const myName = () => { try { const u = getUser(); return (u && (u.name || u.nick)) || 'Вы'; } catch (e) { return 'Вы'; } };
 const errMsg = e => String((e && (e.message || e.error_description || e.msg)) || e || '');
-const errText = e => { const m = errMsg(e); for (const k in ERR) if (m.includes(k)) return ERR[k]; return /fetch|network|Failed|timeout|Load failed/i.test(m) ? 'Нет связи с сервером' : 'Не получилось: ' + m.slice(0, 90); };
+const ERR2 = { 'bets closed': 'Ставки уже закрыты', 'bad bet': 'Ставка — от 100 ₽', 'no money game': 'В этой игре без ставок', 'vote on': 'Идёт голосование — подождите',
+  'vote used': 'Вы уже предлагали патрон в этом раунде', 'max bullets': 'В барабане уже 4 патрона — больше нельзя', 'not vote time': 'Сейчас голосовать нельзя',
+  'no vote': 'Голосование уже закончилось', 'voted': 'Вы уже проголосовали', 'vote not yours': 'Поднять руку может только тот, кто выстрелил и выжил, — пока не выстрелил следующий' };
+const errText = e => { const m = errMsg(e);
+  if (m.includes('low balance')) { const who = (m.split('low balance:')[1] || '').trim(); return 'Не хватает баланса: нужно от ' + RR.minBet + ' ₽' + (who ? ' — ' + who : ''); }
+  for (const k in ERR2) if (m.includes(k)) return ERR2[k];
+  for (const k in ERR) if (m.includes(k)) return ERR[k]; return /fetch|network|Failed|timeout|Load failed/i.test(m) ? 'Нет связи с сервером' : 'Не получилось: ' + m.slice(0, 90); };
 const isNet = e => /fetch|network|Failed|timeout|Load failed|ECONN|503|502|504/i.test(errMsg(e));
 async function sha256hex(s) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
@@ -207,11 +217,14 @@ function onKey(e, down) {
     if (!inp) { e.preventDefault(); if (!e.repeat) vcKey(true); return; }
   }   // зажать V — говорить
   if (e.key === 'Tab' && !$('.modal-ov')) { e.preventDefault(); if (down && !e.repeat && ov !== 'players') { plTemp = true; showPlayers(true); } else if (!down && plTemp) showPlayers(false); return; }
+  if (e.code === 'KeyR' && !down) { spinUp(); return; }   // отпустили R — барабан останавливается на делении
   if (!down) return;
   if (e.key === 'Escape') { if (inp) { e.target.blur(); return; } if (ov) { closeOv(); return; } return; }
   if (inp || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'Enter') { const i = $('#krIn', root); if (i) { e.preventDefault(); if (document.pointerLockElement) document.exitPointerLock(); openChat(true); i.focus({ preventScroll: true }); } return; }
-  if (e.code === 'KeyR' && !e.repeat) { e.preventDefault(); rrAct('spin'); return; }       // крутить барабан
+  if (e.code === 'KeyR') { e.preventDefault(); if (!e.repeat) spinDown(); return; }
+  if (e.code === 'KeyG' && !e.repeat && canVote()) { e.preventDefault(); voteAct('start'); return; }   // поднять руку: +1 патрон
+  if ((e.key === 'F1' || e.key === 'F2') && S && S.game && S.game.vote) { e.preventDefault(); if (!e.repeat) voteAct(e.key === 'F1' ? 'yes' : 'no'); return; }       // владелец 21.11: нажал — 1 деление, зажал — крутится
   if ((e.code === 'Space' || e.code === 'KeyF') && !e.repeat) { e.preventDefault(); rrAct('shoot'); }   // выстрел
 }
 function bindCanvas(cv) {
@@ -254,6 +267,11 @@ function onClick(e) {
   else if (a === 'players') openOv('players');
   else if (a === 'close') closeOv();
   else if (a === 'copy') copy(S && S.room.code, 'Код скопирован');
+  else if (a === 'bet') betSend(+b.dataset.v);
+  else if (a === 'vstart') voteAct('start');
+  else if (a === 'vyes') voteAct('yes');
+  else if (a === 'vno') voteAct('no');
+  else if (a === 'betIn') betIn();
   else if (a === 'link') copy(S && location.origin + location.pathname + '#/krot/' + S.room.code, 'Ссылка-приглашение скопирована');
   else if (a === 'ready') ready();
   else if (a === 'bot-add') botAct('krot_bot_add', {});
@@ -703,7 +721,7 @@ function drawRoom() {
 }
 function drawAll() {
   if (!S || view !== 'room') return;
-  drawTop(); drawRm(); drawAct(); drawMid(); drawHint(); drawOvLive(); drawChatLock();
+  drawTop(); drawRm(); drawAct(); drawMid(); drawHint(); drawOvLive(); drawChatLock(); drawVote(); drawVoteBtn();
   root.classList.toggle('paused', !!S.room.paused);
   root.dataset.ph = S.room.phase;
   root.classList.toggle('rr-dead', rrSilent());
@@ -717,10 +735,15 @@ function drawTop() {
   const ph = $('#krPh', root); if (!ph) return;
   const r = S.room, g = S.game, tp = g && S.players.find(p => p.seat === g.turn), mine = !!(tp && tp.me && r.phase === 'play');
   let t = r.paused ? 'Пауза' : r.phase === 'lobby' ? (r.deadline ? 'Старт через' : PH.lobby) : PH[r.phase] || '';
-  if (g && r.phase === 'play') t = `Раунд ${g.round} · ${mine ? 'ваш ход' : 'ход: ' + (tp ? tp.name : '—')}`;
+  if (g && r.phase === 'play') t = rrPre() ? `Раунд ${g.round} · жребий` : `Раунд ${g.round} · ${mine ? 'ваш ход' : 'ход: ' + (tp ? tp.name : '—')}`;
   if (g && r.phase === 'next') t = g.round ? `Раунд ${g.round} окончен` : '';   // round 0 — знакомство до раунда 1: без надписей (владелец 20.11)
   ph.textContent = t;
   const top = $('#krTop', root); top.dataset.ph = r.phase; top.classList.toggle('mine', mine);
+  {   // банк игры на деньги (владелец 21.11)
+    let bk = $('#rrBank', root); const on = !!(r.money && g && ['play', 'next', 'done'].includes(r.phase) && (g.round || r.phase === 'done'));
+    if (on && !bk) { bk = document.createElement('div'); bk.id = 'rrBank'; bk.className = 'rr-bank'; bk.innerHTML = '<span></span>'; root.appendChild(bk); }   // владелец 21.11: справа сверху, без обводки и подложки
+    if (bk) { bk.hidden = !on; const h = 'Банк ' + money(r.bank); if (on && bk.dataset.h !== h) { bk.dataset.h = h; bk.firstChild.innerHTML = h; } }
+  }
 }
 function drawRm() {
   const el = $('#krRm', root); if (!el) return;
@@ -740,7 +763,7 @@ function drawAct() {
   const el = $('#rrAct', root); if (!el) return;
   const g = S.game, mine = myTurn(), tp = g && S.room.phase === 'play' ? S.players.find(p => p.seat === g.turn) : null, other = !!(tp && !tp.me && tp.alive !== false);
   root.classList.toggle('my-turn', mine);
-  if ((!mine && !other) || Date.now() < capHoldUntil) { el.hidden = true; el.innerHTML = ''; actShown = ''; return; }   // пока звучит выстрел — без подписи
+  if ((!mine && !other) || Date.now() < capHoldUntil || rrPre()) { el.hidden = true; el.innerHTML = ''; actShown = ''; return; }   // пока звучит выстрел — без подписи
   if (mine && keysGame !== g.id) { keysGame = g.id; keysTurn = g.n; }   // первый свой ход в этой игре
   const touch = window.matchMedia && matchMedia('(pointer: coarse)').matches, keys = mine && (touch || keysTurn === g.n);
   const lock = actBusy || Date.now() < actLock, down = Date.now() - keyDownAt < 400 ? keyDown : '', spin = !!(spinNote && spinNote.seat === g.turn && Date.now() < spinNote.until);
@@ -763,12 +786,141 @@ function keyWave(kind) {   // от нажатия клавиши на экран
   }
 }
 async function rrAct(kind) {
+  if (kind === 'spin') { spinDown(); spinUp(); return; }   // кнопка на экране — одно деление
   if (!myTurn() || actBusy || Date.now() < actLock) return;
+  if (spinHeld) spinUp();
+  if (spinPend) await spinSend(true);   // докрутили и сразу «Выстрел» — сначала прокрутка
   keyDown = kind; keyDownAt = Date.now();   // клавиша на экране вдавливается
   actBusy = true; drawAct(); keyWave(kind); if (kind === 'shoot') rrFear(true);
   try { await api.rpc(kind === 'spin' ? 'rr_spin' : 'rr_shoot', { p_room: room, p_turn: S.game.n }); }
   catch (e) { note(errText(e), 'err'); rrFear(false); }
   finally { actBusy = false; actLock = Date.now() + (kind === 'spin' ? 1250 : 500); soon(); }
+}
+// барабан (владелец 21.11): одно нажатие R — ровно на 1 деление, зажал — крутится, пока не отпустишь.
+// Сервер на любую прокрутку перемешивает гнездо (иначе можно вернуть барабан на только что щёлкнувшее пустое гнездо и выжить наверняка);
+// прокрутка уходит на сервер одна — через 0,45 с после последнего отпускания (не чаще spin_gap 0,8 с)
+let spinHeld = 0, spinHoldT = 0, spinSendT = 0, spinPend = false, spinLast = 0, spinBlur = false;
+function spinDown() {
+  if (!myTurn() || actBusy || rrPre() || (S.game && S.game.vote)) return;
+  if (!spinBlur) { spinBlur = true; addEventListener('blur', spinUp); }
+  spinHeld = Date.now(); clearTimeout(spinHoldT); clearTimeout(spinSendT);
+  keyDown = 'spin'; keyDownAt = Date.now(); drawAct(); keyWave('spin');
+  if (G && G.drum) G.drum('tap');   // звук — щелчок на каждое деление (drumStep)
+  spinHoldT = setTimeout(() => { if (spinHeld && G && G.drum) G.drum('hold'); }, 260);
+}
+function spinUp() {
+  if (!spinHeld) return;
+  spinHeld = 0; clearTimeout(spinHoldT);
+  if (G && G.drum) G.drum('up');
+  spinPend = true; clearTimeout(spinSendT); spinSendT = setTimeout(() => spinSend(false), 450);
+}
+async function spinSend(now) {
+  clearTimeout(spinSendT);
+  if (!spinPend) return;
+  if (!myTurn()) { spinPend = false; return; }
+  const wait = spinLast + 850 - Date.now();
+  if (wait > 0) { if (now) await new Promise(r => setTimeout(r, wait)); else { spinSendT = setTimeout(() => spinSend(false), wait); return; } }
+  spinPend = false; spinLast = Date.now();
+  try { await api.rpc('rr_spin', { p_room: room, p_turn: S.game.n }); }
+  catch (e) { if (!/too fast/.test(errMsg(e))) note(errText(e), 'err'); }
+}
+// жребий в начале раунда: пока револьвер крутится в центре, кто первый — не показываем
+const rrPre = () => { const g = S && S.game; return !!(g && S.room.phase === 'play' && g.ev && g.ev.kind === 'start' && g.turn === g.first && Date.now() + off < S.room.phase_at); };
+// ---------- ставка за 15 с знакомства (владелец 21.11): 100 / 250 / 500 / 1000 / своя; победитель берёт с каждого не больше своей ставки ----------
+let betBusy = false, betGame = 0, betDone = 0;   // betDone — игра, в которой ставка уже сделана: окно уходит (владелец 21.11)
+function betHide(el) { if (!el || el.classList.contains('out')) return; el.classList.add('out'); setTimeout(() => el.remove(), 460); }   // плавно вниз и прозрачно
+const CHIP_UI = { 100: '#c7323b', 250: '#2f9e5a', 500: '#3b6fd6', 1000: '#d9ab3c' };   // цвет фишки на кнопке (как фишки на столе)
+const maxWin = bet => { let b = bet; for (const p of S.players) if (!p.me && p.bet) b += Math.min(bet, p.bet); return Math.floor(b * (1 - (S.room.fee != null ? S.room.fee : RR.fee))); };
+function drawBet() {
+  const r = S && S.room, g = S && S.game, me = myPlayer(), on = !!(r && r.money && g && r.phase === 'next' && !g.round && me && me.bet != null);
+  let el = root && $('#rrBet', root);
+  if (!on || betDone === g.id) { if (el) betHide(el); return; }   // ставка сделана или подготовка кончилась — окно уходит с анимацией
+  if (!el) {
+    el = document.createElement('section'); el.id = 'rrBet'; el.className = 'rr-bet kr-glass';
+    el.innerHTML = '<header class="rr-bh"><span><b>Ставка</b><em>до начала раунда</em></span><small id="rrBb"></small></header><div class="rr-bcs" id="rrBc"></div>'
+      + '<div class="rr-bown"><input id="rrBi" inputmode="numeric" maxlength="6" placeholder="Своя сумма" autocomplete="off"><button class="kr-btn go sm" data-a="betIn">Поставить</button></div>'
+      + '<div class="rr-bsum" id="rrBs"></div><i class="rr-btm" id="rrBt"></i>';
+    root.appendChild(el);
+    { const ms = Math.max(0, (r.deadline || 0) - (Date.now() + off)); $('#rrBt', el).style.animationDuration = ms + 'ms'; }   // полоска: сколько осталось до раунда
+    $('#rrBi', el).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); betIn(); } });
+    if (betGame !== g.id && refreshProf) { betGame = g.id; refreshProf(); }   // 100 ₽ уже списаны — баланс на сайте обновить
+  }
+  const bal = +(S.me.bal || 0), bet = me.bet, cap = bal + bet;
+  const key = [bet, bal, r.bank, betBusy, S.players.map(p => p.bet).join()].join('|'); if (el.dataset.k === key) return; el.dataset.k = key;
+  $('#rrBb', el).innerHTML = 'Баланс ' + money(bal);
+  $('#rrBc', el).innerHTML = [100, 250, 500, 1000].map(v => '<button class="rr-bc' + (bet === v ? ' on' : '') + '" style="--cc:' + CHIP_UI[v] + '" data-a="bet" data-v="' + v + '"' + (v > cap || betBusy ? ' disabled' : '') + '><i></i>' + money(v) + '</button>').join('');
+  $('#rrBs', el).innerHTML = '<span>Ваша ставка<b>' + money(bet) + '</b></span><span>Банк<b>' + money(r.bank) + '</b></span><span>Выигрыш до<b>' + money(maxWin(bet)) + '</b></span>';
+}
+function betIn() { const i = root && $('#rrBi', root); if (!i) return; const v = Math.round(+String(i.value).replace(/\D/g, '')); if (!v) return; betSend(v); i.value = ''; }
+async function betSend(v) {
+  if (betBusy || !S || !S.room.money) return;
+  const min = S.room.min_bet || RR.minBet, max = S.room.max_bet || RR.maxBet;
+  if (v < min) { note('Ставка — от ' + min + ' ₽', 'err'); return; }
+  if (v > max) { note('Ставка — до ' + max + ' ₽', 'err'); return; }
+  betBusy = true; drawBet();
+  try {
+    const d = await api.rpc('rr_bet', { p_room: room, p_amount: v });
+    if (d && d.data) { if (applyProf) applyProf(d.data); S.me.bal = +d.data.balance || 0; }
+    const me = myPlayer(); if (me) me.bet = v;
+    if (S.game) betDone = S.game.id;   // ставка сделана — окно плавно уходит
+  } catch (e) { note(errText(e), 'err'); }
+  finally { betBusy = false; drawBet(); soon(); }
+}
+// ---------- голосование за патрон (владелец 21.11, образец — окно голосования CS2) ----------
+// «Поднять руку» может только тот, кто выстрелил и выжил, — пока следующий не выстрелил (один ход). Окно — у всех; голосуют живые: ✓ или ✕
+let voteBusy = false, voteRes = null, voteLast = null, voteMine = null;
+const ICV = { y: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  n: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>',
+  hand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 013 0V11m0-6.5a1.5 1.5 0 013 0V11m0-5a1.5 1.5 0 013 0v7.5c0 4-2.5 7-6.5 7-2.6 0-4-1.2-5.6-3.4L4 13.6a1.5 1.5 0 012.3-1.9L8 13.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>' };
+const canVote = () => { const g = S && S.game, me = myPlayer(); return !!(g && me && me.alive !== false && S.room.phase === 'play' && g.vby === me.seat && g.vn === g.n && !g.vote && g.bullets < (S.room.max_bul || RR.maxBul) && g.turn !== me.seat); };
+function drawVoteBtn() {
+  let el = root && $('#rrVb', root); const on = canVote() && !rrPre();
+  if (!on) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('button'); el.id = 'rrVb'; el.className = 'rr-vb kr-glass'; el.dataset.a = 'vstart'; root.appendChild(el); }
+  const tp = S.players.find(p => p.seat === S.game.turn), cost = S.room.money ? (S.room.vote_cost || 0) : 0;
+  const h = ICV.hand + '<kbd>G</kbd><span><b>Поднять руку</b><small>+1 патрон' + (tp ? ' для ' + esc(tp.name) : '') + (cost ? ' · −' + cost + ' ₽ из банка' : '') + '</small></span>';
+  if (el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; }
+  el.disabled = voteBusy;
+}
+function drawVote() {
+  const g = S && S.game, v = g && S.room.phase === 'play' ? g.vote : null;
+  let el = root && $('#rrVt', root);
+  if (v) voteLast = JSON.parse(JSON.stringify(v));
+  const res = !v && voteRes && Date.now() < voteRes.until ? voteRes : null;
+  if (!v && !res) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('section'); el.id = 'rrVt'; el.className = 'rr-vt kr-glass'; root.appendChild(el); }
+  const me = myPlayer(), seat = me ? me.seat : 0, src = v || res.v, alive = !!(me && me.alive !== false);
+  const mm = voteMine && voteMine.at === src.at ? voteMine.yes : null;
+  const myY = src.yes.includes(seat) || mm === true, myN = src.no.includes(seat) || mm === false, can = !!(v && alive && !myY && !myN && !voteBusy);
+  const ny = v ? v.yes.length : res.yes, nn = v ? v.no.length : res.no;
+  const by = S.players.find(p => p.seat === src.by), tp = g && S.players.find(p => p.seat === g.turn);
+  const left = v ? Math.max(0, Math.ceil((v.until - (Date.now() + off)) / 1000)) : 0;
+  const head = v ? '<i class="rr-vt-ic hand">' + ICV.hand + '</i><b>Голосование</b><em>' + left + ' с</em>'
+    : res.ok ? '<i class="rr-vt-ic y">' + ICV.y + '</i><b class="y">Голосование прошло</b>' : '<i class="rr-vt-ic n">' + ICV.n + '</i><b class="n">Голосование не прошло</b>';
+  const txt = v ? '<b>' + esc(by ? (by.me ? 'Вы' : by.name) : 'Игрок') + '</b> ' + (by && by.me ? 'предлагаете' : 'предлагает') + ' добавить патрон' + (tp ? ' — стреляет ' + esc(tp.me ? 'вы' : tp.name) : '') + '.'
+      + '<small>' + (src.cost ? '−' + src.cost + ' ₽ из банка · ' : '') + 'нужно «за»: ' + src.need + '</small>'
+    : res.ok ? 'В барабане теперь ' + res.bullets + ' ' + plural(res.bullets) + '.' : 'Не хватило голосов «за».';
+  const foot = myY ? 'Вы проголосовали: <b class="y">ДА</b>' : myN ? 'Вы проголосовали: <b class="n">НЕТ</b>' : v ? (alive ? 'Нажмите ✓ или ✕' : 'Выбывшие не голосуют') : '';
+  const html = '<header class="rr-vt-h">' + head + '</header><div class="rr-vt-b"><p class="rr-vt-t">' + txt + '</p><div class="rr-vt-c">'
+    + '<button class="rr-vt-y" data-a="vyes" title="Да"' + (can ? '' : ' disabled') + '>' + ICV.y + '</button><b class="y">' + ny + '</b>'
+    + '<button class="rr-vt-n" data-a="vno" title="Нет"' + (can ? '' : ' disabled') + '>' + ICV.n + '</button><b class="n">' + nn + '</b></div></div>'
+    + (foot ? '<p class="rr-vt-f">' + foot + '</p>' : '');
+  if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
+  el.classList.toggle('done', !v); el.classList.toggle('can', can);
+}
+function bankSpend(c) {   // патрон куплен: под банком «−50 ₽» — появляется и гаснет (владелец 21.11)
+  const bk = root && $('#rrBank', root); if (!bk) return;
+  const m = document.createElement('small'); m.className = 'rr-bank-m'; m.innerHTML = '−' + money(c); bk.appendChild(m);
+  bk.classList.remove('hit'); void bk.offsetWidth; bk.classList.add('hit');
+  setTimeout(() => { m.remove(); bk.classList.remove('hit'); }, 2700);
+}
+async function voteAct(kind) {   // 'start' | 'yes' | 'no'
+  if (voteBusy || !S || !S.game) return;
+  if (kind !== 'start') { const v = S.game.vote; if (!v) return; voteMine = { at: v.at, yes: kind === 'yes' }; }
+  voteBusy = true; drawVoteBtn(); drawVote();
+  try { await api.rpc(kind === 'start' ? 'rr_vote_start' : 'rr_vote', kind === 'start' ? { p_room: room } : { p_room: room, p_yes: kind === 'yes' }); }
+  catch (e) { note(errText(e), 'err'); if (kind !== 'start') voteMine = null; }
+  finally { voteBusy = false; soon(); drawVoteBtn(); drawVote(); }
 }
 // выбывший смотрит молча: микрофон не передаёт, чат — только чтение
 const rrSilent = () => !!(S && S.me && S.me.alive === false && ['play', 'next'].includes(S.room.phase));
@@ -801,9 +953,12 @@ function rrShot(ev) {   // щелчок и выстрел — после взв�
 function rrEvent(ev) {
   const p = S && S.players.find(x => x.seat === ev.seat), me = !!(p && p.me), nm = p ? (me ? 'вы' : p.name) : '';
   if (G && G.event) G.event(ev);
-  rrSound(ev.kind); if (me && (ev.kind === 'click' || ev.kind === 'bang')) rrFear(false); if (me && ev.kind === 'bang' && G && G.specGo) G.specGo(1.5);
+  if (!(ev.kind === 'spin' && (me || (G && G.drum)))) rrSound(ev.kind);   // прокрутку озвучивает сам барабан: щелчок на деление (без 3D — старый звук)
+  if (me && (ev.kind === 'click' || ev.kind === 'bang')) rrFear(false); if (me && ev.kind === 'bang' && G && G.specGo) G.specGo(1.5);
   const auto = ev.auto ? 'время вышло · ' : '';
-  if (ev.kind === 'start') showBand('Раунд ' + ev.round, (ev.bullets === RR.bul[2] ? 'Финал · ' : '') + 'в револьвере ' + ev.bullets + ' ' + plural(ev.bullets), 3200);   // владелец: «РАУНД №, В РЕВОЛЬВЕРЕ 1 ПАТРОН», в рамке как в «Краше»
+  if (ev.kind === 'start') showBand('Раунд ' + ev.round, (S && S.players.filter(p => p.alive !== false).length === 2 ? 'Финал · ' : '') + 'в револьвере ' + ev.bullets + ' ' + plural(ev.bullets), 3200);   // владелец: «РАУНД №, В РЕВОЛЬВЕРЕ 1 ПАТРОН», в рамке как в «Краше»
+  else if (ev.kind === 'vote_end') { voteRes = { ok: !!ev.ok, yes: ev.yes || 0, no: ev.no || 0, bullets: ev.bullets, until: Date.now() + 4500,
+      v: voteLast && voteLast.by === ev.seat ? voteLast : { by: ev.seat, at: 0, yes: [], no: [], need: '', cost: 0 } }; voteLast = null; drawVote(); if (ev.ok && ev.cost) bankSpend(ev.cost); }
   else if (ev.kind === 'spin') { if (!me) { spinNote = { seat: ev.seat, until: Date.now() + 1400 }; drawAct(); } }
   else if (ev.kind === 'click') showEv('В барабане пусто', me ? 'вы живы' : nm + ' жив', 'click', 1600);   // владелец 20.11: без «Щелчок» и без «время вышло»
   else if (ev.kind === 'bang') {
@@ -813,7 +968,8 @@ function rrEvent(ev) {
 }
 // звуки владельца (assets/rr/snd, откуда — ПЛАН_РУЛЕТКА.md «Звуки»): прокрутка, взвод курка, пустой выстрел, выстрел; громкость умеренная (владелец не любит громко)
 const SND = { spin: { f: 'spin', vol: .5 }, cock: { f: 'cock', vol: .6 }, click: { f: 'click', vol: .6 }, bang: { f: 'bang', vol: .5 },
-  hum: { f: 'tv-hum', vol: .12 }, tvon: { f: 'tv-on', vol: .5 }, tvoff: { f: 'tv-off', vol: .5 }, heart: { f: 'heart', vol: .55 }, slide: { f: 'slide', vol: .35 }, breath: { f: 'breath', vol: .09 }, music: { f: 'music', vol: .03 } }, sndBuf = {};   // владелец 20.11: гул и вкл/выкл телевизора, сердце, револьвер по столу, дыхание (ПЛАН_РУЛЕТКА.md «Звуки»)
+  hum: { f: 'tv-hum', vol: .12 }, tvon: { f: 'tv-on', vol: .5 }, tvoff: { f: 'tv-off', vol: .5 }, heart: { f: 'heart', vol: .55 }, slide: { f: 'slide', vol: .35 }, breath: { f: 'breath', vol: .09 }, music: { f: 'music', vol: .03 },
+  drum: { f: 'drum', vol: .6 } }, sndBuf = {};   // владелец 20.11: гул и вкл/выкл телевизора, сердце, револьвер по столу, дыхание (ПЛАН_РУЛЕТКА.md «Звуки»)
 const COCK_MS = 480;   // взвели курок → через столько мс щелчок или выстрел
 let AC = null;
 function sndLoad() {   // загрузить звуки заранее (при входе за стол)
@@ -827,7 +983,7 @@ function rrLoop(kind, on, fade = .4) {   // фоновые петли (гул т
     if (sndLoop[kind] || !soundOn()) return;
     AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
     const sb = sndBuf[kind]; if (!sb || !sb.duration) return;
-    const src = AC.createBufferSource(), g = AC.createGain(), t = AC.currentTime; src.buffer = sb; src.loop = true;
+    const src = AC.createBufferSource(), g = AC.createGain(), t = AC.currentTime; src.buffer = sb; src.loop = true; if (SND[kind].le) { src.loopStart = SND[kind].ls; src.loopEnd = SND[kind].le; }
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(SND[kind].vol, t + fade); src.connect(g); g.connect(AC.destination);
     src.start(t, kind === 'hum' || kind === 'breath' ? Math.random() * sb.duration * .8 : 0); sndLoop[kind] = { src, g, v: SND[kind].vol };
   } catch (e) { /* звук недоступен */ }
@@ -838,12 +994,25 @@ function rrFear(on) {   // сердце + страх: с нажатия «Выс
   const f = root && $('#rrFear', root); if (f) f.classList.toggle('on', on);
   if (on) fearT = setTimeout(() => rrFear(false), 4000);   // на случай, если ответ сервера потерялся
 }
-function rrSound(kind) {
+// щелчок барабана (владелец 21.11, assets/rr/snd/drum.mp3 — 54 щелчка): одиночные — тихое вращение и одно нажатие R, из быстрой серии — когда барабан крутится быстро
+const DRUM_ONE = [.834, 1.508, 2.096, 2.66, 3.7], DRUM_FAST = [5.334, 5.418, 5.492, 5.592, 5.668, 5.78, 5.878, 5.972, 6.028];
+let drumLast = -1;
+function drumClick(delay, fast) {
+  if (!soundOn()) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const sb = sndBuf.drum; if (!sb || !sb.duration) return;
+    const L = fast ? DRUM_FAST : DRUM_ONE; let i = rnd(L.length); if (i === drumLast) i = (i + 1) % L.length; drumLast = i;
+    const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = sb; g.gain.value = SND.drum.vol * (fast ? .85 : 1); src.connect(g); g.connect(AC.destination);
+    src.start(AC.currentTime + (delay || 0), L[i], fast ? .04 : .07);
+  } catch (e) { /* звук недоступен */ }
+}
+function rrSound(kind, from, dur) {   // from / dur — только кусок файла (одно деление барабана)
   if (!soundOn()) return;
   try {
     AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
     const sb = sndBuf[kind];
-    if (sb && sb.duration) { const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = sb; g.gain.value = SND[kind].vol; src.connect(g); g.connect(AC.destination); src.start(); return; }
+    if (sb && sb.duration) { const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = sb; g.gain.value = SND[kind].vol; src.connect(g); g.connect(AC.destination); if (dur) src.start(0, from || 0, dur); else src.start(); return; }
     const t0 = AC.currentTime + .01, out = AC.createGain(); out.gain.value = .2; out.connect(AC.destination);
     const tick = (t, f, d, v) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'square'; o.frequency.value = f; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d); o.connect(g); g.connect(out); o.start(t); o.stop(t + d + .02); };
     const noise = (t, d, v, lp) => { const n = AC.sampleRate * d | 0, b = AC.createBuffer(1, n, AC.sampleRate), ch = b.getChannelData(0); for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3); const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); f.type = 'lowpass'; f.frequency.value = lp; g.gain.value = v; s.buffer = b; s.connect(f); f.connect(g); g.connect(out); s.start(t); };
@@ -875,6 +1044,8 @@ function drawMid() {
   if (ph === 'lobby' && r.mm) { el.className = 'kr-mid ld'; const pl = $('#rlPl', el); if (pl) pl.innerHTML = loadPlayers(); else el.innerHTML = loadHtml(); return; }   // все приняли — экран загрузки
   if (ph === 'lobby') { el.className = 'kr-mid lob'; el.innerHTML = lobbyHtml(); return; }
   if (ph === 'done') { el.className = 'kr-mid res'; root.classList.add('show-res'); el.innerHTML = ''; return; }
+  drawBet();
+  if (ph === 'done' && r.money && refreshProf && betGame !== -(g ? g.id : 0)) { betGame = -(g ? g.id : 0); refreshProf(); }   // выигрыш / возврат — на баланс сайта
   if (ph === 'next' && g && !g.round) {   // знакомство до раунда 1 (владелец 20.11): «Подготовка к раунду» и отсчёт — только текст, без подложек
     el.className = 'kr-mid rr-iw';
     if (!$('#rrInN', el)) el.innerHTML = '<div class="rr-in"><span class="rr-in-t">Подготовка к раунду</span><b class="rr-in-n" id="rrInN"></b></div>';
@@ -976,7 +1147,8 @@ function tvData() {   // итог для экрана на стене (рису�
   const up = s => String(s || '').toUpperCase();
   return {
     t1: w ? (w.me ? 'ВЫ ПОБЕДИЛИ' : 'ПОБЕДИЛ') : 'ИГРА ОКОНЧЕНА', t2: w && !w.me ? up(w.name) : '',
-    me: me && me.place ? (me.place === 1 ? 'ВЫ ВЫЖИЛИ' : 'ВАШЕ МЕСТО: ' + me.place) + (r.points ? (me.pts ? ` · +${me.pts} ОЧКОВ НЕДЕЛИ` : '') : ' · БЕЗ ОЧКОВ') : '', win: !!(me && me.place === 1),
+    me: me && me.place ? (me.place === 1 ? 'ВЫ ВЫЖИЛИ' : 'ВАШЕ МЕСТО: ' + me.place) + (r.money && me.won ? ` · +${Math.round(me.won)} ₽` : r.money && me.back ? ` · ВОЗВРАТ ${Math.round(me.back)} ₽` : '')
+      + (r.points ? (me.pts ? ` · +${me.pts} ОЧКОВ` : '') : ' · БЕЗ ОЧКОВ') : '', win: !!(me && me.place === 1),
     rows: list.map(p => ({ pl: p.place || 0, s: p.seat, n: p.name, me: !!p.me, out: p.place !== 1, pts: r.points && p.pts != null ? '+' + p.pts : '—' })),
     btns: [{ a: 'again', l: 'ИГРАТЬ ЕЩЁ', go: true }, { a: 'copyres', l: 'СКОПИРОВАТЬ ИТОГ' }, { a: 'players', l: 'ПОЖАЛОВАТЬСЯ' }, { a: 'menu', l: 'В МЕНЮ' }]
   };
@@ -1017,11 +1189,12 @@ function ovHtml(kind, arg) {
       <li><b>Стол.</b> Пять игроков и один револьвер на шесть гнёзд. Патроны лежат в случайных гнёздах — где именно, не знает никто.</li>
       <li><b>Ход.</b> Револьвер идёт по кругу. На своём ходу можно крутить барабан сколько угодно раз, потом — выстрел. На ход 20 секунд: не успели — револьвер выстрелит сам, без прокрутки.</li>
       <li><b>Шанс.</b> Не крутили — выстрел из следующего гнезда: после пустых щелчков шанс растёт, прокрутка возвращает его к началу. Текущий шанс виден вверху экрана.</li>
-      <li><b>Раунды.</b> Раунд идёт до первого выстрела. Раунд 1 — 1 патрон, раунд 2 — 2, раунд 3 — 3, финал один на один — 5. Кто стреляет первым в раунде, сервер решает случайно.</li>
+      <li><b>Раунды.</b> Раунд идёт до первого выстрела. Игра начинается с 1 патрона в барабане. Ускорить её можно, купив патрон — купленные остаются и в следующих раундах: кто выстрелил и выжил, может поднять руку (G), пока не выстрелил следующий, — голосуют живые (✓ или ✕), нужно не меньше половины «за» (в быстрой игре из банка — половина самой маленькой ставки: при ставках по 100 ₽ — 50 ₽), но не больше 4 — два гнезда всегда пустые. Кто стреляет первым в раунде, сервер решает случайно.</li>
       <li><b>Выбывшие</b> смотрят игру до конца молча: живые их не слышат, чат — только чтение.</li>
     </ol>
     <h3 class="kr-h2">Очки</h3><p>Быстрая игра — очки недели за место: 1-е — 10, 2-е — 6, 3-е — 3, 4-е — 1. Лучшим за неделю — скины. Комнаты друзей — без очков.</p>
-    <h3 class="kr-h2">Управление</h3><ul class="kr-keyl"><li><kbd>ЛКМ</kbd> зажать и вести мышью — осмотреться</li><li><kbd>R</kbd> — крутить барабан</li><li><kbd>Пробел</kbd> — выстрел</li><li><kbd>V</kbd> зажать — говорить</li><li><kbd>Enter</kbd> — чат, <kbd>Tab</kbd> — игроки</li></ul></aside>`;
+    <h3 class="kr-h2">Ставки</h3><p>Быстрая игра — на деньги: на старте списывается 100 ₽, за 15 секунд подготовки ставку можно поднять. Последний выживший забирает банк: с каждого — не больше, чем поставил сам (остальное возвращается), минус купленные патроны и 5% сайту.</p>
+    <h3 class="kr-h2">Управление</h3><ul class="kr-keyl"><li><kbd>ЛКМ</kbd> зажать и вести мышью — осмотреться</li><li><kbd>R</kbd> — нажать: барабан на одно деление; зажать — крутится, пока держите</li><li><kbd>G</kbd> — поднять руку: +1 патрон следующему (после своего пустого выстрела)</li><li><kbd>F1</kbd> / <kbd>F2</kbd> — голос «да» / «нет»</li><li><kbd>Пробел</kbd> — выстрел</li><li><kbd>V</kbd> зажать — говорить</li><li><kbd>Enter</kbd> — чат, <kbd>Tab</kbd> — игроки</li></ul></aside>`;
   if (kind === 'players') {   // таблица счёта как в CS2: шапка, квадрат раунда, строки игроков; своя строка — золотом, выбывшие — с крестиком
     const ps = S ? S.players : [], g = S && S.game, ph = S ? S.room.phase : '', alive = ps.filter(p => p.alive !== false && !p.left).length;
     const order = SEATS.map(st => ps.find(q => q.seat === st)).filter(Boolean).sort((p, q) => (p.alive === false) - (q.alive === false) || (p.place || 0) - (q.place || 0) || p.seat - q.seat);
@@ -1107,10 +1280,12 @@ function loop(t) {
   if (G && !document.hidden) { G.frame(dt, t / 1000); aimHint(); sendHead(t); }
 }
 function uiTick() {
-  { const g = S && S.game; rrLoop('music', !!(g && view === 'room' && ['play', 'next'].includes(S.room.phase) && g.round >= 1 && g.bullets !== RR.bul[2]), 2.5);
+  { const g = S && S.game; rrLoop('music', !!(g && view === 'room' && ['play', 'next'].includes(S.room.phase) && g.round >= 1 && S.players.filter(p => p.alive !== false).length > 2), 2.5);   // в финале (вдвоём) — без музыки
     const L = sndLoop.music, me = myPlayer(), v = me && me.alive === false ? .008 : SND.music.vol; if (L && L.v !== v) { L.v = v; try { const t = AC.currentTime, cur = L.g.gain.value; L.g.gain.cancelScheduledValues(t); L.g.gain.setValueAtTime(cur, t); L.g.gain.setTargetAtTime(v, t, .8);   /* без опоры громкость прыгала на 1 — «начало очень громкое» */ } catch (e) { /* без звука */ } } }   // выбыл и смотрит — музыка почти выключена   // владелец 20.11: музыка напряжения — с 1-го раунда, в финале (1 на 1) тишина; почти не слышно
   rrLoop('breath', !!(S && view === 'room' && ['play', 'next'].includes(S.room.phase) && myPlayer() && myPlayer().alive !== false), 1.5);   // дыхание своего персонажа — тихо, пока жив
   if (view !== 'room' || !S || !root) return;
+  if (S.room.phase === 'play') { drawTop(); drawAct(); }   // жребий кончился — подписи хода
+  drawVote(); drawVoteBtn();   // секунды голосования, итог гаснет через 4,5 с
   if (S.room.phase === 'lobby' && S.room.mm) loadTick();
   if (capHoldUntil && Date.now() >= capHoldUntil) { capHoldUntil = 0; drawAct(); }
   if (actShown && ((actShown.endsWith('true') && !actBusy && Date.now() >= actLock) || (keyDown && Date.now() - keyDownAt > 400) || (spinNote && Date.now() > spinNote.until))) { if (keyDown && Date.now() - keyDownAt > 400) keyDown = ''; if (spinNote && Date.now() > spinNote.until) spinNote = null; drawAct(); }   // кнопки снова активны после анимации
@@ -1790,6 +1965,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     }
     // голова по взгляду игрока (+ кивок при речи)
     a.gk += ((a.spk && !a.me ? 1 : 0) - a.gk) * (1 - Math.exp(-dt * 5));
+    a.vw = (a.vw || 0) + ((voteSeat && voteSeat === a.seat && !fl ? 1 : 0) - (a.vw || 0)) * (1 - Math.exp(-dt * 4));   // голосование: рука вверх
     _eg.set(a.hp * .85 + a.gk * .06 * Math.sin(t * 7.3), a.hy * .9, 0); _qg.setFromEuler(_eg);
     if (fl) { _qc.setFromAxisAngle(_t1.set(0, 0, 1), .45 * fs * (1 - ff)); _qg.multiply(_qc).slerp(FALL.head, ff); }   // выстрелом голову откидывает влево, потом — левой щекой на стол
     _qh.copy(_qs).multiply(_qI.identity().slerp(_qg, .35 + .4 * ff)).multiply(M.rel.neck); setW(B.neck_0, _qh);   // упал — шея гнётся за головой
@@ -1826,6 +2002,12 @@ function makeWorld(T, RB, RE, cv, PP) {
         _t3.set(.17 + .025 * Math.sin(t * 3.1), .93 + .035 * Math.sin(t * 4.3 + a.s), -.27 + .03 * Math.sin(t * 2.2)).applyMatrix4(g.matrixWorld);
         _e4.lerp(_t3, gk); _qh.slerp(_qc, gk);
       }
+      { const ch = CH[a.seat];   // ставка: обе руки за стопкой фишек и двигают её к центру (владелец 21.11)
+        if (ch && ch.hw > .01 && !hk) { _t3.set(sd * .055, 0, .05).applyQuaternion(_qs).add(ch.hp); _t3.y = TOP + .034; _e4.lerp(_t3, ch.hw); } }
+      if (k === 'l' && a.vw > .01) {   // голосование (владелец 21.11): левая рука вверх, ладонью вперёд, локоть полусогнут
+        _t3.set(-.21, 1.4, -.13).applyMatrix4(g.matrixWorld); _t1.set(0, 1, -.12).applyQuaternion(_qs); _t2.set(1, 0, 0).applyQuaternion(_qs); frameQ(_t1, _t2, _qc);
+        _e4.lerp(_t3, a.vw); _qh.slerp(_qc, a.vw);
+      }
       if (hk) { _e4.lerp(_gw, hk); if (!lift) _e4.y += Math.sin(Math.PI * hk) * .05; _qh.slerp(_gfq, hk); }   // тянется к рукояти дугой
       if (fl || (k === 'r' && fallGun)) {
         const r = k === 'r', gIn = r && fallGun;
@@ -1838,6 +2020,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       }
       _t3.set(sd * .75, -1, .35).applyQuaternion(_qs);                 // локти — вниз и в стороны
       if (hk && lift) _t3.lerp(_t1.set(1, -.3, .2).applyQuaternion(_qs), lift);   // у виска локоть — в сторону
+      if (k === 'l' && a.vw > .01) _t3.lerp(_t1.set(-1, -.15, .4).applyQuaternion(_qs), a.vw);   // рука вверх — локоть в сторону
       if (ff) _t3.lerp(_t1.set(sd, .5, .3).applyQuaternion(_qs), ff);   // упал — локти в стороны и вверх, не в бортик
       ik2(B['arm_upper_' + k], B['arm_lower_' + k], B['hand_' + k], _e4, _t3, L[0], L[1]);
       if (k === 'r' && fallGun) {   // убит с револьвером: он в ладони, пока рука не легла на стол, потом выпадает
@@ -1886,7 +2069,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     const g = d.game, ph = d.room.phase;
     for (const s of SEATS) {
       const a = AV[s], p = d.players.find(x => x.seat === s);
-      a.on = !!p; a.me = !!(p && p.me); a.bOn = false;
+      a.seat = s; a.on = !!p; a.me = !!(p && p.me); a.bOn = false;
       a.dead = !!(p && p.alive === false && ph !== 'lobby');
       if (!a.dead) { a.vDead = false; if (a.fallAt != null || a.fallPend || a.pool) fallReset(a); }
       else if (!a.vDead && (gun.who !== s || clock >= (gun.holdUntil || 0))) { a.vDead = true; if (a.me) a.fallPend = true; else if (a.fallAt == null) a.fallAt = clock - 5; }   // у стреляющего «выбыл» приходит раньше выстрела — голову опускаем после выстрела (W.event)
@@ -1899,6 +2082,8 @@ function makeWorld(T, RB, RE, cv, PP) {
     }
     btnActive = false;
     gun.play = ph === 'play';
+    W.chipSync(d.players, !!(g && ph === 'next' && !g.round), !!d.room.money);   // фишки ставок
+    W.vote(g && g.vote && ph === 'play' ? g.vote.by : 0);                       // кто поднял руку
     { const gid = g ? g.id : null; if (gid !== bloodGid) { bloodGid = gid; bloodClear(); } }   // новая игра — крови нет   // револьвер берут в руки только во время хода
     gunTo(g && ['play', 'next'].includes(ph) ? g.turn || 0 : 0);
   };
@@ -1911,6 +2096,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   W.specGo = s => { specAt = clock + s; };   // свой выстрел показан — через s с камера улетает в наблюдатели
   W.hold = ms => { gun.holdUntil = clock + ms / 1000; };   // пока звучит выстрел — револьвер у виска и не уезжает к следующему
   function gunTo(seat) {
+    if (gun.roul) return;   // жребий: после него револьвер сам поедет к первому
     if (gun.seat === seat) { gun.pend = null; return; }
     if (clock < (gun.holdUntil || 0) || gun.who || gun.fly) { gun.pend = seat; return; }   // сначала кладёт на стол (gunStep), потом едет
     gun.seat = seat;
@@ -1919,6 +2105,75 @@ function makeWorld(T, RB, RE, cv, PP) {
     if (!menuOn && Math.hypot(to.x - tp.x, to.z - tp.z) > .05) rrSound('slide');   // револьвер едет по столу (звук подогнан под 0,85 с)
     gun.sl = { x0: tp.x, z0: tp.z, y0: tp.yaw, x1: to.x, z1: to.z, y1, k: 0 };   // владелец 20.11: скользит по сукну, без подлёта (ход — в gunStep)
   }
+  // ---------- владелец 21.11: жребий револьвером, барабан по делениям, фишки ставок, рука вверх ----------
+  W.roul = seat => {   // ствол — на место seat (из центра стола)
+    const p = SEAT[seat]; if (!p) return;
+    _eg2.set(-Math.PI / 2, 0, 0); _gq.setFromEuler(_eg2); const d = gun.muzzle.clone().applyQuaternion(_gq);
+    gun.roul = { seat, want: Math.atan2(-p.z, p.x) - Math.atan2(-d.z, d.x), go: false };
+    gun.seat = 0; gun.pend = null; gun.sl = null;   // уже ехал к следующему — стоп: сразу в центр (владелец 21.11)
+  };
+  const DR = { tgt: null, v: 0, hold: false, idx: null, sndUntil: 0 }, DSTEP = Math.PI / 3;
+  W.drum = m => {   // 'tap' — на одно деление, 'hold' — крутится, 'up' — отпустили: тормозит до деления
+    const dr = gun.drum; if (!dr) return;
+    if (gun.who !== mySeat || gun.lw < 1) gun.rush = true;   // револьвер ещё не у виска — догоняем
+    if (m === 'tap') DR.tgt = (DR.tgt != null ? DR.tgt : Math.round(dr.rotation[gun.axis] / DSTEP) * DSTEP) + DSTEP;
+    else if (m === 'hold') DR.hold = true;
+    else if (m === 'up') DR.hold = false;
+  };
+  function drumStep(dt) {   // звук: щелчок на каждое пройденное деление — сколько бы барабан ни крутился (владелец 21.11)
+    const dr = gun.drum; if (!dr) return; const ax = gun.axis;
+    const live = DR.hold || DR.v > 0 || DR.tgt != null || clock < DR.sndUntil;
+    if (DR.hold) { DR.v = Math.min(18, DR.v + dt * 34); dr.rotation[ax] += DR.v * dt; DR.tgt = null; }
+    else if (DR.v > 0) { DR.v = Math.max(0, DR.v - dt * 26); dr.rotation[ax] += DR.v * dt; if (!DR.v) DR.tgt = Math.ceil(dr.rotation[ax] / DSTEP - 1e-3) * DSTEP; }
+    else if (DR.tgt != null) { const d = DR.tgt - dr.rotation[ax]; if (Math.abs(d) < .002) { dr.rotation[ax] = DR.tgt; DR.tgt = null; } else dr.rotation[ax] += d * Math.min(1, dt * 20); }
+    const idx = Math.floor(dr.rotation[ax] / DSTEP + .5);
+    if (DR.idx == null || !live) { DR.idx = idx; return; }
+    if (idx !== DR.idx) {
+      const n = Math.abs(idx - DR.idx), m = Math.min(n, 3), fast = n / Math.max(dt, 1e-3) > 8; DR.idx = idx;
+      if (!menuOn) for (let i = 0; i < m; i++) drumClick(i * dt / m, fast);   // медленный кадр — щелчки разносим по времени
+    }
+  }
+  // фишки: стопка перед игроком; поставил — руки двигают её к центру (стопка доезжает сама, руки — не до конца)
+  const CHIP_C = { 1000: 0xd9ab3c, 500: 0x3b6fd6, 100: 0xc7323b, 50: 0x2f9e5a }, chipGeo = new T.CylinderGeometry(.02, .02, .0045, 28), chipMs = {}, CH = {};
+  const chipMat = c => chipMs[c] || (chipMs[c] = new T.MeshStandardMaterial({ color: c, roughness: .42, metalness: .08 }));
+  const chipSpot = (seat, k) => { const p = SEAT[seat], f = SEAT_OFF + .15 + .09 + .1 + k * .24, r = -.07 * (1 - k); return { x: p.x - Math.sin(p.yaw) * f + Math.cos(p.yaw) * r, z: p.z - Math.cos(p.yaw) * f - Math.sin(p.yaw) * r }; };
+  function chipBuild(c, bet) {   // 1000 / 500 / 100 / 50, до 10 в стопке, стопки рядом
+    while (c.g.children.length) c.g.remove(c.g.children[0]);
+    let v = bet; const list = []; for (const dn of [1000, 500, 100, 50]) while (v >= dn && list.length < 30) { list.push(dn); v -= dn; }
+    list.forEach((dn, i) => { const m = new T.Mesh(chipGeo, chipMat(CHIP_C[dn])), st = Math.floor(i / 10); m.position.set([0, .044, -.044][st], (i % 10) * .0047 + .0024, st ? .012 : 0); m.castShadow = true; m.receiveShadow = true; c.g.add(m); });
+  }
+  W.chips = (seat, bet, push, delay) => {
+    let c = CH[seat];
+    if (!bet) { if (c) { scene.remove(c.g); delete CH[seat]; } return; }
+    if (!c) { c = CH[seat] = { g: new T.Group(), bet: 0, k: 0, push: null, hw: 0, hp: V(0, 0, 0), delay: delay || 0 }; scene.add(c.g); }
+    if (c.bet !== bet) { c.bet = bet; chipBuild(c, bet); }
+    if (push) { c.k = 0; c.push = { t: 0 }; } else if (!c.push) c.k = 1;
+  };
+  W.chipSync = (pl, intro, on) => {
+    for (const s of SEATS) {
+      const p = on && pl.find(x => x.seat === s), b = p && p.bet, c = CH[s];
+      if (!b) { if (c) W.chips(s, null); continue; }
+      if (!c) W.chips(s, b, intro, intro ? Math.random() * 1.6 : 0);
+      else if (c.bet !== b) W.chips(s, b, intro);
+    }
+  };
+  function chipStep(dt) {
+    for (const k in CH) {
+      const c = CH[k], s = +k;
+      if (c.delay > 0) { c.delay -= dt; c.g.visible = false; continue; }
+      c.g.visible = !menuOn;
+      if (c.push) {
+        const t = (c.push.t += dt), a = AV[s], ok = !!(a && a.on && a.M && !a.vDead && gun.who !== s);
+        c.hw = ok ? (t < .45 ? easeIO(t / .45) : t < 1.15 ? 1 : Math.max(0, 1 - easeIO((t - 1.15) / .45))) : 0;
+        c.k = t < .45 ? 0 : Math.min(1, easeIO((t - .45) / .75));
+        const h = chipSpot(s, Math.min(c.k, .5)); c.hp.set(h.x, TOP, h.z);
+        if (t > 1.6) { c.push = null; c.hw = 0; }
+      }
+      const o = chipSpot(s, c.k); c.g.position.set(o.x, TOP, o.z); c.g.rotation.y = SEAT[s].yaw;
+    }
+  }
+  let voteSeat = 0;
+  W.vote = s => { voteSeat = s || 0; };
   // револьвер в руке (этап 4, владелец 20.11): ходящий правой рукой берёт его со стола и подносит к виску; после щелчка кладёт обратно, и он едет к следующему.
   // Кисть на рукояти — в осях револьвера (x — ствол, y — верх, z — правый бок): к пальцам поперёк рукояти, от мизинца к указательному вверх по рукояти, запястье за рукоятью
   const GRIP_F = V(.94, -.35, 0), GRIP_A = V(.35, .94, 0), GRIP_W = V(-.153, -.002, .025);
@@ -1926,8 +2181,19 @@ function makeWorld(T, RB, RE, cv, PP) {
   const FPM = V(.17, -.04, -.11), FPD = V(-.85, .05, .5).normalize();   // от первого лица (в осях места, от глаз; владелец 20.11): дуло справа у виска, смотрит в голову — прямо не видно, повернёшь голову вправо — видно; кисть и револьвер за ним   // дуло у правого виска (в осях головы: вправо, вверх, −z вперёд), ствол — в голову, рукоять чуть впереди
   const _eg2 = new T.Euler(0, 0, 0, 'YXZ'), _gp = V(0, 0, 0), _gq = new T.Quaternion(), _gt = V(0, 0, 0), _gtq = new T.Quaternion(), _gu = V(0, 0, 0), _gd = V(0, 0, 0), _gw = V(0, 0, 0), _gfq = new T.Quaternion(), _qh3 = new T.Quaternion();
   const gunStep = dt => {
-    const sp = gun.rush ? 4 : 1;   // нажали «Выстрел»/«Крутить», а револьвер ещё не у виска — всё быстрее
+    const sp = gun.rush ? 4 : 1;
+    drumStep(dt); chipStep(dt);   // нажали «Выстрел»/«Крутить», а револьвер ещё не у виска — всё быстрее
     if (gun.sl) { const s = gun.sl; s.k = Math.min(1, s.k + dt / .85 * sp); const e = easeIO(s.k); gun.tp.x = s.x0 + (s.x1 - s.x0) * e; gun.tp.z = s.z0 + (s.z1 - s.z0) * e; gun.tp.yaw = s.y0 + (s.y1 - s.y0) * e; if (s.k >= 1) gun.sl = null; }
+    if (gun.roul) {   // жребий: в центр стола → крутится как рулетка → ствол на первого → едет к нему
+      const R = gun.roul;
+      if (!R.go) {
+        if (!gun.who && !gun.fly && !gun.fallSeat && clock >= (gun.holdUntil || 0) && !gun.sl) {
+          if (Math.hypot(gun.tp.x, gun.tp.z) > .03) { if (!menuOn) rrSound('slide'); gun.sl = { x0: gun.tp.x, z0: gun.tp.z, y0: gun.tp.yaw, x1: 0, z1: 0, y1: gun.tp.yaw, k: 0 }; }
+          else { R.go = true; R.k = 0; R.y0 = gun.tp.yaw; let y1 = R.want; while (y1 < R.y0 + Math.PI * 6) y1 += Math.PI * 2; R.y1 = y1; }   // владелец 21.11: вращение — без звука
+        }
+      } else if (R.k < 1) { R.k = Math.min(1, R.k + dt / 2.6); gun.tp.yaw = R.y0 + (R.y1 - R.y0) * (1 - Math.pow(1 - R.k, 3)); }
+      else if ((R.w = (R.w || 0) + dt) > .6) { gun.roul = null; gunTo(R.seat); }
+    }
     let want = 0;
     if (gun.fallSeat) { if (clock - gun.fallT > 6) releaseGun(); want = gun.who; }   // убит с револьвером в руке: рука падает на стол (poseModel), там отпустит; страховка — 6 с
     else if (!menuOn && gun.play && gun.seat && gun.pend == null && !gun.sl) { const a = AV[gun.seat]; if (a && a.on && a.M && !a.vDead) want = gun.seat; }
@@ -1940,7 +2206,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       if (gun.hw < 1) gun.hw = Math.min(1, gun.hw + dt / .45 * sp); else gun.lw = Math.min(1, gun.lw + dt / .8 * sp);
     }
     if (gun.rush && ((gun.who && gun.who === want && gun.lw >= 1) || (!want && !gun.who && !gun.sl && gun.pend == null))) gun.rush = false;
-    if (gun.pend != null && !gun.who && !gun.fly && clock >= (gun.holdUntil || 0)) { const ps = gun.pend; gun.pend = null; gunTo(ps); }
+    if (gun.pend != null && !gun.roul && !gun.who && !gun.fly && clock >= (gun.holdUntil || 0)) { const ps = gun.pend; gun.pend = null; gunTo(ps); }
     if (gun.fly) {   // выпал из руки — ложится на сукно
       const fl = gun.fly; fl.k = Math.min(1, fl.k + dt / .3); _eg2.set(-Math.PI / 2, fl.yaw, 0); _gq.setFromEuler(_eg2);
       gun.g.quaternion.copy(fl.q0).slerp(_gq, easeIO(fl.k)); gun.g.position.set(fl.p0.x + (fl.x - fl.p0.x) * fl.k, fl.p0.y + (TOP + gun.half - fl.p0.y) * fl.k * fl.k, fl.p0.z + (fl.z - fl.p0.z) * fl.k);
@@ -2108,7 +2374,8 @@ function makeWorld(T, RB, RE, cv, PP) {
   W.event = ev => {
     const ax = gun.axis, dr = gun.drum, o = gun.g;
     if ((ev.kind === 'spin' || ev.kind === 'cock') && ev.seat && (gun.who !== ev.seat || gun.lw < 1)) gun.rush = true;   // нажали раньше, чем револьвер у виска — догоняем
-    if (ev.kind === 'spin' && dr) { const a0 = dr.rotation[ax], a1 = a0 + (Math.PI / 3) * (12 + rnd(12)); tween(1.2, k => { dr.rotation[ax] = a0 + (a1 - a0) * (1 - Math.pow(1 - k, 3)); }); }
+    if (ev.kind === 'start' && ev.seat) W.roul(ev.seat);   // жребий: револьвер крутится в центре (владелец 21.11)
+    if (ev.kind === 'spin' && dr && ev.seat !== mySeat) { DR.sndUntil = clock + 1.3; const a0 = dr.rotation[ax], a1 = a0 + (Math.PI / 3) * (12 + rnd(12)); tween(1.2, k => { dr.rotation[ax] = a0 + (a1 - a0) * (1 - Math.pow(1 - k, 3)); }); }
     if (ev.kind === 'cock') { tween(.18, k => { gun.kz = k < 1 ? Math.sin(Math.PI * k) * .05 : 0; }); return; }   // взвели курок — короткий рывок
     if ((ev.kind === 'click' || ev.kind === 'bang') && dr) { const a0 = dr.rotation[ax]; tween(.12, k => { dr.rotation[ax] = a0 + (Math.PI / 3) * k; }); }
     if (ev.kind === 'click' || ev.kind === 'bang') { const big = ev.kind === 'bang' ? 1 : .35; tween(.35, k => { const s = k < 1 ? Math.sin(Math.PI * k) * big : 0; gun.hop = s * .025; gun.kick = s; }); }   // на столе подпрыгивает, в руке — дуло вверх
@@ -3159,9 +3426,11 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   const LINES = { turn: ['Ну, с богом.', 'Моя очередь…', 'Руки трясутся, честно.', 'Давай уже.', 'Ладно, поехали.'], click: ['Фух.', 'Пусто!', 'Живой.', 'Следующий!'],
     bang: ['Минус один…', 'Жёстко.', 'Вот и раунд.', 'Ох.'], chat: ['Ага.', 'Посмотрим.', 'Удачи всем.', 'Не тяни.', '😅'] };
   const now = () => Date.now();
-  const pl = (seat, me) => ({ seat, name: me ? myName() : NAMES[seat - 2], me: !!me, ready: false, online: true, left: false, loaded: false, alive: true, place: null, pts: null, clicks: 0, spins: 0, tp: me ? 0 : Math.floor(Math.random() * 900) });
+  const pl = (seat, me) => ({ seat, name: me ? myName() : NAMES[seat - 2], me: !!me, ready: false, online: true, left: false, loaded: false, alive: true, place: null, pts: null, clicks: 0, spins: 0, bet: null, won: null, back: null, tp: me ? 0 : Math.floor(Math.random() * 900) });
   function reset() {
-    st2 = { room: { id: 900001, code: 'DEMO42', kind: 'quick', points: true, phase: 'lobby', rev: 1, phase_at: now(), deadline: null, paused: false, owner: true, turn_sec: RR.turn },
+    if (D.bal == null) D.bal = 3000;   // демо-баланс (настоящий не трогаем)
+    st2 = { room: { id: 900001, code: 'DEMO42', kind: 'quick', points: true, money: true, phase: 'lobby', rev: 1, phase_at: now(), deadline: null, paused: false, owner: true, turn_sec: RR.turn,
+      min_bet: RR.minBet, max_bet: RR.maxBet, fee: RR.fee, vote_sec: RR.voteSec, max_bul: RR.maxBul },
       players: [pl(1, true)], chat: [], cid: 0, g: null, plan: [] };
     sys('Демо-комната: проба без сервера, вместо людей — боты.');
     clearInterval(iv); iv = setInterval(step, 200); clearInterval(heads); heads = setInterval(botHeads, 700);
@@ -3188,34 +3457,64 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   function bump() { st2.room.rev++; if (D.onPush) D.onPush(); }
   function ev(kind, seat, x) { const g = st2.g; g.evn++; g.evs.push(Object.assign({ n: g.evn, kind, seat, at: now() }, x || {})); if (g.evs.length > 12) g.evs.shift(); }
   function start() {
-    st2.players.forEach(p => { p.alive = true; p.place = null; p.pts = null; p.clicks = 0; p.spins = 0; });
-    st2.g = { id: 70000 + rnd(9999), round: 0, n: 0, evn: 0, evs: [] };
+    st2.players.forEach(p => { p.alive = true; p.place = null; p.pts = null; p.clicks = 0; p.spins = 0; p.bet = st2.room.money ? RR.minBet : null; p.won = p.back = null; });
+    if (st2.room.money) D.bal -= RR.minBet;
+    st2.g = { id: 70000 + rnd(9999), round: 0, n: 0, evn: 0, evs: [], votes: 0, vote: null };
+    if (st2.room.money) st2.players.forEach(p => { if (!p.me && Math.random() < .75) later(2000 + rnd(10000), () => { if (st2.room.phase === 'next' && !st2.g.round) { p.bet = pickOne([250, 250, 500, 500, 1000, 1500]); ev('bet', p.seat, { bet: p.bet }); bump(); } }); });
     sys('Игра начинается. Револьвер на шесть гнёзд, патроны — в случайных гнёздах.');
     const r = st2.room; r.phase = 'next'; r.phase_at = now(); r.deadline = now() + RR.intro * 1000; bump();   // знакомство за столом, потом раунд 1 (как на сервере)
   }
   function newRound() {
     const g = st2.g, al = alive();
-    g.round++; g.bullets = RR.bul[al.length] || 1;
-    g.ch = shuffle([0, 1, 2, 3, 4, 5]).slice(0, g.bullets);   // гнёзда с патронами
+    g.round++; g.bullets = Math.min(RR.maxBul, (RR.bul[al.length] || 1) + (g.votes || 0));   // купленные патроны переходят в следующий раунд g.bul0 = g.bullets; g.added = 0; g.vused = []; g.vote = null; g.vby = null; g.vn = null;
+    g.order = shuffle([0, 1, 2, 3, 4, 5]); g.ch = g.order.slice(0, g.bullets);   // гнёзда с патронами; патрон за голосование — следующий по порядку
     g.pos = rnd(6); g.clicks = 0;
     g.first = pickOne(al).seat; g.turn = g.first;
     ev('start', g.first, { round: g.round, bullets: g.bullets });
     sys(`Раунд ${g.round}: ${g.bullets} ${plural(g.bullets)} в барабане. Первым стреляет ${name(g.first)}.`);
-    turnStart(2200);
+    turnStart(RR.rdelay);
   }
   function turnStart(delay) {
     const g = st2.g, r = st2.room; g.n++; g.spins = 0;
     r.phase = 'play'; r.phase_at = now() + delay; r.deadline = r.phase_at + RR.turn * 1000; bump();
     const p = st2.players.find(x => x.seat === g.turn);
     if (!p.me) botTurn(p, g.n, delay);
+    const vb = st2.players.find(x => x.seat === g.vby);   // бот выжил — иногда поднимает руку: +1 патрон следующему
+    if (vb && !vb.me && vb.alive && g.vn === g.n && g.bullets < RR.maxBul && Math.random() < .4) {
+      const n = g.n; later(delay + 1000 + rnd(2500), () => { if (g.n === n && g.vn === n && st2.room.phase === 'play' && !g.vote && g.bullets < RR.maxBul) voteOpen(vb.seat); });
+    }
+  }
+  const vcost = () => st2.room.money ? Math.floor(Math.min(...st2.players.map(p => p.bet || Infinity)) * RR.votePct) || 0 : 0;   // половина самой маленькой ставки
+  const whenFree = (n, fn) => { const g = st2.g; if (!g || g.n !== n || st2.room.phase !== 'play') return; if (g.vote) { later(900, () => whenFree(n, fn)); return; } fn(); };
+  function voteOpen(seat) {
+    const g = st2.g, r = st2.room, al = alive(), need = Math.ceil(al.length / 2);
+    g.vused.push(seat); g.vn = null;
+    g.vote = { by: seat, at: now(), until: now() + RR.voteSec * 1000, need, yes: [seat], no: [], cost: vcost(), rem: (r.deadline - now()) / 1000 };
+    r.deadline = g.vote.until + 1000;
+    ev('vote', seat, { need, cost: g.vote.cost });
+    sys(`${name(seat)} поднимает руку: добавить патрон${g.vote.cost ? ` (−${g.vote.cost} ₽ из банка)` : ''}. Нужно «за»: ${need} из ${al.length}.`);
+    al.filter(p => !p.me && p.seat !== seat).forEach(p => later(1500 + rnd(3500), () => { const v = g.vote; if (v && v.by === seat && p.alive && !v.yes.includes(p.seat) && !v.no.includes(p.seat)) voteCast(p.seat, Math.random() < .55); }));
+    bump(); voteCheck(false);
+  }
+  function voteCast(seat, yes) { const v = st2.g.vote; if (!v) return; (yes ? v.yes : v.no).push(seat); bump(); voteCheck(false); }
+  function voteCheck(force) {
+    const g = st2.g, v = g.vote, r = st2.room; if (!v) return;
+    const al = alive().length; let ok;
+    if (v.yes.length >= v.need) ok = true; else if (force || v.yes.length + Math.max(0, al - v.yes.length - v.no.length) < v.need) ok = false; else return;
+    ok = ok && g.bullets < RR.maxBul;
+    if (ok) { g.bullets++; g.added++; g.votes++; g.vspent = (g.vspent || 0) + v.cost; g.ch = g.order.slice(0, g.bullets); }
+    g.vote = null; if (r.phase === 'play') r.deadline = now() + Math.max(6, v.rem) * 1000;
+    ev('vote_end', v.by, { ok, yes: v.yes.length, no: v.no.length, bullets: g.bullets, cost: ok ? v.cost : 0 });
+    sys(ok ? `Голосование прошло (${v.yes.length} «за»): в барабане ${g.bullets} ${plural(g.bullets)}.` : `Голосование не прошло (${v.yes.length} «за» из ${v.need} нужных).`);
+    bump();
   }
   function botTurn(p, n, delay) {   // бот: если шанс вырос после пустых щелчков — чаще крутит
     const g = st2.g, risky = rrChance(g.bullets, g.clicks) > g.bullets / 6 + .001;
     const spins = risky ? (Math.random() < .85 ? 1 + rnd(2) : 0) : (Math.random() < .3 ? 1 : 0);
     let t = delay + 1600 + rnd(2600);
     if (Math.random() < .35) later(t - 900, () => { if (g.n === n) say(p.seat, pickOne(LINES.turn)); });
-    for (let i = 0; i < spins; i++) { later(t, () => { if (g.n === n && st2.room.phase === 'play') spin(p.seat); }); t += 1100 + rnd(700); }
-    later(t + 500 + rnd(1500), () => { if (g.n === n && st2.room.phase === 'play') shoot(p.seat, false); });
+    for (let i = 0; i < spins; i++) { later(t, () => whenFree(n, () => spin(p.seat))); t += 1100 + rnd(700); }
+    later(t + 500 + rnd(1500), () => whenFree(n, () => shoot(p.seat, false)));
   }
   function spin(seat) { const g = st2.g; g.pos = rnd(6); g.clicks = 0; g.spins++; const p = st2.players.find(x => x.seat === seat); if (p) p.spins++; ev('spin', seat); bump(); }
   function nextSeat(s) { for (let i = 1; i <= NS; i++) { const t = (s - 1 + i) % NS + 1, p = st2.players.find(x => x.seat === t); if (p && p.alive) return t; } return s; }
@@ -3223,7 +3522,7 @@ const Demo = (() => {   // «Русская рулетка» без сервер
     const g = st2.g, r = st2.room, p = st2.players.find(x => x.seat === seat);
     if (p && p.me && D.dieMe) { D.dieMe = false; if (!g.ch.includes(g.pos)) g.ch[0] = g.pos; }   // проверка: KROT.dbg.die() — ваш следующий выстрел боевой (только демо)
     if (!g.ch.includes(g.pos)) {   // пусто: барабан на гнездо дальше, ход следующему
-      g.pos = (g.pos + 1) % 6; g.clicks++; p.clicks++; ev('click', seat, { auto });
+      g.pos = (g.pos + 1) % 6; g.clicks++; p.clicks++; ev('click', seat, { auto }); g.vby = seat; g.vn = g.n + 1;   // выжил — может поднять руку в следующий ход
       if (!p.me && Math.random() < .3) later(700, () => say(seat, pickOne(LINES.click)));
       g.turn = nextSeat(seat); turnStart(1400); return;
     }
@@ -3236,13 +3535,21 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   function finish() {
     const w = alive()[0]; if (w) w.place = 1;
     st2.players.forEach(p => { p.pts = st2.room.points ? RR.pts[p.place] || 0 : null; });
+    let pay = 0;
+    if (st2.room.money && w) {   // как на сервере: с каждого не больше ставки победителя, остальное назад; минус голосования и 5%
+      let bank = w.bet;
+      st2.players.forEach(p => { if (p === w || p.bet == null) return; const t = Math.min(p.bet, w.bet); bank += t; p.back = p.bet - t; if (p.me) D.bal += p.back; });
+      pay = Math.max(0, Math.floor((bank - Math.min(bank, st2.g.vspent || 0)) * (1 - RR.fee)));
+      w.won = pay; w.back = 0; if (w.me) D.bal += pay;
+    }
     const r = st2.room; r.phase = 'done'; r.phase_at = now(); r.deadline = null;
-    sys(`Победил ${w ? w.name : '—'}. Игра окончена.`); bump();
+    sys(`Победил ${w ? w.name : '—'}${st2.room.money ? ` и забирает ${pay} ₽` : ''}. Игра окончена.`); bump();
   }
   function step() {
     if (!st2) return;
     const t = now();
     for (let i = st2.plan.length - 1; i >= 0; i--) if (st2.plan[i][0] <= t) { const f = st2.plan[i][1]; st2.plan.splice(i, 1); f(); }
+    if (st2.g && st2.g.vote && t >= st2.g.vote.until) { voteCheck(true); return; }   // время голосования вышло
     const r = st2.room; if (!r.deadline || t < r.deadline) return;
     if (r.phase === 'lobby') { if (r.mm && st2.players.some(p => !p.loaded) && t < r.load_at + 25000) return; if (st2.players.length === NS) start(); else r.deadline = null; return; }
     if (r.phase === 'play') { shoot(st2.g.turn, true); return; }   // время вышло — выстрел сам, без прокрутки
@@ -3267,9 +3574,10 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   }
   function snap(after) {
     const r = st2.room, g = st2.g, me = st2.players.find(p => p.me);
-    return { now: now(), room: Object.assign({}, r), players: st2.players.map(p => Object.assign({}, p)),
-      me: { seat: me.seat, ready: me.ready, alive: me.alive },
-      game: g ? { id: g.id, round: g.round, bullets: g.bullets, turn: g.turn, first: g.first, clicks: g.clicks, spins: g.spins, n: g.n, evs: g.evs.slice(), ev: g.evs[g.evs.length - 1] || null } : null,
+    return { now: now(), room: Object.assign({}, r, { bank: Math.max(0, st2.players.reduce((a, p) => a + (p.bet || 0), 0) - ((g && g.vspent) || 0)), vote_cost: vcost() }), players: st2.players.map(p => Object.assign({}, p)),
+      me: { seat: me.seat, ready: me.ready, alive: me.alive, bal: D.bal },
+      game: g ? { id: g.id, round: g.round, bullets: g.bullets, turn: g.turn, first: g.first, clicks: g.clicks, spins: g.spins, n: g.n, evs: g.evs.slice(), ev: g.evs[g.evs.length - 1] || null,
+        vote: g.vote ? JSON.parse(JSON.stringify(g.vote)) : null, votes: g.votes || 0, added: g.added || 0, bul0: g.bul0, vby: g.vby, vn: g.vn } : null,
       chat: st2.chat.filter(m => m.id > (after || 0)) };
   }
   const tick = () => ({ now: now(), phase: st2.room.phase, rev: st2.room.rev, deadline: st2.room.deadline, paused: false });
@@ -3285,8 +3593,32 @@ const Demo = (() => {   // «Русская рулетка» без сервер
       const g = st2.g, me = st2.players.find(p => p.me);
       if (!g || st2.room.phase !== 'play' || g.turn !== me.seat || !me.alive) throw new Error('not your turn');
       if (a.p_turn != null && a.p_turn !== g.n) throw new Error('not your turn');
+      if (g.vote) throw new Error('vote on');
       if (n === 'rr_spin') spin(me.seat); else shoot(me.seat, false);
       return { ok: true };
+    }
+    if (n === 'rr_bet') {
+      const g = st2.g, r = st2.room, me = st2.players.find(p => p.me), v = Math.round(+a.p_amount || 0);
+      if (!r.money || me.bet == null) throw new Error('no money game');
+      if (!g || r.phase !== 'next' || g.round || now() >= r.deadline - 1000) throw new Error('bets closed');
+      if (v < RR.minBet || v > RR.maxBet) throw new Error('bad bet');
+      if (v - me.bet > D.bal) throw new Error('low balance');
+      if (v !== me.bet) { D.bal -= v - me.bet; me.bet = v; ev('bet', me.seat, { bet: v }); bump(); }
+      return { ok: true, bet: v, data: null };
+    }
+    if (n === 'rr_vote_start' || n === 'rr_vote') {
+      const g = st2.g, r = st2.room, me = st2.players.find(p => p.me);
+      if (n === 'rr_vote_start') {
+        if (!g || r.phase !== 'play' || !me.alive || now() >= r.deadline - 2000) throw new Error('not vote time');
+        if (g.vote) throw new Error('vote on');
+        if (g.bullets >= RR.maxBul) throw new Error('max bullets');
+        if (g.vby !== me.seat || g.vn !== g.n) throw new Error('vote not yours');
+        voteOpen(me.seat); return tick();
+      }
+      if (!g || !g.vote) throw new Error('no vote');
+      if (!me.alive) throw new Error('not alive');
+      if (g.vote.yes.includes(me.seat) || g.vote.no.includes(me.seat)) throw new Error('voted');
+      voteCast(me.seat, a.p_yes !== false); return tick();
     }
     if (n === 'krot_chat_send') {
       const t = String(a.p_text || '').trim(); if (!t) throw new Error('empty');

@@ -936,3 +936,79 @@ button.krl-s.free:hover .krl-tag,button.krl-s.free:hover .krl-av{color:#84d9fd}
 .krl .krmm-join .kr-btn{background:linear-gradient(180deg,rgba(40,170,95,.35),rgba(20,120,65,.35));box-shadow:inset 0 0 0 1px #3ad07a;color:#c8ffd9}
 .krl .krmm-join .kr-btn:hover{background:linear-gradient(180deg,rgba(40,170,95,.55),rgba(20,120,65,.55));color:#fff}
 @media (max-width:560px){.krl-party{grid-template-columns:repeat(3,minmax(0,1fr))}.krl-code{flex-direction:column;align-items:flex-start}.krl-acts{flex-direction:row;flex-wrap:wrap}.krl-tiles i{width:28px;height:36px;font-size:20px}}
+
+/* ---------- ставка за 15 с подготовки и банк (владелец 21.11) ---------- */
+.rr-bet{position:absolute;left:0;right:0;bottom:84px;margin:0 auto;z-index:30;width:min(372px,calc(100% - 32px));padding:12px 14px 13px;border-radius:4px;overflow:hidden;pointer-events:auto;animation:rrBetIn .6s cubic-bezier(.2,.7,.3,1) both}
+.rr-bet::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--a) 20%,var(--a) 80%,transparent);opacity:.85}
+@keyframes rrBetIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.rr-bet.out{animation:rrBetOut .44s cubic-bezier(.4,0,.7,1) forwards;pointer-events:none}   /* ставка сделана — окно уходит (владелец 21.11) */
+@keyframes rrBetOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(22px) scale(.96)}}   /* по центру — без translateX: анимация его сбрасывала */
+.rr-bh{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:10px}
+.rr-bh>span{display:flex;flex-direction:column;gap:4px}
+.rr-bh b{font:500 15px/1 'Oswald',var(--ff);letter-spacing:.24em;text-transform:uppercase;color:#f4f1ea}
+.rr-bh em{font-style:normal;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3)}
+.rr-bh small{font-size:12px;color:var(--tx2);white-space:nowrap}
+.rr-bcs{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.rr-bc{display:flex;align-items:center;justify-content:center;gap:6px;height:34px;border:0;border-radius:3px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.03));box-shadow:inset 0 0 0 1px var(--ln);color:var(--tx);font:500 14px/1 'Oswald',var(--ff);cursor:pointer;transition:background .15s,box-shadow .15s,color .15s,transform .12s}
+.rr-bc>i{flex:none;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle,var(--cc) 0 38%,rgba(255,255,255,.9) 39% 47%,var(--cc) 48%);box-shadow:0 0 0 1.5px rgba(255,255,255,.55),0 2px 4px rgba(0,0,0,.5)}
+.rr-bc:hover:not(:disabled){background:rgba(132,217,253,.1);box-shadow:inset 0 0 0 1px rgba(132,217,253,.5);transform:translateY(-1px)}
+.rr-bc.on{color:var(--a);background:rgba(132,217,253,.15);box-shadow:inset 0 0 0 1px var(--a),0 0 18px rgba(132,217,253,.18)}
+.rr-bc:disabled{opacity:.38;cursor:default}
+.rr-bown{display:flex;gap:5px;margin-top:6px}
+.rr-bown input{flex:1;min-width:0;height:34px;padding:0 11px;border:0;border-radius:3px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px var(--ln);color:var(--tx);font:500 15px/1 var(--ff);outline:0}
+.rr-bown input::placeholder{color:var(--tx3)}
+.rr-bown input:focus{box-shadow:inset 0 0 0 1px var(--a)}
+.rr-bown .kr-btn{min-width:104px;height:34px;min-height:0;padding-top:0;padding-bottom:0}
+.rr-bsum{display:grid;grid-template-columns:repeat(3,1fr);margin-top:10px;padding-top:10px;border-top:1px solid var(--ln)}
+.rr-bsum>span{display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-width:0;padding:0 9px;font-size:10px;line-height:1;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx3)}   /* подписи в одну строку — суммы на одном уровне */
+.rr-bsum>span:first-child{padding-left:0}
+.rr-bsum>span+span{border-left:1px solid var(--ln)}
+.rr-bsum b{font:500 16px/1 'Oswald',var(--ff);letter-spacing:.02em;text-transform:none;color:#f4f1ea;white-space:nowrap}
+.rr-bsum>span:last-child b{color:#7ee2a2}
+.rr-btm{position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--a);opacity:.7;transform-origin:left;animation:rrBtm 15s linear forwards}
+@keyframes rrBtm{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+/* банк — справа сверху, отдельно, без обводки и подложки (владелец 21.11) */
+.rr-bank{position:absolute;top:20px;right:24px;z-index:3;display:flex;flex-direction:column;align-items:flex-end;gap:6px;font:500 22px/1 'Oswald',var(--ff);letter-spacing:.04em;color:#7ee2a2;text-shadow:0 2px 12px rgba(0,0,0,.9),0 0 2px rgba(0,0,0,.8);white-space:nowrap;pointer-events:none}
+.rr-bank>span{transition:color .3s}.rr-bank.hit>span{color:#ff8a80}
+.rr-bank-m{font:500 17px/1 'Oswald',var(--ff);color:var(--red);animation:rrBankM 2.6s ease forwards}   /* купили патрон: «−50 ₽» под банком (владелец 21.11) */
+@keyframes rrBankM{0%{opacity:0;transform:translateY(-8px)}12%{opacity:1;transform:none}72%{opacity:1;transform:none}100%{opacity:0;transform:translateY(8px)}}
+@media (max-width:720px){.rr-bank{top:auto;bottom:78px;right:14px;font-size:17px}}
+@media (max-width:520px){.rr-bet{bottom:14px;padding:13px 13px 14px}.rr-bc{height:36px;font-size:14px;gap:5px}.rr-bc i{width:12px;height:12px}.rr-bsum b{font-size:15px}.rr-bsum>span{padding:0 6px}}
+/* ---------- голосование за патрон (владелец 21.11, образец — окно голосования CS2) ---------- */
+.rr-vt{position:absolute;left:14px;top:30%;z-index:20;width:min(350px,calc(100% - 28px));padding:13px 15px 13px;border-radius:4px;animation:rrVtIn .35s cubic-bezier(.2,.7,.3,1) both}
+@keyframes rrVtIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+.rr-vt-h{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.rr-vt-h b{font:500 16px/1 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase;color:#f4f1ea}
+.rr-vt-h b.y{color:var(--go)}.rr-vt-h b.n{color:var(--red)}
+.rr-vt-h em{margin-left:auto;font:500 14px/1 'Oswald',var(--ff);font-style:normal;color:var(--tx2);font-variant-numeric:tabular-nums}
+.rr-vt-ic{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:50%}
+.rr-vt-ic svg{width:19px;height:19px}
+.rr-vt-ic.hand{background:rgba(132,217,253,.14);color:var(--a);box-shadow:inset 0 0 0 1px rgba(132,217,253,.45)}
+.rr-vt-ic.y{background:var(--go);color:#0b1a11}.rr-vt-ic.n{background:var(--red);color:#2a0a08}
+.rr-vt-b{display:flex;align-items:center;gap:14px}
+.rr-vt-t{flex:1;margin:0;font-size:14px;line-height:1.4;color:var(--tx)}
+.rr-vt-t b{color:#f4f1ea}
+.rr-vt-t small{display:block;margin-top:5px;font-size:12px;color:var(--tx3)}
+.rr-vt-c{display:grid;grid-template-columns:auto auto;gap:9px 10px;align-items:center}
+.rr-vt-c>b{min-width:1.2ch;font:500 26px/1 'Oswald',var(--ff)}
+.rr-vt-c>b.y{color:var(--go)}.rr-vt-c>b.n{color:var(--red)}
+.rr-vt-y,.rr-vt-n{display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;cursor:pointer;transition:transform .12s,filter .12s,box-shadow .15s}
+.rr-vt-y{border-radius:4px;background:var(--go);color:#0b1a11}
+.rr-vt-n{border-radius:50%;background:var(--red);color:#2a0a08}
+.rr-vt-y svg,.rr-vt-n svg{width:25px;height:25px}
+.rr-vt.can .rr-vt-y{box-shadow:0 0 0 3px rgba(47,191,113,.28)}.rr-vt.can .rr-vt-n{box-shadow:0 0 0 3px rgba(255,92,82,.28)}
+.rr-vt.can .rr-vt-y:hover,.rr-vt.can .rr-vt-n:hover{transform:scale(1.08);filter:brightness(1.12)}
+.rr-vt-y:disabled,.rr-vt-n:disabled{cursor:default}
+.rr-vt-f{margin:11px 0 0;text-align:right;font-size:13px;color:var(--tx2)}
+.rr-vt-f b{font:500 14px/1 'Oswald',var(--ff);letter-spacing:.06em}
+.rr-vt-f b.y{color:var(--go)}.rr-vt-f b.n{color:var(--red)}
+/* кнопка «Поднять руку» — только у выжившего и только этот ход */
+.rr-vb{position:absolute;left:0;right:0;bottom:132px;margin:0 auto;z-index:6;display:flex;align-items:center;gap:11px;width:max-content;max-width:calc(100% - 28px);padding:10px 18px 10px 14px;border:0;border-radius:4px;color:var(--tx);cursor:pointer;animation:rrBetIn .4s cubic-bezier(.2,.7,.3,1) both}
+.rr-vb>svg{flex:none;width:24px;height:24px;color:var(--a)}
+.rr-vb kbd{display:grid;place-items:center;min-width:28px;height:28px;padding:0 7px;border-radius:3px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3),0 2px 0 rgba(0,0,0,.45);font:500 14px/1 'Oswald',var(--ff);color:#f4f1ea}
+.rr-vb>span{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left}
+.rr-vb b{font:500 15px/1 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase;color:#f4f1ea}
+.rr-vb small{font-size:12px;color:var(--tx2)}
+.rr-vb:hover:not(:disabled){box-shadow:inset 0 0 0 1px var(--a),0 16px 44px rgba(0,0,0,.45)}
+.rr-vb:disabled{opacity:.5;cursor:default}
+@media (max-width:520px){.rr-vt{top:auto;bottom:200px}.rr-vb{bottom:118px}}
