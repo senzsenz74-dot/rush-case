@@ -599,5 +599,21 @@ log('K. не хватает баланса');
   ok(/low balance/.test(await err(rpc(x, 'rr_quick'))), 'открытое лобби быстрой игры — тоже нельзя');
 }
 
+log('L. финал вдвоём — голосовать нельзя');
+{
+  const P = U.slice(5, 10);
+  let s = await rpc(P[0], 'rr_create', { p_private: true });
+  const room = s.room.id;
+  for (const u of P.slice(1)) s = await rpc(u, 'rr_join', { p_code: s.room.code });
+  for (const u of P) await rpc(u, 'rr_ready', { p_room: room, p_ready: true });
+  await shift(3.1); await rpc(P[0], 'rr_state', { p_room: room }); await shift(15.1); s = await rpc(P[0], 'rr_state', { p_room: room });
+  ok(s.room.phase === 'play', 'игра идёт');
+  const t = s.game.turn, others = s.players.map(p => p.seat).filter(x => x !== t);
+  await db.query(`update public.rr_players set alive = false, place = 5 where room_id = $1 and seat = any($2::smallint[])`, [room, others.slice(0, 3)]);   // только для проверки: остались двое
+  const sv = others[3];
+  await db.query(`update public.rr_games set vby = $2, vn = n where room_id = $1`, [room, sv]);
+  ok(/final no vote/.test(await err(rpc(await seatUid(room, sv), 'rr_vote_start', { p_room: room }))), 'вдвоём (финал) поднять руку нельзя');
+}
+
 log(`\nПроверок: ${checks}, ошибок: ${fails}`);
 process.exit(fails ? 1 : 0);

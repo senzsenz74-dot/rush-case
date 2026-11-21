@@ -105,7 +105,7 @@ const myName = () => { try { const u = getUser(); return (u && (u.name || u.nick
 const errMsg = e => String((e && (e.message || e.error_description || e.msg)) || e || '');
 const ERR2 = { 'bets closed': 'Ставки уже закрыты', 'bad bet': 'Ставка — от 100 ₽', 'no money game': 'В этой игре без ставок', 'vote on': 'Идёт голосование — подождите',
   'vote used': 'Вы уже предлагали патрон в этом раунде', 'max bullets': 'В барабане уже 4 патрона — больше нельзя', 'not vote time': 'Сейчас голосовать нельзя',
-  'no vote': 'Голосование уже закончилось', 'voted': 'Вы уже проголосовали', 'vote not yours': 'Поднять руку может только тот, кто выстрелил и выжил, — пока не выстрелил следующий' };
+  'no vote': 'Голосование уже закончилось', 'voted': 'Вы уже проголосовали', 'vote not yours': 'Поднять руку может только тот, кто выстрелил и выжил, — пока не выстрелил следующий', 'final no vote': 'В финале вдвоём голосовать нельзя' };
 const errText = e => { const m = errMsg(e);
   if (m.includes('low balance')) { const who = (m.split('low balance:')[1] || '').trim(); return 'Не хватает баланса: нужно от ' + RR.minBet + ' ₽' + (who ? ' — ' + who : ''); }
   for (const k in ERR2) if (m.includes(k)) return ERR2[k];
@@ -874,7 +874,7 @@ let voteBusy = false, voteRes = null, voteLast = null, voteMine = null;
 const ICV = { y: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   n: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>',
   hand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 013 0V11m0-6.5a1.5 1.5 0 013 0V11m0-5a1.5 1.5 0 013 0v7.5c0 4-2.5 7-6.5 7-2.6 0-4-1.2-5.6-3.4L4 13.6a1.5 1.5 0 012.3-1.9L8 13.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>' };
-const canVote = () => { const g = S && S.game, me = myPlayer(); return !!(g && me && me.alive !== false && S.room.phase === 'play' && g.vby === me.seat && g.vn === g.n && !g.vote && g.bullets < (S.room.max_bul || RR.maxBul) && g.turn !== me.seat); };
+const canVote = () => { const g = S && S.game, me = myPlayer(); return !!(g && me && me.alive !== false && S.room.phase === 'play' && g.vby === me.seat && g.vn === g.n && !g.vote && g.bullets < (S.room.max_bul || RR.maxBul) && g.turn !== me.seat && S.players.filter(p => p.alive !== false).length > 2); };   // вдвоём — без голосования (владелец 21.11)
 function drawVoteBtn() {
   let el = root && $('#rrVb', root); const on = canVote() && !rrPre();
   if (!on) { if (el) el.remove(); return; }
@@ -979,7 +979,7 @@ function rrEvent(ev) {
 // звуки владельца (assets/rr/snd, откуда — ПЛАН_РУЛЕТКА.md «Звуки»): прокрутка, взвод курка, пустой выстрел, выстрел; громкость умеренная (владелец не любит громко)
 const SND = { spin: { f: 'spin', vol: .5 }, cock: { f: 'cock', vol: .6 }, click: { f: 'click', vol: .6 }, bang: { f: 'bang', vol: .5 },
   hum: { f: 'tv-hum', vol: .12 }, tvon: { f: 'tv-on', vol: .5 }, tvoff: { f: 'tv-off', vol: .5 }, heart: { f: 'heart', vol: .55 }, slide: { f: 'slide', vol: .35 }, breath: { f: 'breath', vol: .09 }, music: { f: 'music', vol: .03 },
-  drum: { f: 'drum', vol: .6 }, load: { f: 'load', vol: .6 } }, sndBuf = {};   // владелец 20.11: гул и вкл/выкл телевизора, сердце, револьвер по столу, дыхание (ПЛАН_РУЛЕТКА.md «Звуки»)
+  drum: { f: 'drum', vol: .6 }, load: { f: 'load', vol: .6 }, chip: { f: 'chip', vol: .55 } }, sndBuf = {};   // владелец 20.11: гул и вкл/выкл телевизора, сердце, револьвер по столу, дыхание (ПЛАН_РУЛЕТКА.md «Звуки»)
 const COCK_MS = 480;   // взвели курок → через столько мс щелчок или выстрел
 let AC = null;
 function sndLoad() {   // загрузить звуки заранее (при входе за стол)
@@ -1017,12 +1017,12 @@ function drumClick(delay, fast) {
     src.start(AC.currentTime + (delay || 0), L[i], fast ? .04 : .07);
   } catch (e) { /* звук недоступен */ }
 }
-function rrSound(kind, from, dur) {   // from / dur — только кусок файла (одно деление барабана)
+function rrSound(kind, from, dur, vol) {   // from / dur — только кусок файла (одно деление барабана); vol — своя громкость (выстрел в камеру)
   if (!soundOn()) return;
   try {
     AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
     const sb = sndBuf[kind];
-    if (sb && sb.duration) { const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = sb; g.gain.value = SND[kind].vol; src.connect(g); g.connect(AC.destination); if (dur) src.start(0, from || 0, dur); else src.start(); return; }
+    if (sb && sb.duration) { const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = sb; g.gain.value = vol != null ? vol : SND[kind].vol; src.connect(g); g.connect(AC.destination); if (dur) src.start(0, from || 0, dur); else src.start(); return; }
     const t0 = AC.currentTime + .01, out = AC.createGain(); out.gain.value = .2; out.connect(AC.destination);
     const tick = (t, f, d, v) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'square'; o.frequency.value = f; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d); o.connect(g); g.connect(out); o.start(t); o.stop(t + d + .02); };
     const noise = (t, d, v, lp) => { const n = AC.sampleRate * d | 0, b = AC.createBuffer(1, n, AC.sampleRate), ch = b.getChannelData(0); for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3); const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); f.type = 'lowpass'; f.frequency.value = lp; g.gain.value = v; s.buffer = b; s.connect(f); f.connect(g); g.connect(out); s.start(t); };
@@ -1199,7 +1199,7 @@ function ovHtml(kind, arg) {
       <li><b>Стол.</b> Пять игроков и один револьвер на шесть гнёзд. Патроны лежат в случайных гнёздах — где именно, не знает никто.</li>
       <li><b>Ход.</b> Револьвер идёт по кругу. На своём ходу можно крутить барабан сколько угодно раз, потом — выстрел. На ход 20 секунд: не успели — револьвер выстрелит сам, без прокрутки.</li>
       <li><b>Шанс.</b> Не крутили — выстрел из следующего гнезда: после пустых щелчков шанс растёт, прокрутка возвращает его к началу. Текущий шанс виден вверху экрана.</li>
-      <li><b>Раунды.</b> Раунд идёт до первого выстрела. Игра начинается с 1 патрона в барабане. Ускорить её можно, купив патрон — купленные остаются и в следующих раундах: кто выстрелил и выжил, может поднять руку (G), пока не выстрелил следующий, — голосуют живые (✓ или ✕), нужно не меньше половины «за» (в быстрой игре из банка — половина самой маленькой ставки: при ставках по 100 ₽ — 50 ₽), но не больше 4 — два гнезда всегда пустые. Кто стреляет первым в раунде, сервер решает случайно.</li>
+      <li><b>Раунды.</b> Раунд идёт до первого выстрела. Игра начинается с 1 патрона в барабане. Ускорить её можно, купив патрон — купленные остаются и в следующих раундах: кто выстрелил и выжил, может поднять руку (G), пока не выстрелил следующий, — голосуют живые (✓ или ✕), нужно не меньше половины «за» (в финале вдвоём — нельзя; в быстрой игре из банка — половина самой маленькой ставки: при ставках по 100 ₽ — 50 ₽), но не больше 4 — два гнезда всегда пустые. Кто стреляет первым в раунде, сервер решает случайно.</li>
       <li><b>Выбывшие</b> смотрят игру до конца молча: живые их не слышат, чат — только чтение.</li>
     </ol>
     <h3 class="kr-h2">Очки</h3><p>Быстрая игра — очки недели за место: 1-е — 10, 2-е — 6, 3-е — 3, 4-е — 1. Лучшим за неделю — скины. Комнаты друзей — без очков.</p>
@@ -1462,8 +1462,24 @@ function makeWorld(T, RB, RE, cv, PP) {
   const TV_BTN = [[72, 584, 404, 68], [490, 584, 230, 68], [734, 584, 230, 68], [978, 584, 230, 68]];   // x, y, ширина, высота — в пикселях картинки экрана (поля 72 px: края экрана прикрывает рамка и выпуклость)
   const tvSkull = new Image(); tvSkull.onload = () => tvDraw(); tvSkull.src = 'assets/rr/dead.svg';   // значок «выбыл» (владелец, Оформление сайта/СМЕРТЬ РР.svg)
   let tvHum = false, tvD = null, tvKey = '', tvAt = 0, tvK = 0, tvHov = null, tvFit = [.5, .5, 1, 1], tvFitAt = -1;   // tvFit — свободная часть холста (без чата и верхних плашек): центр x, y и ширина, высота в долях
-  const cctvM = new T.ShaderMaterial({ uniforms: { tFeed: { value: cctvRT.texture }, tOver: { value: ovT }, uT: { value: 0 }, tRes: { value: tvT }, uMix: { value: 0 } }, vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }",
-    fragmentShader: "uniform sampler2D tFeed; uniform sampler2D tOver; uniform sampler2D tRes; uniform float uT; uniform float uMix; varying vec2 vUv;\nfloat rnd(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 c = vUv - .5; vec2 uv = .5 + c * (1. - .16 * dot(c, c) * 4.) * .97;\n  float ln = floor(uv.y * 220.); uv.x += (rnd(vec2(ln, floor(uT * 15.))) - .5) * .0025;\n  float band = 1. - smoothstep(0., .03, abs(fract(uv.y + uT * .06) - .5)); uv.x += band * .006;\n  vec3 col = vec3(texture2D(tFeed, uv + vec2(.0018, 0.)).r, texture2D(tFeed, uv).g, texture2D(tFeed, uv - vec2(.0018, 0.)).b);\n  col *= 2.5; col = col / (1. + col) * 1.25;\n  float l = dot(col, vec3(.3, .59, .11)); col = mix(vec3(l), col, .22) * vec3(.86, 1., .9);\n  col *= .86 + .14 * sin(vUv.y * 1100.);\n  col += (rnd(vUv * 517. + fract(uT) * 91.) - .5) * .075 + band * .04;\n  col *= 1. - smoothstep(.3, .8, length(c * vec2(1., .9)));\n  if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) col = vec3(0.);\n  vec4 o = texture2D(tOver, vUv); col = mix(col, o.rgb, o.a);\n  col = max(col, 0.) * .85;\n  if (uMix > .001) {\n    vec2 ru = .5 + c * (1. - .18 * dot(c, c)); vec3 rs = texture2D(tRes, ru).rgb;\n    rs *= .93 + .07 * sin(vUv.y * 1100.); rs += (rnd(vUv * 731. + fract(uT) * 37.) - .5) * .022;\n    rs *= 1. - .3 * smoothstep(.4, .9, length(c * vec2(1., .9)));\n    if (ru.x < 0. || ru.x > 1. || ru.y < 0. || ru.y > 1.) rs = vec3(0.);\n    col = mix(col, rs, uMix);\n  }\n  gl_FragColor = vec4(col, 1.);\n}" });
+  // финал (владелец 21.11): трещина на экране — «выстрел в камеру»; FIN — ход сцены у телевизора
+  const crC = cnv(640, 344), crT = tex(crC);
+  { const x = crC.getContext('2d'), cx = 640 * .55, cy = 344 * .56, rnd2 = () => Math.random(), lines = [], rays = []; x.lineCap = 'round'; x.lineJoin = 'round';
+    const ray = (a, len, w, x0, y0, n, br) => { const pts = [[x0, y0]]; let px = x0, py = y0; for (let k = 0; k < n; k++) { a += (rnd2() - .5) * .5; const l = len / n * (.6 + rnd2() * .8); px += Math.cos(a) * l; py += Math.sin(a) * l; pts.push([px, py]); if (br && rnd2() < .45) ray(a + (rnd2() < .5 ? 1 : -1) * (.6 + rnd2() * .6), 30 + rnd2() * 90, .7 + rnd2() * .5, px, py, 4, rnd2() < .3); } lines.push({ pts, w }); return pts; };
+    for (let i = 0; i < 30; i++) rays.push(ray(i / 30 * Math.PI * 2 + rnd2() * .2, 220 + rnd2() * 380, 1 + rnd2() * 1.6, cx, cy, 10, true));   // лучи до краёв и ответвления
+    // осколки: тёмные клинья между соседними лучами у точки удара — стекло выбито
+    x.fillStyle = 'rgba(0,0,0,.62)';
+    for (let i = 0; i < rays.length; i++) if (rnd2() < .45) { const r1 = rays[i], r2 = rays[(i + 1) % rays.length], n = 2 + Math.floor(rnd2() * 3); x.beginPath(); x.moveTo(cx, cy); for (let k = 1; k <= n; k++) x.lineTo(r1[k][0], r1[k][1]); for (let k = n; k >= 1; k--) x.lineTo(r2[k][0], r2[k][1]); x.closePath(); x.fill(); }
+    for (const r of [14, 30, 52, 80, 118]) { let pts = []; for (let k = 0; k <= 24; k++) { const a = k / 24 * Math.PI * 2, rr = r * (.75 + rnd2() * .5); if (rnd2() < .22 && pts.length > 1) { lines.push({ pts, w: 1.1 }); pts = []; } pts.push([cx + Math.cos(a) * rr * 1.1, cy + Math.sin(a) * rr]); } if (pts.length > 1) lines.push({ pts, w: 1.1 }); }   // кольца
+    const draw = (dx, col, k) => { x.strokeStyle = col; for (const L of lines) { x.beginPath(); L.pts.forEach(([px, py], i) => (i ? x.lineTo(px + dx, py + dx) : x.moveTo(px + dx, py + dx))); x.lineWidth = L.w * k; x.stroke(); } };
+    draw(1.5, 'rgba(0,0,0,.6)', 2); draw(0, 'rgba(238,244,250,.95)', 1);   // тень — под теми же линиями
+    const gr = x.createRadialGradient(cx, cy, 0, cx, cy, 34); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(.4, 'rgba(220,228,236,.5)'); gr.addColorStop(1, 'rgba(220,228,236,0)'); x.fillStyle = gr; x.beginPath(); x.arc(cx, cy, 34, 0, Math.PI * 2); x.fill();
+    x.fillStyle = '#000'; x.beginPath(); for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2, rr = 7 + rnd2() * 5; k ? x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : x.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.closePath(); x.fill();   // дыра от пули
+    x.strokeStyle = 'rgba(255,255,255,.85)'; x.lineWidth = 1.2; x.stroke();
+    crT.needsUpdate = true; }
+  const FIN = { on: false, done: false, start: 0, win: 0, chips: false, roul: false, fired: false, fireAt: 0, fireT: 0, resAt: 0, mix: 0, crack: 0, flash: 0, shake: 0, gl: 0 };
+  const cctvM = new T.ShaderMaterial({ uniforms: { tFeed: { value: cctvRT.texture }, tOver: { value: ovT }, uT: { value: 0 }, tRes: { value: tvT }, uMix: { value: 0 }, tCrack: { value: crT }, uCrack: { value: 0 }, uFlash: { value: 0 }, uGl: { value: 0 } }, vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }",
+    fragmentShader: "uniform sampler2D tFeed; uniform sampler2D tOver; uniform sampler2D tRes; uniform float uT; uniform float uMix; uniform sampler2D tCrack; uniform float uCrack; uniform float uFlash; uniform float uGl; varying vec2 vUv;\nfloat rnd(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 c = vUv - .5; vec2 uv = .5 + c * (1. - .16 * dot(c, c) * 4.) * .97;\n  float ln = floor(uv.y * 220.); uv.x += (rnd(vec2(ln, floor(uT * 15.))) - .5) * .0025;\n  float band = 1. - smoothstep(0., .03, abs(fract(uv.y + uT * .06) - .5)); uv.x += band * .006;\n  float fr = floor(uT * 24.);\n  if (uGl > .001) { float rw = floor(uv.y * 46.) + fr * 13.; uv.x += (rnd(vec2(rw, 3.)) - .5) * .12 * uGl * step(.5, rnd(vec2(rw, 7.))); uv.y += (rnd(vec2(fr, 1.)) - .5) * .03 * uGl; }\n  float sp = .0018 + .016 * uGl;\n  vec3 col = vec3(texture2D(tFeed, uv + vec2(sp, 0.)).r, texture2D(tFeed, uv).g, texture2D(tFeed, uv - vec2(sp, 0.)).b);\n  col *= 2.5; col = col / (1. + col) * 1.25;\n  float l = dot(col, vec3(.3, .59, .11)); col = mix(vec3(l), col, .22) * vec3(.86, 1., .9);\n  col *= .86 + .14 * sin(vUv.y * 1100.);\n  col += (rnd(vUv * 517. + fract(uT) * 91.) - .5) * .075 + band * .04;\n  col *= 1. - smoothstep(.3, .8, length(c * vec2(1., .9)));\n  if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) col = vec3(0.);\n  vec4 o = texture2D(tOver, vUv); col = mix(col, o.rgb, o.a);\n  col = max(col, 0.) * .85;\n  if (uCrack > .001) {\n    float dd = length((vUv - vec2(.55, .44)) * vec2(1.86, 1.));\n    col *= mix(1., .12 + .88 * smoothstep(.02, .5, dd), uCrack);\n    float f2 = floor(uT * 13.);\n    float bl = step(.6, rnd(vec2(floor(vUv.y * 24.), f2))) * step(.15, rnd(vec2(f2, 2.)));\n    col *= 1. - bl * .95 * uCrack;\n    float bw = step(.93, rnd(vec2(floor(vUv.y * 6.), floor(uT * 5.)))); col *= 1. - bw * uCrack;\n    float vb = step(.88, rnd(vec2(floor(vUv.x * 16.), f2 + 5.))); col *= 1. - vb * .85 * uCrack;\n    col += (rnd(vUv * 911. + fract(uT * 7.) * 53.) - .5) * .55 * uGl;\n    col *= 1. - .85 * step(.8, rnd(vec2(fr, 9.))) * uGl;\n    col = mix(col, vec3(dot(col, vec3(.33))), .55 * uCrack);\n  }\n  if (uMix > .001) {\n    vec2 ru = .5 + c * (1. - .18 * dot(c, c)); vec3 rs = texture2D(tRes, ru).rgb;\n    rs *= .93 + .07 * sin(vUv.y * 1100.); rs += (rnd(vUv * 731. + fract(uT) * 37.) - .5) * .022;\n    rs *= 1. - .3 * smoothstep(.4, .9, length(c * vec2(1., .9)));\n    if (ru.x < 0. || ru.x > 1. || ru.y < 0. || ru.y > 1.) rs = vec3(0.);\n    col = mix(col, rs, uMix);\n  }\n  if (uCrack > .001) { vec4 k = texture2D(tCrack, vUv); col = mix(col, k.rgb, k.a * uCrack); }\n  col = mix(col, vec3(1.), clamp(uFlash, 0., 1.));\n  gl_FragColor = vec4(col, 1.);\n}" });
   const board = new T.Mesh(new T.PlaneGeometry(2.7, 1.45), cctvM); board.position.set(0, 2.05, -4.94); scene.add(board);
   const boards = [board];   // тот же экран (камера, в конце — итог) на всех 4 стенах: вместо полок и за спиной места 1 — чтобы все видели (владелец 20.11)
   for (const [x, z, ry] of [[-4.94, 0, Math.PI / 2], [4.94, 0, -Math.PI / 2], [0, 4.94, Math.PI]]) { const b = new T.Mesh(board.geometry, cctvM); b.position.set(x, 2.05, z); b.rotation.y = ry; scene.add(b); boards.push(b); }   // на 1 см перед рамкой (иначе рамка перекрывает)
@@ -1518,12 +1534,16 @@ function makeWorld(T, RB, RE, cv, PP) {
   if (document.fonts) document.fonts.ready.then(() => tvDraw());
   W.tv = d => {   // d — данные итога (или null — убрать); камера подъедет через 1,2 с после конца игры
     const k = d ? JSON.stringify(d) : ''; if (k === tvKey) return;
-    if (d && !tvD) tvAt = clock + 1.2;
+    if (d && !tvD) {
+      tvAt = clock + 1.2;
+      const w = d.rows && d.rows.find(r => r.pl === 1);   // финал: камера у экрана → на записи фишки едут к победителю, револьвер «стреляет в камеру», потом итог
+      Object.assign(FIN, { on: !!w && !menuOn, done: !w || menuOn, start: tvAt + 1.5, win: w ? w.s : 0, chips: false, roul: false, fired: false, fireAt: 0, fireT: 0, resAt: 0, mix: 0, crack: 0, flash: 0, shake: 0, gl: 0 });
+    }
     tvKey = k; tvD = d; tvHov = null; tvDraw();
   };
   W.tvPick = (mx, my, hover) => {   // что под мышкой на экране: действие кнопки или null; hover — подсветить
     let a = null;
-    if (tvD && tvK > .85 && mx != null) {
+    if (tvD && tvK > .85 && FIN.done && mx != null) {   // кнопки итога — когда итог уже на экране
       ndc.set(mx, my); ray.setFromCamera(ndc, cam); const h = ray.intersectObject(board, false)[0];
       if (h && h.uv) {   // с поправкой на выпуклость кинескопа, как в шейдере
         const cx = h.uv.x - .5, cy = h.uv.y - .5, k = 1 - .18 * (cx * cx + cy * cy), px = (.5 + cx * k) * TVW, py = (.5 - cy * k) * TVH;
@@ -1534,6 +1554,32 @@ function makeWorld(T, RB, RE, cv, PP) {
     if (hover !== false && a !== tvHov) { tvHov = a; tvDraw(); }
     return a;
   };
+  function chipsTo(win) {   // финал: все стопки съезжаются к победителю (на сукно перед ним, рядком)
+    const p = SEAT[win]; if (!p) return;
+    const ks = Object.keys(CH), base = chipSpot(win, .08), lx = Math.cos(p.yaw), lz = -Math.sin(p.yaw), fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
+    ks.forEach((k, i) => { const c = CH[k], off = (i - (ks.length - 1) / 2) * .056, bk = (i % 2) * .05;
+      c.fin = { x0: c.g.position.x, z0: c.g.position.z, x1: base.x + lx * off + fx * bk, z1: base.z + lz * off + fz * bk, t: -i * .14 }; });
+  }
+  function finFire() {   // выстрел «в камеру»: взвод был, теперь вспышка у дула и звук; на экране — белая вспышка, трещина, лёгкая тряска
+    rrSound('bang', 0, 0, .9);   // владелец 21.11: громче обычного выстрела (.5), чтобы пугал, но не на полную
+    const o = gun.g; o.updateMatrixWorld(); flashL.position.copy(gun.muzzle).applyMatrix4(o.matrixWorld); flashL.position.y += .05;
+    tween(.45, k => { flashL.intensity = 40 * Math.pow(1 - k, 2); });
+    tween(.35, k => { const sn = k < 1 ? Math.sin(Math.PI * k) : 0; gun.hop = sn * .025; gun.kick = sn; });
+    FIN.flash = 1; FIN.crack = 1; FIN.shake = 1; FIN.gl = 1; FIN.fireT = clock; cctvAt = -1;   // кадр со вспышкой — и камера «умерла»: дальше картинка замирает
+  }
+  function finStep(dt) {
+    if (!tvD) { if (tvK < .05) Object.assign(FIN, { on: false, done: false, fired: false, mix: 0, crack: 0, flash: 0, shake: 0, gl: 0 }); return; }
+    FIN.flash = Math.max(0, FIN.flash - dt * 3.4); FIN.shake = Math.max(0, FIN.shake - dt * 2.6);
+    FIN.gl = FIN.crack > 0 ? (Math.random() < dt * 4 ? 1 : Math.max(.35, FIN.gl - dt * 2.2)) : 0;   // помехи: держатся и вспыхивают
+    if (!FIN.on) return;
+    const t = clock - FIN.start; if (t < 0) return;
+    if (!FIN.chips) { FIN.chips = true; chipsTo(FIN.win); }
+    if (!FIN.roul && t >= (Object.keys(CH).length ? 2.3 : .3)) {   // фишки доехали — револьвер в центр, крутится, ствол вниз кадра (к зрителю камеры)
+      FIN.roul = true; W.roulDir(0, 1, () => { rrSound('cock'); tween(.18, k => { gun.kz = k < 1 ? Math.sin(Math.PI * k) * .05 : 0; }); FIN.fireAt = clock + COCK_MS / 1000; });
+    }
+    if (!FIN.fired && ((FIN.fireAt && clock >= FIN.fireAt) || t > 14)) { FIN.fired = true; finFire(); FIN.resAt = clock + 2.2; }   // убитая камера видна ~2,2 с   // t > 14 — страховка
+    if (FIN.resAt && clock >= FIN.resAt) { FIN.mix = 1; FIN.crack = 0; FIN.gl = 0; FIN.on = false; FIN.done = true; tvHov = null; tvDraw(); }   // резкий переход к итогу (владелец 21.11)
+  }
   function cctvDraw() {   // кадр камеры: свою голову на это время возвращаем (от первого лица она скрыта), экран прячем (нельзя рисовать в текстуру, которую он показывает)
     const me = AV[mySeat], M = me && me.on && me.M;
     const hs = M ? M.head.scale.x : 1, rz = M ? M.root.position.z : 0;   // вернуть как было (у себя модель сдвинута — ME_BACK/ME_FWD)
@@ -2122,6 +2168,11 @@ function makeWorld(T, RB, RE, cv, PP) {
     gun.roul = { seat, want: Math.atan2(-p.z, p.x) - Math.atan2(-d.z, d.x), go: false };
     gun.seat = 0; gun.pend = null; gun.sl = null;   // уже ехал к следующему — стоп: сразу в центр (владелец 21.11)
   };
+  W.roulDir = (dx, dz, then) => {   // финал: крутится в центре и останавливается стволом в сторону (dx, dz); потом then()
+    _eg2.set(-Math.PI / 2, 0, 0); _gq.setFromEuler(_eg2); const d = gun.muzzle.clone().applyQuaternion(_gq);
+    gun.roul = { seat: 0, want: Math.atan2(-dz, dx) - Math.atan2(-d.z, d.x), go: false, then };
+    gun.seat = 0; gun.pend = null; gun.sl = null;
+  };
   const DR = { tgt: null, v: 0, hold: false, idx: null, sndUntil: 0 }, DSTEP = Math.PI / 3;
   W.drum = m => {   // 'tap' — на одно деление, 'hold' — крутится, 'up' — отпустили: тормозит до деления
     const dr = gun.drum; if (!dr) return;
@@ -2172,8 +2223,11 @@ function makeWorld(T, RB, RE, cv, PP) {
       const c = CH[k], s = +k;
       if (c.delay > 0) { c.delay -= dt; c.g.visible = false; continue; }
       c.g.visible = !menuOn;
+      if (c.fin) { const f = c.fin; f.t += dt; const e = easeIO(clamp(f.t / 1.4, 0, 1)); c.g.position.set(f.x0 + (f.x1 - f.x0) * e, TOP, f.z0 + (f.z1 - f.z0) * e); continue; }   // финал: к победителю
       if (c.push) {
-        const t = (c.push.t += dt), a = AV[s], ok = !!(a && a.on && a.M && !a.vDead && gun.who !== s);
+        const t0 = c.push.t, t = (c.push.t += dt), a = AV[s];
+        if (t0 < .45 && t >= .45 && !menuOn) rrSound('chip');   // ставка: руки двинули фишки — звук фишек (владелец 21.11)
+        const ok = !!(a && a.on && a.M && !a.vDead && gun.who !== s);
         c.hw = ok ? (t < .45 ? easeIO(t / .45) : t < 1.15 ? 1 : Math.max(0, 1 - easeIO((t - 1.15) / .45))) : 0;
         c.k = t < .45 ? 0 : Math.min(1, easeIO((t - .45) / .75));
         const h = chipSpot(s, Math.min(c.k, .5)); c.hp.set(h.x, TOP, h.z);
@@ -2202,7 +2256,7 @@ function makeWorld(T, RB, RE, cv, PP) {
           else { R.go = true; R.k = 0; R.y0 = gun.tp.yaw; let y1 = R.want; while (y1 < R.y0 + Math.PI * 6) y1 += Math.PI * 2; R.y1 = y1; }   // владелец 21.11: вращение — без звука
         }
       } else if (R.k < 1) { R.k = Math.min(1, R.k + dt / 2.6); gun.tp.yaw = R.y0 + (R.y1 - R.y0) * (1 - Math.pow(1 - R.k, 3)); }
-      else if ((R.w = (R.w || 0) + dt) > .6) { gun.roul = null; gunTo(R.seat); }
+      else if ((R.w = (R.w || 0) + dt) > (R.then ? .25 : .6)) { gun.roul = null; if (R.then) R.then(); else gunTo(R.seat); }
     }
     let want = 0;
     if (gun.fallSeat) { if (clock - gun.fallT > 6) releaseGun(); want = gun.who; }   // убит с револьвером в руке: рука падает на стол (poseModel), там отпустит; страховка — 6 с
@@ -2493,8 +2547,8 @@ function makeWorld(T, RB, RE, cv, PP) {
         cam.position.lerpVectors(_a, _c, e); cam.lookAt(0, TOP, 0); _q.copy(cam.quaternion); cam.quaternion.slerpQuaternions(_q2, _q, e);
       }
       // конец игры — камера подъезжает к экрану на стене, где итог (поверх и «сверху», и своего места)
-      tvK += ((tvD && clock >= tvAt ? 1 : 0) - tvK) * (1 - Math.exp(-dt * 1.5));
-      if ((tvK > .5) !== tvHum) { tvHum = tvK > .5; rrLoop('hum', tvHum, 1.2); }   // гул старого телевизора — тихо, пока камера у экрана
+      tvK += ((tvD && clock >= tvAt && (FIN.done || FIN.win !== mySeat) ? 1 : 0) - tvK) * (1 - Math.exp(-dt * 1.5));   // победитель остаётся за столом (видит, как фишки едут к нему), к экрану — когда там итог (владелец 21.11)
+      { const on = tvK > .5 && FIN.done; if (on !== tvHum) { tvHum = on; rrLoop('hum', tvHum, 1.2); } }   // гул телевизора — только когда на экране итог (владелец 21.11)   // гул старого телевизора — тихо, пока камера у экрана
       if (tvK > .002) {
         if (tvD && clock - tvFitAt > .25) {   // где на холсте свободно: справа может быть чат, сверху — плашки
           tvFitAt = clock; const cv = ren.domElement, b = cv.getBoundingClientRect(), kr = cv.closest('.kr');
@@ -2508,6 +2562,7 @@ function makeWorld(T, RB, RE, cv, PP) {
         _q2.copy(cam.quaternion); _b.copy(cam.position); _c.set(-(2 * fx - 1) * dz * tn * as, 2.05 - (1 - 2 * fy) * dz * tn, -4.94 + dz);
         cam.position.lerpVectors(_b, _c, e); _q.identity(); cam.quaternion.slerpQuaternions(_q2, _q, e);
         // «живая» камера: лёгкое дыхание — плавно качается и чуть поворачивается (несколько медленных синусов, не в такт)
+        if (FIN.shake > 0) { cam.position.x += (Math.random() - .5) * .07 * FIN.shake; cam.position.y += (Math.random() - .5) * .06 * FIN.shake; }   // выстрел «в камеру» — тряска
         cam.position.x += (Math.sin(t * .51) * .011 + Math.sin(t * 1.13 + 2.1) * .003) * e; cam.position.y += (Math.sin(t * .83 + 1.3) * .008 + Math.sin(t * 1.7) * .002) * e;
         _e.set((Math.sin(t * .67 + .4) * .0035 + Math.sin(t * 1.31) * .001) * e, Math.sin(t * .43 + 2) * .0045 * e, Math.sin(t * .37 + .8) * .0025 * e); _q.setFromEuler(_e); cam.quaternion.multiply(_q);
       }
@@ -2578,8 +2633,10 @@ function makeWorld(T, RB, RE, cv, PP) {
     for (const m of haze) { m.f += m.v * dt; m.sp.position.x = Math.cos(m.f) * m.r; m.sp.position.z = Math.sin(m.f) * m.r; m.sp.position.y = m.y0 + Math.sin(t * .15 + m.k) * .12; m.sp.material.rotation += m.rv * dt; }
     for (const m of smoke) { m.f += m.v * dt; m.sp.position.x = Math.cos(m.f) * m.r; m.sp.position.z = Math.sin(m.f) * m.r * .6; m.sp.position.y = m.y0 + Math.sin(t * .2 + m.k) * .08; m.sp.material.rotation += m.v * .4 * dt; }
     cctvM.uniforms.uT.value = t;
-    const mix = clamp((tvK - .25) / .5, 0, 1); cctvM.uniforms.uMix.value = mix * mix * (3 - 2 * mix);
-    if (mix < 1 && (t - cctvAt > 1 / 15 || t < cctvAt)) { cctvAt = t; cctvDraw(); }   // итог на весь экран — камеру наблюдения не рисуем
+    finStep(dt);   // финал у телевизора (владелец 21.11)
+    const mix = clamp((tvK - .25) / .5, 0, 1) * (FIN.done ? 1 : FIN.mix); cctvM.uniforms.uMix.value = mix * mix * (3 - 2 * mix);
+    cctvM.uniforms.uCrack.value = FIN.crack; cctvM.uniforms.uFlash.value = FIN.flash; cctvM.uniforms.uGl.value = FIN.gl;
+    if (mix < 1 && !(FIN.fired && clock > FIN.fireT + .12) && (t - cctvAt > 1 / 15 || t < cctvAt)) { cctvAt = t; cctvDraw(); }   // после выстрела кадр камеры замирает   // итог на весь экран — камеру наблюдения не рисуем
     if (Math.floor(t * 2) !== ovAt) { ovAt = Math.floor(t * 2); ovDraw(t); }
     if (W._led) W._led.visible = Math.floor(t * 1.4) % 2 === 0;
     if (comp) comp.render(); else ren.render(scene, cam);
@@ -3490,7 +3547,7 @@ const Demo = (() => {   // «Русская рулетка» без сервер
     const p = st2.players.find(x => x.seat === g.turn);
     if (!p.me) botTurn(p, g.n, delay);
     const vb = st2.players.find(x => x.seat === g.vby);   // бот выжил — иногда поднимает руку: +1 патрон следующему
-    if (vb && !vb.me && vb.alive && g.vn === g.n && g.bullets < RR.maxBul && Math.random() < .4) {
+    if (vb && !vb.me && vb.alive && g.vn === g.n && g.bullets < RR.maxBul && alive().length > 2 && Math.random() < .4) {
       const n = g.n; later(delay + 1000 + rnd(2500), () => { if (st2 && st2.g === g && g.n === n && g.vn === n && st2.room.phase === 'play' && !g.vote && g.bullets < RR.maxBul) voteOpen(vb.seat); });
     }
   }
@@ -3622,6 +3679,7 @@ const Demo = (() => {   // «Русская рулетка» без сервер
         if (!g || r.phase !== 'play' || !me.alive || now() >= r.deadline - 2000) throw new Error('not vote time');
         if (g.vote) throw new Error('vote on');
         if (g.bullets >= RR.maxBul) throw new Error('max bullets');
+        if (alive().length <= 2) throw new Error('final no vote');
         if (g.vby !== me.seat || g.vn !== g.n) throw new Error('vote not yours');
         voteOpen(me.seat); return tick();
       }
@@ -3644,7 +3702,7 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   };
   D.stop = () => { clearInterval(iv); clearInterval(heads); iv = heads = 0; st2 = null; };
   D.skip = () => { if (st2 && st2.room.deadline) st2.room.deadline = now(); };
-  D.vote = () => { const g = st2 && st2.g; if (!g || st2.room.phase !== 'play' || g.vote || g.bullets >= RR.maxBul) return false; const b = alive().find(p => !p.me && p.seat !== g.turn); if (!b) return false; voteOpen(b.seat); return true; };   // проверка: бот поднимает руку сейчас (только демо)
+  D.vote = () => { const g = st2 && st2.g; if (!g || st2.room.phase !== 'play' || g.vote || g.bullets >= RR.maxBul || alive().length <= 2) return false; const b = alive().find(p => !p.me && p.seat !== g.turn); if (!b) return false; voteOpen(b.seat); return true; };   // проверка: бот поднимает руку сейчас (только демо)
   return D;
 })();
 K.dbg = { die: () => (DEMO_OK ? (Demo.dieMe = true) : null), vote: () => (DEMO_OK ? Demo.vote() : null), coins: n => (DEMO_OK ? coinsFly(n || 6) : null), voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st), world: () => (DEMO_OK ? G : null) };   // для проверки из браузера (подставить состояние подбора — только localhost)
