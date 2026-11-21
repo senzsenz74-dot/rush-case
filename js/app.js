@@ -1853,14 +1853,13 @@ const NAV = [
   { k: 'crash', h: '/crash', t: 'Краш', i: 'bomb' },
   // { k: 'tower', h: '/tower', t: 'Башня', i: 'tower', nw: 1 }, // «Башня» отложена — в разработке (код ниже, страница скрыта)
   { k: 'contracts', h: '/contracts', t: 'Контракты', i: 'swap' },
-  { k: 'jackpot', h: '/jackpot', t: 'Ставки', i: 'coins' },
   { k: 'bonus', h: '/bonus', t: 'Бонусы', i: 'gift' },
   { k: 'tournaments', h: '/tournaments', t: 'Турниры', i: 'crown' },
   { k: 'top', h: '/top', t: 'Топ игроков', i: 'trophy' },
 ];
 let online = randi(1180, 1460);
 // шапка на ПК (владелец 10.11): слева Апгрейд и Краш, посередине «Кейсы», справа Бонусы и Контракты.
-// Остальные разделы (nav-x: Ставки, Турниры, Топ игроков) — только в меню телефона
+// Остальные разделы (nav-x: Турниры, Топ игроков) — только в меню телефона
 const NAV_SIDES = [['upgrade', 'crash'], ['bonus', 'contracts']];
 function renderHeader() {
   const navA = n => `<a href="#${n.h}" data-nav="${n.k}"${n.k === 'cases' ? ' class="nav-big"' : ''}>${ic[n.i]}<span>${n.t}</span>${n.nw ? '<i class="nav-new">NEW</i>' : ''}</a>`;
@@ -6805,120 +6804,8 @@ async function openDeposit(need = 0, promo = null) {
   drawMethods(); draw();
 }
 
-/* =========================================================
-   СТАВКИ (джекпот): игроки ставят скины 30 с (до 20 человек), рулетка выбирает победителя
-   пропорционально ставке, победитель забирает весь банк.
-   Раунды и ставки общие для всех игроков (база Supabase, см. supabase/schema.sql); боты тоже пишутся в базу и видны всем.
-   ========================================================= */
-const JP_TIME = 30, JP_MAX = 20, JP_SPIN = 10000;
-const JP_COLORS = ['#f3c14f', '#4ade80', '#60a5fa', '#f472b6', '#a78bfa', '#fb923c', '#22d3ee', '#ef4444', '#a3e635', '#e879f9',
-  '#facc15', '#2dd4bf', '#818cf8', '#fb7185', '#c084fc', '#34d399', '#f97316', '#38bdf8', '#eab308', '#94a3b8'];
-/* сессии (комнаты): у каждой свои игроки, диапазон ставок ботов и таймер; все идут параллельно */
-const JP_ROOMS = [
-  { id: 'low', t: 'Новички', sub: 'ставки 4–500 ₽', lo: 4, hi: 500, time: 30, a: '#4ade80' },
-  { id: 'mid', t: 'Средняя', sub: 'ставки 300–8 000 ₽', lo: 300, hi: 8000, time: 30, a: '#60a5fa' },
-  { id: 'fast', t: 'Турбо', sub: '15 секунд на раунд', lo: 50, hi: 3000, time: 15, a: '#fb923c' },
-  { id: 'high', t: 'Хайроллеры', sub: 'ставки от 5 000 ₽', lo: 5000, hi: 239000, time: 30, a: '#f3c14f' },
-];
-// ники ботов: у каждой сессии — свои (не пересекаются)
-(() => {
-  const A = ['Dark', 'Ice', 'Toxic', 'Mad', 'Lucky', 'Silent', 'Red', 'Ghost', 'Neo', 'Wild', 'Crazy', 'Cold', 'Gold', 'Night', 'Storm', 'Hyper', 'Iron', 'Fast', 'Sly', 'King'];
-  const B = ['Fox', 'Wolf', 'Sniper', 'Rush', 'Viper', 'Hawk', 'Tiger', 'Shark', 'Ninja', 'Bear', 'Raven', 'Cobra', 'Lynx', 'Eagle', 'Panda', 'Joker'];
-  const all = [...NICKS]; for (let i = 0; all.length < 120; i++) { const n = A[(i * 7) % A.length] + B[(i * 5 + (i / A.length | 0)) % B.length] + (i % 3 ? '' : '_' + (10 + (i * 37) % 90)); if (!all.includes(n)) all.push(n); }
-  JP_ROOMS.forEach((r, k) => { r.nicks = all.filter((_, i) => i % JP_ROOMS.length === k); });
-})();
-const JP = Object.fromEntries(JP_ROOMS.map(cfg => [cfg.id, { cfg, id: 1, phase: 'wait', players: [], endsAt: 0, winner: null, rot: 0, history: [], tmr: [], spinStart: 0 }]));
-let jpView = 'mid', jp = JP[jpView]; // jp — текущая сессия (в таймерах временно подменяется на свою)
-const jpViewing = () => jp === JP[jpView] && !!$('#jp');
-const jpAfter = (fn, ms) => { const R = jp; const t = setTimeout(() => { const prev = jp; jp = R; try { fn(); } finally { jp = prev; } }, ms); R.tmr.push(t); return t; };
-const jpTotal = () => jp.players.reduce((a, p) => a + p.sum, 0);
-const jpFind = name => jp.players.find(p => p.name === name);
-/* --- раунды и ставки — в базе, общие для всех игроков. Любой открытый сайт «пульсирует» сессию (jp_tick):
-   сервер двигает таймер, разыгрывает победителя и иногда добавляет бота — его видят все одинаково --- */
-let jpOff = 0; // смещение часов сервера относительно браузера
-const jpSrvNow = () => Date.now() + jpOff;
-function jpBotCandidate(R) {
-  const used = new Set(R.players.map(p => p.name));
-  const name = R.cfg.nicks.filter(n => !used.has(n) && (!st.user || n !== st.user.name)).sort(() => Math.random() - .5)[0];
-  if (!name) return null;
-  const pool = CATALOG.filter(s => s.p >= R.cfg.lo && s.p <= R.cfg.hi); // ставки ботов — в диапазоне сессии
-  const n = randi(1, 4), items = [];
-  for (let i = 0; i < n; i++) items.push(pool[Math.floor(Math.pow(Math.random(), 1.8) * pool.length)]);
-  return { name, items: items.map(s => s.name), value: Math.round(items.reduce((a, s) => a + s.p, 0) * 100) / 100 };
-}
-const jpWantBot = R => R.phase === 'wait' || (R.phase === 'open' && (R.endsAt - Date.now()) / 1000 > 1.5 && R.players.length < JP_MAX && Math.random() < (R.players.length < 6 ? .5 : .25));
-async function jpTickRoom(id, withBot) {
-  if (!sb) return;
-  const R = JP[id];
-  const { data, error } = await sb.rpc('jp_tick', { p_room: id, p_bot: withBot && jpWantBot(R) ? jpBotCandidate(R) : null });
-  if (error) { R.err = true; if (R === JP[jpView]) jpRender(); return; }
-  R.err = false;
-  jpOff = Date.parse(data.now) - Date.now();
-  await jpLoad(id, data.round);
-}
-async function jpLoad(id, round) {
-  const R = JP[id];
-  if (!round) { const { data } = await sb.from('jp_rounds').select('*').eq('room', id).neq('status', 'done').maybeSingle(); round = data; }
-  if (!round) return;
-  const { data: bets } = await sb.from('jp_bets').select('id, uid, name, ava, items, value').eq('round_id', round.id).order('id');
-  jpApply(R, round, bets || []);
-}
-// раунд из базы → состояние сессии (тот же вид, что рисует jpRender)
-function jpApply(R, round, bets) {
-  const prev = { id: R.id, phase: R.phase, n: R.players.length };
-  const players = [];
-  for (const b of bets) {
-    let p = players.find(x => x.name === b.name);
-    if (!p) { p = { name: b.name, uid: b.uid, ava: b.ava, items: [], sum: 0, me: !!(st.user && b.uid && b.uid === st.user.id), color: JP_COLORS[players.length % JP_COLORS.length] }; players.push(p); }
-    p.items.push(...(b.items || []).map(n => SK[n]).filter(Boolean)); p.sum += +b.value;
-  }
-  R.id = round.id; R.players = players;
-  R.endsAt = round.ends_at ? Date.parse(round.ends_at) - jpOff : 0;
-  R.spinStart = round.spin_at ? Date.parse(round.spin_at) - jpOff : 0;
-  R.phase = round.status === 'open' ? 'open' : round.status === 'spin' ? (Date.now() - R.spinStart > JP_SPIN ? 'done' : 'spin') : 'wait';
-  R.winner = null; R.rot = 0;
-  if (round.winner) {
-    const w = players.find(p => p.name === round.winner), total = players.reduce((a, p) => a + p.sum, 0);
-    if (w && total) {
-      // угол: сегменты по часовой от верха; точка внутри сектора победителя (её выбрал сервер) — наверх под стрелку
-      let acc = 0; for (const p of players) { p.a0 = acc / total * 360; acc += p.sum; p.a1 = acc / total * 360; }
-      const span = w.a1 - w.a0, m = Math.min(span * .2, 4);
-      R.winner = w; R.rot = 360 * 5 + (360 - (w.a0 + m + round.w_point * (span - 2 * m)));
-    }
-  }
-  const viewing = R === JP[jpView] && !!$('#jp');
-  const prevJp = jp; jp = R;
-  try {
-    if (viewing) {
-      const fresh = players.length > prev.n && prev.id === R.id ? players[players.length - 1].name : null;
-      if (fresh && R.phase === 'open') Snd.tone(1200 + Math.random() * 400, .06, 'triangle', .05);
-      jpRender(fresh);
-      if (R.phase === 'spin' && (prev.id !== R.id || prev.phase !== 'spin')) jpSpinFx();
-    }
-    if (R.phase === 'done' && R.finished !== R.id) { if (prev.id !== R.id && !players.some(p => p.me)) R.finished = R.id; else jpFinish(R); } // чужой раунд, разыгранный до нашего прихода, — без эффектов
-  } finally { jp = prevJp; }
-  if (!viewing) jpRoomsRender();
-}
-// раунд разыгран и прокрутка закончилась: итоги один раз
-function jpFinish(R) {
-  R.finished = R.id;
-  const w = R.winner; if (!w) return;
-  const pot = R.players.flatMap(p => p.items), total = R.players.reduce((a, p) => a + p.sum, 0), viewing = R === JP[jpView] && !!$('#jp');
-  if (!R.history.some(h => h.id === R.id)) {
-    R.history.unshift({ id: R.id, name: w.name, me: w.me, ava: w.ava, sum: total, chance: w.sum / total, color: w.color, best: pot.reduce((a, s) => !a || s.p > a.p ? s : a, null) || SK[Object.keys(SK)[0]] });
-    R.history = R.history.slice(0, 8);
-  }
-  const meIn = R.players.some(p => p.me);
-  st.inv.forEach(x => { if (x.st === 'bet' && x.round === R.id) x.st = 'jp'; }); save();
-  if (w.me) {
-    jpClaim(true);
-    if (viewing) { Snd.play('upgWin').then(ok => { if (!ok) Snd.safeWin(); }); burst(140); setTimeout(() => burst(70), 700); }
-    toast(`Сессия «${R.cfg.t}»: вы забрали банк <b>${money(total)}</b> — ${pot.length} предм.`);
-  } else if (meIn) { if (viewing) Snd.safeLose(); toast(`Сессия «${R.cfg.t}»: банк забрал ${esc(w.name)}. Повезёт в следующем раунде!`, 'err'); }
-  else if (viewing) Snd.coin();
-  if (viewing) { const prevJp = jp; jp = R; try { jpRender(); } finally { jp = prevJp; } }
-}
-// выигрыши из базы (в том числе пока игрок был не в сети) → в инвентарь
+/* ---------- «Ставки» (джекпот) — страница удалена (владелец 21.11). Осталось только при входе: забрать выигрыши,
+   разыгранные без игрока (jp_claim), и снять отметку «в ставке» с предметов из уже разыгранных раундов ---------- */
 async function jpClaim(silent) {
   if (!sb || !st.user || !st.user.sb) return;
   const { data, error } = await sb.rpc('jp_claim');
@@ -6935,223 +6822,6 @@ async function jpResolveMine() {
   const { data } = await sb.from('jp_rounds').select('id, status').in('id', ids);
   (data || []).forEach(r => { if (r.status !== 'open' && r.status !== 'wait') st.inv.forEach(x => { if (x.st === 'bet' && x.round === r.id) x.st = 'jp'; }); });
   save();
-}
-// последние разыгранные раунды сессии
-async function jpLoadHistory(id) {
-  if (!sb) return;
-  const R = JP[id];
-  const { data: rounds } = await sb.from('jp_rounds').select('id, winner, winner_uid, total').eq('room', id).not('winner', 'is', null).order('id', { ascending: false }).limit(8);
-  if (!rounds || !rounds.length) return;
-  const { data: bets } = await sb.from('jp_bets').select('round_id, name, ava, items, value, id').in('round_id', rounds.map(r => r.id)).order('id');
-  R.history = rounds.map(r => {
-    const bs = (bets || []).filter(b => b.round_id === r.id), names = [...new Set(bs.map(b => b.name))], wb = bs.filter(b => b.name === r.winner);
-    const items = bs.flatMap(b => (b.items || []).map(n => SK[n]).filter(Boolean)), wsum = wb.reduce((a, b) => a + +b.value, 0);
-    return { id: r.id, name: r.winner, me: !!(st.user && r.winner_uid === st.user.id), ava: wb[0] && wb[0].ava, sum: +r.total, chance: r.total ? wsum / r.total : 0,
-      color: JP_COLORS[Math.max(0, names.indexOf(r.winner)) % JP_COLORS.length], best: items.reduce((a, s) => !a || s.p > a.p ? s : a, null) || SK[Object.keys(SK)[0]] };
-  });
-  if (R === JP[jpView] && $('#jp')) jpRender();
-}
-// живые изменения из базы: новая ставка / смена статуса раунда → перечитываем сессию
-const jpSoonT = {};
-function jpSoon(room) { if (!JP[room]) return; clearTimeout(jpSoonT[room]); jpSoonT[room] = setTimeout(() => jpLoad(room), 120); }
-let jpLive = null, jpPulse = 0, jpBeat = 0;
-function jpStart() {
-  if (!sb || jpLive) return;
-  jpLive = sb.channel('jp-live')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'jp_rounds' }, p => { const r = p.new && p.new.room; if (r && ($('#jp') || st.inv.some(x => x.st === 'bet' && x.room === r))) jpSoon(r); })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jp_bets' }, p => { const r = p.new && p.new.room; if (r && $('#jp')) jpSoon(r); })
-    .subscribe();
-  // пульс: на странице ставок — открытая сессия каждые 1,5 с (с ботом), остальные — каждые ~4,5 с; вне страницы — только сессии со своей ставкой
-  jpPulse = setInterval(() => {
-    jpBeat++;
-    const onPage = !!$('#jp');
-    JP_ROOMS.forEach(cfg => {
-      const mine = st.inv.some(x => x.st === 'bet' && x.room === cfg.id);
-      if (onPage ? (cfg.id === jpView || jpBeat % 3 === 0) : mine && jpBeat % 2 === 0) jpTickRoom(cfg.id, onPage);
-      // прокрутка закончилась — итоги без ожидания сервера
-      const R = JP[cfg.id]; if (R.phase === 'spin' && Date.now() - R.spinStart > JP_SPIN) { R.phase = 'done'; if (R.finished !== R.id) jpFinish(R); }
-    });
-  }, 1500);
-}
-/* звук прокрутки — как в апгрейде: храповик сейфа + сердцебиение в конце */
-function jpSpinFx() {
-  const R = jp, t0 = performance.now(); let last = null, lastA = null, nextBeat = JP_SPIN - 2300;
-  const loop = now => {
-    if (R.phase !== 'spin') return;
-    const el = now - t0, rot = $('#jpRot');
-    if (rot && R === JP[jpView]) {
-      const mx = new DOMMatrixReadOnly(getComputedStyle(rot).transform), a = (Math.atan2(mx.b, mx.a) * 180 / Math.PI + 360) % 360;
-      const dA = lastA == null ? 0 : (a - lastA + 360) % 360; lastA = a;
-      const k = Math.floor(a / 12), tense = el > JP_SPIN - 2300 ? 1 : 0;
-      if (last !== null && k !== last) Snd.safeTick(Math.min(1, dA / 12), tense);
-      last = k;
-      if (el >= nextBeat && el < JP_SPIN - 150) { const p = (el - (JP_SPIN - 2300)) / 2300; Snd.heart(.35 + p * .35); nextBeat += 620 - p * 260; }
-    }
-    requestAnimationFrame(loop);
-  };
-  requestAnimationFrame(loop);
-}
-/* сегменты колеса */
-function jpArc(a0, a1, r = 138) {
-  const pt = a => { const t = (a - 90) * Math.PI / 180; return [160 + r * Math.cos(t), 160 + r * Math.sin(t)]; };
-  const [x1, y1] = pt(a0), [x2, y2] = pt(a1);
-  return `M${x1.toFixed(2)} ${y1.toFixed(2)}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
-}
-function jpSegments() {
-  const total = jpTotal(); if (!total) return '';
-  if (jp.players.length === 1) return `<circle cx="160" cy="160" r="138" class="jp-seg" stroke="${jp.players[0].color}"/>`;
-  let acc = 0;
-  return jp.players.map(p => { const a0 = acc / total * 360; acc += p.sum; const a1 = acc / total * 360; const g = Math.min(.8, (a1 - a0) * .2);
-    return `<path class="jp-seg" stroke="${p.color}" d="${jpArc(a0 + g, a1 - g)}"/>`; }).join('');
-}
-
-function pageJackpot() {
-  return `<section class="container jp" id="jp">
-    <div class="page-head top-head"><div><h1>Ставки <em>на банк</em></h1><p>Поставьте скины — у каждого игрока свой цвет на рулетке, доля пропорциональна ставке. Через 15–30 секунд после первой ставки рулетка выберет победителя, и он заберёт весь банк. Сессии идут параллельно — заходите в любую.</p></div></div>
-    <div class="jp-rooms" id="jpRooms"></div>
-    <div class="jp-main">
-      <div class="jp-left">
-        <div class="jp-stats">
-          <div><span>Банк</span><b id="jpPot">0 ₽</b></div>
-          <div><span>Игроков</span><b id="jpCnt">0 / ${JP_MAX}</b></div>
-          <div><span>Ваш шанс</span><b id="jpMe">—</b></div>
-        </div>
-        <div class="wheel jp-wheel" id="jpWheel">
-          <svg viewBox="0 0 320 320" aria-hidden="true">
-            <defs>
-              <radialGradient id="jpInner"><stop offset="0" stop-color="#1f1b15"/><stop offset="1" stop-color="#0b0a09"/></radialGradient>
-              <filter id="jpGroove" x="-10%" y="-10%" width="120%" height="120%">
-                <feComponentTransfer in="SourceAlpha" result="inv"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>
-                <feGaussianBlur in="inv" stdDeviation="4"/><feOffset dy="5" result="off"/>
-                <feFlood flood-color="#000" flood-opacity=".95"/><feComposite in2="off" operator="in"/>
-                <feComposite in2="SourceAlpha" operator="in" result="sh"/>
-                <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="sh"/></feMerge>
-              </filter>
-            </defs>
-            <circle cx="160" cy="160" r="156" class="w-ticks"/>
-            <circle cx="160" cy="160" r="151" class="w-rim-o" stroke="#3a3833"/>
-            <circle cx="160" cy="160" r="138" class="w-track" filter="url(#jpGroove)"/>
-            <circle cx="160" cy="160" r="125" class="w-rim-i" stroke="#3a3833"/>
-            <circle cx="160" cy="160" r="116" fill="url(#jpInner)" stroke="rgba(255,255,255,.08)"/>
-          </svg>
-          <div class="jp-rot" id="jpRot"><svg viewBox="0 0 320 320" aria-hidden="true"><g filter="url(#jpGroove)" id="jpSegs"></g></svg></div>
-          <div class="w-ptr"><svg class="w-tri" viewBox="0 0 40 48" aria-hidden="true">
-            <defs><linearGradient id="jtL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#d5d9e0"/></linearGradient>
-            <linearGradient id="jtR" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a7adb7"/><stop offset="1" stop-color="#6b717c"/></linearGradient></defs>
-            <path d="M20 46 L2.5 4.5 L20 12 Z" fill="url(#jtL)"/><path d="M20 46 L37.5 4.5 L20 12 Z" fill="url(#jtR)"/><path d="M2.5 4.5 L37.5 4.5 L20 12 Z" fill="#fff"/>
-            <path d="M20 46 L2.5 4.5 L37.5 4.5 Z" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="1" stroke-linejoin="round"/></svg></div>
-          <div class="w-center jp-center" id="jpCenter"></div>
-        </div>
-        <div class="jp-act" id="jpAct"></div>
-      </div>
-      <div class="jp-right">
-        <div class="panel jp-players"><div class="panel-h"><h3>Участники</h3><span class="upg-sum" id="jpPl"></span></div><div id="jpList"></div></div>
-      </div>
-    </div>
-    <div class="sec-row"><h2 class="sec-h">Последние раунды</h2><i class="st-line"></i></div>
-    <div class="jp-hist" id="jpHist"></div>
-  </section>`;
-}
-let jpTick = 0;
-function mountJackpot() {
-  Snd.warm(['safe1', 'safe2', 'safe3', 'upgWin']);
-  jp = JP[jpView];
-  jpRender();
-  jpStart(); JP_ROOMS.forEach(cfg => jpTickRoom(cfg.id, cfg.id === jpView)); jpLoadHistory(jpView);
-  clearInterval(jpTick);
-  jpTick = setInterval(() => { if (!$('#jp')) return clearInterval(jpTick); jp = JP[jpView]; jpRenderCenter(); jpRoomsRender(); }, 250);
-}
-/* вкладки сессий: живой статус каждой */
-function jpRoomsRender() {
-  const box = $('#jpRooms'); if (!box) return;
-  const me = st.user && st.user.name;
-  box.innerHTML = JP_ROOMS.map(cfg => {
-    const R = JP[cfg.id], tot = R.players.reduce((a, p) => a + p.sum, 0), mine = me && R.players.some(p => p.me);
-    const stt = R.phase === 'open' ? `0:${pad(Math.max(0, Math.ceil((R.endsAt - Date.now()) / 1000)))}` : R.phase === 'spin' ? 'розыгрыш' : R.phase === 'done' ? 'итоги' : 'ожидание';
-    return `<button class="jp-room${cfg.id === jpView ? ' on' : ''}${mine ? ' mine' : ''}" data-room="${cfg.id}" style="--rc:${cfg.a}">
-      <span class="jr-h"><i class="jr-dot ${R.phase}"></i><b>${cfg.t}</b>${mine ? '<em>вы в игре</em>' : ''}</span>
-      <span class="jr-sub">${cfg.sub}</span>
-      <span class="jr-st"><span>${ic.users}${R.players.length}/${JP_MAX}</span><span>${money(tot)}</span><span class="jr-t">${stt}</span></span>
-    </button>`;
-  }).join('');
-  $$('[data-room]', box).forEach(b => b.onclick = () => { if (b.dataset.room === jpView) return; jpView = b.dataset.room; jp = JP[jpView]; Snd.click(); const r = $('#jpRot'); if (r) delete r.dataset.spun; jpRender(); jpTickRoom(jpView, true); if (!jp.history.length) jpLoadHistory(jpView); });
-}
-function jpRenderCenter() {
-  const c = $('#jpCenter'); if (!c) return;
-  if (jp.phase === 'wait') c.innerHTML = `<b class="jp-big">${ic.users}</b><span>Ожидание игроков</span>`;
-  else if (jp.phase === 'open') { const s = Math.max(0, Math.ceil((jp.endsAt - Date.now()) / 1000)); c.innerHTML = `<b class="jp-big ${s <= 5 ? 'hot' : ''}">0:${pad(s)}</b><span>до розыгрыша</span>`; }
-  else if (jp.phase === 'spin') c.innerHTML = `<b class="jp-big">${money(jpTotal())}</b><span>разыгрывается</span>`;
-  else if (jp.winner) c.innerHTML = `<span class="jp-wava">${ava({ name: jp.winner.name, ava: jp.winner.ava })}</span><b class="jp-wname" style="color:${jp.winner.color}">${esc(jp.winner.name)}</b><span>забирает ${money(jpTotal())} · шанс ${(jp.winner.sum / jpTotal() * 100).toFixed(1)}%</span>`;
-}
-function jpRender(flash) {
-  if (!jpViewing()) return;
-  jpRoomsRender();
-  const total = jpTotal(), me = jp.players.find(p => p.me);
-  $('#jpPot').textContent = money(total);
-  $('#jpCnt').textContent = `${jp.players.length} / ${JP_MAX}`;
-  $('#jpMe').textContent = me ? (me.sum / total * 100).toFixed(1) + '%' : '—';
-  $('#jpSegs').innerHTML = jpSegments();
-  const rot = $('#jpRot');
-  if (jp.phase === 'spin' || jp.phase === 'done') {
-    const passed = Date.now() - jp.spinStart;
-    if (jp.phase === 'done' || passed > JP_SPIN) { rot.style.transition = 'none'; rot.style.transform = `rotate(${jp.rot}deg)`; }
-    else if (!rot.dataset.spun || rot.dataset.spun != jp.cfg.id + jp.id) {
-      rot.dataset.spun = jp.cfg.id + jp.id; rot.style.transition = 'none'; rot.style.transform = 'rotate(0deg)'; void rot.offsetWidth;
-      rot.style.transition = `transform ${JP_SPIN - passed}ms cubic-bezier(.12,.6,.06,1)`; rot.style.transform = `rotate(${jp.rot}deg)`;
-    }
-  } else { rot.style.transition = 'none'; rot.style.transform = 'rotate(0deg)'; delete rot.dataset.spun; }
-  $('#jpWheel').classList.toggle('win', jp.phase === 'done' && jp.winner && jp.winner.me);
-  jpRenderCenter();
-  // кнопка ставки
-  const act = $('#jpAct');
-  if (!sb || jp.err) act.innerHTML = `<div class="cc-note">Нет связи с сервером ставок — пробуем переподключиться…</div>`;
-  else if (jp.phase === 'spin' || jp.phase === 'done') act.innerHTML = `<div class="cc-note">Ставки закрыты — ${jp.phase === 'spin' ? 'идёт розыгрыш' : 'новый раунд через несколько секунд'}</div>`;
-  else if (!st.user) act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" data-act="login">${ic.login}Войти и сделать ставку</button>`;
-  else if (!me && jp.players.length >= JP_MAX) act.innerHTML = `<div class="cc-note">Лобби заполнено (${JP_MAX} игроков)</div>`;
-  else { act.innerHTML = `<button class="btn btn-primary btn-xl btn-cham" id="jpBet">${ic.plus}${me ? 'Добавить к ставке' : 'Сделать ставку'}</button>`; $('#jpBet').onclick = jpOpenBet; }
-  // участники
-  $('#jpPl').innerHTML = total ? `банк <b>${money(total)}</b>` : '';
-  $('#jpList').innerHTML = jp.players.length ? jp.players.slice().sort((a, b) => b.sum - a.sum).map(p => `
-    <div class="jp-row${p.me ? ' me' : ''}${p.name === flash ? ' flash' : ''}${jp.winner === p && jp.phase === 'done' ? ' won' : ''}" style="--pc:${p.color}">
-      <i class="jp-dot"></i>${ava({ name: p.name, ava: p.ava }, 'xs')}
-      <div class="jp-n"><b>${plink(p.uid, esc(p.name))}${p.me ? ' (вы)' : ''}</b><span>${money(p.sum)} · ${p.items.length} предм.</span></div>
-      <div class="jp-items">${p.items.slice(0, 4).map(s => `<img class="r-${s.r}" src="${imgUrl(s, 'm')}" alt="" title="${esc(s.name)} — ${money(s.p)}">`).join('')}${p.items.length > 4 ? `<em>+${p.items.length - 4}</em>` : ''}</div>
-      <b class="jp-pct">${(p.sum / total * 100).toFixed(1)}%</b>
-    </div>`).join('') : `<div class="empty">${ic.users}Пока никто не поставил. Сделайте первую ставку — запустится таймер на ${jp.cfg.time} секунд.</div>`;
-  // история
-  $('#jpHist').innerHTML = jp.history.length ? jp.history.map(h => `
-    <div class="jp-h" style="--pc:${h.color}">${ava({ name: h.name, ava: h.ava }, 'xs')}<div><b>${esc(h.name)}${h.me ? ' (вы)' : ''}</b><span>Раунд #${h.id} · шанс ${(h.chance * 100).toFixed(1)}%</span></div>
-      <img src="${imgUrl(h.best, 'm')}" alt="" title="${esc(h.best.name)}"><b class="jp-hs">${money(h.sum)}</b></div>`).join('') : `<div class="empty">Раундов ещё не было</div>`;
-}
-function jpOpenBet() {
-  if (!st.user) return openAuth('login');
-  if (jp.phase === 'spin' || jp.phase === 'done') return;
-  const list = own().slice().sort((a, b) => SK[b.n].p - SK[a.n].p);
-  let sel = [];
-  const m = modal(`<div class="dep jp-pick"><h2>Ставка скинами</h2>
-    <p class="dep-sub">Выберите предметы из инвентаря. Шанс выиграть банк = ваша ставка / весь банк.</p>
-    <div class="mini-grid" id="jpInv">${list.length ? list.map(x => mcard(SK[x.n], `data-id="${x.id}"`)).join('') : `<div class="empty">${ic.box}Инвентарь пуст — откройте пару кейсов.<a class="btn btn-primary btn-sm" href="#/cases">К кейсам</a></div>`}</div>
-    <div class="dep-total"><div>Ваша ставка<b id="jpSel">0 ₽</b><span id="jpSelN"></span></div><button class="btn btn-primary btn-xl" id="jpGo" disabled>Поставить</button></div></div>`, 'm-dep');
-  const upd = () => {
-    const sum = sel.reduce((a, id) => a + SK[st.inv.find(x => x.id === id).n].p, 0), tot = jpTotal() + sum, me = jpFind(st.user.name);
-    $('#jpSel', m).textContent = money(sum);
-    $('#jpSelN', m).textContent = sel.length ? `${sel.length} предм. · шанс ≈ ${((sum + (me ? me.sum : 0)) / tot * 100).toFixed(1)}%` : '';
-    $('#jpGo', m).disabled = !sel.length;
-  };
-  $$('[data-id]', m).forEach(el => el.onclick = () => { const id = el.dataset.id; const on = !sel.includes(id); sel = on ? [...sel, id] : sel.filter(z => z !== id); el.classList.toggle('sel', on); Snd.safeSel(on); upd(); });
-  $('#jpGo', m).onclick = async () => {
-    if (jp.phase === 'spin' || jp.phase === 'done') { closeModal(); return toast('Ставки уже закрыты', 'err'); }
-    if (!sb || !st.user.sb) { closeModal(); return toast('Нет связи с сервером — войдите заново', 'err'); }
-    const items = sel.map(id => st.inv.find(x => x.id === id)).filter(x => x && x.st === 'own');
-    if (!items.length) return;
-    const R = jp, value = Math.round(items.reduce((a, x) => a + SK[x.n].p, 0) * 100) / 100, go = $('#jpGo', m);
-    go.disabled = true; go.innerHTML = '<span class="spinner"></span>Ставка…';
-    const data = await srv('jp_bet', { p_room: R.cfg.id, p_ids: items.map(x => x.id) });
-    if (!data) { closeModal(); return; }
-    Snd.safeSel(true); Snd.coin(); closeModal();
-    toast(`Ставка принята: <b>${money(value)}</b>`);
-    jpLoad(R.cfg.id);
-  };
 }
 /* =========================================================
    АДМИН-ПАНЕЛЬ: дашборд, кейсы (закрыть / удача), игроки (начислить баланс).
@@ -11247,7 +10917,7 @@ async function mountRrTop() {
   if (d.me && !rows.some(r => r.me)) $('#rrtMe').innerHTML = `<div class="rrt-tb rrt-mine">${rrtRow(d.me)}</div>`;   // своё место — внизу, если не в сотне
 }
 const ROUTES = {
-  '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, mountInvite], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
+  '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, mountInvite], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, mountDoc], privacy: [pagePrivacy, mountDoc], payment: [pagePayment, mountDoc], cookies: [pageCookies, mountDoc], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer], rrtop: [pageRrTop, mountRrTop],
   staff: [pageStaff, mountStaff], // вход для админов и сотрудников по почте (ссылок на неё нет)
@@ -11296,7 +10966,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', news: 'Новости', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', news: 'Новости', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
