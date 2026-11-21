@@ -2046,7 +2046,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   }, 400);
 
   // жесты рукой (круг на H, владелец 22.11): up — большой палец вверх, fu — средний палец, wave — помахать, gun — пистолет из пальцев с выстрелом
-  const GEST_T = { up: 2.3, fu: 2.4, wave: 2.6, gun: 2.4 };
+  const GEST_T = { up: 2.3, fu: 2.4, wave: 3.4, gun: 2.4 };
   const _gP = V(0, 0, 0), _gE = V(0, 0, 0), _gF = V(0, 0, 0), _gA = V(0, 0, 0), _gT = V(0, 0, 0), _gN = V(0, 0, 0), _gV = V(0, 0, 0), _gJ = V(0, 0, 0), _gC = V(0, 0, 0), _gQ = new T.Quaternion(), _gY = new T.Quaternion(), _gYa = V(0, 1, 0);
   let gExt = [0, 0, 0, 0], gTh = null;   // большой палец: по фаланге [к пальцам F, к стороне большого A, к ладони N]
   const TH_FOLD = [[.45, .15, .6], [.25, -.75, .45], [.1, -.9, .3]];   // загнут поверх сжатых пальцев (фак)
@@ -2060,10 +2060,11 @@ function makeWorld(T, RB, RE, cv, PP) {
   const gestPose = (a, k, sd, tt, g, qs) => {
     const st = a.gst, me = a.me;
     let px, py, pz, fx, fy, fz, ax, ay, az, ex = sd * .8, ey = -1, ez = .25;
-    if (st.k === 'up') { px = .15; py = 1.0 + .02 * Math.sin(Math.min(tt, 1.6) * 7); pz = -.5; fx = -.25; fy = 0; fz = -1; ax = 0; ay = 1; az = 0; gExt = [0, 0, 0, 0]; gTh = [[.1, 1, 0]]; }
+    if (st.k === 'up') { px = .15; py = 1.0 + .02 * Math.sin(Math.min(tt, 1.6) * 7); pz = -.5; fx = -.25; fy = 0; fz = -1; ax = 0; ay = 1; az = 0; gExt = [0, 0, 0, 0]; gTh = [[.55, .65, -.1], [.15, 1, 0], [-.05, 1, 0]]; }   // основание большого пальца — вперёд-вверх, сам палец вверх (иначе как сломан)
     else if (st.k === 'fu') { const th = Math.sin(Math.PI * clamp(tt / .7, 0, 1)); px = .1; py = 1.14 + th * .03; pz = -.56 - th * .06; fx = 0; fy = 1; fz = -.18; ax = sd; ay = 0; az = 0; ex = sd * .6; ey = -1; ez = .3; gExt = [0, 1, 0, 0]; gTh = TH_FOLD; }
-    else if (st.k === 'wave') { const w = Math.sin(tt * 9) * .5; px = me ? .24 : .42; py = 1.34; pz = me ? -.48 : -.38; fx = sd * w; fy = 1; fz = 0; ax = -sd; ay = 0; az = 0; ex = sd; ey = -.6; ez = .3; gExt = [1, 1, 1, 1]; gTh = [[.45, .9, 0]]; }
-    else { const kk = tt > 1.05 ? Math.exp(-(tt - 1.05) * 7) : 0, hd = clamp((tt - 1.05) / .12, 0, 1); px = .1; py = 1.18 + kk * .05; pz = -.64 + kk * .05; fx = -.08; fy = kk * .9; fz = -1; ax = 0; ay = 1; az = 0; ex = sd * .5; ey = -1; ez = .1; gExt = [1, 0, 0, 0]; gTh = [[.3 + hd * .7, 1 - hd * .8, 0]]; }
+    else if (st.k === 'wave') { const th = Math.sin(tt * 4.2) * .42, ph = th * 1.25, L = .3; px = (me ? .24 : .42) + L * Math.sin(th); py = 1.34 - L * (1 - Math.cos(th)); pz = me ? -.48 : -.38; fx = sd * Math.sin(ph); fy = Math.cos(ph); fz = 0; ax = -sd * Math.cos(ph); ay = Math.sin(ph); az = 0;   // машет всем предплечьем от локтя, ~0,7 взмаха в секунду (владелец 22.11)
+      ex = sd; ey = -.6; ez = .3; gExt = [1, 1, 1, 1]; gTh = [[.7, .55, 0], [.55, .8, 0], [.5, .85, 0]]; }
+    else { const kk = tt > 1.05 ? Math.exp(-(tt - 1.05) * 7) : 0, hd = clamp((tt - 1.05) / .12, 0, 1); px = .1; py = 1.18 + kk * .05; pz = -.64 + kk * .05; fx = -.08; fy = kk * .9; fz = -1; ax = 0; ay = 1; az = 0; ex = sd * .5; ey = -1; ez = .1; gExt = [1, 0, 0, 0]; gTh = [[.6, .6, 0], [.3 + hd * .6, 1 - hd * .75, 0], [.25 + hd * .75, 1 - hd * .8, 0]]; }
     _gY.setFromAxisAngle(_gYa, clamp(a.hy || 0, -1.2, 1.2) * .75);   // жест туда, куда смотрит голова
     _gP.set(px * sd, py, pz).applyQuaternion(_gY).applyMatrix4(g.matrixWorld);
     _gF.set(fx, fy, fz).applyQuaternion(_gY).applyQuaternion(qs).normalize();
