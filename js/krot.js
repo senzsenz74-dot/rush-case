@@ -3057,20 +3057,27 @@ function mmWin(on) {
   const key = JSON.stringify([p.code, p.state, p.leader, p.members, p.bots, p.admin]);
   if (w.dataset.k === key) return; w.dataset.k = key;
   const link = location.origin + location.pathname + '#/krot/' + p.code, bots = p.bots || [], adm = !!p.admin && p.state === 'idle';   // владелец 20.11: админ добавляет ботов в своё лобби
-  const rows = [0, 1, 2, 3, 4].map(i => {
+  // окно лобби (владелец 21.11: «интереснее, как в CS2»): состав — пять карточек в ряд, у лидера корона; код — плитками
+  const crown = '<svg class="krl-crown" viewBox="0 0 20 14" aria-hidden="true"><path fill="currentColor" d="M1 4l4.5 3.5L10 1l4.5 6.5L19 4l-2 9H3z"/></svg>';
+  const IC_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+  const IC_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>';
+  const n = pnum(p), slots = [0, 1, 2, 3, 4].map(i => {
     const m = p.members[i], bt = !m && bots[i - p.members.length];
-    if (bt) return `<li class="bot"><span class="krmm-av"><b>Б</b></span><span class="krmm-nm">${esc(bt.name)} <i class="kr-botb">БОТ</i></span>${adm ? `<button class="kr-btn sm ghost" data-mm="bot-del" data-n="${bt.n}">Убрать</button>` : ''}</li>`;
-    if (!m) return `<li class="free"><span class="krmm-av"><b>+</b></span><span class="krmm-nm">Свободное место</span>${adm ? '<button class="kr-btn sm" data-mm="bot-add">+ Бот</button>' : ''}</li>`;
-    return `<li class="${m.online ? '' : 'off'}"><span class="krmm-av">${avaHtml(m)}</span><span class="krmm-nm">${esc(m.name)}${m.me ? ' <small>(вы)</small>' : ''}</span>${m.leader ? '<em class="krmm-ld">Лидер</em>' : ''}${!m.online ? '<em class="krmm-off">нет связи</em>' : ''}${p.leader && !m.me ? `<button class="kr-btn sm ghost" data-mm="kick" data-n="${i + 1}">Убрать</button>` : ''}</li>`;
+    if (bt) return `<div class="krl-s bot"><span class="krl-av"><b>Б</b></span><span class="krl-nm">${esc(bt.name)}</span><span class="krl-tag">Бот</span>${adm ? `<button class="krl-x" type="button" data-mm="bot-del" data-n="${bt.n}" title="Убрать бота" aria-label="Убрать бота">×</button>` : ''}</div>`;
+    if (!m) return adm ? '<button class="krl-s free" type="button" data-mm="bot-add" title="Добавить бота"><span class="krl-av">+</span><span class="krl-nm">Свободно</span><span class="krl-tag">+ Бот</span></button>'
+      : '<div class="krl-s free"><span class="krl-av">+</span><span class="krl-nm">Свободно</span><span class="krl-tag">Ждём друга</span></div>';
+    return `<div class="krl-s${m.me ? ' me' : ''}${m.online ? '' : ' off'}">${m.leader ? crown : ''}<span class="krl-av">${avaHtml(m)}</span><span class="krl-nm">${esc(m.name)}</span><span class="krl-tag">${!m.online ? 'Нет связи' : m.me ? 'Вы' : m.leader ? 'Лидер' : 'В лобби'}</span>${p.leader && !m.me ? `<button class="krl-x" type="button" data-mm="kick" data-n="${i + 1}" title="Убрать из лобби" aria-label="Убрать из лобби">×</button>` : ''}</div>`;
   }).join('');
-  w.innerHTML = `<section class="krmm-wp kr-glass" role="dialog" aria-labelledby="krmmWh"><button class="kr-ib krmm-wx" data-mm="close" aria-label="Закрыть">${ICO.close}</button>
-    <span class="kr-h">Русская рулетка</span><h2 class="kr-t" id="krmmWh">Лобби · ${pnum(p)}/${NS}</h2>
-    <p class="krmm-wl">Позовите друзей: им нужен этот код или ссылка. Лобби ищет игру вместе, недостающих добавит подбор.</p>
-    <div class="kr-cbig"><span>Код лобби</span><b>${esc(p.code)}</b><div><button class="kr-btn sm" data-mm="copy">Скопировать код</button><button class="kr-btn sm" data-mm="link" data-link="${esc(link)}">Ссылка-приглашение</button></div></div>
-    <ul class="krmm-ml">${rows}</ul>
+  w.innerHTML = `<section class="krmm-wp krl kr-glass" role="dialog" aria-labelledby="krmmWh"><button class="kr-ib krmm-wx" data-mm="close" aria-label="Закрыть">${ICO.close}</button>
+    <span class="kr-h">Русская рулетка</span>
+    <div class="krl-hd"><h2 class="kr-t" id="krmmWh">Лобби</h2><span class="krl-cnt"><span class="krl-pips">${[0, 1, 2, 3, 4].map(i => `<i${i < n ? ' class="on"' : ''}></i>`).join('')}</span>${n}/${NS}</span></div>
+    <p class="krmm-wl">Позовите друзей кодом или ссылкой — лобби ищет игру вместе, недостающих добавит подбор.</p>
+    <div class="krl-party">${slots}</div>
+    <div class="krl-code"><div><span>Код лобби</span><div class="krl-tiles">${[...p.code].map(ch => `<i>${esc(ch)}</i>`).join('')}</div></div>
+      <div class="krl-acts"><button class="krl-b" type="button" data-mm="copy">${IC_COPY}Скопировать код</button><button class="krl-b" type="button" data-mm="link" data-link="${esc(link)}">${IC_LINK}Ссылка-приглашение</button></div></div>
     <form class="kr-join krmm-join" autocomplete="off"><input id="krmmCode" maxlength="6" placeholder="Код лобби друга" spellcheck="false" aria-label="Код лобби друга"><button class="kr-btn">Войти</button></form>
-    <p class="kr-fine">${bots.length ? 'С ботами игра идёт только вашим составом: недостающих добавят боты, очков недели нет.' : 'Очки недели получают только те, кто ищет игру в одиночку: так друзья не смогут подыгрывать друг другу.'}</p>
-    <div class="krmm-wa">${pnum(p) > 1 ? '<button class="kr-btn ghost sm" data-mm="leave">Выйти из лобби</button>' : '<span></span>'}<a class="kr-link" href="#/invite" data-mm="close">Реферальная программа — скоро</a></div></section>`;
+    <p class="kr-fine">${bots.length ? 'С ботами игра идёт только вашим составом: недостающих добавят боты, очков нет.' : 'Очки получают только те, кто ищет игру в одиночку — так друзья не смогут подыгрывать друг другу.'}</p>
+    ${n > 1 ? '<div class="krmm-wa"><button class="kr-btn ghost sm" data-mm="leave">Выйти из лобби</button></div>' : ''}</section>`;
 }
 async function mmWinClick(e) {
   const w = document.getElementById('krmmWin'); if (!w) return;
