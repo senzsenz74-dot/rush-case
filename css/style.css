@@ -5276,15 +5276,15 @@ body.pg-main #app{padding-bottom:0}
 #rot{display:none}
 @media (orientation:portrait){
   html.phone,html.phone body{overflow:hidden}
-  html.phone #rot{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;background:radial-gradient(70% 50% at 50% 45%,rgba(132,217,253,.12),transparent 70%),#08070c}
+  html.phone #rot{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;background:radial-gradient(70% 50% at 50% 45%,rgba(255,106,43,.13),transparent 70%),#08070c}
 }
 .rot-in{display:flex;flex-direction:column;align-items:center;gap:3.2vmin;padding:0 6vmin;text-align:center}
 .rot-in img{width:38vmin;height:auto}
-.rot-ph{position:relative;display:block;width:13vmin;height:22vmin;margin:5vmin 0 3vmin;border:1vmin solid #fff;border-radius:2.6vmin;box-shadow:0 0 4vmin rgba(132,217,253,.35);animation:rotPh 2.6s cubic-bezier(.6,0,.3,1) infinite}
-.rot-ph i{position:absolute;left:50%;bottom:1.2vmin;width:3.2vmin;height:.8vmin;margin-left:-1.6vmin;border-radius:1vmin;background:#fff}
+.rot-ph{position:relative;display:block;width:13vmin;height:22vmin;margin:5vmin 0 3vmin;color:#ffc23d;border:1vmin solid currentColor;border-radius:2.6vmin;box-shadow:0 0 4vmin rgba(255,106,43,.42),inset 0 0 2vmin rgba(255,106,43,.18);animation:rotPh 2.6s cubic-bezier(.6,0,.3,1) infinite}
+.rot-ph i{position:absolute;left:50%;bottom:1.2vmin;width:3.2vmin;height:.8vmin;margin-left:-1.6vmin;border-radius:1vmin;background:currentColor}
 .rot-in b{font:500 6.4vmin/1 'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.02em;color:#fff}
 .rot-in span{max-width:70vmin;font:400 3.6vmin/1.4 'Rubik',sans-serif;color:rgba(255,255,255,.55)}
-@keyframes rotPh{0%,18%{transform:rotate(0)}48%,78%{transform:rotate(-90deg);border-color:#84d9fd}100%{transform:rotate(0)}}
+@keyframes rotPh{0%,18%{transform:rotate(0)}48%,78%{transform:rotate(-90deg);color:#ff5a2a} /* 22.11: цвета логотипа — золото → оранжево-красный (было белый → голубой) */100%{transform:rotate(0)}}
 @media (prefers-reduced-motion:reduce){.rot-ph{animation:none;transform:rotate(-90deg)}}
 
 /* главный экран на низких экранах (телефон боком — страница 1280 × ~590): колонка новостей ужимается сильнее,
