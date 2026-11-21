@@ -1063,9 +1063,9 @@ function drawMid() {
   if (r.paused) { const p = S.players.find(x => x.seat === r.pause_seat); el.innerHTML = `<section class="kr-pause kr-glass"><span class="kr-h">Пауза</span><h2 class="kr-t">Игрок потерял связь</h2><p>${p ? seatB(p.seat) + esc(p.name) : 'Игрок'} — ждём <b id="krPl">…</b>.</p></section>`; return; }
   if (ph === 'lobby' && r.mm) { el.className = 'kr-mid ld'; if (!$('#rlBg', el)) el.innerHTML = loadHtml(); return; }   // кадры не перерисовываем (слайды идут дальше)   // все приняли — экран загрузки
   if (ph === 'lobby') { el.className = 'kr-mid lob'; el.innerHTML = lobbyHtml(); return; }
+  if (ph === 'done' && r.money && refreshProf && betGame !== -(g ? g.id : 0)) { betGame = -(g ? g.id : 0); refreshProf(); setTimeout(() => refreshProf && refreshProf(), 2500); }   // игра кончилась — выигрыш / возврат на баланс сайта (раньше стояло после return и не срабатывало)
   if (ph === 'done') { el.className = 'kr-mid res'; root.classList.add('show-res'); el.innerHTML = ''; return; }
   drawBet();
-  if (ph === 'done' && r.money && refreshProf && betGame !== -(g ? g.id : 0)) { betGame = -(g ? g.id : 0); refreshProf(); }   // выигрыш / возврат — на баланс сайта
   if (ph === 'next' && g && !g.round) {   // знакомство до раунда 1 (владелец 20.11): «Подготовка к раунду» и отсчёт — только текст, без подложек
     el.className = 'kr-mid rr-iw';
     if (!$('#rrInN', el)) el.innerHTML = '<div class="rr-in"><span class="rr-in-t">Подготовка к раунду</span><b class="rr-in-n" id="rrInN"></b></div>';
