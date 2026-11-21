@@ -5769,6 +5769,8 @@ button.bw-c:focus-visible{outline:2px solid #84d9fd;outline-offset:2px}
 .mnr:hover .mnr-t{opacity:1;transform:translate(-50%,0)}
 @media (max-width:1024px){html:not(.phone) .mnr{display:none}}
 /* «Играть» на карточке режима: при наведении слева табличка «Быстрая игра / Лобби / Рейтинг» (владелец 21.11), тёмное стекло CS2; на телефоне — строкой под кнопкой */
+/* метка «NEW» на карточке режима — как у новых кейсов (.ix-tag.ix-new), владелец 21.11 */
+.mnk .mnk-new{z-index:4;padding:4px 7px 3px;border-radius:3px 0 3px 0;font-size:12px;letter-spacing:.06em;box-shadow:0 2px 6px rgba(0,0,0,.45)}
 .mnk-fly{position:absolute;right:100%;bottom:0;padding:0 8px 6px 0;opacity:0;visibility:hidden;transform:translateX(6px);transition:opacity .15s .15s,transform .15s .15s,visibility 0s .3s}
 .mnk-go:hover~.mnk-fly,.mnk-go:focus-visible~.mnk-fly,.mnk-fly:hover,.mnk-fly:focus-within{opacity:1;visibility:visible;transform:none;transition-delay:0s}
 .mnk-fbox{display:flex;flex-direction:column;gap:2px;min-width:168px;padding:4px;border-radius:3px;background:rgba(14,18,24,.78);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),0 10px 26px rgba(0,0,0,.55)}
