@@ -1,6 +1,6 @@
 // Значки 10 званий «Русской рулетки» в стиле званий CS2 Danger Zone (своя отрисовка, не файлы игры).
 // Запуск: node tools/rr/ranks.js  → assets/rr/ranks/rank-1.svg … rank-10.svg
-// Эмблема растёт: пуля → барабан (патронов 1→2→3→5, как в раундах) → револьвер → череп с костями из файла владельца (10 — в огне).
+// Эмблема растёт: пуля → барабан (патронов 1→2→3→5, как в раундах) → выстрел из револьвера → череп с костями владельца → 10: череп на золотой звезде (по картинке владельца).
 // Цвета как в CS2: серый → синий → тёмно-синий → фиолетовый → красный → чёрный → огонь; рамка серебро → золото.
 const fs = require('fs'), path = require('path');
 const OUT = path.join(__dirname, '../../assets/rr/ranks');
@@ -77,15 +77,27 @@ const SK_SKULL = 'M24.093,16.127c0.014-1.093-0.372-1.119-0.396-1.791c-0.013-0.33
 const SK_LINES = 'M23.696,12.149c-0.029-0.906-0.126-1.779-0.199-1.989c-0.079-0.227-0.165-0.531-0.421-0.928l0.63,3.633C23.706,12.632,23.703,12.39,23.696,12.149z M9.125,13.286l0.107-3.373c-0.266,0.519-0.352,1.059-0.259,2.036C9.054,12.799,9.095,12.957,9.125,13.286z M23.686,18.188l-0.825,2.523c1.032-0.604,1.021-1.193,1.035-1.601C23.911,18.658,23.796,18.391,23.686,18.188z M8.775,19.11c0.045,0.748,0.186,1.011,1.303,1.697l-1.297-2.014C8.771,18.891,8.769,18.996,8.775,19.11z';
 const SK_BONES = 'M9.104,13.277c1.709,0.854,2.089-2.563,2.089-2.563L9.104,9.86c0,0-2.942-1.677-3.322-2.167c-0.38-0.491-0.475-1.631-1.803-1.82c-1.33-0.19-1.994-0.188-2.184,0.571c-0.19,0.758,0,1.249,0,1.249s-0.19-0.364-0.76,0c-0.57,0.363-0.854,1.407-0.57,1.786c0.286,0.381,0.855,0.746,1.614,0.8c0.76,0.056,0.665-0.624,1.899,0C5.213,10.904,9.104,13.277,9.104,13.277z M21.825,9.86c0,0,4.557-2.278,4.937-2.563c0.379-0.284,0.664-1.063,0.949-1.528s1.044-1.36,1.804-1.008c0.759,0.353,1.14,1.59,1.14,1.684c0,0.093,0,0.093,0,0.093l0.475-0.093c0,0,0.664,0.79,0.854,1.249c0.189,0.458,0,1.597-0.38,1.786c-0.379,0.19-0.948,0.936-1.614,0.8c-0.664-0.134-1.708-0.244-2.183,0c-0.475,0.245-3.513,2.541-3.893,2.485c-0.379-0.057-1.518,0.65-1.518,0.65L21.825,9.86z M22.68,17.549c0,0,4.326,2.748,4.651,2.943c0.44,0.263,1.519,1.104,2.278,1.358c0.759,0.256,1.857-0.124,2.448,0.16c0.589,0.285,0.685,0.38,0.969,0.76c0.285,0.379,0.112,0.969-0.166,1.397c-0.545,0.843-0.937,0.691-0.937,0.691h-0.194c0,0,0.23,0.133,0.075,0.52c-0.1,0.247-0.183,0.362-0.569,0.735c-0.636,0.611-1.145,0.543-1.657,0.233c-0.604-0.364-1.023-0.913-1.298-1.394c-0.629-1.106-6.455-4.937-6.455-4.937L22.68,17.549z M9.967,18.033c0,0-3.346,2.174-4.192,2.554c-0.846,0.38-2.08,1.14-2.745,1.044c-0.664-0.095-1.328-0.38-1.803,0s-0.699,1.14-0.872,1.519c-0.173,0.38,0.017,1.614,0.587,1.805c0.569,0.189,0.569,0.189,0.569,0.189l0.569,0.947c0,0-0.095,0.571,0.854,0.477c0.95-0.095,1.52-0.475,1.898-1.329c0.38-0.854,1.805-1.993,1.805-1.993l4.556-3.228L9.967,18.033z';
 let BONES = true; // кости из файла владельца (выбор 21.11); false — скрещённые револьверы за черепом
-function skull(p, glow) {
+function skull(p, glow, bones = BONES) {
   const S = 3.6, O = `stroke="#140c04" stroke-opacity=".6" stroke-width="${f(1.6 / S)}" stroke-linejoin="round"`;
   const holes = `<ellipse cx="12.6" cy="15.5" rx="2.7" ry="2.7"/><ellipse cx="20.2" cy="15.5" rx="2.7" ry="2.7"/><ellipse cx="16.5" cy="19.6" rx="2" ry="1.9"/>`;
   return `<g transform="scale(${S}) translate(-16.4,-16)">`
-    + (BONES ? `<path d="${SK_BONES}" fill="url(#${p}em)" ${O}/><path d="${SK_BONES}" fill="url(#${p}sh)"/>` : '')
+    + (bones ? `<path d="${SK_BONES}" fill="url(#${p}em)" ${O}/><path d="${SK_BONES}" fill="url(#${p}sh)"/>` : '')
     + `<g fill="#100806">${holes}</g>`
     + (glow ? `<g fill="url(#${p}eye)" filter="url(#${p}gl)">${holes}</g><g fill="url(#${p}eye)">${holes}</g>` : '')
     + `<path d="${SK_SKULL}" fill="url(#${p}em)" fill-rule="evenodd" ${O}/><path d="${SK_SKULL}" fill="url(#${p}sh)" fill-rule="evenodd"/>`
     + `<path d="${SK_LINES}" fill="none" stroke="#3a2a10" stroke-opacity=".6" stroke-width=".5" stroke-linejoin="bevel"/></g>`;
+}
+// звезда с гранями за черепом (звание 10 — по картинке владельца 21.11, в нашем формате): 12 широких лучей длинный/короткий,
+// у каждого луча светлая и тёмная грань (свет сверху слева), в центре — золотое кольцо
+function star(p) {
+  const P = (rad, a) => `${f(rad * Math.cos(a))},${f(rad * Math.sin(a))}`;
+  let s = '';
+  for (let k = 0; k < 12; k++) {
+    const a = -Math.PI / 2 + k * Math.PI / 6, R = k % 2 ? 58 : 76, da = Math.PI / 12 * .92, r0 = 40;
+    const tip = P(R, a), l = P(r0, a - da), r = P(r0, a + da), c = P(r0 * .45, a);
+    s += `<path d="M${tip}L${l}L${c}Z" fill="url(#${p}em)"/><path d="M${tip}L${r}L${c}Z" fill="#a8640e"/><path d="M${l}L${tip}L${r}" fill="none" ${OL}/>`;
+  }
+  return s + `<circle r="40" fill="url(#${p}em)" ${OL}/><circle r="40" fill="url(#${p}sh)"/><circle r="34" fill="none" stroke="#7a4a0a" stroke-opacity=".5" stroke-width="2"/>`;
 }
 function skullGuns(p, glow) {
   if (BONES) return skull(p, glow);
@@ -181,7 +193,8 @@ const CFG = [
   { bg: ['#9a2330', '#3a0710'], hills: ['#c4505c', '#2a050b'], frame: 'gold', em: 'gold', chev: 1, e: p => shot(p, T7, 0), fx: p => shotFx(p, T7, 0) },
   { bg: ['#7a1622', '#21040a'], hills: ['#a8404c', '#180307'], frame: 'gold', em: 'gold', chev: 2, e: p => shot(p, T8, 1), fx: p => shotFx(p, T8, 1) },
   { bg: ['#2a2a2e', '#050505'], frame: 'gold', em: 'gold', thick: 1, rays: 1, e: p => `<g transform="translate(160,64) scale(.98)">${skullGuns(p)}</g>` },
-  { fire: 1, frame: 'fire', em: 'fire', thick: 1, e: p => `<g transform="translate(160,62) scale(1.1)">${skullGuns(p, 1)}</g>` },
+  // 10 — по картинке владельца (21.11), в нашем формате: золотая рамка как у 9-го, оранжевый фон с прожилками, золотая звезда, череп с белыми светящимися глазами
+  { radial: ['#ffa035', '#e2501a', '#7a1404'], frame: 'gold', em: 'gold', thick: 1, glow: 1, streaks: 1, e: p => `<g transform="translate(160,65)">${star(p)}<g transform="translate(0,2) scale(1.02)">${skull(p, 1, false)}</g></g>` },
 ];
 
 function build(i) {
@@ -201,7 +214,10 @@ function build(i) {
     + `<filter id="${p}fg" filterUnits="userSpaceOnUse" x="-40" y="-60" width="400" height="240"><feGaussianBlur stdDeviation="3"/></filter>`
     + `<filter id="${p}sg" filterUnits="userSpaceOnUse" x="-40" y="-60" width="400" height="240"><feGaussianBlur stdDeviation="1.6"/></filter>`
     + `<filter id="${p}ib" filterUnits="userSpaceOnUse" x="-40" y="-60" width="400" height="240"><feGaussianBlur stdDeviation="2.2"/></filter>`;
+  else if (C.radial) defs += `<radialGradient id="${p}bg" cx=".5" cy=".55" r=".75"><stop offset="0" stop-color="${C.radial[0]}"/><stop offset=".6" stop-color="${C.radial[1]}"/><stop offset="1" stop-color="${C.radial[2]}"/></radialGradient>`;
   else defs += lg(p + 'bg', [[0, C.bg[0]], [1, C.bg[1]]]);
+  if (C.glow) defs += `<radialGradient id="${p}eye"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#fff6d8"/><stop offset="1" stop-color="#ffc95a"/></radialGradient>`
+    + `<filter id="${p}gl" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.1"/></filter>`;
 
   // фон плашки
   let back = `<rect x="0" y="0" width="320" height="130" fill="url(#${p}bg)"/>`;
@@ -209,6 +225,7 @@ function build(i) {
   if (C.rays) back += rays(p);
   if (C.fire) back += flames(p, 1);
   if (C.claws) back += claws(p + 'em');
+  if (C.streaks) back += `<g fill="none" stroke="#ffd9a0" stroke-opacity=".14" stroke-width="1.2"><path d="M10,30C60,50 90,20 140,44S230,30 300,52"/><path d="M0,92C50,78 110,104 170,86S260,96 320,80"/><path d="M40,118C80,100 120,112 150,96"/><path d="M200,20C230,36 260,28 300,40"/></g>`;   // прожилки, как на картинке владельца
   back += `<path d="M0,10L320,10L320,46C220,58 100,38 0,56Z" fill="#fff" opacity=".07"/>`;
 
   // рамка: серебро — одна; золото — толстая + тёмный зазор + тонкая внутренняя
@@ -227,17 +244,6 @@ function build(i) {
 }
 
 fs.mkdirSync(OUT, { recursive: true });
-// звание 10 — картинка владельца (21.11): tools/rr/src/rank-10.webp (готовит tools/rr/rank10-prep.js) встраивается в SVG той же разметки:
-// плашка — 300 ед. по ширине (x 10…310), её центр по высоте — на 65, как у остальных значков; звезда сверху/снизу укладывается в viewBox
-const OWN10 = path.join(__dirname, 'src/rank-10.webp');
-function own10() {
-  const b = fs.readFileSync(OWN10), x = b.toString('latin1', 12, 16) === 'VP8X', w = x ? 1 + b.readUIntLE(24, 3) : 600, h = x ? 1 + b.readUIntLE(27, 3) : 311;   // размер из заголовка WebP
-  const H = 300 * h / w, y = 65 - .542 * H;   // .542 — центр плашки по высоте картинки
-  const uri = 'data:image/webp;base64,' + b.toString('base64');
-  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-10 -20 340 170" width="340" height="170"><title>${RANKS[9].name} — от ${RANKS[9].pts} очков</title>`
-    + `<image x="10" y="${f(y)}" width="300" height="${f(H)}" href="${uri}" xlink:href="${uri}"/></svg>
-`;
-}
-CFG.forEach((_, i) => fs.writeFileSync(path.join(OUT, `rank-${i + 1}.svg`), i === 9 && fs.existsSync(OWN10) ? own10() : build(i)));
+CFG.forEach((_, i) => fs.writeFileSync(path.join(OUT, `rank-${i + 1}.svg`), build(i)));
 fs.writeFileSync(path.join(OUT, 'ranks.json'), JSON.stringify(RANKS.map((r, i) => ({ n: i + 1, ...r, icon: `rank-${i + 1}.svg` })), null, 1) + '\n');
 console.log('ok:', CFG.length, 'значков →', OUT);
