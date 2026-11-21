@@ -787,6 +787,7 @@ function keyWave(kind) {   // от нажатия клавиши на экран
 }
 async function rrAct(kind) {
   if (kind === 'spin') { spinDown(); spinUp(); return; }   // кнопка на экране — одно деление
+  if (myTurn() && S.game.vote) { voteWarn(); return; }   // идёт голосование — стрелять нельзя (владелец 21.11)
   if (!myTurn() || actBusy || Date.now() < actLock) return;
   if (spinHeld) spinUp();
   if (spinPend) await spinSend(true);   // докрутили и сразу «Выстрел» — сначала прокрутка
@@ -801,7 +802,8 @@ async function rrAct(kind) {
 // прокрутка уходит на сервер одна — через 0,45 с после последнего отпускания (не чаще spin_gap 0,8 с)
 let spinHeld = 0, spinHoldT = 0, spinSendT = 0, spinPend = false, spinLast = 0, spinBlur = false;
 function spinDown() {
-  if (!myTurn() || actBusy || rrPre() || (S.game && S.game.vote)) return;
+  if (myTurn() && S.game.vote) { voteWarn(); return; }
+  if (!myTurn() || actBusy || rrPre()) return;
   if (!spinBlur) { spinBlur = true; addEventListener('blur', spinUp); }
   spinHeld = Date.now(); clearTimeout(spinHoldT); clearTimeout(spinSendT);
   keyDown = 'spin'; keyDownAt = Date.now(); drawAct(); keyWave('spin');
@@ -908,6 +910,14 @@ function drawVote() {
   if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
   el.classList.toggle('done', !v); el.classList.toggle('can', can);
 }
+let vwT = 0;
+function voteWarn() {   // нажал выстрел / R во время голосования — аккуратная подсказка над клавишами (владелец 21.11)
+  if (!root) return;
+  let el = $('#rrVw', root);
+  if (!el) { el = document.createElement('div'); el.id = 'rrVw'; el.className = 'rr-vw kr-glass'; el.innerHTML = ICV.hand + '<span><b>Идёт голосование</b><small>Стрелять и крутить барабан можно, когда оно закончится</small></span>'; root.appendChild(el); }
+  el.classList.remove('out', 'nudge'); void el.offsetWidth; el.classList.add('nudge');
+  clearTimeout(vwT); vwT = setTimeout(() => { el.classList.add('out'); vwT = setTimeout(() => el.remove(), 360); }, 2200);
+}
 function bankSpend(c) {   // патрон куплен: под банком «−50 ₽» — появляется и гаснет (владелец 21.11)
   const bk = root && $('#rrBank', root); if (!bk) return;
   const m = document.createElement('small'); m.className = 'rr-bank-m'; m.innerHTML = '−' + money(c); bk.appendChild(m);
@@ -958,7 +968,7 @@ function rrEvent(ev) {
   const auto = ev.auto ? 'время вышло · ' : '';
   if (ev.kind === 'start') showBand('Раунд ' + ev.round, (S && S.players.filter(p => p.alive !== false).length === 2 ? 'Финал · ' : '') + 'в револьвере ' + ev.bullets + ' ' + plural(ev.bullets), 3200);   // владелец: «РАУНД №, В РЕВОЛЬВЕРЕ 1 ПАТРОН», в рамке как в «Краше»
   else if (ev.kind === 'vote_end') { voteRes = { ok: !!ev.ok, yes: ev.yes || 0, no: ev.no || 0, bullets: ev.bullets, until: Date.now() + 4500,
-      v: voteLast && voteLast.by === ev.seat ? voteLast : { by: ev.seat, at: 0, yes: [], no: [], need: '', cost: 0 } }; voteLast = null; drawVote(); if (ev.ok && ev.cost) bankSpend(ev.cost); }
+      v: voteLast && voteLast.by === ev.seat ? voteLast : { by: ev.seat, at: 0, yes: [], no: [], need: '', cost: 0 } }; voteLast = null; drawVote(); if (ev.ok) rrSound('load'); if (ev.ok && ev.cost) bankSpend(ev.cost); }   // +1 патрон — звук зарядки (владелец 21.11)
   else if (ev.kind === 'spin') { if (!me) { spinNote = { seat: ev.seat, until: Date.now() + 1400 }; drawAct(); } }
   else if (ev.kind === 'click') showEv('В барабане пусто', me ? 'вы живы' : nm + ' жив', 'click', 1600);   // владелец 20.11: без «Щелчок» и без «время вышло»
   else if (ev.kind === 'bang') {
@@ -969,7 +979,7 @@ function rrEvent(ev) {
 // звуки владельца (assets/rr/snd, откуда — ПЛАН_РУЛЕТКА.md «Звуки»): прокрутка, взвод курка, пустой выстрел, выстрел; громкость умеренная (владелец не любит громко)
 const SND = { spin: { f: 'spin', vol: .5 }, cock: { f: 'cock', vol: .6 }, click: { f: 'click', vol: .6 }, bang: { f: 'bang', vol: .5 },
   hum: { f: 'tv-hum', vol: .12 }, tvon: { f: 'tv-on', vol: .5 }, tvoff: { f: 'tv-off', vol: .5 }, heart: { f: 'heart', vol: .55 }, slide: { f: 'slide', vol: .35 }, breath: { f: 'breath', vol: .09 }, music: { f: 'music', vol: .03 },
-  drum: { f: 'drum', vol: .6 } }, sndBuf = {};   // владелец 20.11: гул и вкл/выкл телевизора, сердце, револьвер по столу, дыхание (ПЛАН_РУЛЕТКА.md «Звуки»)
+  drum: { f: 'drum', vol: .6 }, load: { f: 'load', vol: .6 } }, sndBuf = {};   // владелец 20.11: гул и вкл/выкл телевизора, сердце, револьвер по столу, дыхание (ПЛАН_РУЛЕТКА.md «Звуки»)
 const COCK_MS = 480;   // взвели курок → через столько мс щелчок или выстрел
 let AC = null;
 function sndLoad() {   // загрузить звуки заранее (при входе за стол)
@@ -3481,19 +3491,19 @@ const Demo = (() => {   // «Русская рулетка» без сервер
     if (!p.me) botTurn(p, g.n, delay);
     const vb = st2.players.find(x => x.seat === g.vby);   // бот выжил — иногда поднимает руку: +1 патрон следующему
     if (vb && !vb.me && vb.alive && g.vn === g.n && g.bullets < RR.maxBul && Math.random() < .4) {
-      const n = g.n; later(delay + 1000 + rnd(2500), () => { if (g.n === n && g.vn === n && st2.room.phase === 'play' && !g.vote && g.bullets < RR.maxBul) voteOpen(vb.seat); });
+      const n = g.n; later(delay + 1000 + rnd(2500), () => { if (st2 && st2.g === g && g.n === n && g.vn === n && st2.room.phase === 'play' && !g.vote && g.bullets < RR.maxBul) voteOpen(vb.seat); });
     }
   }
   const vcost = () => st2.room.money ? Math.floor(Math.min(...st2.players.map(p => p.bet || Infinity)) * RR.votePct) || 0 : 0;   // половина самой маленькой ставки
   const whenFree = (n, fn) => { const g = st2.g; if (!g || g.n !== n || st2.room.phase !== 'play') return; if (g.vote) { later(900, () => whenFree(n, fn)); return; } fn(); };
   function voteOpen(seat) {
     const g = st2.g, r = st2.room, al = alive(), need = Math.ceil(al.length / 2);
-    g.vused.push(seat); g.vn = null;
+    (g.vused = g.vused || []).push(seat); g.vn = null;
     g.vote = { by: seat, at: now(), until: now() + RR.voteSec * 1000, need, yes: [seat], no: [], cost: vcost(), rem: (r.deadline - now()) / 1000 };
     r.deadline = g.vote.until + 1000;
     ev('vote', seat, { need, cost: g.vote.cost });
     sys(`${name(seat)} поднимает руку: добавить патрон${g.vote.cost ? ` (−${g.vote.cost} ₽ из банка)` : ''}. Нужно «за»: ${need} из ${al.length}.`);
-    al.filter(p => !p.me && p.seat !== seat).forEach(p => later(1500 + rnd(3500), () => { const v = g.vote; if (v && v.by === seat && p.alive && !v.yes.includes(p.seat) && !v.no.includes(p.seat)) voteCast(p.seat, Math.random() < .55); }));
+    al.filter(p => !p.me && p.seat !== seat).forEach(p => later(1500 + rnd(3500), () => { const v = st2 && st2.g === g ? g.vote : null; if (v && v.by === seat && p.alive && !v.yes.includes(p.seat) && !v.no.includes(p.seat)) voteCast(p.seat, Math.random() < .55); }));
     bump(); voteCheck(false);
   }
   function voteCast(seat, yes) { const v = st2.g.vote; if (!v) return; (yes ? v.yes : v.no).push(seat); bump(); voteCheck(false); }
@@ -3634,7 +3644,8 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   };
   D.stop = () => { clearInterval(iv); clearInterval(heads); iv = heads = 0; st2 = null; };
   D.skip = () => { if (st2 && st2.room.deadline) st2.room.deadline = now(); };
+  D.vote = () => { const g = st2 && st2.g; if (!g || st2.room.phase !== 'play' || g.vote || g.bullets >= RR.maxBul) return false; const b = alive().find(p => !p.me && p.seat !== g.turn); if (!b) return false; voteOpen(b.seat); return true; };   // проверка: бот поднимает руку сейчас (только демо)
   return D;
 })();
-K.dbg = { die: () => (DEMO_OK ? (Demo.dieMe = true) : null), coins: n => (DEMO_OK ? coinsFly(n || 6) : null), voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st), world: () => (DEMO_OK ? G : null) };   // для проверки из браузера (подставить состояние подбора — только localhost)
+K.dbg = { die: () => (DEMO_OK ? (Demo.dieMe = true) : null), vote: () => (DEMO_OK ? Demo.vote() : null), coins: n => (DEMO_OK ? coinsFly(n || 6) : null), voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st), world: () => (DEMO_OK ? G : null) };   // для проверки из браузера (подставить состояние подбора — только localhost)
 })();

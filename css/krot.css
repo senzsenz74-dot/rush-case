@@ -1012,3 +1012,12 @@ button.krl-s.free:hover .krl-tag,button.krl-s.free:hover .krl-av{color:#84d9fd}
 .rr-vb:hover:not(:disabled){box-shadow:inset 0 0 0 1px var(--a),0 16px 44px rgba(0,0,0,.45)}
 .rr-vb:disabled{opacity:.5;cursor:default}
 @media (max-width:520px){.rr-vt{top:auto;bottom:200px}.rr-vb{bottom:118px}}
+/* голосование идёт — нажал выстрел / R: подсказка над клавишами (владелец 21.11) */
+.rr-vw{position:absolute;left:0;right:0;bottom:132px;margin:0 auto;z-index:7;display:flex;align-items:center;gap:11px;width:max-content;max-width:calc(100% - 28px);padding:10px 16px 10px 13px;border-radius:4px;pointer-events:none;animation:rrBetIn .3s cubic-bezier(.2,.7,.3,1) both}
+.rr-vw>svg{flex:none;width:22px;height:22px;color:var(--amb)}
+.rr-vw span{display:flex;flex-direction:column;gap:4px}
+.rr-vw b{font:500 14px/1 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase;color:var(--amb)}
+.rr-vw small{font-size:12px;color:var(--tx2)}
+.rr-vw.nudge{animation:rrBetIn .3s cubic-bezier(.2,.7,.3,1) both,rrVwNudge .4s .05s ease}
+.rr-vw.out{animation:rrBetOut .34s cubic-bezier(.4,0,.7,1) forwards}
+@keyframes rrVwNudge{0%,100%{translate:0}20%{translate:-5px}45%{translate:4px}70%{translate:-2px}}
