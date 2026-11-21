@@ -2048,7 +2048,8 @@ function makeWorld(T, RB, RE, cv, PP) {
   // жесты рукой (круг на H, владелец 22.11): up — большой палец вверх, fu — средний палец, wave — помахать, gun — пистолет из пальцев с выстрелом
   const GEST_T = { up: 2.3, fu: 2.4, wave: 2.6, gun: 2.4 };
   const _gP = V(0, 0, 0), _gE = V(0, 0, 0), _gF = V(0, 0, 0), _gA = V(0, 0, 0), _gT = V(0, 0, 0), _gN = V(0, 0, 0), _gV = V(0, 0, 0), _gJ = V(0, 0, 0), _gC = V(0, 0, 0), _gQ = new T.Quaternion(), _gY = new T.Quaternion(), _gYa = V(0, 1, 0);
-  let gExt = [0, 0, 0, 0];
+  let gExt = [0, 0, 0, 0], gTh = null;   // большой палец: по фаланге [к пальцам F, к стороне большого A, к ладони N]
+  const TH_FOLD = [[.45, .15, .6], [.25, -.75, .45], [.1, -.9, .3]];   // загнут поверх сжатых пальцев (фак)
   const gestW = (a, now) => {   // вес жеста 0…1 (плавно поднял — подержал — опустил)
     const st = a.gst; if (!st) return 0;
     const tt = now - st.at, d = GEST_T[st.k] || 2.3; if (tt >= d) { a.gst = null; return 0; }
@@ -2059,16 +2060,15 @@ function makeWorld(T, RB, RE, cv, PP) {
   const gestPose = (a, k, sd, tt, g, qs) => {
     const st = a.gst, me = a.me;
     let px, py, pz, fx, fy, fz, ax, ay, az, ex = sd * .8, ey = -1, ez = .25;
-    if (st.k === 'up') { px = .15; py = 1.0 + .02 * Math.sin(Math.min(tt, 1.6) * 7); pz = -.5; fx = -.25; fy = 0; fz = -1; ax = 0; ay = 1; az = 0; gExt = [0, 0, 0, 0]; _gT.set(0, 1, .1); }
-    else if (st.k === 'fu') { const th = Math.sin(Math.PI * clamp(tt / .7, 0, 1)); px = .1; py = 1.14 + th * .03; pz = -.56 - th * .06; fx = 0; fy = 1; fz = -.18; ax = sd; ay = 0; az = 0; ex = sd * .6; ey = -1; ez = .3; gExt = [0, 1, 0, 0]; _gT.set(-sd * .5, .3, -.3); }
-    else if (st.k === 'wave') { const w = Math.sin(tt * 9) * .5; px = me ? .24 : .42; py = 1.34; pz = me ? -.48 : -.38; fx = sd * w; fy = 1; fz = 0; ax = -sd; ay = 0; az = 0; ex = sd; ey = -.6; ez = .3; gExt = [1, 1, 1, 1]; _gT.set(-sd * .9, .45, 0); }
-    else { const kk = tt > 1.05 ? Math.exp(-(tt - 1.05) * 7) : 0, hd = clamp((tt - 1.05) / .12, 0, 1); px = .1; py = 1.18 + kk * .05; pz = -.64 + kk * .05; fx = -.08; fy = kk * .9; fz = -1; ax = 0; ay = 1; az = 0; ex = sd * .5; ey = -1; ez = .1; gExt = [1, 0, 0, 0]; _gT.set(0, 1 - hd * .8, -.3 - hd * .7); }
+    if (st.k === 'up') { px = .15; py = 1.0 + .02 * Math.sin(Math.min(tt, 1.6) * 7); pz = -.5; fx = -.25; fy = 0; fz = -1; ax = 0; ay = 1; az = 0; gExt = [0, 0, 0, 0]; gTh = [[.1, 1, 0]]; }
+    else if (st.k === 'fu') { const th = Math.sin(Math.PI * clamp(tt / .7, 0, 1)); px = .1; py = 1.14 + th * .03; pz = -.56 - th * .06; fx = 0; fy = 1; fz = -.18; ax = sd; ay = 0; az = 0; ex = sd * .6; ey = -1; ez = .3; gExt = [0, 1, 0, 0]; gTh = TH_FOLD; }
+    else if (st.k === 'wave') { const w = Math.sin(tt * 9) * .5; px = me ? .24 : .42; py = 1.34; pz = me ? -.48 : -.38; fx = sd * w; fy = 1; fz = 0; ax = -sd; ay = 0; az = 0; ex = sd; ey = -.6; ez = .3; gExt = [1, 1, 1, 1]; gTh = [[.45, .9, 0]]; }
+    else { const kk = tt > 1.05 ? Math.exp(-(tt - 1.05) * 7) : 0, hd = clamp((tt - 1.05) / .12, 0, 1); px = .1; py = 1.18 + kk * .05; pz = -.64 + kk * .05; fx = -.08; fy = kk * .9; fz = -1; ax = 0; ay = 1; az = 0; ex = sd * .5; ey = -1; ez = .1; gExt = [1, 0, 0, 0]; gTh = [[.3 + hd * .7, 1 - hd * .8, 0]]; }
     _gY.setFromAxisAngle(_gYa, clamp(a.hy || 0, -1.2, 1.2) * .75);   // жест туда, куда смотрит голова
     _gP.set(px * sd, py, pz).applyQuaternion(_gY).applyMatrix4(g.matrixWorld);
     _gF.set(fx, fy, fz).applyQuaternion(_gY).applyQuaternion(qs).normalize();
     _gA.set(ax, ay, az).applyQuaternion(_gY).applyQuaternion(qs).normalize();
     _gE.set(ex, ey, ez).applyQuaternion(_gY).applyQuaternion(qs);
-    _gT.applyQuaternion(_gY).applyQuaternion(qs);   // большой палец: в осях руки → мир (x в осях места уже со знаком руки)
     frameQ(_gF, _gA, _gQ);
   };
   // пальцы жеста: прямые — вдоль кисти, согнутые — в кулак (фаланга к ладони, вторая назад, третья к ладони); большой — по _gT
@@ -2089,7 +2089,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     const th = M['thumb' + k]; if (!th) return;
     for (let j = 0; j < 3; j++) {
       if (j < 2) wp(th[j + 1], _t1); else _t1.copy(M['ttip' + k]).applyMatrix4(th[2].matrixWorld);
-      _gE.copy(_gT); if (j === 0) _gE.lerp(_gA, .4);
+      const c = gTh[Math.min(j, gTh.length - 1)]; _gE.copy(_gF).multiplyScalar(c[0]).addScaledVector(_gA, c[1]).addScaledVector(_gN, c[2]); if (j === 0 && gTh.length === 1) _gE.lerp(_gA, .4);
       bendTo(th[j], _t1, _gE, w);
     }
   };
