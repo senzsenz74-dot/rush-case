@@ -3210,7 +3210,9 @@ const krotOpen = () => true;   // «Русская рулетка» открыт
 function pageKrot() {
   if (!krotOpen()) return `<section class="krp"><div class="krp-box"><img class="krp-logo" src="${MNA.dir}krot-logo.webp?v=${MNA.v}" alt="Режим КРОТ — RUSH CASE">
     <h1 class="krp-h">Режим «Крот» — скоро</h1><p class="krp-t">Новый режим почти готов: доводим и проверяем. Откроем совсем скоро — следите за новостями на главной.</p><a class="krp-go" href="#/">На главную</a></div></section>`;
-  return `<section class="kr" id="kr"><p class="kr-boot"><i class="kr-spin"></i>Загружаем режим «КРОТ»…</p></section>`;
+  // заставка, пока грузится js/krot.js: кадр комнаты на весь экран — тот же, с которого начнётся экран загрузки (владелец 22.11: без старых экранов)
+  const n = 1 + Math.floor(Math.random() * 8);
+  return `<section class="kr" id="kr" data-ld="${n}"><p class="kr-boot" style="background-image:url(assets/rr/load/${n}.webp?v=2)" role="img" aria-label="Загрузка режима «Русская рулетка»"></p></section>`;
 }
 let krotLib = null;
 function krotLoad() {
@@ -3236,7 +3238,7 @@ document.addEventListener('click', e => {
 function mountKrot(arg) {
   const el = $('#kr'); if (!el || !krotOpen()) return;
   krotLoad().then(() => { if (el.isConnected && window.KROT) { window.KROT.mmInit(krotDeps()); window.KROT.mount(el, arg, krotDeps()); } })
-    .catch(() => { if (el.isConnected) el.innerHTML = '<p class="kr-boot">Не удалось загрузить режим. Проверьте интернет и обновите страницу.</p>'; });
+    .catch(() => { if (el.isConnected) el.innerHTML = '<p class="kr-fail">Не удалось загрузить режим. Проверьте интернет и обновите страницу.</p>'; });
 }
 
 /* ---------- страница «Кейсы» (владелец 11.11, по его примерам) ----------

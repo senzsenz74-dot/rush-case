@@ -146,13 +146,14 @@ K.mount = (el, arg, dep) => {
   root = el; const g = ++gen;
   const demo = arg === 'demo' && DEMO_OK;
   api = demo ? Demo : SRV;
+  ldN = +el.dataset.ld >= 1 && +el.dataset.ld <= LOAD_N ? +el.dataset.ld - 1 : rnd(LOAD_N);   // кадр экрана загрузки уже выбран заставкой страницы (app.js pageKrot)
   root.innerHTML = `<canvas class="kr-cv" id="krCv" tabindex="-1" aria-label="Игровой стол"></canvas><div class="kr-shade"></div><div class="kr-ui" id="krUi"></div><div class="kr-ov" id="krOv"></div>`;
   ui = $('#krUi', root);
   window.scrollTo(0, 0); setTop(); listen(); bindCanvas($('#krCv', root));
   raf = requestAnimationFrame(loop);
   start3D(g);
   const code = /^[A-Za-z0-9]{6}$/.test(arg || '') ? arg.toUpperCase() : '';
-  if (demo) { drawMenu(); return act('quick'); }
+  if (demo) { drawMenu(true); return act('quick'); }   // демо (только localhost): сразу экран загрузки и игра с ботами
   if (!authed()) { drawMenu(); if (code) note('Войдите, чтобы вступить в группу ' + code); return; }
   if (code) { drawMenu(); K.mmJoin(code); return; }
   const saved = LS.get('room', 0);
@@ -668,33 +669,19 @@ async function checkProof() {
    ============================================================ */
 function drawMenu(wait) {
   if (!root) return;
-  if (!wait && api !== Demo) {   // владелец 21.11: страницы-меню режима нет — вне комнаты сразу главная сайта (там «Играть» = поиск)
-    if (!authed() && typeof openAuth === 'function') setTimeout(() => openAuth('login'), 300);
-    if (location.hash.indexOf('#/krot') === 0) location.hash = '#/';
-    return;
+  // владелец 22.11: страницы-меню режима нет совсем (логотип, «Найти игру», «Создать лобби» убраны, и в демо тоже).
+  // wait — проверяем, нет ли идущей игры: сразу новый экран загрузки (раньше на секунду мелькало старое меню); иначе — главная сайта
+  if (wait) {
+    view = 'menu'; document.body.classList.add('krot-room'); setTimeout(setTop);
+    root.classList.remove('in-room', 'chat-on', 'lock', 'show-res', 'aim', 'can-pick', 'paused'); root.classList.add('in-menu'); delete root.dataset.ph;
+    if (G) G.menu(true);
+    ui.innerHTML = `<div class="kr-mid ld">${preHtml()}</div>`;
+    ensureHandlers(); return;
   }
-  view = 'menu'; document.body.classList.remove('krot-room'); setTimeout(setTop); root.classList.remove('in-room', 'chat-on', 'lock', 'show-res', 'aim', 'can-pick', 'paused'); root.classList.add('in-menu'); delete root.dataset.ph;
-  if (G) G.menu(true);
-  const can = authed() || api === Demo;
-  ui.innerHTML = `<div class="kr-menu"><section class="kr-mbox kr-glass">
-    <img class="kr-logo" src="assets/main/rr-logo.webp" alt="Русская рулетка — RUSH CASE" draggable="false">
-    <p class="kr-tag">Пять игроков, один револьвер. Крутите барабан сколько угодно — но выстрелить придётся. Остаётся один.</p>
-    <ul class="kr-facts"><li><b>5</b><span>игроков</span></li><li><b>6</b><span>гнёзд</span></li><li><b>1</b><span>выживет</span></li></ul>
-    ${wait ? '<p class="kr-wait"><i class="kr-spin"></i>Проверяем, нет ли у вас идущего матча…</p>' : can ? `
-    ${menuPlay()}
-    <form class="kr-join" id="krJoin" autocomplete="off"><input id="krCode" maxlength="6" placeholder="Код группы друга" spellcheck="false" aria-label="Код группы друга"><button class="kr-btn">В группу</button></form>` : `
-    <button class="kr-btn go kr-big" data-a="login"><span>Войти и играть</span><small>Режим бесплатный — нужен только аккаунт</small></button>`}
-    <div class="kr-mlinks"><button class="kr-link" data-a="how">${ICO.help}Как играть</button>${DEMO_OK && api !== Demo ? '<a class="kr-link" href="#/krot/demo">Демо с ботами (только на этом компьютере)</a>' : ''}</div>
-  </section></div>`;
-  ensureHandlers();
+  if (!authed() && api !== Demo && typeof openAuth === 'function') setTimeout(() => openAuth('login'), 300);
+  if (location.hash.indexOf('#/krot') === 0) location.hash = '#/';
 }
-// кнопки меню: поиск и группа (подбор как в CS2 — раздел «Подбор матча»)
 const pnum = p => p ? p.members.length + (p.bots ? p.bots.length : 0) : 0;   // мест в лобби: люди + боты (владелец 20.11)
-function menuPlay() {
-  const p = MM.st && MM.st.party, srch = !!(p && p.state === 'search'), n = p ? pnum(p) : 1;
-  return `<button class="kr-btn ${srch ? 'red' : 'go'} kr-big" data-a="play"><span>${srch ? 'Отменить поиск' : 'Найти игру'}</span><small>${srch ? 'Идёт поиск: <b id="krMmT">0:00</b>' : n > 1 ? `Лобби ${n}/5${n >= 5 ? " · без очков недели" : ""}` : 'Случайные игроки · очки недели'}</small></button>
-    <button class="kr-btn kr-big" data-a="invite"><span>${n > 1 ? `Лобби ${n}/5` : 'Создать лобби'}</span><small>Код или ссылка · до 5 человек</small></button>`;
-}
 function drawBusy(on) { if (root) root.classList.toggle('busy', on); }
 function ensureHandlers() {
   if (root._krH) return; root._krH = true;
@@ -1199,7 +1186,7 @@ function introTick() {   // отсчёт «Подготовка к раунду�
 }
 // ---------- экран загрузки: все приняли → ~10 с, все успевают открыть игру, проверить микрофон и звук ----------
 const TIPS = ['Крутить барабан можно сколько угодно раз — но выстрелить всё равно придётся.', 'Не крутили барабан — выстрел будет из следующего гнезда.', 'На ход — 20 секунд. Не успели — револьвер решит за вас.', 'Кто стреляет первым в раунде, решает случай.', 'С каждым раундом патронов больше: один, два, три.', 'В финале один на один в барабане пять патронов из шести.', 'После пустых щелчков шанс растёт. Может, стоит крутануть?', 'Выбывшие смотрят молча — живые их не слышат.', 'Здесь не бывает ничьих. Остаётся один.', 'Удача любит тех, у кого не дрожат руки.', 'Зажмите ЛКМ и ведите мышью — осмотритесь за столом.', 'Tab — таблица игроков: щелчки, прокрутки, места.', 'Победитель получает больше всех очков недели.', 'Деньги на столе — для антуража. Ставка здесь — жизнь.'];   // фразы экрана загрузки (владелец 20.11: тематические)
-let loadSent = 0, tipN = rnd(TIPS.length), tipAt = 0, lastLd = null, slideAt = 0;
+let loadSent = 0, tipN = rnd(TIPS.length), tipAt = 0, lastLd = null, slideAt = 0, ldN = 0, ldPre = null;   // ldN — кадр (заставка → предзагрузка → экран), ldPre — когда показана предзагрузка
 function markLoaded() {   // игра у меня загрузилась (3D готово или без 3D) — сообщаем серверу
   if (!S || !room || loadSent === room || S.room.phase !== 'lobby' || !S.room.mm) return;
   if (!(G || root.classList.contains('no3d'))) return;
@@ -1218,16 +1205,25 @@ function loadPlayers() {
   }).join('');
 }
 function loadHtml() {
-  const n0 = rnd(LOAD_N); slideAt = Date.now();
+  const pre = ldPre && Date.now() - ldPre.at < 15000 ? ldPre : null; ldPre = null;   // уже шла предзагрузка — тот же кадр, наезд и подсказка продолжаются
+  const n0 = pre ? ldN : (ldN = rnd(LOAD_N)); slideAt = pre ? pre.at : Date.now(); const dl = pre ? Math.min(8.5, (Date.now() - pre.at) / 1000) : 0;
   return `<section class="rrl">
-    <div class="rrl-bg" id="rlBg">${Array.from({ length: LOAD_N }, (_, i) => `<i class="${i === n0 ? 'on' : ''}" style="background-image:url(assets/rr/load/${i + 1}.webp?v=2)"></i>`).join('')}</div>
+    <div class="rrl-bg" id="rlBg">${ldSlides(n0, dl)}</div>
     <div class="rrl-top"><button class="rrl-x" data-a="leave" type="button">Выйти</button></div>   <!-- владелец 21.11: без логотипа и без списка игроков -->
     <div class="rrl-bot">
       <div class="rrl-map"><span class="rrl-mode">${S.room.points ? 'Быстрая игра' : 'Игра с друзьями'}</span><h1>Подпольное казино</h1></div>
-      <p class="rrl-tip in" id="krTip">${esc(TIPS[tipN % TIPS.length])}</p>
+      <p class="rrl-tip${pre ? '' : ' in'}" id="krTip">${esc(TIPS[tipN % TIPS.length])}</p>
       <div class="rrl-st" id="krLdSt">Загрузка…</div>
       <div class="rrl-bar"><i id="krLdBar"></i></div>
     </div></section>`;
+}
+const ldSlides = (n0, dl) => Array.from({ length: LOAD_N }, (_, i) => `<i class="${i === n0 ? 'on' : ''}" style="background-image:url(assets/rr/load/${i + 1}.webp?v=2)${i === n0 && dl ? `;animation-delay:-${dl.toFixed(2)}s` : ''}"></i>`).join('');
+// предзагрузка (владелец 22.11): пока проверяем, нет ли идущей игры, — тот же экран загрузки без данных комнаты (без режима, «Выйти» и отсчёта)
+function preHtml() {
+  ldPre = { at: Date.now() };
+  return `<section class="rrl"><div class="rrl-bg" id="rlPre">${ldSlides(ldN, 0)}</div>
+    <div class="rrl-bot"><div class="rrl-map"><span class="rrl-mode">&nbsp;</span><h1>Подпольное казино</h1></div>
+      <p class="rrl-tip in">${esc(TIPS[tipN % TIPS.length])}</p><div class="rrl-st">Загрузка…</div><div class="rrl-bar"><i></i></div></div></section>`;
 }
 // экран загрузки: отсчёт, полоска, кого ждём, смена подсказок (из uiTick)
 function loadTick() {
@@ -3756,7 +3752,7 @@ function mmDraw() {
     if (bar) bar.remove();
     clearInterval(MM.clock); MM.clock = 0;
   }
-  mmSlots(); mmCard(); mmMenu();
+  mmSlots(); mmCard();
   if (document.getElementById('krmmWin')) mmWin(true);
 }
 // полоса поиска: в блоке баланса (правая колонка), а если его нет на экране — плавающая справа сверху
@@ -3791,15 +3787,6 @@ function mmCard() {
   b.textContent = s && s.match ? 'Игра найдена' : srch ? 'Отменить поиск' : 'Играть';
   b.classList.toggle('krmm-srch', srch);
   const lb = document.querySelector('.mnk-lb'); if (lb) { const n = pnum(p); lb.textContent = n > 1 ? `Лобби · ${n}/${NS}` : 'Лобби'; }
-}
-function mmMenu() {
-  if (!root || view !== 'menu') return;
-  const p = MM.st && MM.st.party, key = p ? p.state + pnum(p) : '-';
-  if (key === MM.menuKey) return; MM.menuKey = key;
-  const box = $('.kr-mbox', root), btn = box && $('[data-a="play"]', box); if (!btn) return;
-  const tmp = document.createElement('div'); tmp.innerHTML = menuPlay();
-  const inv = $('[data-a="invite"]', box);
-  btn.replaceWith(tmp.firstElementChild); if (inv) inv.replaceWith(tmp.lastElementChild);
 }
 
 /* ---------- окно группы (плюс у агента / «Пригласить друзей») ---------- */
