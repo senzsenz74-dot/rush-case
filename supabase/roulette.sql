@@ -796,13 +796,13 @@ begin
   return rid;
 end $$;
 
--- сесть за стол: первое свободное место
+-- сесть за стол: случайное свободное место (владелец 22.11: места каждую игру случайно, друзья тоже)
 create or replace function public._rr_enter(p_room bigint) returns void language plpgsql as $$
 declare pr record; s int;
 begin
   select name, ava, pid into pr from public.profiles where id = auth.uid();
-  select min(x) into s from generate_series(1, 5) x
-    where not exists (select 1 from public.rr_players where room_id = p_room and seat = x);
+  select x into s from generate_series(1, 5) x
+    where not exists (select 1 from public.rr_players where room_id = p_room and seat = x) order by random() limit 1;
   if s is null then raise exception 'room full'; end if;
   insert into public.rr_players (room_id, uid, seat, name, ava, pid, seen_at)
     values (p_room, auth.uid(), s, coalesce(pr.name, 'Игрок'), pr.ava, pr.pid, public._rr_now());
@@ -1244,7 +1244,7 @@ end $$;
 create or replace function public._rr_mm_match() returns int language plpgsql as $$
 declare
   c jsonb := public._rr_cfg(); now_ts timestamptz := public._rr_now(); made int := 0;
-  anc record; q record; pick bigint[]; need int; rid bigint; s int; m record; bn text;
+  anc record; q record; pick bigint[]; need int; rid bigint; s int; m record; bn text; v_seat int[];
 begin
   perform pg_advisory_xact_lock(hashtext('rush-rr-mm'));
   loop
@@ -1266,22 +1266,22 @@ begin
     insert into public.rr_rooms (code, kind, owner, mm, phase_at, phase_deadline)
       values (public._rr_code(), 'quick', (select leader from public.rr_party where id = pick[1]), true, now_ts, now_ts + public._rr_dur(c, 'accept'))
       returning id into rid;
-    s := 0;
+    s := 0; v_seat := array(select x from generate_series(1, 5) x order by random());   -- места вперемешку: и друзья группы, и боты (владелец 22.11)
     for m in select mb.uid, mb.party_id, mb.name, mb.ava, mb.pid, (select count(*) from public.rr_party_members x where x.party_id = mb.party_id) psize
         from public.rr_party_members mb join unnest(pick) with ordinality u(ptid, ord) on u.ptid = mb.party_id
         order by u.ord, mb.joined_at loop
       s := s + 1;
       insert into public.rr_players (room_id, uid, seat, name, ava, pid, seen_at, solo, party_id)
-        values (rid, m.uid, s, coalesce(m.name, 'Игрок'), m.ava, m.pid, now_ts, m.psize = 1, m.party_id);
+        values (rid, m.uid, v_seat[s], coalesce(m.name, 'Игрок'), m.ava, m.pid, now_ts, m.psize = 1, m.party_id);
     end loop;
     for bn in select b from public.rr_party pt, unnest(pt.bots) b where pt.id = pick[1] loop   -- боты лобби, потом — до пяти
       exit when s >= 5; s := s + 1;
-      insert into public.rr_players (room_id, uid, seat, name, ready, loaded, bot, seen_at) values (rid, gen_random_uuid(), s, bn, true, true, true, now_ts);
+      insert into public.rr_players (room_id, uid, seat, name, ready, loaded, bot, seen_at) values (rid, gen_random_uuid(), v_seat[s], bn, true, true, true, now_ts);
     end loop;
     while s < 5 and (select cardinality(bots) from public.rr_party where id = pick[1]) > 0 loop
       s := s + 1;
       select n into bn from unnest(array['Viper', 'Сова', 'Grizzly', 'Lynx', 'Кобра', 'Shade', 'Гром', 'Ghost', 'Рысь', 'Волк']) n where not exists (select 1 from public.rr_players where room_id = rid and name = n) order by random() limit 1;
-      insert into public.rr_players (room_id, uid, seat, name, ready, loaded, bot, seen_at) values (rid, gen_random_uuid(), s, coalesce(bn, 'Бот ' || s), true, true, true, now_ts);
+      insert into public.rr_players (room_id, uid, seat, name, ready, loaded, bot, seen_at) values (rid, gen_random_uuid(), v_seat[s], coalesce(bn, 'Бот ' || v_seat[s]), true, true, true, now_ts);
     end loop;
     update public.rr_party set state = 'match', room_id = rid, note = null, rev = rev + 1, updated_at = now_ts where id = any(pick);
     perform public._rr_log(rid, null, 'mm_match', jsonb_build_object('parties', to_jsonb(pick)));
@@ -1594,7 +1594,7 @@ language plpgsql security definer set search_path = public as $$
 declare s int; v_nm text;
 begin
   perform public._rr_bot_room(p_room);
-  select min(x) into s from generate_series(1, 5) x where not exists (select 1 from public.rr_players where room_id = p_room and seat = x);
+  select x into s from generate_series(1, 5) x where not exists (select 1 from public.rr_players where room_id = p_room and seat = x) order by random() limit 1;   -- случайное свободное место
   if s is null then raise exception 'room full'; end if;
   select n into v_nm from unnest(array['Viper', 'Сова', 'Grizzly', 'Lynx', 'Кобра', 'Shade', 'Гром', 'Ghost', 'Рысь', 'Волк']) n
     where not exists (select 1 from public.rr_players where room_id = p_room and name = n) order by random() limit 1;

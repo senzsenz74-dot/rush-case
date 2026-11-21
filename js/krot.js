@@ -2022,15 +2022,16 @@ function makeWorld(T, RB, RE, cv, PP) {
   const tween = (dur, fn, delay = 0) => new Promise(res => tw.push({ t0: clock + delay, dur, fn, res }));
   const seatYaw = s => SEAT[s].yaw;
 
-  /* персонажи CS2 (этап 5): assets/krot/<имя>.glb (~1 МБ: без анимаций, WebP, meshopt). Грузятся после показа стола, до тех пор — манекены.
-     Все четыре — один скелет CS2 (рост ~2 м, лицом в +z). Посадка — поворотом костей каждый кадр: корпус чуть вперёд, ноги — IK
+  /* персонажи CS2 (этап 5): assets/krot/<имя>.glb (0,5–1,2 МБ: без анимаций, WebP, meshopt). Грузятся после показа стола, до тех пор — манекены.
+     Все — один скелет CS2 (рост ~2 м, лицом в +z). Посадка — поворотом костей каждый кадр: корпус чуть вперёд, ноги — IK
      бедро→колено→щиколотка под столом, руки — IK к нижним углам карточки (ладони за карточкой), голова — head_0/neck_0 по взгляду игрока;
-     дыхание, при речи — кивок и жест правой рукой. Кто где сидит — случайно на каждую игру (у всех одинаково: от номера комнаты).
-     У своего места голова сжата в ноль (вид от первого лица). */
-  const CHARS = ['romanov', 'dragomir', 'fbi', 'prof'], MDL = [],
-    TWIN = { from: 1, tint: [.5, .58, .72] },   // 5-е место: копия Драгомира в другой одежде (пока нет 5-го персонажа); красим только одежду
-    MS = .84, HIP = V(0, .565, .035);
-  let mdlOrder = SEATS.map(s => s - 1), mdlKey = null, mdlAlive = true;
+     дыхание, при речи — кивок и жест правой рукой. У своего места голова сжата в ноль (вид от первого лица).
+     Раздача (владелец 22.11): каждую игру 5 РАЗНЫХ случайных из всех CHARS, у всех за столом одинаково (от номера комнаты — mdlDeal);
+     грузятся только розданные. Феникс и Маккой пришли без костей — посажены на скелет Романова (tools/krot-rig.py). */
+  const CHARS = [{ f: 'romanov' }, { f: 'dragomir' }, { f: 'fbi' }, { f: 'prof' }, { f: 'phoenix' }, { f: 'mccoy' },
+      { f: 'dragomir', tint: [.5, .58, .72] }],   // голубой Драгомир: копия, перекрашена только одежда (владелец 22.11: оставить ещё одним)
+    MDL = [], MS = .84, HIP = V(0, .565, .035);
+  let mdlOrder = SEATS.map(s => s - 1), mdlKey = null, mdlAlive = true, mdlGet = null;   // mdlGet — догрузить розданных (есть после загрузки GLTFLoader)
   const _p = V(0, 0, 0), _p3 = V(0, 0, 0), _d1 = V(0, 0, 0), _d2 = V(0, 0, 0), _n = V(0, 0, 0), _mv = V(0, 0, 0), _sc = V(0, 0, 0), _ps = V(0, 0, 0);
   const _e1 = V(0, 0, 0), _e2 = V(0, 0, 0), _e3 = V(0, 0, 0), _e4 = V(0, 0, 0), _f1 = V(0, 0, 0), _f2 = V(0, 0, 0), _f3 = V(0, 0, 0), _t1 = V(0, 0, 0), _t2 = V(0, 0, 0), _t3 = V(0, 0, 0);
   const _qa = new T.Quaternion(), _qb = new T.Quaternion(), _qc = new T.Quaternion(), _qg = new T.Quaternion(), _qs = new T.Quaternion(), _qh = new T.Quaternion(), _qh2 = new T.Quaternion(), _qI = new T.Quaternion(), _m2 = new T.Matrix4(), _mi = new T.Matrix4(), _eg = new T.Euler(0, 0, 0, 'YXZ');
@@ -2150,11 +2151,11 @@ function makeWorld(T, RB, RE, cv, PP) {
       showAV(a);
     }
   };
-  const mdlShuffle = key => {   // одинаковая у всех перестановка от номера комнаты
+  const mdlDeal = key => {   // раздача: место → персонаж; 5 разных из всех CHARS, одинаково у всех (от номера комнаты; новая игра — новая комната)
     let h = 2166136261; for (const ch of String(key)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
     const rnd2 = () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
-    const o = SEATS.map(s => s - 1); for (let i = NS - 1; i > 0; i--) { const j = Math.floor(rnd2() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; }
-    return o;
+    const o = CHARS.map((c, i) => i); for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(rnd2() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; }
+    return o.slice(0, NS);   // CHARS должно быть не меньше NS: одна модель — одно место
   };
   setTimeout(() => {
     if (!mdlAlive) return;
@@ -2180,19 +2181,26 @@ function makeWorld(T, RB, RE, cv, PP) {
           gun.half = (bb.max.z - bb.min.z) / 2; gun.muzzle = V(bb.max.x - c.x, .039, 0);   // ось ствола — на 3,9 см выше центра (замер 20.11)
         } catch (e) { console.warn('RR revolver', e); }
       }, undefined, e => console.warn('RR revolver', e));
-      CHARS.forEach((n, i) => ld.load('assets/krot/' + n + '.glb?v=1', gl => {
-        if (!mdlAlive) { gl.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { for (const k in o.material) { const v = o.material[k]; if (v && v.isTexture) v.dispose(); } o.material.dispose(); } }); return; }
-        try {
-          const twin = i === TWIN.from && NS > CHARS.length ? SKU.clone(gl.scene) : null;   // копию — до setupModel (он двигает кости)
-          MDL[i] = setupModel(gl, i);
-          if (twin) {
-            const tc = new T.Color().setRGB(...TWIN.tint);
-            twin.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); if (/body/i.test(o.material.name)) o.material.color.multiply(tc); } });
-            MDL[CHARS.length] = setupModel({ scene: twin }, CHARS.length);
-          }
-          mdlApply();
-        } catch (e) { console.warn('KROT model', n, e); }
-      }, undefined, e => console.warn('KROT model', n, e)));
+      const files = {}, asked = new Set();   // файл → загрузка (из одного файла может быть два персонажа); какие персонажи уже запрошены
+      const file = n => files[n] || (files[n] = new Promise((ok, no) => ld.load('assets/krot/' + n + '.glb?v=1', ok, undefined, no)));
+      const drop = sc => sc.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { for (const k in o.material) { const v = o.material[k]; if (v && v.isTexture) v.dispose(); } o.material.dispose(); } });
+      mdlGet = () => {
+        if (!mdlAlive || mdlKey == null) return;   // до номера комнаты раздачи нет — ничего лишнего не грузим
+        for (const i of mdlOrder) {
+          if (MDL[i] || asked.has(i)) continue;
+          asked.add(i); const c = CHARS[i];
+          file(c.f).then(gl => {
+            if (!mdlAlive) { drop(gl.scene); return; }
+            try {
+              const sc = SKU.clone(gl.scene);   // копия — до setupModel (он двигает кости); у голубого Драгомира свои материалы
+              if (c.tint) { const tc = new T.Color().setRGB(...c.tint); sc.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); if (/body/i.test(o.material.name)) o.material.color.multiply(tc); } }); }
+              MDL[i] = setupModel({ scene: sc }, i);
+              mdlApply();
+            } catch (e) { console.warn('RR model', c.f, e); }
+          }, e => console.warn('RR model', c.f, e));
+        }
+      };
+      mdlGet();
     }).catch(e => console.warn('KROT models', e));
   }, 400);
 
@@ -2396,7 +2404,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   // снимок сервера → кто за столом, кто ходит, кто выбыл; револьвер — перед тем, чей ход
   W.sync = d => {
     mySeat = d.me.seat || 1;
-    if (d.room && d.room.id != null && d.room.id !== mdlKey) { mdlKey = d.room.id; mdlOrder = mdlShuffle(mdlKey); mdlApply(); }
+    if (d.room && d.room.id != null && d.room.id !== mdlKey) { mdlKey = d.room.id; mdlOrder = mdlDeal(mdlKey); mdlApply(); if (mdlGet) mdlGet(); }
     const g = d.game, ph = d.room.phase;
     for (const s of SEATS) {
       const a = AV[s], p = d.players.find(x => x.seat === s);
@@ -3052,7 +3060,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     if (scene.environment) scene.environment.dispose();
     ren.dispose(); try { ren.forceContextLoss(); } catch (e) { /* уже потерян */ }
   };
-  W.dbg = { AV, MDL, cam, ren, scene, order: o => { mdlOrder = o; mdlApply(); }, look: (y, p) => { yaw = y; pitch = p; userAt = clock; auto = null; } };   // для проверки из браузера (KROT.dbg.world().dbg)
+  W.dbg = { AV, MDL, cam, ren, scene, order: o => { mdlOrder = o; mdlApply(); if (mdlGet) mdlGet(); }, deal: k => mdlDeal(k), chars: CHARS, get mdlOrder() { return mdlOrder; }, look: (y, p) => { yaw = y; pitch = p; userAt = clock; auto = null; } };   // для проверки из браузера (KROT.dbg.world().dbg)
   W.resetRound();
   return W;
 }
@@ -3909,23 +3917,25 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   const LINES = { turn: ['Ну, с богом.', 'Моя очередь…', 'Руки трясутся, честно.', 'Давай уже.', 'Ладно, поехали.'], click: ['Фух.', 'Пусто!', 'Живой.', 'Следующий!'],
     bang: ['Минус один…', 'Жёстко.', 'Вот и раунд.', 'Ох.'], chat: ['Ага.', 'Посмотрим.', 'Удачи всем.', 'Не тяни.', '😅'] };
   const now = () => Date.now();
-  const pl = (seat, me) => ({ seat, name: me ? myName() : NAMES[seat - 2], me: !!me, ready: false, online: true, left: false, loaded: false, alive: true, place: null, pts: null, clicks: 0, spins: 0, bet: null, won: null, back: null, tp: me ? 0 : Math.floor(Math.random() * 900) });
+  let seats = SEATS.slice();   // демо-раздача мест: [моё, боты…] — каждую игру заново (как на сервере)
+  const pl = (k, me) => ({ seat: seats[k], name: me ? myName() : NAMES[k - 1], me: !!me, ready: false, online: true, left: false, loaded: false, alive: true, place: null, pts: null, clicks: 0, spins: 0, bet: null, won: null, back: null, tp: me ? 0 : Math.floor(Math.random() * 900) });
   function reset() {
     if (D.bal == null) D.bal = 3000;   // демо-баланс (настоящий не трогаем)
-    st2 = { room: { id: 900001, code: 'DEMO42', kind: 'quick', points: true, money: true, phase: 'lobby', rev: 1, phase_at: now(), deadline: null, paused: false, owner: true, turn_sec: RR.turn,
+    seats = shuffle(SEATS.slice());
+    st2 = { room: { id: 900000 + rnd(99999), code: 'DEMO42', kind: 'quick', points: true, money: true, phase: 'lobby', rev: 1, phase_at: now(), deadline: null, paused: false, owner: true, turn_sec: RR.turn,
       min_bet: RR.minBet, max_bet: RR.maxBet, fee: RR.fee, vote_sec: RR.voteSec, max_bul: RR.maxBul },
-      players: [pl(1, true)], chat: [], cid: 0, g: null, plan: [] };
+      players: [pl(0, true)], chat: [], cid: 0, g: null, plan: [] };
     sys('Демо-комната: проба без сервера, вместо людей — боты.');
     clearInterval(iv); iv = setInterval(step, 200); clearInterval(heads); heads = setInterval(botHeads, 700);
     if (D.quick) {   // пришли из демо-подбора: все уже приняли — экран загрузки
       D.quick = false;
-      for (let s = 2; s <= NS; s++) { const p = pl(s); p.ready = true; st2.players.push(p); }
-      st2.players[0].ready = true;
+      for (let k = 1; k < NS; k++) { const p = pl(k); p.ready = true; st2.players.push(p); }
+      st2.players.sort((a, b) => a.seat - b.seat); st2.players.forEach(p => { if (p.me) p.ready = true; });
       st2.room.mm = true; st2.room.load_at = now(); st2.room.deadline = now() + 10000;
-      st2.players.slice(1).forEach(p => later(1200 + rnd(5500), () => { p.loaded = true; bump(); }));
+      st2.players.filter(p => !p.me).forEach(p => later(1200 + rnd(5500), () => { p.loaded = true; bump(); }));
       return;
     }
-    [1300, 2300, 3200, 4000].forEach((t, i) => later(t, () => { const p = pl(i + 2); st2.players.push(p); sys(`Игрок ${p.name} сел за стол.`); bump(); }));
+    [1300, 2300, 3200, 4000].forEach((t, i) => later(t, () => { const p = pl(i + 1); st2.players.push(p); st2.players.sort((a, b) => a.seat - b.seat); sys(`Игрок ${p.name} сел за стол.`); bump(); }));
     later(4900, () => { st2.players.forEach(p => { if (!p.me) p.ready = true; }); bump(); });
     later(5000, () => { if (st2.room.phase === 'lobby') { st2.room.phase_at = now(); st2.room.deadline = now() + 4000; bump(); } });
   }

@@ -7,6 +7,8 @@
 // --drop-back-bag — только для «Профессионала» (assets/main/agent.glb): сумка за поясом протыкает спинку стула.
 // Источники 12.11.2026: Загрузки владельца balkan-cs2-agent-model-romanov / -dragomir-no2 / fbi-cs2-agent-model-no2 (source/*.glb),
 // «Профессионал» — assets/main/agent.glb.
+// 22.11.2026: phoenix / mccoy — Загрузки street-soldier-phoenix.zip / two-times-mccoy-tacp-cavalry.zip; пришли БЕЗ костей —
+// сначала tools/krot-rig.py (скелет Романова), потом этот скрипт.
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, EXTTextureWebP, EXTMeshoptCompression } from '@gltf-transform/extensions';
 import { prune, dedup, weld, reorder, quantize } from '@gltf-transform/functions';
@@ -37,11 +39,13 @@ if (!uv1) for (const m of R.listMeshes()) for (const p of m.listPrimitives()) { 
 // размер текстуры: цвет/нормаль тела и головы — 1024, всё остальное (ORM, перчатки, низ, шляпа/очки) — 512
 for (const t of R.listTextures()) {
   const mats = t.listParents().filter(p => p.propertyType === 'Material');
-  const big = mats.some(m => /body|head|mask/.test(m.getName()) && !/lower/.test(m.getName()) && (m.getBaseColorTexture() === t || m.getNormalTexture() === t));
+  const big = mats.some(m => /body|head|mask|balaclava/.test(m.getName()) && !/lower/.test(m.getName()) && (m.getBaseColorTexture() === t || m.getNormalTexture() === t));
   const size = big ? 1024 : 512, isN = mats.some(m => m.getNormalTexture() === t), isC = mats.some(m => m.getBaseColorTexture() === t);
   const img = sharp(Buffer.from(t.getImage())), meta = await img.metadata();
   const s = Math.min(size, meta.width);
-  const buf = await img.resize(s, s, { kernel: 'lanczos3' }).removeAlpha().webp({ quality: isN ? 90 : isC ? 82 : 80, effort: 6, smartSubsample: true }).toBuffer();
+  // альфу — ДО уменьшения: у агентов CS2 альфа цвета = служебная маска (часто 0), а sharp при уменьшении умножает цвет на альфу → чёрное (Феникс, 22.11)
+  const rgb = await sharp(Buffer.from(t.getImage())).removeAlpha().png().toBuffer();
+  const buf = await sharp(rgb).resize(s, s, { kernel: 'lanczos3' }).webp({ quality: isN ? 90 : isC ? 82 : 80, effort: 6, smartSubsample: true }).toBuffer();
   t.setImage(new Uint8Array(buf)).setMimeType('image/webp').setURI('');
 }
 doc.createExtension(EXTTextureWebP).setRequired(true);

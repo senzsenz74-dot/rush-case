@@ -654,5 +654,38 @@ log('L. финал вдвоём — голосовать нельзя');
   ok(/final no vote/.test(await err(rpc(await seatUid(room, sv), 'rr_vote_start', { p_room: room }))), 'вдвоём (финал) поднять руку нельзя');
 }
 
+log('N. места за столом — случайно (владелец 22.11): подбор группы из 5 и комната друзей, по 20 попыток (каждая — откат)');
+{
+  const Q = [];
+  for (let i = 13; i <= 17; i++) {
+    const id = `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`;
+    Q.push(id); await db.query(`insert into public.profiles (id, name, pid) values ($1, $2, $3)`, [id, 'Игрок' + i, 100000 + i]);
+  }
+  const seatsOf = async room => (await db.query(`select uid, seat from public.rr_players where room_id = $1 order by seat`, [room])).rows;
+  const lead = [], perm = [], own = [], perm2 = [];
+  for (let k = 0; k < 20; k++) {
+    await db.exec('begin');
+    try {
+      const m0 = await rpc(Q[0], 'rr_party_open');
+      for (const u of Q.slice(1)) await rpc(u, 'rr_party_join', { p_code: m0.party.code });
+      const m = await rpc(Q[0], 'rr_search', { p_on: true });
+      const rows = await seatsOf(m.match.room);
+      perm.push(rows.map(r => r.seat).join('')); lead.push(rows.find(r => r.uid === Q[0]).seat);
+    } finally { await db.exec('rollback'); }
+    await db.exec('begin');
+    try {
+      let s = await rpc(Q[0], 'rr_create', { p_private: true });
+      for (const u of Q.slice(1)) await rpc(u, 'rr_join', { p_code: s.room.code });
+      const rows = await seatsOf(s.room.id);
+      perm2.push(rows.map(r => r.seat).join('')); own.push(rows.find(r => r.uid === Q[0]).seat);
+    } finally { await db.exec('rollback'); }
+  }
+  ok(perm.every(p => p === '12345'), 'подбор: у всех пятерых места 1–5 без повторов', perm);
+  ok(new Set(lead).size >= 3, 'подбор: место лидера группы меняется от игры к игре', lead);
+  ok(perm2.every(p => p === '12345'), 'комната друзей: места 1–5 без повторов', perm2);
+  ok(new Set(own).size >= 3, 'комната друзей: место создателя меняется', own);
+  log('  место лидера (подбор): ' + lead.join(' ') + ' | создателя (комната): ' + own.join(' '));
+}
+
 log(`\nПроверок: ${checks}, ошибок: ${fails}`);
 process.exit(fails ? 1 : 0);
