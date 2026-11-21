@@ -227,6 +227,17 @@ function build(i) {
 }
 
 fs.mkdirSync(OUT, { recursive: true });
-CFG.forEach((_, i) => fs.writeFileSync(path.join(OUT, `rank-${i + 1}.svg`), build(i)));
+// звание 10 — картинка владельца (21.11): tools/rr/src/rank-10.webp (готовит tools/rr/rank10-prep.js) встраивается в SVG той же разметки:
+// плашка — 300 ед. по ширине (x 10…310), её центр по высоте — на 65, как у остальных значков; звезда сверху/снизу укладывается в viewBox
+const OWN10 = path.join(__dirname, 'src/rank-10.webp');
+function own10() {
+  const b = fs.readFileSync(OWN10), x = b.toString('latin1', 12, 16) === 'VP8X', w = x ? 1 + b.readUIntLE(24, 3) : 600, h = x ? 1 + b.readUIntLE(27, 3) : 311;   // размер из заголовка WebP
+  const H = 300 * h / w, y = 65 - .542 * H;   // .542 — центр плашки по высоте картинки
+  const uri = 'data:image/webp;base64,' + b.toString('base64');
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-10 -20 340 170" width="340" height="170"><title>${RANKS[9].name} — от ${RANKS[9].pts} очков</title>`
+    + `<image x="10" y="${f(y)}" width="300" height="${f(H)}" href="${uri}" xlink:href="${uri}"/></svg>
+`;
+}
+CFG.forEach((_, i) => fs.writeFileSync(path.join(OUT, `rank-${i + 1}.svg`), i === 9 && fs.existsSync(OWN10) ? own10() : build(i)));
 fs.writeFileSync(path.join(OUT, 'ranks.json'), JSON.stringify(RANKS.map((r, i) => ({ n: i + 1, ...r, icon: `rank-${i + 1}.svg` })), null, 1) + '\n');
 console.log('ok:', CFG.length, 'значков →', OUT);
