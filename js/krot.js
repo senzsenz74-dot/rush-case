@@ -14,8 +14,8 @@ const K = window.KROT = {};
 const DEMO_OK = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 const $ = (s, r = document) => r.querySelector(s);
 let esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let sb = null, openAuth = null, getUser = () => null, soundOn = () => true;   // из app.js (KROT.mount / KROT.mmInit)
-function setDeps(dep) { if (!dep) return; if (dep.sb) sb = dep.sb; if (dep.openAuth) openAuth = dep.openAuth; if (dep.esc) esc = dep.esc; if (dep.user) getUser = dep.user; if (dep.sound) soundOn = dep.sound; }
+let sb = null, openAuth = null, getUser = () => null, soundOn = () => true, siteToast = null;   // из app.js (KROT.mount / KROT.mmInit)
+function setDeps(dep) { if (!dep) return; if (dep.sb) sb = dep.sb; if (dep.openAuth) openAuth = dep.openAuth; if (dep.toast) siteToast = dep.toast; if (dep.esc) esc = dep.esc; if (dep.user) getUser = dep.user; if (dep.sound) soundOn = dep.sound; }
 
 /* ---------- константы ---------- */
 const EYE = 1.28, TOP = .765;                                                  // высота глаз, высота сукна (м)
@@ -408,7 +408,7 @@ function roomless(msg) {
   stopSync(); room = 0; LS.set('room', 0); S = null; lastPhase = ''; pend = null; draft = 0; proof = null; ov = '';
   if (api === Demo) Demo.stop();
   if (G) G.resetRound();
-  drawMenu(); if (msg) note(msg);
+  drawMenu(); if (msg) { if (api !== Demo && typeof siteToast === 'function') siteToast(msg); else note(msg); }   // меню нет — сообщение всплывает на главной
 }
 
 /* ---------- голосование ---------- */
@@ -640,6 +640,11 @@ async function checkProof() {
    ============================================================ */
 function drawMenu(wait) {
   if (!root) return;
+  if (!wait && api !== Demo) {   // владелец 21.11: страницы-меню режима нет — вне комнаты сразу главная сайта (там «Играть» = поиск)
+    if (!authed() && typeof openAuth === 'function') setTimeout(() => openAuth('login'), 300);
+    if (location.hash.indexOf('#/krot') === 0) location.hash = '#/';
+    return;
+  }
   view = 'menu'; document.body.classList.remove('krot-room'); setTimeout(setTop); root.classList.remove('in-room', 'chat-on', 'lock', 'show-res', 'aim', 'can-pick', 'paused'); root.classList.add('in-menu'); delete root.dataset.ph;
   if (G) G.menu(true);
   const can = authed() || api === Demo;
