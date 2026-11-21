@@ -2185,119 +2185,8 @@ function liveMine(d) {
   if (false) sb.from('live_drops').insert({ uid: st.user.id, name: st.user.name, n: d.n, t: d.t || 'case', c: d.c || null, x: d.x ? Math.round(d.x * 100) / 100 : 0 }).then(() => {}, () => {});
 }
 
-/* ---------- background fx: «золотая пыль» поверх фона ----------
-   Три слоя глубины: дальние — мелкие чёткие искорки, средние — с ореолом, ближние — крупные размытые «боке».
-   Больше по краям, меньше в центре (не мешают кейсам). Редкие блики-звёздочки.
-   Параллакс от мыши и прокрутки (ближние сдвигаются сильнее), fxBurst() — золотая вспышка на крупный дроп. */
+// «золотая пыль» поверх фона удалена вместе со старым фоном (владелец 21.11); вспышка на крупный дроп — пустышка
 let fxBurst = () => {};
-function initFx() {
-  const host = $('#fx');
-  host.innerHTML = '<canvas class="fx-cv" aria-hidden="true"></canvas>';
-  const cv = host.firstChild, x = cv.getContext('2d');
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const SPR = 64; // спрайты рисуем крупно и штампуем со сжатием — края остаются гладкими
-  const mk = draw => { const c = document.createElement('canvas'); c.width = c.height = SPR; draw(c.getContext('2d'), SPR / 2); return c; };
-  // чёткое ядро с тугим ореолом
-  const core = (r, g, b) => mk((q, h) => { const gr = q.createRadialGradient(h, h, 0, h, h, h);
-    gr.addColorStop(0, 'rgba(255,252,236,1)'); gr.addColorStop(.1, `rgba(${r},${g},${b},.95)`); gr.addColorStop(.22, `rgba(${r},${g},${b},.35)`);
-    gr.addColorStop(.5, `rgba(${r},${g},${b},.08)`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`); q.fillStyle = gr; q.fillRect(0, 0, SPR, SPR); });
-  // «боке»: мягкий диск со светлым ободком, как размытый огонёк вне фокуса
-  const bokeh = (r, g, b) => mk((q, h) => { const gr = q.createRadialGradient(h, h, 0, h, h, h);
-    gr.addColorStop(0, `rgba(${r},${g},${b},.22)`); gr.addColorStop(.62, `rgba(${r},${g},${b},.26)`); gr.addColorStop(.82, `rgba(${r},${g},${b},.42)`);
-    gr.addColorStop(.92, `rgba(${r},${g},${b},.16)`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`); q.fillStyle = gr; q.fillRect(0, 0, SPR, SPR); });
-  // блик-звёздочка: тонкий крест с ядром
-  const star = mk((q, h) => {
-    const ray = (dx, dy) => { const gr = q.createLinearGradient(h - dx * h, h - dy * h, h + dx * h, h + dy * h);
-      gr.addColorStop(0, 'rgba(255,226,160,0)'); gr.addColorStop(.5, 'rgba(255,248,225,1)'); gr.addColorStop(1, 'rgba(255,226,160,0)');
-      q.strokeStyle = gr; q.lineWidth = 1.6; q.beginPath(); q.moveTo(h - dx * h, h - dy * h); q.lineTo(h + dx * h, h + dy * h); q.stroke(); };
-    ray(1, 0); ray(0, 1);
-    const gr = q.createRadialGradient(h, h, 0, h, h, h * .35); gr.addColorStop(0, 'rgba(255,250,232,1)'); gr.addColorStop(1, 'rgba(255,200,110,0)');
-    q.fillStyle = gr; q.fillRect(0, 0, SPR, SPR);
-  });
-  const C_GOLD = core(246, 198, 96), C_CHAMP = core(246, 221, 167), C_VIOLET = core(176, 140, 255);
-  const B_GOLD = bokeh(232, 176, 80), B_CHAMP = bokeh(246, 221, 167), B_VIOLET = bokeh(150, 110, 230);
-
-  let W = 0, H = 0, dpr = 1, parts = [];
-  // x: чаще у краёв, реже в центре
-  const edgeX = () => { const u = Math.random(), s = u < .5 ? -1 : 1, d = Math.pow(Math.random(), .55); return .5 + s * d * .5; };
-  const spawn = (init, layer) => {
-    const z = layer ?? (Math.random() < .55 ? 0 : Math.random() < .8 ? 1 : 2); // 0 дальние, 1 средние, 2 ближние
-    const vio = Math.random() < .12;
-    return { z, x: edgeX(), y: init ? Math.random() : 1.05, sp: [.35, .6, .9][z] * (.7 + Math.random() * .6),
-      ph: Math.random() * 6.28, tw: .6 + Math.random() * 1.6, sz: [1.9, 3.4, 34][z] * (.7 + Math.random() * .7),
-      a: [.8, .95, .42][z] * (.6 + Math.random() * .4), spr: z === 2 ? (vio ? B_VIOLET : Math.random() < .5 ? B_GOLD : B_CHAMP) : (vio ? C_VIOLET : Math.random() < .5 ? C_GOLD : C_CHAMP),
-      glint: 0, life: 0 };
-  };
-  const fit = () => {
-    dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
-    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); x.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const n = Math.round(clamp(W * H / 15000, 40, 150)); // сдержанно: ~140 на 1920×1080, ~40 на телефоне
-    while (parts.length < n) parts.push(spawn(true));
-    parts.length = n;
-  };
-  fit(); addEventListener('resize', fit);
-  // параллакс: мышь и прокрутка (сглаженные)
-  let mx = 0, my = 0, tx = 0, ty = 0, ss = scrollY;
-  addEventListener('pointermove', e => { tx = e.clientX / W - .5; ty = e.clientY / H - .5; }, { passive: true });
-  // вспышка на крупный дроп: мягкий свет + разлёт золотых искр из центра, потом они тают
-  const flares = []; let flash = 0;
-  fxBurst = (n = 70) => {
-    flash = Math.min(1, flash + .35 + n / 400);
-    const cx = W / 2, cy = H * .42, k = Math.min(160, Math.round(n * 1.1));
-    for (let i = 0; i < k; i++) {
-      const a = Math.random() * 6.283, v = 140 + Math.random() * 520 * (Math.random() < .3 ? 1.4 : 1);
-      flares.push({ x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, life: 0, max: 1.1 + Math.random() * 1.4,
-        sz: 2 + Math.random() * 3.5, spr: Math.random() < .15 ? C_VIOLET : Math.random() < .5 ? C_GOLD : C_CHAMP, st: Math.random() < .18 });
-    }
-  };
-  const DEPTH_M = [6, 16, 40], DEPTH_S = [.06, .16, .38]; // насколько слой сдвигается за мышью / прокруткой
-  let last = performance.now();
-  const frame = now => {
-    requestAnimationFrame(frame);
-    if (document.hidden || document.body.classList.contains('pg-home')) { last = now; return; } // на главной фон без эффектов — не рисуем
-    const dt = Math.min(.05, (now - last) / 1000), t = now / 1000; last = now;
-    mx += (tx - mx) * .05; my += (ty - my) * .05;
-    ss += (scrollY - ss) * Math.min(1, dt * 7); // прокрутка — со сглаживанием
-    x.clearRect(0, 0, W, H);
-    x.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < parts.length; i++) {
-      const p = parts[i]; p.life += dt;
-      // дрейф: вверх + плавное покачивание (поле течения)
-      p.y -= p.sp * dt * 22 / H;
-      p.x += Math.sin(t * .23 + p.ph + p.y * 3) * dt * p.sp * 9 / W;
-      if (p.y < -.06) { parts[i] = spawn(false, p.z); continue; }
-      const ox = -mx * DEPTH_M[p.z], oy = -my * DEPTH_M[p.z] * .7 - ss * DEPTH_S[p.z];
-      let py = p.y * H + oy; py = ((py % (H + 80)) + H + 80) % (H + 80) - 40;
-      const px = p.x * W + ox;
-      // мерцание; изредка средняя искра вспыхивает звёздочкой
-      let a = p.a * (.55 + .45 * Math.sin(t * p.tw + p.ph));
-      if (p.z === 1 && !p.glint && Math.random() < dt * .025) p.glint = 1;
-      a *= Math.min(1, p.life * .8); // плавное появление
-      x.globalAlpha = Math.max(0, a);
-      const s = p.sz * (p.z === 2 ? 1 : 6);
-      x.drawImage(p.spr, px - s / 2, py - s / 2, s, s);
-      if (p.glint) {
-        p.glint -= dt * 1.4; const g = Math.sin(Math.max(0, p.glint) * Math.PI);
-        if (p.glint <= 0) p.glint = 0; else { const gs = 18 + g * 22; x.globalAlpha = g * .9; x.drawImage(star, px - gs / 2, py - gs / 2, gs, gs); }
-      }
-    }
-    // вспышка
-    if (flash > .001) {
-      const gr = x.createRadialGradient(W / 2, H * .42, 0, W / 2, H * .42, Math.max(W, H) * .6);
-      gr.addColorStop(0, `rgba(255,214,140,${.18 * flash})`); gr.addColorStop(1, 'rgba(255,214,140,0)');
-      x.globalAlpha = 1; x.fillStyle = gr; x.fillRect(0, 0, W, H); flash *= Math.pow(.25, dt);
-    }
-    for (let i = flares.length - 1; i >= 0; i--) {
-      const f = flares[i]; f.life += dt; if (f.life > f.max) { flares.splice(i, 1); continue; }
-      const drag = Math.pow(.18, dt); f.vx *= drag; f.vy = f.vy * drag + 40 * dt; f.x += f.vx * dt; f.y += f.vy * dt;
-      const k = f.life / f.max, a = (k < .1 ? k / .1 : 1 - (k - .1) / .9);
-      x.globalAlpha = a; const s = f.sz * 6; x.drawImage(f.spr, f.x - s / 2, f.y - s / 2, s, s);
-      if (f.st && k < .6) { const gs = 20 * (1 - k); x.globalAlpha = a * .8; x.drawImage(star, f.x - gs / 2, f.y - gs / 2, gs, gs); }
-    }
-    x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
-  };
-  requestAnimationFrame(frame);
-}
 function burst(n = 70) {
   fxBurst(n);
   const box = document.createElement('div'); box.className = 'burst';
@@ -11330,7 +11219,6 @@ function tutPlace(anim) {
 /* ---------- рейтинг «Русской рулетки» #/rrtop (владелец 21.11): очки за всё время, топ-100 + своё место; стиль CS2 ---------- */
 const rrRankIdx = pts => { let i = 0; while (i < RR_RANKS.length - 1 && pts >= RR_RANKS[i + 1][1]) i++; return i; };
 const rrAva = u => u.ava ? `<span class="rrt-av"><img src="${esc(u.ava)}" alt="" loading="lazy"></span>` : `<span class="rrt-av">${esc(String(u.name || '?')[0].toUpperCase())}</span>`;
-const rrHow = P => `Очки дают за место в быстрой игре: ${P.map((v, i) => `${i + 1}-е — <b>${v}</b>`).join(' · ')}. Очки не сгорают и копятся за всё время, за них — звания.`;
 function rrtRow(r) {
   const i = rrRankIdx(r.pts || 0), tag = r.pid ? 'a' : 'span';
   return `<div class="rrt-r${r.me ? ' me' : ''}${r.place && r.place <= 3 ? ' p' + r.place : ''}"><span class="rrt-pl">${r.place || '—'}</span>`
@@ -11339,7 +11227,7 @@ function rrtRow(r) {
     + `<span class="rrt-g">${r.games || 0}</span><span class="rrt-w">${r.wins || 0}</span><span class="rrt-pt">${r.pts || 0}</span></div>`;
 }
 function pageRrTop() {
-  return `<section class="rrt"><div class="rrt-hd"><div class="rrt-tl"><span class="rrt-k">Русская рулетка</span><h1>Рейтинг игроков</h1><p id="rrtHow">${rrHow([10, 6, 3, 1, 0])}</p></div>`
+  return `<section class="rrt"><div class="rrt-hd"><div class="rrt-tl"><span class="rrt-k">Русская рулетка</span><h1>Рейтинг игроков</h1></div>`
     + `<a class="rrt-go" href="#/krot">Играть</a></div>`
     + `<div class="rrt-ranks">${RR_RANKS.map(([n, p], i) => `<div class="rrt-rc"><img src="assets/rr/ranks/rank-${i + 1}.svg" alt="${n}"><b>${n}</b><span>от ${p}</span></div>`).join('')}</div>`
     + `<div class="rrt-tb"><div class="rrt-r rrt-th"><span>#</span><span>Игрок</span><span>Звание</span><span class="rrt-g">Игр</span><span class="rrt-w">Побед</span><span class="rrt-pt">Очки</span></div>`
@@ -11355,7 +11243,6 @@ async function mountRrTop() {
   const box = $('#rrtList'); if (!box) return;   // пока грузили — ушли со страницы
   if (!d && /^(localhost|127.0.0.1)$/.test(location.hostname)) d = rrTopDemo();   // локальный просмотр без серверной функции
   if (!d) { box.innerHTML = '<div class="rrt-msg">Рейтинг не загрузился — обновите страницу</div>'; return; }
-  if (d.pts) { const P = [1, 2, 3, 4, 5].map(k => +d.pts[k] || 0), h = $('#rrtHow'); if (h) h.innerHTML = rrHow(P); }
   const rows = d.rows || [];
   box.innerHTML = rows.length ? rows.map(rrtRow).join('') : '<div class="rrt-msg">Пока никто не набрал очков. Сыграйте быструю игру — и займите первое место.</div>';
   if (d.me && !rows.some(r => r.me)) $('#rrtMe').innerHTML = `<div class="rrt-tb rrt-mine">${rrtRow(d.me)}</div>`;   // своё место — внизу, если не в сотне
@@ -11392,7 +11279,7 @@ function route() {
   document.body.classList.toggle('pg-home', key === '' || key === 'faq' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite' || key === 'profile' || key === 'upgrade' || DOC_KEYS.includes(key));
   document.body.classList.toggle('pg-upgrade', key === 'upgrade'); // апгрейд — фон владельца 12.11 (ночные руины, assets/bg-upgrade.webp), слегка размыт
   document.body.classList.toggle('pg-invite', key === 'invite'); // «Пригласить друзей» — размытый снимок главного экрана, как профиль
-  document.body.classList.toggle('pg-profile', key === 'profile'); // профиль — размытый снимок главного экрана (assets/bg-home.webp), как на образце владельца 12.11 // «Крот», «Пригласить друзей» — тот же новый фон, что у «Кейсов» // главный экран и витрина кейсов — свой фон (assets/bg-home.webp)
+  document.body.classList.toggle('pg-profile', key === 'profile'); // профиль — размытый фон главного экрана, как на образце владельца 12.11 // «Крот», «Пригласить друзей» — тот же новый фон, что у «Кейсов» // главный экран и витрина кейсов — свой фон (assets/bg-home.webp)
   document.body.classList.toggle('pg-faq', key === 'faq'); // FAQ — фон главного экрана (assets/bg-main.webp), без эффектов (владелец 17.11)
   document.body.classList.toggle('pg-main', key === ''); // на главном экране тот же снимок, но чёткий (assets/bg-main.webp)
   mnBgApply(); // выбранный фон — на всех страницах с обычным фоном
@@ -11447,7 +11334,7 @@ document.addEventListener('error', e => {
 }, true);
 
 /* ---------- init ---------- */
-renderHeader(); renderFooter(); initFx(); initLive(); route(); sbInit(); supMount(); streamerApply(); ckShow(); // кнопка чата поддержки — на всех страницах
+renderHeader(); renderFooter(); initLive(); route(); sbInit(); supMount(); streamerApply(); ckShow(); // кнопка чата поддержки — на всех страницах
 try { if (localStorage.getItem('krot:mm') && st.user && krotOpen()) krotLoad().then(() => window.KROT.mmInit(krotDeps())).catch(() => { /* без подбора */ }); } catch (e) { /* приватный режим */ } // «Крот»: была группа или поиск — продолжаем
 setInterval(() => { online = clamp(online + randi(-14, 16), 950, 1900); const o = $('#online'); if (o) o.textContent = fmt(online); }, 3000);
 // заставка при открытии сайта закрывается сама (index.html #intro, js/intro.js)

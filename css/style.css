@@ -26,20 +26,12 @@
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{
   margin:0;min-height:100vh;color:var(--txt);font:500 15px/1.55 var(--ff);
-  background:var(--bg0);
-  background-image:
-    radial-gradient(900px 520px at 72% 0%,rgba(214,160,60,.16),transparent 62%),
-    radial-gradient(900px 700px at 0% 100%,rgba(88,40,160,.22),transparent 62%),
-    radial-gradient(700px 500px at 100% 70%,rgba(214,160,60,.05),transparent 60%);
-  background-attachment:fixed;
+  background:#080a0e;
   overflow-x:hidden;overflow-x:clip; /* clip, а не hidden: hidden ломает закрепление ленты LIVE и шапки */
 }
-body::before{ /* тонкая точечная сетка */
-  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background-image:radial-gradient(rgba(255,255,255,.035) 1px,transparent 1.3px);
-  background-size:28px 28px;
-  -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.35) 45%,transparent 80%);mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.35) 45%,transparent 80%);
-}
+/* фон всех страниц — фон главного экрана (выбранный в его меню, --mn-bg), слегка размыт и затемнён; на самой главной — чёткий. Владелец 21.11: старые фоны удалены.
+   Особые сцены (краш, контракты, «Собери сам», башня, админка) и страницы со своим снимком переопределяют body.pg-…::before */
+body::before{content:"";position:fixed;inset:-24px;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(6,8,12,.28),rgba(6,8,12,.5)),var(--mn-bg,url("../assets/bg-main.webp")) center/cover no-repeat;filter:blur(5px)}
 body.no-scroll{overflow:hidden}
 img{max-width:100%;display:block}
 a{color:inherit;text-decoration:none}
@@ -68,13 +60,6 @@ p{margin:0}
 .wordmark .wm-a{color:#fff}
 .wordmark .wm-b{background:var(--g-gold-txt);-webkit-background-clip:text;background-clip:text;color:transparent;margin-left:-.12em}
 
-/* ---------- background fx ---------- */
-.fx{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
-.orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.38;animation:orb 26s ease-in-out infinite alternate}
-.orb.o1{width:560px;height:560px;left:-200px;bottom:-120px;top:auto;background:#4a2390;opacity:.28}
-.orb.o2{width:480px;height:480px;right:-140px;top:-160px;background:#b8801f;animation-duration:32s;opacity:.16}
-.orb.o3{width:420px;height:420px;right:12%;bottom:-200px;background:#c98a2a;opacity:.16;animation-duration:38s}
-@keyframes orb{0%{transform:translate(0,0) scale(1)}50%{transform:translate(80px,60px) scale(1.12)}100%{transform:translate(-40px,120px) scale(.95)}}
 .fly{position:absolute;width:3px;height:3px;border-radius:50%;background:#ffe9b0;box-shadow:0 0 8px 2px rgba(245,199,107,.55);opacity:0;transform:scale(var(--s,1));animation:twinkle var(--d) ease-in-out var(--dl) infinite}
 @keyframes twinkle{0%,100%{opacity:0}50%{opacity:.85}}
 
@@ -2446,7 +2431,6 @@ img.rc-ic,.wal .rc img.rc-ic,.cc-price.cc-price-rc img.rc-ic,.btn-rc img.rc-ic,.
    Текстуры — assets/dos/ (делает tools/dos-paper.js): paper — старая бумага, kraft — картон папки, edge-* — рваные края (маска),
    ink — непрокрас краски штампа (маска), stains — разводы и «лисьи» пятна. Шрифты: PT Mono — машинка, Caveat — от руки,
    Old Standard TT — текст документов, Oswald — штампы. Фон страницы без «золотой пыли». */
-body.pg-contracts .fx{display:none}
 .dos{--tw:'PT Mono','Courier New',ui-monospace,monospace;--hand:'Caveat','Segoe Print',cursive;--doc:'Old Standard TT',Georgia,'Times New Roman',serif;--stp:'Oswald','Arial Narrow',sans-serif;
   --mono:var(--tw);--serif:var(--doc);--ink:#241a12;--rd:#a8231b;--pen:#1d3778;--typed:0 0 .6px rgba(36,26,18,.5);font-synthesis:none}
 /* шапка — бумажная наклейка на обложке папки: машинка, «ДЕЛО» и красный штамп «КОНТРАКТ», «?» — картонный ярлык (владелец 17.11) */
@@ -2892,19 +2876,6 @@ body.pg-contracts .fx{display:none}
 .container.cases-wide{max-width:1640px;padding:0 40px}
 @media (max-width:720px){.container.cases-wide{padding:0 16px}}
 
-/* ===== фон сайта: картинка с оружием по краям (закреплена на весь экран, с затемнением), поверх — частицы и искры из оружия ===== */
-/* прокручивается вместе со страницей: сверху — картинка с оружием (×2, резкая), крупнее экрана на 16% — оружие по краям;
-   ниже — фон без оружия (плитка без швов), стык прикрыт мягкой полосой. Частицы и затемнение краёв — закреплённый слой .fx */
-:root{--bgw:calc(max(100vw,100vh * 1.7787) * 1.16);--bgh:calc(var(--bgw) * .5622)}
-body{background:
-  linear-gradient(180deg,transparent,rgba(5,4,3,.85) 50%,transparent) center calc(var(--bgh) - 220px)/100% 440px no-repeat,
-  linear-gradient(180deg,rgba(5,4,3,.1),rgba(5,4,3,.3) 75%,rgba(5,4,3,.55)) center top/100% var(--bgh) no-repeat,
-  url("../assets/bg-hd.webp") center top/var(--bgw) auto no-repeat,
-  url("../assets/bg-hd2.webp") center var(--bgh)/var(--bgw) auto repeat-y,
-  #050403}
-body::before{display:none}
-.fx{background:radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(3,2,1,.5) 100%)}
-.fx-cv{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block}
 
 /* ===== окно входа v2: арт слева, форма с плавающими подписями и анимациями ===== */
 .m-auth2{width:min(940px,100%);overflow:hidden}
@@ -3269,8 +3240,6 @@ html{overflow-x:clip}
 .mults.editing .me-f button{height:34px;min-width:0;padding:0 8px;margin:0;font:800 11px var(--ff-h);letter-spacing:.04em;white-space:nowrap}
 .mults.editing .me-f .btn-primary{background:var(--g-gold);color:var(--ink);border-color:transparent;box-shadow:0 6px 18px -8px rgba(245,199,107,.8)}
 
-/* фон сайта: векторный «Obsidian Gold» (assets/bg-obsidian.svg), закреплён на весь экран — заменяет картинку с оружием выше */
-body{background:url("../assets/bg-obsidian.svg") center/cover no-repeat fixed,#060607}
 /* окно кейса: вместо четырёх точек светятся две короны рамки (верх и низ по центру) */
 .rl-crown{position:absolute;z-index:9;left:49.76%;width:6.2%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;mix-blend-mode:screen;
   background:radial-gradient(circle,rgba(255,236,170,.95) 0%,rgba(255,206,96,.75) 16%,rgba(255,170,50,.32) 34%,rgba(255,150,30,.1) 52%,transparent 70%);
@@ -4936,11 +4905,10 @@ body.pg-c2.c2-nolive .live{display:none}
 @media (prefers-reduced-motion:reduce){.wk-head.ready::after{animation:none}}
 
 
-/* ===== главная: фон — сильно размытая карта (assets/bg-home.webp), закреплён на весь экран, поверх лёгкое затемнение ===== */
+/* ===== страницы с обычным фоном: фон главного экрана (--mn-bg), закреплён на весь экран, поверх лёгкое затемнение ===== */
 body.pg-home{background:#080a0e}
-body.pg-home::before{content:"";display:block;-webkit-mask-image:none;mask-image:none;position:fixed;inset:0;z-index:-1;pointer-events:none;background:url("../assets/bg-home.webp") center/cover no-repeat}
+body.pg-home::before{content:"";display:block;-webkit-mask-image:none;mask-image:none;position:fixed;inset:-24px;z-index:-1;pointer-events:none;background:var(--mn-bg,url("../assets/bg-main.webp")) center/cover no-repeat;filter:blur(5px)}
 body.pg-home::after{content:"";display:block;position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(6,8,12,.28),rgba(6,8,12,.5))}
-body.pg-home .fx{display:none} /* на главной фон без эффектов: нет золотой пыли и затемнения по краям */
 
 /* ===== главный экран (#/): отдельная страница, пока заглушка на месте будущей 3D-сцены ===== */
 
@@ -5885,8 +5853,6 @@ button.bw-c:focus-visible{outline:2px solid #84d9fd;outline-offset:2px}
 .rrt-hd{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:14px}
 .rrt-k{display:block;margin-bottom:6px;font:500 13px/1 'Oswald',var(--ff);letter-spacing:.14em;text-transform:uppercase;color:#ff5a50}
 .rrt h1{margin:0;font:500 34px/1.05 'Oswald',var(--ff);letter-spacing:.04em;text-transform:uppercase;color:#fff}
-.rrt-tl p{margin:8px 0 0;max-width:660px;font-size:14px;line-height:1.5;color:rgba(233,238,243,.7)}
-.rrt-tl p b{color:#fff;font-weight:700}
 .rrt-go{flex:none;display:inline-flex;align-items:center;height:40px;padding:0 28px;border-radius:2px;background:linear-gradient(180deg,rgba(40,170,95,.35),rgba(20,120,65,.35));box-shadow:inset 0 0 0 1px #3ad07a;color:#c8ffd9;font:500 15px/1 'Oswald',var(--ff);letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
 .rrt-go:hover{background:linear-gradient(180deg,rgba(40,170,95,.55),rgba(20,120,65,.55));color:#fff}
 .rrt-ranks,.rrt-tb{border-radius:3px;background:rgba(12,16,22,.58);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
@@ -7054,7 +7020,6 @@ body:has(.ntc-ov) .ck{opacity:0;pointer-events:none}
 body.pg-admin{background:#0a0d12}
 body.pg-admin::before{content:"";display:block;-webkit-mask-image:none;mask-image:none;position:fixed;inset:-40px;z-index:-1;pointer-events:none;background:url("../assets/bg-admin.webp") center/cover no-repeat;filter:blur(12px) saturate(.9)}
 body.pg-admin::after{content:"";display:block;position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(7,9,13,.5),rgba(7,9,13,.66))}
-body.pg-admin .fx{display:none}
 /* раскладка: меню | вкладка | лента */
 .ax-lay{display:grid;grid-template-columns:208px minmax(0,1fr) 296px;grid-template-areas:"nav main feed";gap:18px;align-items:start;margin-top:18px}
 .ax-lay:not(:has(#axFeed)){grid-template-columns:208px minmax(0,1fr);grid-template-areas:"nav main"}
@@ -7747,7 +7712,7 @@ body.pg-admin .live{display:none}
 .m-shift .sh-com{width:100%;resize:vertical;min-height:70px}
 
 /* главный экран: кнопка настроек над поддержкой и меню слева от неё (владелец 19.11) — то же тёмное стекло, что у кнопки поддержки */
-body.pg-main::before{background-image:var(--mn-bg,url("../assets/bg-main.webp"))}
+body.pg-main::before{background-image:var(--mn-bg,url("../assets/bg-main.webp"));inset:0;filter:none} /* главный экран — фон чёткий (владелец 21.11) */
 body.mn-alt #mnLamps{display:none}
 .mn-cfg{--s:max(44px,calc(var(--u,1px)*54));position:fixed;right:22px;bottom:calc(22px + var(--s) + 10px);z-index:900;width:var(--s);height:var(--s);display:grid;place-items:center;padding:0;border:0;border-radius:4px;cursor:pointer;color:#e9ecef;
   background:linear-gradient(245deg,rgba(255,255,255,.1),transparent 62%),linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03)),rgba(24,26,30,.4);
