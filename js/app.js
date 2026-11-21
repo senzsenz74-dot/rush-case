@@ -4006,7 +4006,7 @@ function c2Mount(c) {
     const H_FOV = 2 * Math.atan(18 / 25); // камера Blender: матрица 36 мм, объектив 25 мм (по ширине)
     let renderer;
     try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true }); } catch (e) { return fail(); }
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+    renderer.setPixelRatio(GFX.dpr(GFX.low ? 1.25 : 1.5)); // экономная графика (GFX) — меньше разрешение и 30 кадров/с (tick)
     renderer.setClearColor(0x000000, 0);
     renderer.toneMapping = THREE.AgXToneMapping; renderer.toneMappingExposure = P.exposure;
     canvas.style.filter = P.contrast !== 1 || P.saturate !== 1 ? `contrast(${P.contrast}) saturate(${P.saturate})` : ''; // как в пробе: только 3D-слой
@@ -4112,9 +4112,10 @@ function c2Mount(c) {
         const f = Math.min(seg.b, seg.a + (now - seg.t0) / 1000 * C2D.FPS * seg.speed);
         setFrame(f); if (f >= seg.b) { const r = seg.res; seg = null; r(); }
       }
-      if (dirty) { dirty = false; draw(); }
+      if (dirty && now - lastD >= (GFX.low ? 31 : 14)) { dirty = false; lastD = now; draw(); } // два прохода на кадр — не чаще ~60 (экономная 30) раз в секунду
       requestAnimationFrame(tick);
     };
+    let lastD = 0;
     S.kill = () => {
       if (!S.alive && S.disposed) return; S.alive = false; S.disposed = true;
       ro.disconnect(); if (seg) seg.res();
@@ -10247,7 +10248,9 @@ function mountCrash() {
   stg.onpointermove = e => { if (e.pointerType === 'mouse' || e.buttons) tilt(e); };
   stg.onpointerdown = tilt;
   stg.onpointerleave = stg.onpointerup = stg.onpointercancel = () => { cr.tilt.x = cr.tilt.y = 0; };
-  const loop = () => { if (!crLive(gen)) return crStop(); crFrame(); cr.raf = requestAnimationFrame(loop); };
+  // 22.11 (оптимизация): кадр — не чаще ~60 раз в секунду (экономная графика — 30); раньше рисовали на каждом кадре экрана (144–185 Гц)
+  let lastF = 0;
+  const loop = now => { if (!crLive(gen)) return crStop(); if (now - lastF >= (GFX.low ? 31 : 14)) { lastF = now; crFrame(); } cr.raf = requestAnimationFrame(loop); };
   cr.raf = requestAnimationFrame(loop);
 }
 /* ушли со страницы: ни звука, ни кадров, ни запросов */
@@ -10639,9 +10642,9 @@ async function crScene(gen) {
   try { const [a, b, c, d] = await crLoadLib(); T = a; GLTFLoader = b.GLTFLoader; MeshoptDecoder = c.MeshoptDecoder; RoomEnvironment = d.RoomEnvironment; } catch (e) { $('#crStage') && $('#crStage').classList.add('no3d'); return; }
   if (!crLive(gen) || cv !== $('#crCanvas')) return;
   const ren = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, powerPreference: 'high-performance' });
-  ren.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  ren.setPixelRatio(GFX.dpr(GFX.low ? 1.25 : 2)); // экономная графика (GFX): меньше разрешение, простые тени; частота — в mountCrash
   ren.outputColorSpace = T.SRGBColorSpace; ren.toneMapping = T.ACESFilmicToneMapping; ren.toneMappingExposure = 1.08;
-  ren.shadowMap.enabled = true; ren.shadowMap.type = T.PCFSoftShadowMap;
+  ren.shadowMap.enabled = true; ren.shadowMap.type = GFX.low ? T.PCFShadowMap : T.PCFSoftShadowMap;
   const scene = new T.Scene();
   // отражения на скотче и пластике — мягкая «комната»
   const pm = new T.PMREMGenerator(ren); scene.environment = pm.fromScene(new RoomEnvironment(), .04).texture; scene.environmentIntensity = .4; pm.dispose();
