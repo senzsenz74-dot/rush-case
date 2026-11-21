@@ -196,6 +196,7 @@ function listen() {
   H.pu = e => {
     if (e.button === 2 && G) G.setRead(false);
     if (e.button === 0 && drag && !drag.moved && G && S && S.room.phase === 'done') { const cv = $('#krCv', root), r = cv && cv.getBoundingClientRect(), a = r && G.tvPick((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1, false); if (a) tvAct(a); }   // кнопки на экране итога
+    else if (e.button === 0 && drag && !drag.moved && G && G.aimPad && G.aimPad() >= 0) padDo(G.aimPad());   // клик по кнопке звуковой панели
     else if (e.button === 0 && drag && !drag.moved && G) { if (G.aimBtn() && canBtn()) voteReady(); else { const a = G.aim(); if (a && canPick()) vote(a); } }   // клик без перетаскивания — выбор контейнера
     drag = null; if (root) root.classList.remove('drag');
   };
@@ -227,6 +228,7 @@ function onKey(e, down) {
   if (e.key === 'Enter') { const i = $('#krIn', root); if (i) { e.preventDefault(); if (document.pointerLockElement) document.exitPointerLock(); openChat(true); i.focus({ preventScroll: true }); } return; }
   if (e.code === 'KeyR') { e.preventDefault(); if (!e.repeat) spinDown(); return; }
   if (e.code === 'KeyH') { e.preventDefault(); if (!e.repeat) gestOpen(); return; }   // зажать H — круг жестов (владелец 22.11)
+  { const m = /^(?:Digit|Numpad)([1-6])$/.exec(e.code); if (m) { e.preventDefault(); if (!e.repeat) padDo(+m[1] - 1); return; } }   // 1–6 — кнопки звуковой панели (владелец 22.11)
   if (e.code === 'KeyG' && !e.repeat && canVote()) { e.preventDefault(); voteAct('start'); return; }   // поднять руку: +1 патрон
   if ((e.key === 'F1' || e.key === 'F2') && S && S.game && S.game.vote) { e.preventDefault(); if (!e.repeat) voteAct(e.key === 'F1' ? 'yes' : 'no'); return; }       // владелец 21.11: нажал — 1 деление, зажал — крутится
   if ((e.code === 'Space' || e.code === 'KeyF') && !e.repeat) { e.preventDefault(); rrAct('shoot'); }   // выстрел
@@ -245,7 +247,7 @@ function bindCanvas(cv) {
     if (!G) return;
     const r = cv.getBoundingClientRect();
     const mx = (e.clientX - r.left) / r.width * 2 - 1, my = -((e.clientY - r.top) / r.height) * 2 + 1; G.mouse(mx, my);
-    root.classList.toggle('tvh', !!G.tvPick(mx, my));   // курсор-рука над кнопкой на экране итога
+    root.classList.toggle('tvh', !!G.tvPick(mx, my) || !!(G.aimPad && G.aimPad() >= 0));   // курсор-рука над кнопкой на экране итога
     if (!drag || drag.id !== e.pointerId || (e.pointerType === 'mouse' && !(e.buttons & 1))) return;
     if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 5) drag.moved = true;
     if (drag.moved) G.look((e.clientX - drag.x) * 1.5, (e.clientY - drag.y) * 1.5);   // голова крутится, пока зажата ЛКМ
@@ -566,7 +568,7 @@ function startSync() {
     worker = new Worker(URL.createObjectURL(new Blob(['setInterval(function(){postMessage(0)},3000)'], { type: 'text/javascript' })));
     worker.onmessage = () => pulse();
   } catch (e) { timers.push(setInterval(pulse, 3000)); }
-  if (api === Demo) { Demo.onSpeak = st3 => { VC.spkFake[st3] = Date.now() + 1700; }; Demo.onPush = () => refresh(); Demo.onHead = (s, y, p) => { if (G) G.head(s, y, p); }; return; }
+  if (api === Demo) { Demo.onSpeak = st3 => { VC.spkFake[st3] = Date.now() + 1700; }; Demo.onPush = () => refresh(); Demo.onHead = (s, y, p) => { if (G) G.head(s, y, p); }; Demo.onPad = (s, b) => padRecv(s, b); return; }
   realtime(id, g);
 }
 function stopSync() {
@@ -587,6 +589,7 @@ async function realtime(id, g) {
     .on('broadcast', { event: 'rtc' }, m => { if (m && m.payload && VC.core) VC.core.onSig(m.payload); })
     .on('broadcast', { event: 'sp' }, m => { const q = m && m.payload; if (!q || !q.s || !G || !G.drum || !S || !S.game || S.game.turn !== q.s) return; spinMirror[q.s] = Date.now(); G.drum(q.k); })   // чужая прокрутка — как у него
     .on('broadcast', { event: 'gs' }, m => { const q = m && m.payload; if (!q || !q.s || !G || !G.gest || !S) return; const p = S.players.find(x => x.seat === q.s); if (p && p.alive !== false) G.gest(q.s, q.k); })   // чужой жест рукой (H)
+    .on('broadcast', { event: 'pd' }, m => { const q = m && m.payload; if (q && q.s) padRecv(q.s, q.b); })   // чужая кнопка звуковой панели
     .on('broadcast', { event: 'v' }, m => { const q = m && m.payload; if (!q || !q.s) return; if (q.k === 'start') { voteLocal = { seat: q.s, until: Date.now() + 3000 }; if (G && G.vote) G.vote(q.s); } soon(); });   // кто-то поднял руку / проголосовал — сразу
   const sendOn = ch => p => ch.send({ type: 'broadcast', event: 'rtc', payload: p });
   chRt = onRt(sb.channel('rr:' + id, { config: { private: true, broadcast: { self: false } } }));
@@ -845,6 +848,36 @@ function gestDo(k) {
   G.gest(me.seat, k);
   try { if (chRt) chRt.send({ type: 'broadcast', event: 'gs', payload: { s: me.seat, k } }); } catch (e) { /* канал не готов */ }
 }
+/* ---------- звуковая панель на столе (владелец 22.11): 6 кнопок слева от каждого игрока; клавиши 1–6 или ЛКМ по кнопке.
+   Жмут живые и не в свой ход (как жесты H), пауза 3 с; персонаж тянется левой рукой и жмёт, потом звук — у всех (канал комнаты 'pd'), со стороны его панели.
+   Звуки присылает владелец по одному (ПЛАН_РУЛЕТКА.md «Звуки»): файл — PADS[i].f (assets/rr/snd/<f>.mp3); пока пусто — тихая заглушка (padTone) ---------- */
+const PADS = [{ f: 'pad-puk', vol: .25 }, { f: 'pad-fail', vol: .25 }, { f: 'pad-ph', vol: .22 }, { f: 'pad-fart', vol: .17 }, { f: 'pad-meow', vol: .25 }, { f: 'pad-rebyata', vol: .25 }];   // владелец 22.11: пук с эхом, «провал» (Губка Боб), заставка, пук, мяу, «ребята, давайте сюда…» — громкость ниже игровых: файлы выровнены по громкости (−18 LUFS)
+const PAD_GAP = 3000, PAD_HIT = .44;   // пауза между нажатиями одного игрока (мс); через столько секунд палец утопил кнопку — звук
+let padAt = 0, padSnd = LS.get('padsnd', true);
+const padLast = {};
+const canPad = () => canGest();
+function padDo(b) {
+  const me = myPlayer(); if (!me || !canPad() || Date.now() - padAt < PAD_GAP) return false; padAt = Date.now();
+  padPlay(me.seat, b);
+  try { if (chRt) chRt.send({ type: 'broadcast', event: 'pd', payload: { s: me.seat, b } }); } catch (e) { /* канал не готов */ }
+  return true;
+}
+function padPlay(s, b) {   // рука тянется к кнопке → утопила → звук (у всех одинаково)
+  padLast[s] = Date.now();
+  if (G && G.pad) G.pad(s, b);
+  const id = lastGame; setTimeout(() => { if (root && lastGame === id && padSnd) rrSound('pad' + (b + 1), 0, 0, null, G && G.padPos ? G.padPos(s, b) : s); }, PAD_HIT * 1000);
+}
+function padRecv(s, b) {   // чужое нажатие: только живой, не в свой ход, не чаще паузы
+  b = +b; if (!(b >= 0 && b < PADS.length) || !S || !S.game) return;
+  const p = S.players.find(x => x.seat === s); if (!p || p.me || p.alive === false || (S.room.phase === 'play' && S.game.turn === s)) return;
+  if (Date.now() - (padLast[s] || 0) < PAD_GAP - 500) return;
+  padPlay(s, b);
+}
+function padTone(n, at) {   // заглушка, пока нет звука владельца: мягкий короткий «дзинь», у каждой кнопки свой тон
+  const t0 = AC.currentTime + .01, out = AC.createGain(); out.gain.value = .12; out.connect(spOut(AC, at));
+  [0, 1].forEach(j => { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = [523, 587, 659, 784, 880, 988][(n - 1) % 6] * (j ? 2 : 1);
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(j ? .25 : 1, t0 + .008); g.gain.exponentialRampToValueAtTime(.001, t0 + (j ? .25 : .5)); o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + .55); });
+}
 const spinCast = k => { try { const me = myPlayer(); if (chRt && me) chRt.send({ type: 'broadcast', event: 'sp', payload: { s: me.seat, k } }); } catch (e) { /* канал не готов */ } };
 function spinDown() {
   if (myTurn() && S.game.vote) { voteWarn(); return; }
@@ -1006,18 +1039,18 @@ function showBand(big, small, ms) {
 let capHoldUntil = 0;
 function rrShot(ev) {   // щелчок и выстрел — после взвода курка, остальное — сразу
   if (ev.kind !== 'click' && ev.kind !== 'bang') return rrEvent(ev);
-  rrSound('cock'); if (G && G.event) G.event({ kind: 'cock', seat: ev.seat });
+  rrSound('cock', 0, 0, null, ev.seat); if (G && G.event) G.event({ kind: 'cock', seat: ev.seat });
   const id = lastGame; setTimeout(() => { if (root && lastGame === id) rrEvent(ev); }, COCK_MS);
 }
 function rrEvent(ev) {
   const p = S && S.players.find(x => x.seat === ev.seat), me = !!(p && p.me), nm = p ? (me ? 'вы' : p.name) : '';
   if (G && G.event) G.event(ev);
-  if (!(ev.kind === 'spin' && (me || (G && G.drum)))) rrSound(ev.kind);   // прокрутку озвучивает сам барабан: щелчок на деление (без 3D — старый звук)
+  if (!(ev.kind === 'spin' && (me || (G && G.drum)))) rrSound(ev.kind, 0, 0, null, ev.seat);   // прокрутку озвучивает сам барабан: щелчок на деление (без 3D — старый звук)
   if (me && (ev.kind === 'click' || ev.kind === 'bang')) rrFear(false); if (me && ev.kind === 'bang' && G && G.specGo) G.specGo(1.5);
   const auto = ev.auto ? 'время вышло · ' : '';
   if (ev.kind === 'start') showBand('Раунд ' + ev.round, (S && S.players.filter(p => p.alive !== false).length === 2 ? 'Финал · ' : '') + 'в револьвере ' + ev.bullets + ' ' + plural(ev.bullets), 3200);   // владелец: «РАУНД №, В РЕВОЛЬВЕРЕ 1 ПАТРОН», в рамке как в «Краше»
   else if (ev.kind === 'vote_end') { voteRes = { ok: !!ev.ok, yes: ev.yes || 0, no: ev.no || 0, bullets: ev.bullets, until: Date.now() + 4500,
-      v: voteLast && voteLast.by === ev.seat ? voteLast : { by: ev.seat, at: 0, yes: [], no: [], need: '', cost: 0 } }; voteLast = null; drawVote(); if (ev.ok) rrSound('load'); if (ev.ok && ev.cost) bankSpend(ev.cost); }   // +1 патрон — звук зарядки (владелец 21.11)
+      v: voteLast && voteLast.by === ev.seat ? voteLast : { by: ev.seat, at: 0, yes: [], no: [], need: '', cost: 0 } }; voteLast = null; drawVote(); if (ev.ok) rrSound('load', 0, 0, null, G && G.gunPos ? G.gunPos() : null); if (ev.ok && ev.cost) bankSpend(ev.cost); }   // +1 патрон — звук зарядки (владелец 21.11)
   else if (ev.kind === 'spin') { if (!me) { spinNote = { seat: ev.seat, until: Date.now() + 1400 }; drawAct(); } }
   else if (ev.kind === 'click') { showEv('В барабане пусто', me ? 'вы живы' : nm + ' жив', 'click', 1600);
     if (p && !me && (p.bot || api === Demo) && G && G.gest) { const h = (((S.game && S.game.id) || 0) * 31 + (ev.n || 0) * 7 + ev.seat) % 20; if (h < 6) setTimeout(() => { const q = S && S.players.find(x => x.seat === ev.seat); if (G && q && q.alive !== false) G.gest(ev.seat, GESTS[h % 4].k); }, 1400); } }   // бот выжил — иногда жест рукой   // владелец 20.11: без «Щелчок» и без «время вышло»
@@ -1030,8 +1063,45 @@ function rrEvent(ev) {
 const SND = { spin: { f: 'spin', vol: .5 }, cock: { f: 'cock', vol: .6 }, click: { f: 'click', vol: .6 }, bang: { f: 'bang', vol: .5 },
   hum: { f: 'tv-hum', vol: .12 }, tvon: { f: 'tv-on', vol: .5 }, tvoff: { f: 'tv-off', vol: .5 }, heart: { f: 'heart', vol: .55 }, slide: { f: 'slide', vol: .35 }, breath: { f: 'breath', vol: .09 }, music: { f: 'music', vol: .03 },
   drum: { f: 'drum', vol: .6 }, load: { f: 'load', vol: .6 }, chip: { f: 'chip', vol: .55 } }, sndBuf = {};   // владелец 20.11: гул и вкл/выкл телевизора, сердце, револьвер по столу, дыхание (ПЛАН_РУЛЕТКА.md «Звуки»)
+PADS.forEach((p, i) => { if (p.f) SND['pad' + (i + 1)] = { f: p.f, vol: p.vol || .5 }; });   // звуки кнопок панели (владелец присылает)
 const COCK_MS = 480;   // взвели курок → через столько мс щелчок или выстрел
 let AC = null;
+// объёмный звук (владелец 22.11): всё, что исходит от игрока (выстрел, щелчок, барабан, фишки, панель, голос), звучит со стороны его места.
+// Слушатель — своё место (уши — по повороту головы; обновляет 3D каждый кадр), источник — место игрока или точка на столе; сосед — в основном в своём ухе, напротив — тише.
+// PannerNode 'equalpower': чёткое лево/право и в наушниках, и в колонках; громкость по расстоянию — 'inverse' (сосед ~1,5 м — как было, напротив ~2,4 м — ×0,65)
+let sp3d = LS.get('sp3d', true);
+const SPL = { x: 0, y: EYE, z: 0, fx: 0, fz: -1, seat: 0 };
+const seatEar = s => SEAT[s] ? { x: SEAT[s].x, y: EYE, z: SEAT[s].z } : null;
+function pnSet(pn, p) { if (pn.positionX) { pn.positionX.value = p.x; pn.positionY.value = p.y; pn.positionZ.value = p.z; } else pn.setPosition(p.x, p.y, p.z); }
+const spDest = ctx => ctx.__bus || ctx.destination;   // __bus — только для проверки (KROT.dbg.sp().lr)
+function spOut(ctx, at) {   // куда подключить источник: через панораму или прямо в динамики (свои звуки, объёмный звук выключен)
+  if (!sp3d || at == null || !ctx.createPanner) return spDest(ctx);
+  if (typeof at === 'number') { if (!SPL.seat || at === SPL.seat) return spDest(ctx); at = seatEar(at); }
+  if (!at) return spDest(ctx);
+  const pn = ctx.createPanner(); pn.panningModel = 'equalpower'; pn.distanceModel = 'inverse'; pn.refDistance = 1.5; pn.rolloffFactor = .9; pn.maxDistance = 30;
+  pnSet(pn, at); pn.connect(spDest(ctx)); return pn;
+}
+function spListen(ctx) {   // уши слушателя: на своём месте, нос — куда смотрит голова
+  const L = ctx && ctx.state !== 'closed' && ctx.listener; if (!L) return;
+  try {
+    if (L.positionX) { const t = ctx.currentTime, k = .03; L.positionX.setTargetAtTime(SPL.x, t, k); L.positionY.setTargetAtTime(SPL.y, t, k); L.positionZ.setTargetAtTime(SPL.z, t, k);
+      L.forwardX.setTargetAtTime(SPL.fx, t, k); L.forwardY.setTargetAtTime(0, t, k); L.forwardZ.setTargetAtTime(SPL.fz, t, k); L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0; }
+    else { L.setPosition(SPL.x, SPL.y, SPL.z); L.setOrientation(SPL.fx, 0, SPL.fz, 0, 1, 0); }
+  } catch (e) { /* старый браузер */ }
+}
+async function spLR(fn, ms = 900, ctx) {   // проверка объёмного звука (localhost): средний уровень левого и правого канала, пока звучит fn()
+  ctx = ctx || AC; if (!ctx) return null; if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (e) { /* без жеста */ } }
+  const bus = ctx.createGain(), sp = ctx.createScriptProcessor(2048, 2, 2), z = ctx.createGain(); z.gain.value = 0; let l = 0, r = 0, n = 0;
+  sp.onaudioprocess = e => { const a = e.inputBuffer.getChannelData(0), b = e.inputBuffer.getChannelData(1); for (let i = 0; i < a.length; i++) { l += a[i] * a[i]; r += b[i] * b[i]; } n += a.length; };
+  bus.connect(ctx.destination); bus.connect(sp); sp.connect(z); z.connect(ctx.destination); ctx.__bus = bus;
+  fn(); await new Promise(res => setTimeout(res, ms));
+  delete ctx.__bus; sp.disconnect(); setTimeout(() => bus.disconnect(), 6000);
+  return { L: +Math.sqrt(l / Math.max(n, 1)).toFixed(4), R: +Math.sqrt(r / Math.max(n, 1)).toFixed(4), n, state: ctx.state };
+}
+function spSet(seat, x, z, yaw) {   // из 3D каждый кадр: своё место и поворот головы
+  SPL.seat = seat; SPL.x = x; SPL.z = z; SPL.fx = -Math.sin(yaw); SPL.fz = -Math.cos(yaw);
+  if (AC) spListen(AC); if (VC.ac) spListen(VC.ac);
+}
 function sndLoad() {   // загрузить звуки заранее (при входе за стол)
   try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
   for (const k in SND) if (!sndBuf[k]) { sndBuf[k] = 1; fetch('assets/rr/snd/' + SND[k].f + '.mp3?v=2').then(r => r.arrayBuffer()).then(b => AC.decodeAudioData(b)).then(buf => { sndBuf[k] = buf; }).catch(() => { delete sndBuf[k]; }); }
@@ -1057,23 +1127,24 @@ function rrFear(on) {   // сердце + страх: с нажатия «Выс
 // щелчок барабана (владелец 21.11, assets/rr/snd/drum.mp3 — 54 щелчка): одиночные — тихое вращение и одно нажатие R, из быстрой серии — когда барабан крутится быстро
 const DRUM_ONE = [.834, 1.508, 2.096, 2.66, 3.7], DRUM_FAST = [5.334, 5.418, 5.492, 5.592, 5.668, 5.78, 5.878, 5.972, 6.028];
 let drumLast = -1;
-function drumClick(delay, fast) {
+function drumClick(delay, fast, at) {   // at — откуда звук (место или точка; объёмный звук)
   if (!soundOn()) return;
   try {
     AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
     const sb = sndBuf.drum; if (!sb || !sb.duration) return;
     const L = fast ? DRUM_FAST : DRUM_ONE; let i = rnd(L.length); if (i === drumLast) i = (i + 1) % L.length; drumLast = i;
-    const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = sb; g.gain.value = SND.drum.vol * (fast ? .85 : 1); src.connect(g); g.connect(AC.destination);
+    const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = sb; g.gain.value = SND.drum.vol * (fast ? .85 : 1); src.connect(g); g.connect(spOut(AC, at));
     src.start(AC.currentTime + (delay || 0), L[i], fast ? .04 : .07);
   } catch (e) { /* звук недоступен */ }
 }
-function rrSound(kind, from, dur, vol) {   // from / dur — только кусок файла (одно деление барабана); vol — своя громкость (выстрел в камеру)
+function rrSound(kind, from, dur, vol, at) {   // from / dur — только кусок файла (одно деление барабана); vol — своя громкость (выстрел в камеру); at — откуда звук: номер места или точка {x, y, z} (объёмный звук)
   if (!soundOn()) return;
   try {
     AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
     const sb = sndBuf[kind];
-    if (sb && sb.duration) { const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = sb; g.gain.value = vol != null ? vol : SND[kind].vol; src.connect(g); g.connect(AC.destination); if (dur) src.start(0, from || 0, dur); else src.start(); return; }
-    const t0 = AC.currentTime + .01, out = AC.createGain(); out.gain.value = .2; out.connect(AC.destination);
+    if (sb && sb.duration) { const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = sb; g.gain.value = vol != null ? vol : SND[kind].vol; src.connect(g); g.connect(spOut(AC, at)); if (dur) src.start(0, from || 0, dur); else src.start(); return; }
+    if (/^pad\d$/.test(kind)) return padTone(+kind[3], at);   // кнопка панели без своего звука (владелец ещё не прислал) — тихая заглушка
+    const t0 = AC.currentTime + .01, out = AC.createGain(); out.gain.value = .2; out.connect(spOut(AC, at));
     const tick = (t, f, d, v) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'square'; o.frequency.value = f; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d); o.connect(g); g.connect(out); o.start(t); o.stop(t + d + .02); };
     const noise = (t, d, v, lp) => { const n = AC.sampleRate * d | 0, b = AC.createBuffer(1, n, AC.sampleRate), ch = b.getChannelData(0); for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3); const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); f.type = 'lowpass'; f.frequency.value = lp; g.gain.value = v; s.buffer = b; s.connect(f); f.connect(g); g.connect(out); s.start(t); };
     if (kind === 'spin') { let t = t0; for (let i = 0; i < 18; i++) { tick(t, 1700 + Math.random() * 300, .012, .22); t += .028 + i * .004; } }
@@ -1254,7 +1325,7 @@ function ovHtml(kind, arg) {
     </ol>
     <h3 class="kr-h2">Очки</h3><p>Быстрая игра — очки недели за место: 1-е — 10, 2-е — 6, 3-е — 3, 4-е — 1. Лучшим за неделю — скины. Комнаты друзей — без очков.</p>
     <h3 class="kr-h2">Ставки</h3><p>Быстрая игра — на деньги: на старте списывается 100 ₽, за 15 секунд подготовки ставку можно поднять. Последний выживший забирает банк: с каждого — не больше, чем поставил сам (остальное возвращается), минус купленные патроны и 5% сайту.</p>
-    <h3 class="kr-h2">Управление</h3><ul class="kr-keyl"><li><kbd>ЛКМ</kbd> зажать и вести мышью — осмотреться</li><li><kbd>R</kbd> — нажать: барабан на одно деление; зажать — крутится, пока держите</li><li><kbd>H</kbd> зажать — круг жестов: навести курсор и отпустить</li><li><kbd>G</kbd> — поднять руку: +1 патрон следующему (после своего пустого выстрела)</li><li><kbd>F1</kbd> / <kbd>F2</kbd> — голос «да» / «нет»</li><li><kbd>Пробел</kbd> — выстрел</li><li><kbd>V</kbd> зажать — говорить</li><li><kbd>Enter</kbd> — чат, <kbd>Tab</kbd> — игроки</li></ul></aside>`;
+    <h3 class="kr-h2">Управление</h3><ul class="kr-keyl"><li><kbd>ЛКМ</kbd> зажать и вести мышью — осмотреться</li><li><kbd>R</kbd> — нажать: барабан на одно деление; зажать — крутится, пока держите</li><li><kbd>H</kbd> зажать — круг жестов: навести курсор и отпустить</li><li><kbd>1</kbd>–<kbd>6</kbd> или <kbd>ЛКМ</kbd> по кнопке — звуковая панель на столе слева</li><li><kbd>G</kbd> — поднять руку: +1 патрон следующему (после своего пустого выстрела)</li><li><kbd>F1</kbd> / <kbd>F2</kbd> — голос «да» / «нет»</li><li><kbd>Пробел</kbd> — выстрел</li><li><kbd>V</kbd> зажать — говорить</li><li><kbd>Enter</kbd> — чат, <kbd>Tab</kbd> — игроки</li></ul></aside>`;
   if (kind === 'players') {   // таблица счёта как в CS2: шапка, квадрат раунда, строки игроков; своя строка — золотом, выбывшие — с крестиком
     const ps = S ? S.players : [], g = S && S.game, ph = S ? S.room.phase : '', alive = ps.filter(p => p.alive !== false && !p.left).length;
     const order = SEATS.map(st => ps.find(q => q.seat === st)).filter(Boolean).sort((p, q) => (p.alive === false) - (q.alive === false) || (p.place || 0) - (q.place || 0) || p.seat - q.seat);
@@ -1305,6 +1376,8 @@ function ovHtml(kind, arg) {
         <label class="vs-tg"><span>Выключить мой микрофон</span><input type="checkbox" data-chk="self"${VC.self ? ' checked' : ''}></label>
         <label class="vs-tg"><span>Выключить звук игроков</span><input type="checkbox" data-chk="deaf"${VC.deaf ? ' checked' : ''}></label>
         <label class="vs-tg"><span>Подавление эха<small>Пока говорят другие, микрофон пропускает только явную речь</small></span><input type="checkbox" data-chk="guard"${VC.guard ? ' checked' : ''}></label>
+        <label class="vs-tg"><span>Объёмный звук<small>Голос и звуки игрока — со стороны его места</small></span><input type="checkbox" data-chk="sp3d"${sp3d ? ' checked' : ''}></label>
+        <label class="vs-tg"><span>Звуки панели<small>Кнопки на столе у игроков (1–6)</small></span><input type="checkbox" data-chk="pad"${padSnd ? ' checked' : ''}></label>
         ${VC.aec ? '' : '<p class="vs-warn">Браузер не включил эхоподавление — говорите через наушники и в режиме «Зажать V».</p>'}
       </div>
       <div class="vs-ft"><button class="vs-btn" data-a="spk" type="button">Проверить звук</button></div>
@@ -2000,6 +2073,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       M['fing' + k] = FING.map(f => [0, 1, 2].map(j => B['finger_' + f + '_' + j + '_' + k])).filter(ch => ch.every(Boolean));
       M['tip' + k] = M['fing' + k].map(ch => ch[2].position.clone().multiplyScalar(.8));   // кончик пальца: ось последней фаланги ≈ ось средней
       M['palm' + k] = len('hand_' + k, 'finger_middle_0_' + k);
+      { const ch = M['fing' + k][0]; M['idx' + k] = ch ? len('hand_' + k, 'finger_index_0_' + k) + len('finger_index_0_' + k, 'finger_index_1_' + k) + len('finger_index_1_' + k, 'finger_index_2_' + k) + wp(ch[2], V(0, 0, 0)).distanceTo(M['tip' + k][0].clone().applyMatrix4(ch[2].matrixWorld)) : .17; }   // запястье → кончик указательного (звуковая панель)
       M['thumb' + k] = [0, 1, 2].map(j => B['finger_thumb_' + j + '_' + k]); if (!M['thumb' + k].every(Boolean)) M['thumb' + k] = null; else M['ttip' + k] = M['thumb' + k][2].position.clone().multiplyScalar(.8);   // большой палец — для жестов (H)
     }
     M.ankleY = ankleY;
@@ -2127,6 +2201,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   const smS = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }, smS2 = x => { x = clamp(x, 0, 1); return x * x * x * (x * (6 * x - 15) + 10); };   // плавно; ещё плавнее (без рывка в начале и конце)
   const _gP = V(0, 0, 0), _gE = V(0, 0, 0), _gF = V(0, 0, 0), _gA = V(0, 0, 0), _gT = V(0, 0, 0), _gN = V(0, 0, 0), _gV = V(0, 0, 0), _gJ = V(0, 0, 0), _gC = V(0, 0, 0), _gQ = new T.Quaternion(), _gY = new T.Quaternion(), _gYa = V(0, 1, 0);
   let gExt = [0, 0, 0, 0], gTh = null;   // большой палец: по фаланге [к пальцам F, к стороне большого A, к ладони N]
+  const PAD_EXT = [1, 0, 0, 0], _pT = V(0, 0, 0), _pW = V(0, 0, 0);   // звуковая панель: палец, цели
   const TH_FOLD = [[.45, .15, .6], [.25, -.75, .45], [.1, -.9, .3]];   // загнут поверх сжатых пальцев (фак)
   const gestW = (a, now) => {   // вес жеста 0…1 (плавно поднял — подержал — опустил)
     const st = a.gst; if (!st) return 0;
@@ -2179,12 +2254,14 @@ function makeWorld(T, RB, RE, cv, PP) {
     // револьвер (этап 4): held — рука тянется к нему (0…1), lift — поднят к виску; пока тянется к столу — корпус наклоняется вперёд
     const fallGun = gun.fallSeat === a.s, held = gun.who === a.s && !fallGun ? gun.hw : 0, lift = held ? easeIO(gun.lw) : 0, lk = held ? easeIO(held) * (1 - lift) : 0;
     const fl = fallW(a), fs = fl ? fl.s : 0, ff = fl ? fl.f : 0;   // падение после боевого
+    const pk = a.pad ? padK(performance.now() / 1000 - a.pad.at) : null; if (a.pad && !pk) a.pad = null;
+    const pw = fl || !pk ? 0 : pk.w;   // звуковая панель: левая рука тянется к кнопке (0…1)
     for (let i = 0; i < M.bones.length; i++) M.bones[i].quaternion.copy(M.rest[i]);
     M.root.updateMatrixWorld(true);
     wq(g, _qs);
     const ax = _t3.set(1, 0, 0).applyQuaternion(_qs);
     // корпус: чуть вперёд + дыхание (+ наклон к револьверу)
-    const br = fl ? 0 : Math.sin(t * 1.6 + a.s * 1.3), ln = a.me ? 0 : lk * .28;   // у себя не наклоняемся: шея и воротник влезли бы в камеру (владелец 20.11)
+    const br = fl ? 0 : Math.sin(t * 1.6 + a.s * 1.3), ln = a.me ? 0 : lk * .28 + pw * .1;   // у себя не наклоняемся: шея и воротник влезли бы в камеру (владелец 20.11)
     _qc.setFromAxisAngle(ax, -.05 - ln * .4 - ff * FALL.sp[0]); rotW(B.spine_0, _qc);
     _qc.setFromAxisAngle(ax, -.04 - ln * .35 - ff * FALL.sp[1]); rotW(B.spine_1, _qc);
     _qc.setFromAxisAngle(ax, -.03 - ln * .25 + br * .012 - ff * FALL.sp[2]); rotW(B.spine_2, _qc);
@@ -2245,8 +2322,15 @@ function makeWorld(T, RB, RE, cv, PP) {
         _t3.set(-.21, 1.4, -.13).applyMatrix4(g.matrixWorld); _t1.set(0, 1, -.12).applyQuaternion(_qs); _t2.set(1, 0, 0).applyQuaternion(_qs); frameQ(_t1, _t2, _qc);
         _e4.lerp(_t3, a.vw); _qh.slerp(_qc, a.vw);
       }
-      const gOn = gw > .001 && k === gH;
+      const gOn = gw > .001 && k === gH && !(k === 'l' && pw > .001), pOn = pw > .001 && k === 'l';
       if (gOn) { gestPose(a, k, sd, gNow - a.gst.at, g, _qs); _e4.lerp(_gP, gw); _qh.slerp(_gQ, gw); }   // жест из круга (H)
+      if (pOn) {   // звуковая панель (владелец 22.11): левая рука дугой к кнопке, указательный палец сверху утапливает её
+        padTop(a.seat, a.pad.b, _pT); _pT.y += .028 * (1 - pk.p) - .0042 * pk.d;   // кончик пальца: над кнопкой → на ней → утопил
+        wp(B['arm_upper_' + k], _t1); _t2.subVectors(_pT, _t1); const rch = _t2.length(); _t2.normalize();   // далеко до кнопки — палец продолжает руку (тянется), близко — сверху вниз
+        _gF.set(-.12, -.8, -.58).applyQuaternion(_qs).normalize().lerp(_t2, clamp((rch - .5) / .14, 0, 1) * .65).normalize(); _gA.set(1, -.12, 0).applyQuaternion(_qs).normalize();   // пальцы вперёд-вниз; от мизинца к указательному — к середине
+        _pW.copy(_pT).addScaledVector(_gF, -M['idx' + k]).add(a.padFix || (a.padFix = V(0, 0, 0))); _pW.y += Math.sin(Math.PI * clamp(pw, 0, 1)) * .035 * (1 - pk.p);
+        _e4.lerp(_pW, pw); frameQ(_gF, _gA, _gQ); _qh.slerp(_gQ, pw);
+      }
       if (hk) { _e4.lerp(_gw, hk); if (!lift) _e4.y += Math.sin(Math.PI * hk) * .05; _qh.slerp(_gfq, hk); }   // тянется к рукояти дугой
       if (fl || (k === 'r' && fallGun)) {
         const r = k === 'r', gIn = r && fallGun;
@@ -2277,7 +2361,7 @@ function makeWorld(T, RB, RE, cv, PP) {
         gun.g.position.copy(_gp); gun.g.quaternion.copy(_gq);
       }
       // пальцы: в исходной позе модели согнуты — на бортике каждую фалангу, что ушла бы в стол, кладём на его поверхность; рука с револьвером — согнуты вокруг рукояти
-      if (!hk && !(k === 'r' && fallGun) && gk < .5 && !(gOn && gw > .5)) M['fing' + k].forEach((ch, fi) => {
+      if (!hk && !(k === 'r' && fallGun) && gk < .5 && !(gOn && gw > .5) && !(pOn && pw > .3)) M['fing' + k].forEach((ch, fi) => {
         for (let j = 0; j < 3; j++) {
           if (j < 2) wp(ch[j + 1], _t1); else _t1.copy(M['tip' + k][fi]).applyMatrix4(ch[2].matrixWorld);
           const y = railH(_t1.x, _t1.z) + .009; if (_t1.y >= y) continue;
@@ -2285,6 +2369,10 @@ function makeWorld(T, RB, RE, cv, PP) {
         }
       });
       if (gOn) gestFing(M, k, sd, gw);   // пальцы жеста
+      if (pOn) {   // указательный прямой, остальные в кулак; поправка: где на деле кончик указательного — туда сдвигаем запястье в следующем кадре
+        gExt = PAD_EXT; gTh = TH_FOLD; gestFing(M, k, sd, pw);
+        if (pw > .97) { _t1.copy(M['tip' + k][0]).applyMatrix4(M['fing' + k][0][2].matrixWorld); _t2.subVectors(_pT, _t1); a.padFix.addScaledVector(_t2, .5); if (a.padFix.length() > .1) a.padFix.setLength(.1); }
+      }
     }
   };
 
@@ -2335,6 +2423,8 @@ function makeWorld(T, RB, RE, cv, PP) {
     const p = SEAT[seat], f = SEAT_OFF + .15 + .09 + .05, r = .1;   // от стула: бортик, дерево и 5 см по сукну, на 10 см правее
     return { x: p.x - Math.sin(p.yaw) * f + Math.cos(p.yaw) * r, z: p.z - Math.cos(p.yaw) * f - Math.sin(p.yaw) * r, yaw: p.yaw + Math.PI / 2 + .35 };
   }
+  const gunXYZ = () => ({ x: gun.g.position.x, y: gun.g.position.y, z: gun.g.position.z });   // где револьвер — откуда звук зарядки и барабана
+  W.gunPos = () => gun.who || gunXYZ();
   W.specGo = s => { specAt = clock + s; };   // свой выстрел показан — через s с камера улетает в наблюдатели
   W.hold = ms => { gun.holdUntil = clock + ms / 1000; };   // пока звучит выстрел — револьвер у виска и не уезжает к следующему
   function gunTo(seat) {
@@ -2344,7 +2434,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     gun.seat = seat;
     const to = gunSpot(seat), tp = gun.tp;
     let y1 = to.yaw; while (y1 - tp.yaw > Math.PI) y1 -= Math.PI * 2; while (y1 - tp.yaw < -Math.PI) y1 += Math.PI * 2;
-    if (!menuOn && Math.hypot(to.x - tp.x, to.z - tp.z) > .05) rrSound('slide');   // револьвер едет по столу (звук подогнан под 0,85 с)
+    if (!menuOn && Math.hypot(to.x - tp.x, to.z - tp.z) > .05) rrSound('slide', 0, 0, null, { x: (to.x + tp.x) / 2, y: TOP, z: (to.z + tp.z) / 2 });   // револьвер едет по столу (звук подогнан под 0,85 с)
     gun.sl = { x0: tp.x, z0: tp.z, y0: tp.yaw, x1: to.x, z1: to.z, y1, k: 0 };   // владелец 20.11: скользит по сукну, без подлёта (ход — в gunStep)
   }
   // ---------- владелец 21.11: жребий револьвером, барабан по делениям, фишки ставок, рука вверх ----------
@@ -2378,7 +2468,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     if (DR.idx == null || !live) { DR.idx = idx; return; }
     if (idx !== DR.idx) {
       const n = Math.abs(idx - DR.idx), m = Math.min(n, 3), fast = n / Math.max(dt, 1e-3) > 8; DR.idx = idx;
-      if (!menuOn) for (let i = 0; i < m; i++) drumClick(i * dt / m, fast);   // медленный кадр — щелчки разносим по времени
+      if (!menuOn) { const at = gun.who || gunXYZ(); for (let i = 0; i < m; i++) drumClick(i * dt / m, fast, at); }   // медленный кадр — щелчки разносим по времени
     }
   }
   // фишки: стопка перед игроком; поставил — руки двигают её к центру (стопка доезжает сама, руки — не до конца)
@@ -2413,7 +2503,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       if (c.fin) { const f = c.fin; f.t += dt; const e = easeIO(clamp(f.t / 1.4, 0, 1)); c.g.position.set(f.x0 + (f.x1 - f.x0) * e, TOP, f.z0 + (f.z1 - f.z0) * e); continue; }   // финал: к победителю
       if (c.push) {
         const t0 = c.push.t, t = (c.push.t += dt), a = AV[s];
-        if (t0 < .45 && t >= .45 && !menuOn) rrSound('chip');   // ставка: руки двинули фишки — звук фишек (владелец 21.11)
+        if (t0 < .45 && t >= .45 && !menuOn) rrSound('chip', 0, 0, null, { x: c.g.position.x, y: TOP, z: c.g.position.z });   // ставка: руки двинули фишки — звук фишек (владелец 21.11)
         const ok = !!(a && a.on && a.M && !a.vDead && gun.who !== s);
         c.hw = ok ? (t < .45 ? easeIO(t / .45) : t < 1.15 ? 1 : Math.max(0, 1 - easeIO((t - 1.15) / .45))) : 0;
         c.k = t < .45 ? 0 : Math.min(1, easeIO((t - .45) / .75));
@@ -2421,6 +2511,120 @@ function makeWorld(T, RB, RE, cv, PP) {
         if (t > 1.6) { c.push = null; c.hw = 0; }
       }
       const o = chipSpot(s, c.k); c.g.position.set(o.x, TOP, o.z); c.g.rotation.y = SEAT[s].yaw;
+    }
+  }
+  // ===== звуковая панель (владелец 22.11): аркадный пульт, встроен в кожаный бортик слева от левой руки; 6 кнопок 3×2 =====
+  // Корпус — чёрный лак с латунной окантовкой крышки, крышка — тёмный шлифованный металл (рисуется на холсте), кнопки — выпуклые глянцевые разных цветов
+  // в хромированных кольцах, цифры на кнопках; нажата — светится своим цветом. В бортике рука дотягивается коротко; путь револьвера и фишки — на сукне, далеко.
+  const PAD_W = .14, PAD_D = .106, PAD_H0 = .078, PAD_H1 = .092, PAD_LX = -.33, PAD_DC = .075, PAD_T = 1.05, PAD_BV = .003;   // ширина, глубина (поперёк бортика), высота у игрока / дальняя; смещение влево от середины места; центр — середина бортика; длина нажатия (с); скругление
+  const PAD_SL = Math.atan2(PAD_H1 - PAD_H0, PAD_D), PAD_L = Math.hypot(PAD_D, PAD_H1 - PAD_H0), PAD_PW = PAD_W - .012, PAD_PL = PAD_L - .012, PAD_CAP = .0091;   // наклон крышки; размер пластины; высота кнопки
+  const PAD_UV = [[-.038, .018], [0, .018], [.038, .018], [-.038, -.018], [0, -.018], [.038, -.018]];   // кнопки на крышке: дальний ряд 1 2 3, ближний 4 5 6 (как на телефоне)
+  const PAD_COL = [0xd61f26, 0xf2b417, 0x27a84a, 0x2465d8, 0xeceae4, 0xf06a14];   // красная, жёлтая, зелёная, синяя, белая, оранжевая
+  const edgeIn = (x, z) => { const r = Math.hypot(x / TA, z / TB) || 1e-6; return Math.hypot(x, z) * (1 / r - 1); };
+  const padSpot = s => {
+    const p = SEAT[s], fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
+    let x = 0, z = 0; for (let f = .1; f < 1.2; f += .0005) { x = p.x + fx * f + rx * PAD_LX; z = p.z + fz * f + rz * PAD_LX; if (edgeIn(x, z) >= PAD_DC) break; }
+    return { x, z, yaw: Math.atan2(x / (TA * TA), z / (TB * TB)) };   // лицом к игроку — по нормали к краю стола
+  };
+  const padTex = (() => {   // крышка: тёмный шлифованный металл, тонкая светлая рамка и кольца вокруг кнопок (краской), винты; цвет + неровности + шероховатость
+    const w = 1024, h = Math.round(w * PAD_PL / PAD_PW), px = w / PAD_PW, R = Math.random;
+    const c = cnv(w, h), x = c.getContext('2d'), hc = cnv(w, h), hx = hc.getContext('2d'), rc = cnv(w, h), rx = rc.getContext('2d');
+    x.fillStyle = '#17181b'; x.fillRect(0, 0, w, h); hx.fillStyle = '#808080'; hx.fillRect(0, 0, w, h); rx.fillStyle = '#6e6e6e'; rx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 3200; i++) {   // шлифовка — тонкие штрихи вдоль крышки
+      const y = R() * h, l = 60 + R() * 520, x0 = R() * w - 60, a = R() > .5;
+      x.strokeStyle = a ? `rgba(200,205,215,${(.015 + R() * .045).toFixed(3)})` : `rgba(0,0,0,${(.05 + R() * .12).toFixed(3)})`; x.lineWidth = .5 + R() * .8; x.beginPath(); x.moveTo(x0, y); x.lineTo(x0 + l, y + (R() - .5)); x.stroke();
+      hx.strokeStyle = a ? 'rgba(150,150,150,.3)' : 'rgba(100,100,100,.3)'; hx.lineWidth = .8; hx.beginPath(); hx.moveTo(x0, y); hx.lineTo(x0 + l, y); hx.stroke();
+      rx.strokeStyle = a ? 'rgba(60,60,60,.3)' : 'rgba(150,150,150,.3)'; rx.lineWidth = 1.2; rx.beginPath(); rx.moveTo(x0, y); rx.lineTo(x0 + l, y); rx.stroke();
+    }
+    for (let i = 0; i < 40; i++) { const x0 = R() * w, y0 = R() * h, a = R() * Math.PI, l = 10 + R() * 60; x.strokeStyle = `rgba(210,215,225,${(.04 + R() * .08).toFixed(3)})`; x.lineWidth = .7; x.beginPath(); x.moveTo(x0, y0); x.lineTo(x0 + Math.cos(a) * l, y0 + Math.sin(a) * l); x.stroke(); }   // мелкие царапины
+    const rr2 = (g, m, r) => { g.beginPath(); g.moveTo(m + r, m); g.lineTo(w - m - r, m); g.arcTo(w - m, m, w - m, m + r, r); g.lineTo(w - m, h - m - r); g.arcTo(w - m, h - m, w - m - r, h - m, r); g.lineTo(m + r, h - m); g.arcTo(m, h - m, m, h - m - r, r); g.lineTo(m, m + r); g.arcTo(m, m, m + r, m, r); g.closePath(); };
+    x.strokeStyle = 'rgba(190,196,206,.55)'; x.lineWidth = 3; rr2(x, 26, 20); x.stroke();   // тонкая рамка краской
+    PAD_UV.forEach(([u, v], i) => { const cx = w / 2 + u * px, cy = h / 2 - v * px; x.strokeStyle = 'rgba(190,196,206,.4)'; x.lineWidth = 2.5; x.beginPath(); x.arc(cx, cy, .0198 * px, 0, Math.PI * 2); x.stroke(); });
+    for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {   // винты в углах: стальной купол со шлицем
+      const cx = w / 2 + sx * (w / 2 - 50), cy = h / 2 + sy * (h / 2 - 50), r = 13, a = R() * Math.PI;
+      const g = x.createRadialGradient(cx - 4, cy - 4, 1, cx, cy, r); g.addColorStop(0, '#d8dde4'); g.addColorStop(.6, '#7a8088'); g.addColorStop(1, '#2a2d31'); x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill();
+      const hg = hx.createRadialGradient(cx, cy, 0, cx, cy, r); hg.addColorStop(0, '#d0d0d0'); hg.addColorStop(1, '#808080'); hx.fillStyle = hg; hx.beginPath(); hx.arc(cx, cy, r, 0, Math.PI * 2); hx.fill();
+      rx.fillStyle = '#3a3a3a'; rx.beginPath(); rx.arc(cx, cy, r, 0, Math.PI * 2); rx.fill();
+      for (const g2 of [x, hx]) { g2.strokeStyle = g2 === x ? '#111' : '#505050'; g2.lineWidth = 3; g2.beginPath(); g2.moveTo(cx - Math.cos(a) * r * .8, cy - Math.sin(a) * r * .8); g2.lineTo(cx + Math.cos(a) * r * .8, cy + Math.sin(a) * r * .8); g2.stroke(); }
+    }
+    // карта неровностей из высот (Собель)
+    const hd = hx.getImageData(0, 0, w, h).data, nc = cnv(w, h), nx = nc.getContext('2d'), nd = nx.createImageData(w, h), H = (i, j) => hd[(clamp(j, 0, h - 1) * w + clamp(i, 0, w - 1)) * 4] / 255, k = 2;
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const dx = (H(i + 1, j - 1) + 2 * H(i + 1, j) + H(i + 1, j + 1) - H(i - 1, j - 1) - 2 * H(i - 1, j) - H(i - 1, j + 1)) * k, dy = (H(i - 1, j + 1) + 2 * H(i, j + 1) + H(i + 1, j + 1) - H(i - 1, j - 1) - 2 * H(i, j - 1) - H(i + 1, j - 1)) * k;
+      const l = Math.hypot(dx, dy, 1), o = (j * w + i) * 4; nd.data[o] = (-dx / l * .5 + .5) * 255; nd.data[o + 1] = (dy / l * .5 + .5) * 255; nd.data[o + 2] = (1 / l * .5 + .5) * 255; nd.data[o + 3] = 255;
+    }
+    nx.putImageData(nd, 0, 0);
+    const t = (cv, srgb) => { const q = new T.CanvasTexture(cv); q.anisotropy = ANI; if (srgb) q.colorSpace = T.SRGBColorSpace; return q; };
+    return { map: t(c, true), normalMap: t(nc), roughnessMap: t(rc) };
+  })();
+  const padNumT = [1, 2, 3, 4, 5, 6].map((n, i) => {   // цифра на кнопке: белая на тёмных, чёрная на светлых
+    const c = cnv(128, 128), x = c.getContext('2d'), dark = i === 1 || i === 4; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '600 92px Oswald, "Arial Narrow", Arial, sans-serif';
+    x.fillStyle = dark ? 'rgba(0,0,0,.82)' : 'rgba(255,255,255,.92)'; x.fillText(n, 64, 68);
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = ANI; return t;
+  });
+  const padBodyM = new T.MeshPhysicalMaterial({ color: 0x08080a, roughness: .32, metalness: .1, clearcoat: 1, clearcoatRoughness: .06, envMapIntensity: 1.6 });   // чёрный лак
+  const padPlateM = std({ map: padTex.map, normalMap: padTex.normalMap, normalScale: new T.Vector2(.7, .7), roughnessMap: padTex.roughnessMap, roughness: 1, metalness: .85, envMapIntensity: 1.5 });
+  const padTrimM = std({ color: 0xd9b26a, roughness: .18, metalness: 1, envMapIntensity: 2 });   // латунь
+  const padRimM = std({ color: 0xe4e7ec, roughness: .1, metalness: 1, envMapIntensity: 2.2 });   // хром
+  const padBodyG = (() => {   // корпус — клин: у игрока ниже, дальше выше; рёбра скруглены; бортик проходит сквозь него
+    const sh = new T.Shape(); sh.moveTo(PAD_D / 2, 0); sh.lineTo(PAD_D / 2, PAD_H0); sh.lineTo(-PAD_D / 2, PAD_H1); sh.lineTo(-PAD_D / 2, 0); sh.closePath();
+    const g = new T.ExtrudeGeometry(sh, { depth: PAD_W - 2 * PAD_BV, bevelEnabled: true, bevelThickness: PAD_BV, bevelSize: PAD_BV, bevelSegments: 4, curveSegments: 4 });
+    g.rotateY(-Math.PI / 2); g.translate((PAD_W - 2 * PAD_BV) / 2, 0, 0); g.computeVertexNormals(); return g;
+  })();
+  const padTrimG = (() => {   // латунная окантовка крышки: рамка со скруглёнными углами
+    const rr = (w, h, r) => { const s2 = new T.Shape(); s2.moveTo(-w / 2 + r, -h / 2); s2.lineTo(w / 2 - r, -h / 2); s2.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r); s2.lineTo(w / 2, h / 2 - r); s2.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); s2.lineTo(-w / 2 + r, h / 2); s2.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); s2.lineTo(-w / 2, -h / 2 + r); s2.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2); return s2; };
+    const o = rr(PAD_W + .002, PAD_L + .002, .006), hole = rr(PAD_PW, PAD_PL, .004); o.holes.push(hole);
+    const g = new T.ExtrudeGeometry(o, { depth: .0012, bevelEnabled: true, bevelThickness: .0008, bevelSize: .0008, bevelSegments: 2, curveSegments: 6 }); g.rotateX(-Math.PI / 2); return g;
+  })();
+  // точки профиля — снизу снаружи вверх к оси (иначе грани смотрят внутрь и кнопка выглядит ямкой)
+  const lathe = pts => new T.LatheGeometry(pts.map(p => new T.Vector2(p[0], p[1])), 48);
+  const padRimG = lathe([[.0176, 0], [.0176, .0012], [.0168, .0034], [.0152, .0044], [.0138, .0041], [.0134, .0026], [.0134, 0]]);   // хромированное кольцо
+  const padCapG = lathe([[.0128, -.001], [.0128, .0042], [.0126, .0058], [.0118, .0072], [.01, .0082], [.007, .0088], [.0035, .009], [0, PAD_CAP]]);   // выпуклая кнопка
+  const padNumG = new T.CircleGeometry(.0058, 32), padRingG = new T.RingGeometry(.0178, .0215, 48), padHitG = new T.CylinderGeometry(.019, .019, .026, 12), padHitM = new T.MeshBasicMaterial({ visible: false });
+  const PD = {};
+  for (const s of SEATS) {
+    const sp = padSpot(s), g = new T.Group(); g.position.set(sp.x, TOP - .006, sp.z); g.rotation.y = sp.yaw; scene.add(g);
+    const body = mesh(padBodyG, padBodyM); body.position.y = PAD_BV; g.add(body);
+    const top = new T.Group(); top.position.set(0, PAD_BV + (PAD_H0 + PAD_H1) / 2 + PAD_BV + .0002, 0); top.rotation.x = PAD_SL; g.add(top);   // крышка: оси — x вправо, −z назад-вверх по наклону, y — нормаль
+    const plate = mesh(new T.PlaneGeometry(PAD_PW, PAD_PL), padPlateM, false, true); plate.rotation.x = -Math.PI / 2; plate.position.y = .0002; top.add(plate);
+    const trim = mesh(padTrimG, padTrimM, false, true); top.add(trim);
+    const btn = PAD_UV.map(([u, v], i) => {
+      const bg = new T.Group(); bg.position.set(u, 0, -v); top.add(bg);
+      const rim = mesh(padRimG, padRimM); bg.add(rim);
+      const col = new T.Color(PAD_COL[i]);
+      const capM = new T.MeshPhysicalMaterial({ color: col, roughness: .16, metalness: 0, clearcoat: 1, clearcoatRoughness: .04, emissive: col, emissiveIntensity: .06, envMapIntensity: 1.6 });
+      const cap = new T.Group(); bg.add(cap);
+      cap.add(mesh(padCapG, capM));
+      const num = new T.Mesh(padNumG, new T.MeshPhysicalMaterial({ map: padNumT[i], alphaTest: .4, roughness: .16, metalness: 0, clearcoat: 1, clearcoatRoughness: .04, emissive: 0xffffff, emissiveMap: padNumT[i], emissiveIntensity: 0, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })); num.rotation.x = -Math.PI / 2; num.position.y = PAD_CAP + .0002; cap.add(num);
+      const ring = new T.Mesh(padRingG, new T.MeshBasicMaterial({ color: 0x84d9fd, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .0009; ring.visible = false; bg.add(ring);
+      const hit = new T.Mesh(padHitG, padHitM); hit.position.y = .008; hit.userData.b = i; bg.add(hit);
+      return { bg, cap, capM, ring, hit, dip: 0, glow: 0, hov: 0 };
+    });
+    PD[s] = { g, top, btn, hits: btn.map(b => b.hit), press: null };
+  }
+  let aimPad = -1;
+  W.aimPad = () => aimPad;
+  const _pv = V(0, 0, 0);
+  const padTop = (s, b, o) => { const B = PD[s] && PD[s].btn[b]; if (!B) return o.set(0, TOP, 0); B.bg.updateMatrixWorld(); return o.set(0, PAD_CAP, 0).applyMatrix4(B.bg.matrixWorld); };   // верх кнопки (не утопленной), мир
+  W.padPos = (s, b) => { padTop(s, b, _pv); return { x: _pv.x, y: _pv.y, z: _pv.z }; };
+  W.padDbg = s => { const a = AV[s], M = a && a.M; if (!M || !M.fingl[0]) return null; const tp = M.tipl[0].clone().applyMatrix4(M.fingl[0][2].matrixWorld), b = a.pad ? a.pad.b : 0, top = padTop(s, b, V(0, 0, 0)), sh = wp(M.B.arm_upper_l, V(0, 0, 0));   // отладка: кончик пальца и кнопка
+    return { tip: tp.toArray().map(v => +v.toFixed(3)), top: top.toArray().map(v => +v.toFixed(3)), err: +tp.distanceTo(top).toFixed(4), fix: a.padFix ? +a.padFix.length().toFixed(3) : 0, reach: +sh.distanceTo(top).toFixed(3), arm: M.L.arml.map(v => +v.toFixed(3)), idx: +M.idxl.toFixed(3), cap: +PD[s].btn[b].cap.position.y.toFixed(4) }; };
+  W.pad = (s, b) => { const P = PD[s], a = AV[s], now = performance.now() / 1000; if (!P || !P.btn[b]) return; P.press = { b, at: now }; if (a) a.pad = { b, at: now }; };
+  // нажатие по времени: рука тянется (w), палец опускается на кнопку (p), кнопка утоплена (d) — общее для руки и кнопки
+  const padK = tt => {
+    if (tt < 0 || tt >= PAD_T) return null;
+    return { w: smS2(tt / .34) * smS2((PAD_T - tt) / .42), p: smS((tt - .24) / .16) * (1 - smS((tt - .58) / .16)), d: smS((tt - .38) / .06) * (1 - smS((tt - .56) / .1)) };
+  };
+  function padStep(dt) {
+    const now = performance.now() / 1000, ok = !menuOn && canPad(), cool = Date.now() - padAt < PAD_GAP;
+    for (const s of SEATS) {
+      const P = PD[s], pk = P.press ? padK(now - P.press.at) : null; if (P.press && !pk) P.press = null;
+      P.btn.forEach((B, i) => {
+        const d = pk && P.press.b === i ? pk.d : 0, hv = s === mySeat && aimPad === i ? (ok && !cool ? .9 : .28) : 0;
+        B.dip = d; B.cap.position.y = -.0045 * d;
+        B.glow += ((d > .1 ? 1 : 0) - B.glow) * (1 - Math.exp(-dt * (d > .1 ? 30 : 5))); B.capM.emissiveIntensity = .06 + 1.5 * B.glow;   // нажата — светится своим цветом (как аркадная кнопка)
+        B.hov += (hv - B.hov) * (1 - Math.exp(-dt * 14)); B.ring.material.opacity = B.hov; B.ring.visible = B.hov > .01;   // прицел — голубое кольцо
+      });
     }
   }
   let voteSeat = 0;
@@ -2433,13 +2637,13 @@ function makeWorld(T, RB, RE, cv, PP) {
   const _eg2 = new T.Euler(0, 0, 0, 'YXZ'), _gp = V(0, 0, 0), _gq = new T.Quaternion(), _gt = V(0, 0, 0), _gtq = new T.Quaternion(), _gu = V(0, 0, 0), _gd = V(0, 0, 0), _gw = V(0, 0, 0), _gfq = new T.Quaternion(), _qh3 = new T.Quaternion();
   const gunStep = dt => {
     const sp = gun.rush ? 4 : 1;
-    drumStep(dt); chipStep(dt);   // нажали «Выстрел»/«Крутить», а револьвер ещё не у виска — всё быстрее
+    drumStep(dt); chipStep(dt); padStep(dt);   // нажали «Выстрел»/«Крутить», а револьвер ещё не у виска — всё быстрее
     if (gun.sl) { const s = gun.sl; s.k = Math.min(1, s.k + dt / .85 * sp); const e = easeIO(s.k); gun.tp.x = s.x0 + (s.x1 - s.x0) * e; gun.tp.z = s.z0 + (s.z1 - s.z0) * e; gun.tp.yaw = s.y0 + (s.y1 - s.y0) * e; if (s.k >= 1) gun.sl = null; }
     if (gun.roul) {   // жребий: в центр стола → крутится как рулетка → ствол на первого → едет к нему
       const R = gun.roul;
       if (!R.go) {
         if (!gun.who && !gun.fly && !gun.fallSeat && clock >= (gun.holdUntil || 0) && !gun.sl) {
-          if (Math.hypot(gun.tp.x, gun.tp.z) > .03) { if (!menuOn) rrSound('slide'); gun.sl = { x0: gun.tp.x, z0: gun.tp.z, y0: gun.tp.yaw, x1: 0, z1: 0, y1: gun.tp.yaw, k: 0 }; }
+          if (Math.hypot(gun.tp.x, gun.tp.z) > .03) { if (!menuOn) rrSound('slide', 0, 0, null, { x: gun.tp.x / 2, y: TOP, z: gun.tp.z / 2 }); gun.sl = { x0: gun.tp.x, z0: gun.tp.z, y0: gun.tp.yaw, x1: 0, z1: 0, y1: gun.tp.yaw, k: 0 }; }
           else { R.go = true; R.k = 0; R.y0 = gun.tp.yaw; let y1 = R.want; while (y1 < R.y0 + Math.PI * 6) y1 += Math.PI * 2; R.y1 = y1; }   // владелец 21.11: вращение — без звука
         }
       } else if (R.k < 1) { R.k = Math.min(1, R.k + dt / 2.6); gun.tp.yaw = R.y0 + (R.y1 - R.y0) * (1 - Math.pow(1 - R.k, 3)); }
@@ -2719,6 +2923,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     // камера
     if (menuOn) {
       const a = t * .045; cam.position.set(Math.sin(a) * 2.75, 1.95, Math.cos(a) * 2.75); cam.lookAt(0, .78, 0);
+      SPL.seat = 0;   // в меню звук без панорамы
       if (tvHum) { tvHum = false; rrLoop('hum', false, .3); }
       if (tvD || tvK || spec) { tvD = null; tvKey = ''; tvK = 0; spec = 0; specF = 0; ren.domElement.style.filter = ''; }   // в меню — экран итога и вид выбывшего сбрасываем сразу
     } else {
@@ -2726,6 +2931,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       const me = AV[mySeat], gl = gun.who === mySeat ? easeIO(gun.hw) * easeIO(gun.lw) : 0;   // свой ход: у виска — голова чуть наклонена влево
       me.g.updateMatrixWorld(); _a.set(0, EYE, -.02 - ME_FWD).applyMatrix4(me.g.matrixWorld);
       cam.position.copy(_a); cam.rotation.set(pitch, seatYaw(mySeat) + yaw, .06 * gl);
+      spSet(mySeat, _a.x, _a.z, seatYaw(mySeat) + yaw * (1 - spec) * (1 - tvK));   // объёмный звук: уши — на своём месте, по повороту головы (наблюдатель и экран итога — прямо к столу)
       // выбыл — камера плавно уходит под потолок и медленно облетает стол сверху (наблюдатель)
       if (!me.dead) specAt = Infinity; else if (specAt === Infinity) specAt = clock + 3;   // владелец 20.11: сначала выстрел, потом камера вверх (specGo из rrEvent; без события — через 3 с)
       spec += ((me.dead && clock >= specAt ? 1 : 0) - spec) * (1 - Math.exp(-dt * 1.2));
@@ -2796,9 +3002,10 @@ function makeWorld(T, RB, RE, cv, PP) {
       }
     }
     // прицел по контейнерам
-    aimN = 0; aimBtn = false;
+    aimN = 0; aimBtn = false; aimPad = -1;
     if (!menuOn && (locked || mouseN)) {
       ndc.set(locked ? 0 : mouseN[0], locked ? 0 : mouseN[1]); ray.setFromCamera(ndc, cam);
+      if (PD[mySeat] && spec < .35 && tvK < .05 && canPad()) { const h = ray.intersectObjects(PD[mySeat].hits, false)[0]; if (h && h.distance < 1.6) aimPad = h.object.userData.b; }   // кнопка своей звуковой панели
       if (btnActive && AV[mySeat] && ray.intersectObjects(AV[mySeat].bHit, false)[0]) aimBtn = true;   // моя красная кнопка
       else { const h = ray.intersectObjects(hitList, false)[0]; if (h && h.distance < 3) aimN = h.object.userData.n; }
     }
@@ -3153,7 +3360,7 @@ async function vcMic(dev) {
   if (VC.core) VC.core.setTrack(VC.track);
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (!VC.ac) VC.ac = new AC();
+    if (!VC.ac) { VC.ac = new AC(); const spk = LS.get('spk', ''); if (spk && VC.ac.setSinkId) VC.ac.setSinkId(spk).catch(() => { /* устройство пропало */ }); }   // голос игроков тоже идёт через этот WebAudio — на выбранные динамики
     if (VC.ac.state === 'suspended') VC.ac.resume();
     VC.an = VC.ac.createAnalyser(); VC.an.fftSize = 512; VC.buf = new Float32Array(VC.an.fftSize);
     VC.ac.createMediaStreamSource(st).connect(VC.an);
@@ -3166,21 +3373,37 @@ function vcTrack(s, stream) {
   if (!r.audio) { r.audio = document.createElement('audio'); r.audio.autoplay = true; r.audio.setAttribute('playsinline', ''); r.audio.style.display = 'none'; document.body.appendChild(r.audio); }
   r.audio.srcObject = stream;
   const spk = LS.get('spk', ''); if (spk && r.audio.setSinkId) r.audio.setSinkId(spk).catch(() => { /* устройство пропало */ });
-  vcApplyVol();
-  const p = r.audio.play(); if (p && p.catch) p.catch(() => { VC.needTap = true; vcDraw(); });
+  // голос через WebAudio: источник → анализатор (кто говорит) и → громкость → панорама по месту (объёмный звук, владелец 22.11).
+  // Аудиоэлемент остаётся (без звука): Chrome отдаёт звук чужого WebRTC в WebAudio, только пока поток играет в элементе
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (!VC.ac) VC.ac = new AC();
-    r.an = VC.ac.createAnalyser(); r.an.fftSize = 512; r.buf = new Float32Array(r.an.fftSize);
-    VC.ac.createMediaStreamSource(stream).connect(r.an);
-  } catch (e) { r.an = null; }
+    if (!VC.ac) { VC.ac = new AC(); if (spk && VC.ac.setSinkId) VC.ac.setSinkId(spk).catch(() => { /* устройство пропало */ }); }
+    if (r.src) { try { r.src.disconnect(); } catch (e) { /* уже */ } }
+    r.src = VC.ac.createMediaStreamSource(stream);
+    r.an = VC.ac.createAnalyser(); r.an.fftSize = 512; r.buf = new Float32Array(r.an.fftSize); r.src.connect(r.an);
+    if (!r.g) r.g = VC.ac.createGain();
+    r.src.connect(r.g); vcRoute(s);
+    if (VC.ac.state === 'suspended') VC.ac.resume().then(() => { if (VC.ac && VC.ac.state === 'suspended') { VC.needTap = true; vcDraw(); } }).catch(() => { VC.needTap = true; vcDraw(); });
+  } catch (e) { r.an = null; r.g = null; r.wa = false; }
+  vcApplyVol();
+  const p = r.audio.play(); if (p && p.catch) p.catch(() => { VC.needTap = true; vcDraw(); });
+}
+// объёмный голос можно, если включён и динамики — по умолчанию (или браузер умеет выбрать динамики у WebAudio); иначе — как раньше, через аудиоэлемент
+const vcWA = () => !!(sp3d && VC.ac && (!LS.get('spk', '') || VC.ac.setSinkId));
+function vcRoute(s) {
+  const r = VC.rem[s]; if (!r || !r.g) return;
+  try { r.g.disconnect(); } catch (e) { /* не был подключён */ }
+  if (r.pn) { try { r.pn.disconnect(); } catch (e) { /* уже */ } r.pn = null; }
+  r.wa = vcWA();
+  if (r.wa) { const o = spOut(VC.ac, +s); r.g.connect(o); if (o !== spDest(VC.ac)) r.pn = o; }
 }
 function vcApplyVol() {
   for (const s in VC.rem) {
     const r = VC.rem[s], p = S && S.players.find(x => x.seat === +s), k = vkey(p);
     if (!r.audio) continue;
-    r.audio.volume = clamp(VC.vol[k] != null ? VC.vol[k] : 1, 0, 1);
-    r.audio.muted = !!(VC.deaf || VC.mute[k]);
+    const v = clamp(VC.vol[k] != null ? VC.vol[k] : 1, 0, 1); r.off = !!(VC.deaf || VC.mute[k]);
+    r.audio.volume = v; r.audio.muted = r.off || !!r.wa;   // объёмный — звучит WebAudio, элемент молчит
+    if (r.g) r.g.gain.value = r.wa && !r.off ? v : 0;
   }
 }
 const rms = (an, buf) => { an.getFloatTimeDomainData(buf); let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i]; return Math.sqrt(s / buf.length); };
@@ -3192,7 +3415,7 @@ function vcTick() {
   for (const s of SEATS) {
     if (s === VC.seat) continue;
     const r = VC.rem[s]; let on = false;
-    if (r && r.an && !(r.audio && r.audio.muted)) { const l = rms(r.an, r.buf); heard = Math.max(heard, l); if (l > .02) r.until = now + 280; on = now < (r.until || 0); }
+    if (r && r.an && !r.off) { const l = rms(r.an, r.buf); heard = Math.max(heard, l); if (l > .02) r.until = now + 280; on = now < (r.until || 0); }
     if (VC.spkFake[s] && now < VC.spkFake[s]) on = true;
     if (r) r.spk = on; else if (on) (VC.rem[s] = {}).spk = on;
     if (G) G.speak(s, on);
@@ -3258,7 +3481,9 @@ function vcSet(k, v) {
   if (k === 'self') { VC.self = v; LS.set('selfmute', v); }
   if (k === 'guard') { VC.guard = v; LS.set('echoguard', v); }
   if (k === 'mic') { LS.set('mic', v); if (VC.room) vcMic(v); }
-  if (k === 'spk') { LS.set('spk', v); for (const s in VC.rem) { const a = VC.rem[s].audio; if (a && a.setSinkId) a.setSinkId(v).catch(() => { /* нет */ }); } }
+  if (k === 'spk') { LS.set('spk', v); if (VC.ac && VC.ac.setSinkId) VC.ac.setSinkId(v || '').catch(() => { /* нет */ }); for (const s in VC.rem) { const a = VC.rem[s].audio; if (a && a.setSinkId) a.setSinkId(v).catch(() => { /* нет */ }); vcRoute(s); } vcApplyVol(); }
+  if (k === 'pad') { padSnd = v; LS.set('padsnd', v); }   // звуки панели у себя (владелец 22.11)
+  if (k === 'sp3d') { sp3d = v; LS.set('sp3d', v); for (const s in VC.rem) vcRoute(s); vcApplyVol(); }   // объёмный звук
   vcDraw();
 }
 function vcTapPlay() { VC.needTap = false; if (VC.ac && VC.ac.state === 'suspended') VC.ac.resume(); for (const s in VC.rem) { const a = VC.rem[s].audio; if (a) a.play().catch(() => { VC.needTap = true; }); } vcDraw(); }
@@ -3820,6 +4045,7 @@ const Demo = (() => {   // «Русская рулетка» без сервер
       if (!p.alive && r.phase !== 'lobby' && r.phase !== 'done') { D.onHead(p.seat, 0, -1); return; }
       if (Math.random() < .5) return;
       if (turn === p.seat) { D.onHead(p.seat, (Math.random() - .5) * .3, -.75); return; }
+      if ((r.phase === 'play' || r.phase === 'next') && D.onPad && Math.random() < .03) { D.onHead(p.seat, .59, -.63); D.onPad(p.seat, rnd(PADS.length)); return; }   // иногда жмёт кнопку звуковой панели (смотрит на неё)
       const ex = SEAT[p.seat].x, ez = SEAT[p.seat].z, th = SEAT[p.seat].yaw, q = Math.random();
       let tx, ty, tz;
       if (turn && q < .7) { tx = SEAT[turn].x; ty = EYE; tz = SEAT[turn].z; }
@@ -3895,5 +4121,6 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   D.vote = () => { const g = st2 && st2.g; if (!g || st2.room.phase !== 'play' || g.vote || g.bullets >= RR.maxBul || alive().length <= 2) return false; const b = alive().find(p => !p.me && p.seat !== g.turn); if (!b) return false; voteOpen(b.seat); return true; };   // проверка: бот поднимает руку сейчас (только демо)
   return D;
 })();
-K.dbg = { die: () => (DEMO_OK ? (Demo.dieMe = true) : null), vote: () => (DEMO_OK ? Demo.vote() : null), coins: n => (DEMO_OK ? coinsFly(n || 6) : null), voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st), world: () => (DEMO_OK ? G : null), gest: (s, k) => (DEMO_OK && G ? G.gest(s, k) : null) };   // для проверки из браузера (подставить состояние подбора — только localhost)
+K.dbg = { die: () => (DEMO_OK ? (Demo.dieMe = true) : null), vote: () => (DEMO_OK ? Demo.vote() : null), coins: n => (DEMO_OK ? coinsFly(n || 6) : null), voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st), world: () => (DEMO_OK ? G : null), gest: (s, k) => (DEMO_OK && G ? G.gest(s, k) : null),
+  sp: () => (DEMO_OK ? { AC, SPL, on: sp3d, bufs: Object.keys(sndBuf).filter(k => sndBuf[k] && sndBuf[k].duration), lr: spLR, snd: (k, at) => rrSound(k, 0, 0, null, at), pad: padDo, padRecv, padPlay, vcTrack, vcSet } : null) };   // для проверки из браузера (подставить состояние подбора — только localhost)
 })();
