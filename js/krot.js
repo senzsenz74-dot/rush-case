@@ -3070,7 +3070,7 @@ function mmWin(on) {
   }).join('');
   w.innerHTML = `<section class="krmm-wp krl kr-glass" role="dialog" aria-labelledby="krmmWh"><button class="kr-ib krmm-wx" data-mm="close" aria-label="Закрыть">${ICO.close}</button>
     <span class="kr-h">Русская рулетка</span>
-    <div class="krl-hd"><h2 class="kr-t" id="krmmWh">Лобби</h2><span class="krl-cnt"><span class="krl-pips">${[0, 1, 2, 3, 4].map(i => `<i${i < n ? ' class="on"' : ''}></i>`).join('')}</span>${n}/${NS}</span></div>
+    <h2 class="kr-t" id="krmmWh">Лобби</h2>
     <p class="krmm-wl">Позовите друзей кодом или ссылкой — лобби ищет игру вместе, недостающих добавит подбор.</p>
     <div class="krl-party">${slots}</div>
     <div class="krl-code"><div><span>Код лобби</span><div class="krl-tiles">${[...p.code].map(ch => `<i>${esc(ch)}</i>`).join('')}</div></div>
