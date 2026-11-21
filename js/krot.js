@@ -1440,7 +1440,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     fragmentShader: 'uniform sampler2D tDiffuse; uniform vec2 uRes; uniform vec4 uHd[4]; uniform int uHn; varying vec2 vUv;\n'
       + 'void main() {\n  vec2 px = vUv * uRes; vec4 col = texture2D(tDiffuse, vUv);\n'
       + '  for (int i = 0; i < 4; i++) { if (i >= uHn) break; vec4 h = uHd[i]; vec2 cell = floor((px - h.xy) / h.w), cc = (cell + .5) * h.w;\n'
-      + '    if (dot(cc, cc) < h.z * h.z) { vec4 a = vec4(0.); for (int y = 0; y < 3; y++) for (int x = 0; x < 3; x++) a += texture2D(tDiffuse, (h.xy + (cell + (vec2(float(x), float(y)) + .5) / 3.) * h.w) / uRes); col = mix(col, a / 9., .62); } }   // полупрозрачная (владелец 22.11): сквозь квадраты немного видно лицо\n'
+      + '    if (dot(cc, cc) < h.z * h.z) { vec4 a = vec4(0.); for (int y = 0; y < 3; y++) for (int x = 0; x < 3; x++) a += texture2D(tDiffuse, (h.xy + (cell + (vec2(float(x), float(y)) + .5) / 3.) * h.w) / uRes); col = a / 9.; } }\n'
       + '  gl_FragColor = col;\n}'
   };
   let cenMain = null;
@@ -1654,7 +1654,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       _cv.copy(CEN_C).applyQuaternion(a.hq).add(wp(a.M.B.head_0, _cv2));
       _cv2.copy(_cv).applyMatrix4(c.matrixWorldInverse); const dz = -_cv2.z; if (dz < c.near) continue;
       _cv.project(c); const r = CEN_R * a.cen * h / (2 * dz * th); if (r < 1.5) continue;
-      U.uHd.value[n++].set((_cv.x * .5 + .5) * w, (_cv.y * .5 + .5) * h, r, Math.max(3, CEN_R * h / (2 * dz * th) / 2.6));
+      U.uHd.value[n++].set((_cv.x * .5 + .5) * w, (_cv.y * .5 + .5) * h, r, Math.max(2, CEN_R * h / (2 * dz * th) / 5));
     }
     U.uHn.value = n; return n;
   }
