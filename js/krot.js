@@ -1,11 +1,11 @@
 /* ============================================================
-   RUSH CASE — режим «КРОТ» (#/krot): социальная дедукция за столом.
+   RUSH CASE — «Русская рулетка», адрес #/roulette (старый #/krot перекидывает сюда; имена krot внутри — от прежнего режима «КРОТ»).
    Подключается из js/app.js по требованию (krotLoad) вместе с css/krot.css.
    Сервер — supabase/krot.sql (протокол — в шапке файла), план — ПЛАН_КРОТ.md.
    Этап 2: меню, лобби, 3D-стол от первого лица (фигуры-манекены), карточка в руках,
    чат, голосование, вскрытие, разбор. Голос (WebRTC) — этап 3, модели персонажей — этап 5.
-   #/krot/<КОД> — ссылка-приглашение в комнату друзей.
-   #/krot/demo  — проба с ботами без сервера (только на localhost, на сайте недоступна).
+   #/roulette/<КОД> — ссылка-приглашение в группу.
+   #/roulette/demo  — проба с ботами без сервера (только на localhost, на сайте недоступна).
    app.js закрыт в своей области видимости — нужное он передаёт в KROT.mount(el, arg, { sb, esc, openAuth, user }).
    ============================================================ */
 (() => {
@@ -279,7 +279,7 @@ function onClick(e) {
   else if (a === 'vyes') voteAct('yes');
   else if (a === 'vno') voteAct('no');
   else if (a === 'betIn') betIn();
-  else if (a === 'link') copy(S && location.origin + location.pathname + '#/krot/' + S.room.code, 'Ссылка-приглашение скопирована');
+  else if (a === 'link') copy(S && location.origin + location.pathname + '#/roulette/' + S.room.code, 'Ссылка-приглашение скопирована');
   else if (a === 'ready') ready();
   else if (a === 'bot-add') botAct('krot_bot_add', {});
   else if (a === 'bot-del') botAct('krot_bot_del', { p_seat: +b.dataset.seat });
@@ -679,7 +679,7 @@ function drawMenu(wait) {
     ensureHandlers(); return;
   }
   if (!authed() && api !== Demo && typeof openAuth === 'function') setTimeout(() => openAuth('login'), 300);
-  if (location.hash.indexOf('#/krot') === 0) location.hash = '#/';
+  if (/^#\/(roulette|krot)(\/|$)/.test(location.hash)) location.hash = '#/';
 }
 const pnum = p => p ? p.members.length + (p.bots ? p.bots.length : 0) : 0;   // мест в лобби: люди + боты (владелец 20.11)
 function drawBusy(on) { if (root) root.classList.toggle('busy', on); }
@@ -1289,7 +1289,7 @@ function tvAct(a) {   // кнопка на экране = та же кнопка
 function resultText() {
   if (!S || S.room.phase !== 'done') return '';
   const w = S.players.find(p => p.place === 1), me = myPlayer();
-  return `RUSH CASE · Русская рулетка — победил ${w ? w.name : '—'}.${me && me.place ? ' Моё место: ' + me.place + '.' : ''} ${location.origin}/#/krot`;
+  return `RUSH CASE · Русская рулетка — победил ${w ? w.name : '—'}.${me && me.place ? ' Моё место: ' + me.place + '.' : ''} ${location.origin}/#/roulette`;
 }
 
 /* ---------- окна поверх игры ---------- */
@@ -3646,12 +3646,12 @@ function mmNoteFor(n) {
   if (t) mmToast(t, n.kind === 'missed' ? 'err' : n.kind === 'requeue' ? 'warn' : '');
 }
 function goGame(id) {
-  if (id === 'demo') { Demo.quick = true; if (location.hash === '#/krot/demo') { const el = $('#kr'); if (el) K.mount(el, 'demo'); } else location.hash = '#/krot/demo'; return; }
+  if (id === 'demo') { Demo.quick = true; if (location.hash === '#/roulette/demo') { const el = $('#kr'); if (el) K.mount(el, 'demo'); } else location.hash = '#/roulette/demo'; return; }
   LS.set('room', id);
-  if (/^#\/krot\/?$/.test(location.hash) || location.hash.indexOf('#/krot/') === 0) {
+  if (/^#\/(roulette|krot)(\/|$)/.test(location.hash)) {
     if (root && view === 'room' && room === id) return;
-    const el = $('#kr'); if (el) K.mount(el); else location.hash = '#/krot';
-  } else location.hash = '#/krot';
+    const el = $('#kr'); if (el) K.mount(el); else location.hash = '#/roulette';
+  } else location.hash = '#/roulette';
 }
 
 /* ---------- окно «Ваша игра готова!» ---------- */
@@ -3802,7 +3802,7 @@ function mmWin(on) {
   }
   const key = JSON.stringify([p.code, p.state, p.leader, p.members, p.bots, p.admin]);
   if (w.dataset.k === key) return; w.dataset.k = key;
-  const link = location.origin + location.pathname + '#/krot/' + p.code, bots = p.bots || [], adm = !!p.admin && p.state === 'idle';   // владелец 20.11: админ добавляет ботов в своё лобби
+  const link = location.origin + location.pathname + '#/roulette/' + p.code, bots = p.bots || [], adm = !!p.admin && p.state === 'idle';   // владелец 20.11: админ добавляет ботов в своё лобби
   // окно лобби (владелец 21.11: «интереснее, как в CS2»): состав — пять карточек в ряд, у лидера корона; код — плитками
   const crown = '<svg class="krl-crown" viewBox="0 0 20 14" aria-hidden="true"><path fill="currentColor" d="M1 4l4.5 3.5L10 1l4.5 6.5L19 4l-2 9H3z"/></svg>';
   const IC_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';

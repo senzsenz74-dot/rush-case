@@ -2473,7 +2473,7 @@ const NEWS_DEF = [
   // верхняя — падение кейсов BLAST → MAJOR → «Всемирная элита» (владелец 21.11; видео снято со сцены сайта: tools/news-drop.mjs + news-drop-encode.cjs).
   // новый id «drop»: старая верхняя новость в site_cfg 'news' лежит под id n1 и сюда больше не подмешивается
   { id: 'drop', kind: 'top', look: 'drop', tag: 'Ивентовые кейсы', note: '', title: 'Реальный гарант', sub: 'уже ждёт тебя', img: 'assets/news-drop.webp', video: 'assets/news-drop.webm', video2: 'assets/news-drop.mp4', link: '#/cases' },
-  { id: 'rr', kind: 'promo', kicker: 'Новый режим', title: 'Русская рулетка', sub: 'Пять игроков. Один револьвер. Выживет один.', img: 'assets/news-roulette.webp', link: '#/krot', look: 'dark' },   // #/krot — сразу поиск игры (владелец 21.11)
+  { id: 'rr', kind: 'promo', kicker: 'Новый режим', title: 'Русская рулетка', sub: 'Пять игроков. Один револьвер. Выживет один.', img: 'assets/news-roulette.webp', link: '#/roulette', look: 'dark' },   // #/krot — сразу поиск игры (владелец 21.11)
   // третья — листалка промокодов (владелец 22.11, как нижняя «Новое и популярное»): видео 640×396 из promo-banners (site-welcome / site-corner) под окно слайда,
   // каждое играет до конца и сменяется следующим (слайд может быть и картинкой — img без video, смена через dur с); нажатие — профиль, код уже в поле «Купон» (data-cpn). Новый id «promos»: старая «Собери сам» (id n3) не подмешивается
   { id: 'promos', kind: 'promos', tag: 'Промокоды', slides: [
@@ -2530,7 +2530,7 @@ function nwDropSync() {
 function pageMain() {
   // справа от первой новости — значок «?»: при наведении (или нажатии) стеклянная подложка с реквизитами продавца (подвала на главной нет);
   // в самом низу — мелкая приписка про Valve
-  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><i class="ix-tag ix-new mnk-new">New</i><img src="${MNA.dir}rr-logo.webp?v=${MNA.v}" alt="Русская рулетка — RUSH CASE" decoding="async"><a class="mnk-go" href="#/krot">${krotOpen() ? 'Играть' : 'Скоро'}</a>${krotOpen() ? '<div class="mnk-fly"><div class="mnk-fbox" role="menu"><button class="mnk-fi mnk-qp" type="button" role="menuitem">Быстрая игра</button><button class="mnk-fi mnk-lb" type="button" role="menuitem">Лобби</button><a class="mnk-fi" href="#/rrtop" role="menuitem">Рейтинг</a></div></div>' : ''}</div><div class="mnr" id="mnRank" hidden></div>
+  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><i class="ix-tag ix-new mnk-new">New</i><img src="${MNA.dir}rr-logo.webp?v=${MNA.v}" alt="Русская рулетка — RUSH CASE" decoding="async"><a class="mnk-go" href="#/roulette">${krotOpen() ? 'Играть' : 'Скоро'}</a>${krotOpen() ? '<div class="mnk-fly"><div class="mnk-fbox" role="menu"><button class="mnk-fi mnk-qp" type="button" role="menuitem">Быстрая игра</button><button class="mnk-fi mnk-lb" type="button" role="menuitem">Лобби</button><a class="mnk-fi" href="#/rrtop" role="menuitem">Рейтинг</a></div></div>' : ''}</div><div class="mnr" id="mnRank" hidden></div>
     <div class="mn-info"><button class="mn-q" id="mnQ" aria-label="Реквизиты продавца" aria-expanded="false"><i></i></button>
       <div class="mn-req" role="tooltip"><small>Продавец</small><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}</span><span>ОГРНИП ${LEGAL.ogrnip}</span>
         <span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span>
@@ -8547,8 +8547,8 @@ function admBlocks(done) {
    Сохраняются в site_cfg 'news'; картинки и видео — в хранилище case-img ---------- */
 const NEWS_SLOTS = { top: 'Верхняя — видео или картинка', promo: 'Вторая — промо со светлой полосой', pass: 'Третья — зелёная', promos: 'Третья — листалка промокодов (видео)', feed: 'Нижняя — «Новое и популярное» (сама листает новые и популярные кейсы)' };
 const NEWS_FIELDS = {
-  top: [['tag', 'Метка', 'Новость'], ['note', 'Рядом с меткой', 'сегодня'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/krot, #/case/… или https://…']],
-  promo: [['kicker', 'Надпись над заголовком', 'Играть'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/krot, #/case/… или https://…']],
+  top: [['tag', 'Метка', 'Новость'], ['note', 'Рядом с меткой', 'сегодня'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/roulette, #/case/… или https://…']],
+  promo: [['kicker', 'Надпись над заголовком', 'Играть'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/roulette, #/case/… или https://…']],
   pass: [['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/build или https://…']],
   promos: [['tag', 'Заголовок', 'Промокоды']],
   feed: [['tag', 'Заголовок', 'Новое и популярное'], ['more', 'Ссылка на все кейсы', 'Показать все…']],
@@ -11053,8 +11053,10 @@ function route() {
   if (ioPause) ioPause.disconnect();
   clearTimers(); spinning = false; spinId++; crStop(); mnaStop(); if (window.KROT) window.KROT.stop(); // «Крот»: при уходе — без 3D, таймеров и каналов // краш: при уходе — тишина и без нагрузки
   $$('.cr-shock').forEach(x => x.classList.remove('cr-shock')); // тряска от взрыва не должна оставаться на шапке
+  // рулетка: адрес #/roulette (владелец 22.11). Старые ссылки #/krot/… (приглашения, новости) — тот же экран, адрес в строке меняется сам
+  if (/^#\/krot(\/|$)/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search + location.hash.replace(/^#\/krot/, '#/roulette'));
   const parts = location.hash.replace(/^#\/?/, '').split('/');
-  const key = parts[0] || '';
+  const key = parts[0] === 'roulette' ? 'krot' : (parts[0] || '');   // внутри режим по-прежнему «krot» (страница, стили, js/krot.js)
   const [page, mount] = Object.prototype.hasOwnProperty.call(ROUTES, key) ? ROUTES[key] : [page404, null];
   const app = $('#app');
   app.innerHTML = page(parts[1]);
