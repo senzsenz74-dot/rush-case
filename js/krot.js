@@ -851,8 +851,8 @@ function gestDo(k) {
 /* ---------- звуковая панель на столе (владелец 22.11): 6 кнопок слева от каждого игрока; клавиши 1–6 или ЛКМ по кнопке.
    Жмут живые и не в свой ход (как жесты H), пауза 3 с; персонаж тянется левой рукой и жмёт, потом звук — у всех (канал комнаты 'pd'), со стороны его панели.
    Звуки присылает владелец по одному (ПЛАН_РУЛЕТКА.md «Звуки»): файл — PADS[i].f (assets/rr/snd/<f>.mp3); пока пусто — тихая заглушка (padTone) ---------- */
-const PADS = [{ f: 'pad-puk', vol: .25 }, { f: 'pad-fail', vol: .25 }, { f: 'pad-ph', vol: .22 }, { f: 'pad-fart', vol: .17 }, { f: 'pad-meow', vol: .25 }, { f: 'pad-rebyata', vol: .25 }];   // владелец 22.11: пук с эхом, «провал» (Губка Боб), заставка, пук, мяу, «ребята, давайте сюда…» — громкость ниже игровых: файлы выровнены по громкости (−18 LUFS)
-const PAD_GAP = 3000, PAD_HIT = .44;   // пауза между нажатиями одного игрока (мс); через столько секунд палец утопил кнопку — звук
+const PADS = [{ f: 'pad-puk', vol: .25 }, { f: 'pad-fail', vol: .25 }, { f: 'pad-ph', vol: .22 }, { f: 'pad-fart', vol: .17 }, { f: 'pad-meow', vol: .25 }, { f: 'pad-rebyata', vol: .25, v: 3 }];   // владелец 22.11: пук с эхом, «провал» (Губка Боб), заставка, пук, мяу, «ребята, давайте сюда…» — громкость ниже игровых: файлы выровнены по громкости (−18 LUFS)
+const PAD_GAP = 3000, PAD_HIT = .44, PAD_ME = .35;   // PAD_ME — свои нажатия тише (владелец 22.11: «чтобы не оглохнуть»), остальным — как было   // пауза между нажатиями одного игрока (мс); через столько секунд палец утопил кнопку — звук
 let padAt = 0, padSnd = LS.get('padsnd', true);
 const padLast = {};
 const canPad = () => canGest();
@@ -865,7 +865,8 @@ function padDo(b) {
 function padPlay(s, b) {   // рука тянется к кнопке → утопила → звук (у всех одинаково)
   padLast[s] = Date.now();
   if (G && G.pad) G.pad(s, b);
-  const id = lastGame; setTimeout(() => { if (root && lastGame === id && padSnd) rrSound('pad' + (b + 1), 0, 0, null, G && G.padPos ? G.padPos(s, b) : s); }, PAD_HIT * 1000);
+  const id = lastGame, k = 'pad' + (b + 1), me = myPlayer(), vol = me && me.seat === s && SND[k] ? SND[k].vol * PAD_ME : null;
+  setTimeout(() => { if (root && lastGame === id && padSnd) rrSound(k, 0, 0, vol, G && G.padPos ? G.padPos(s, b) : s); }, PAD_HIT * 1000);
 }
 function padRecv(s, b) {   // чужое нажатие: только живой, не в свой ход, не чаще паузы
   b = +b; if (!(b >= 0 && b < PADS.length) || !S || !S.game) return;
@@ -1063,7 +1064,7 @@ function rrEvent(ev) {
 const SND = { spin: { f: 'spin', vol: .5 }, cock: { f: 'cock', vol: .6 }, click: { f: 'click', vol: .6 }, bang: { f: 'bang', vol: .5 },
   hum: { f: 'tv-hum', vol: .12 }, tvon: { f: 'tv-on', vol: .5 }, tvoff: { f: 'tv-off', vol: .5 }, heart: { f: 'heart', vol: .55 }, slide: { f: 'slide', vol: .35 }, breath: { f: 'breath', vol: .09 }, music: { f: 'music', vol: .03 },
   drum: { f: 'drum', vol: .6 }, load: { f: 'load', vol: .6 }, chip: { f: 'chip', vol: .55 } }, sndBuf = {};   // владелец 20.11: гул и вкл/выкл телевизора, сердце, револьвер по столу, дыхание (ПЛАН_РУЛЕТКА.md «Звуки»)
-PADS.forEach((p, i) => { if (p.f) SND['pad' + (i + 1)] = { f: p.f, vol: p.vol || .5 }; });   // звуки кнопок панели (владелец присылает)
+PADS.forEach((p, i) => { if (p.f) SND['pad' + (i + 1)] = { f: p.f, vol: p.vol || .5, v: p.v }; });   // звуки кнопок панели (владелец присылает)
 const COCK_MS = 480;   // взвели курок → через столько мс щелчок или выстрел
 let AC = null;
 // объёмный звук (владелец 22.11): всё, что исходит от игрока (выстрел, щелчок, барабан, фишки, панель, голос), звучит со стороны его места.
@@ -1104,7 +1105,7 @@ function spSet(seat, x, z, yaw) {   // из 3D каждый кадр: своё �
 }
 function sndLoad() {   // загрузить звуки заранее (при входе за стол)
   try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
-  for (const k in SND) if (!sndBuf[k]) { sndBuf[k] = 1; fetch('assets/rr/snd/' + SND[k].f + '.mp3?v=2').then(r => r.arrayBuffer()).then(b => AC.decodeAudioData(b)).then(buf => { sndBuf[k] = buf; }).catch(() => { delete sndBuf[k]; }); }
+  for (const k in SND) if (!sndBuf[k]) { sndBuf[k] = 1; fetch('assets/rr/snd/' + SND[k].f + '.mp3?v=' + (SND[k].v || 2)).then(r => r.arrayBuffer()).then(b => AC.decodeAudioData(b)).then(buf => { sndBuf[k] = buf; }).catch(() => { delete sndBuf[k]; }); }
 }
 const sndLoop = {};
 function rrLoop(kind, on, fade = .4) {   // фоновые петли (гул телевизора, сердце, дыхание): плавно включить / выключить
