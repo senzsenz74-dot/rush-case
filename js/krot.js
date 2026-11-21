@@ -1404,7 +1404,7 @@ function sendHead(t) {
    ============================================================ */
 let LIB = null;
 const lib = () => LIB || (LIB = Promise.all([import('three'), import('three/addons/geometries/RoundedBoxGeometry.js'), import('three/addons/environments/RoomEnvironment.js'),
-  Promise.all(['EffectComposer', 'RenderPass', 'UnrealBloomPass', 'OutputPass'].map(n => import('three/addons/postprocessing/' + n + '.js'))).then(m => Object.assign({}, ...m)).catch(() => null)]).catch(e => { LIB = null; throw e; }));
+  Promise.all(['EffectComposer', 'RenderPass', 'UnrealBloomPass', 'OutputPass', 'ShaderPass'].map(n => import('three/addons/postprocessing/' + n + '.js'))).then(m => Object.assign({}, ...m)).catch(() => null)]).catch(e => { LIB = null; throw e; }));
 async function start3D(g) {
   const cv = $('#krCv', root);
   let T, RB, RE, PP;
@@ -1432,7 +1432,19 @@ function makeWorld(T, RB, RE, cv, PP) {
   const pm = new T.PMREMGenerator(ren); scene.environment = pm.fromScene(new RE(), .04).texture; scene.environmentIntensity = .22; pm.dispose();
   const cam = new T.PerspectiveCamera(62, 1, .03, 40); cam.rotation.order = 'YXZ'; scene.add(cam);
   let comp = null;   // ореолы вокруг ламп, бра и свечей (bloom); нет модулей — рисуем без них
-  if (PP && PP.EffectComposer) { try { comp = new PP.EffectComposer(ren); comp.addPass(new PP.RenderPass(scene, cam)); comp.addPass(new PP.UnrealBloomPass(new T.Vector2(512, 512), .38, .35, 1)); comp.addPass(new PP.OutputPass()); } catch (e) { comp = null; } }
+  // мозаика на голове убитого (владелец 22.11, как цензура в видео): крупные квадраты, сетка привязана к голове — при движении камеры не съезжает;
+  // кровь вокруг видна. Одна и та же мозаика — в основном виде (и у выбывшего-зрителя) и в кадре камеры наблюдения (экраны на стенах, телевизор в конце)
+  const CEN_SH = {
+    uniforms: { tDiffuse: { value: null }, uRes: { value: new T.Vector2(1, 1) }, uHd: { value: [0, 1, 2, 3].map(() => new T.Vector4()) }, uHn: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; uniform vec2 uRes; uniform vec4 uHd[4]; uniform int uHn; varying vec2 vUv;\n'
+      + 'void main() {\n  vec2 px = vUv * uRes; vec4 col = texture2D(tDiffuse, vUv);\n'
+      + '  for (int i = 0; i < 4; i++) { if (i >= uHn) break; vec4 h = uHd[i]; vec2 cell = floor((px - h.xy) / h.w), cc = (cell + .5) * h.w;\n'
+      + '    if (dot(cc, cc) < h.z * h.z) { vec4 a = vec4(0.); for (int y = 0; y < 3; y++) for (int x = 0; x < 3; x++) a += texture2D(tDiffuse, (h.xy + (cell + (vec2(float(x), float(y)) + .5) / 3.) * h.w) / uRes); col = mix(col, a / 9., .62); } }   // полупрозрачная (владелец 22.11): сквозь квадраты немного видно лицо\n'
+      + '  gl_FragColor = col;\n}'
+  };
+  let cenMain = null;
+  if (PP && PP.EffectComposer) { try { comp = new PP.EffectComposer(ren); comp.addPass(new PP.RenderPass(scene, cam)); if (PP.ShaderPass) { cenMain = new PP.ShaderPass(CEN_SH); cenMain.enabled = false; comp.addPass(cenMain); } comp.addPass(new PP.UnrealBloomPass(new T.Vector2(512, 512), .38, .35, 1)); comp.addPass(new PP.OutputPass()); } catch (e) { comp = null; } }
   const tex = (c, rx, ry) => { const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = ANI; if (rx) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry || rx); } return t; };
   const std = o => new T.MeshStandardMaterial(o);
   const mesh = (g, m, cast = true, recv = true) => { const x = new T.Mesh(g, m); x.castShadow = cast; x.receiveShadow = recv; return x; };
@@ -1504,7 +1516,8 @@ function makeWorld(T, RB, RE, cv, PP) {
   for (let k = -4; k <= 4; k++) for (const rot of [0, 1]) { const b = mesh(new T.BoxGeometry(10, .16, .14), beamM, false, true); b.position.set(rot ? k * 1.25 : 0, H - .08, rot ? 0 : k * 1.25); b.rotation.y = rot ? Math.PI / 2 : 0; scene.add(b); }
   // экран на задней стене (владелец: оставить) — над панелями
   // экран на задней стене (владелец: оставить) — камера наблюдения: снимает стол из угла в реальном времени (15 кадров/с, эффект CCTV)
-  const cctvRT = new T.WebGLRenderTarget(640, 344, { type: T.HalfFloatType });
+  const cctvRT = new T.WebGLRenderTarget(640, 344, { type: T.HalfFloatType }), cctvRT2 = new T.WebGLRenderTarget(640, 344, { type: T.HalfFloatType });
+  const cenCC = PP && PP.ShaderPass ? new PP.ShaderPass(CEN_SH) : null; if (cenCC) cenCC.uniforms.uHd.value = [0, 1, 2, 3].map(() => new T.Vector4());   // мозаика в кадре камеры (свои векторы: clone копирует массив поверхностно)
   const cctvCam = new T.PerspectiveCamera(60, 2.7 / 1.45, .05, 30); cctvCam.position.set(0, H - .27, 0); cctvCam.up.set(0, 0, -1); cctvCam.lookAt(0, TOP, 0); scene.add(cctvCam);
   const overhead = [];   // что висит между камерой и столом (лампа, провода, луч, дым) — в кадре камеры не рисуем
   const ovC = cnv(640, 344), ovT = tex(ovC);
@@ -1535,7 +1548,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   const boards = [board];   // тот же экран (камера, в конце — итог) на всех 4 стенах: вместо полок и за спиной места 1 — чтобы все видели (владелец 20.11)
   for (const [x, z, ry] of [[-4.94, 0, Math.PI / 2], [4.94, 0, -Math.PI / 2], [0, 4.94, Math.PI]]) { const b = new T.Mesh(board.geometry, cctvM); b.position.set(x, 2.05, z); b.rotation.y = ry; scene.add(b); boards.push(b); }   // на 1 см перед рамкой (иначе рамка перекрывает)
   let cctvAt = -1, ovAt = -1;
-  W._cctv = { rt: cctvRT, cam: cctvCam, m: cctvM };   // для проверки (KROT.dbg.world()._cctv)
+  W._cctv = { rt: cctvRT, rt2: cctvRT2, cam: cctvCam, m: cctvM };   // для проверки (KROT.dbg.world()._cctv)
   function tvDraw() {
     const d = tvD; if (!d) return; const x = tvC.getContext('2d'), L = 72, R = TVW - 72, C = TVW / 2;
     let g = x.createLinearGradient(0, 0, 0, TVH); g.addColorStop(0, '#121820'); g.addColorStop(1, '#090c0f'); x.fillStyle = g; x.fillRect(0, 0, TVW, TVH);
@@ -1631,12 +1644,28 @@ function makeWorld(T, RB, RE, cv, PP) {
     if (!FIN.fired && ((FIN.fireAt && clock >= FIN.fireAt) || t > 14)) { FIN.fired = true; finFire(); FIN.resAt = clock + 2.2; }   // убитая камера видна ~2,2 с   // t > 14 — страховка
     if (FIN.resAt && clock >= FIN.resAt) { FIN.mix = 1; FIN.crack = 0; FIN.gl = 0; FIN.on = false; FIN.done = true; tvHov = null; tvDraw(); }   // резкий переход к итогу (владелец 21.11)
   }
+  const _cv3 = new T.Vector2(), _cv = V(0, 0, 0), _cv2 = V(0, 0, 0), CEN_C = V(0, .075, -.01), CEN_R = .135;
+  function cenSet(p, c, w, h, cc) {
+    if (!p) return 0; const U = p.uniforms; let n = 0;
+    U.uRes.value.set(w, h); c.updateMatrixWorld(); const th = Math.tan(c.fov * Math.PI / 360);
+    for (const s of SEATS) {
+      const a = AV[s]; if (n >= 4) break;
+      if (!a || !a.on || !a.M || !a.cen || !a.hq || (!cc && a.me && a.M.head.scale.x < .5)) continue;   // своя голова от первого лица скрыта — нечего закрывать
+      _cv.copy(CEN_C).applyQuaternion(a.hq).add(wp(a.M.B.head_0, _cv2));
+      _cv2.copy(_cv).applyMatrix4(c.matrixWorldInverse); const dz = -_cv2.z; if (dz < c.near) continue;
+      _cv.project(c); const r = CEN_R * a.cen * h / (2 * dz * th); if (r < 1.5) continue;
+      U.uHd.value[n++].set((_cv.x * .5 + .5) * w, (_cv.y * .5 + .5) * h, r, Math.max(3, CEN_R * h / (2 * dz * th) / 2.6));
+    }
+    U.uHn.value = n; return n;
+  }
   function cctvDraw() {   // кадр камеры: свою голову на это время возвращаем (от первого лица она скрыта), экран прячем (нельзя рисовать в текстуру, которую он показывает)
     const me = AV[mySeat], M = me && me.on && me.M;
     const hs = M ? M.head.scale.x : 1, rz = M ? M.root.position.z : 0;   // вернуть как было (у себя модель сдвинута — ME_BACK/ME_FWD)
     if (M) { M.head.scale.setScalar(1); M.root.position.z = 0; }
     const au = ren.shadowMap.autoUpdate; ren.shadowMap.autoUpdate = false; for (const b of boards) b.visible = false; for (const o of overhead) o.visible = false;
     ren.setRenderTarget(cctvRT); ren.render(scene, cctvCam); ren.setRenderTarget(null);
+    let fd = cctvRT; if (cenCC && cenSet(cenCC, cctvCam, 640, 344, true)) { cenCC.render(ren, cctvRT2, cctvRT); ren.setRenderTarget(null); fd = cctvRT2; }
+    cctvM.uniforms.tFeed.value = fd.texture;
     for (const b of boards) b.visible = true; ren.shadowMap.autoUpdate = au; for (const o of overhead) o.visible = true;
     if (M) { M.head.scale.setScalar(hs); M.root.position.z = rz; }
   }
@@ -2745,12 +2774,14 @@ function makeWorld(T, RB, RE, cv, PP) {
     for (const m of haze) { m.f += m.v * dt; m.sp.position.x = Math.cos(m.f) * m.r; m.sp.position.z = Math.sin(m.f) * m.r; m.sp.position.y = m.y0 + Math.sin(t * .15 + m.k) * .12; m.sp.material.rotation += m.rv * dt; }
     for (const m of smoke) { m.f += m.v * dt; m.sp.position.x = Math.cos(m.f) * m.r; m.sp.position.z = Math.sin(m.f) * m.r * .6; m.sp.position.y = m.y0 + Math.sin(t * .2 + m.k) * .08; m.sp.material.rotation += m.v * .4 * dt; }
     cctvM.uniforms.uT.value = t;
+    for (const s of SEATS) { const a = AV[s]; if (a) a.cen = a.vDead && a.on ? Math.min(1, (a.cen || 0) + dt / .12) : 0; }   // мозаика на голове убитого
     finStep(dt);   // финал у телевизора (владелец 21.11)
     const mix = clamp((tvK - .25) / .5, 0, 1) * (FIN.done ? 1 : FIN.mix); cctvM.uniforms.uMix.value = mix * mix * (3 - 2 * mix);
     cctvM.uniforms.uCrack.value = FIN.crack; cctvM.uniforms.uFlash.value = FIN.flash; cctvM.uniforms.uGl.value = FIN.gl;
     if (mix < 1 && !(FIN.fired && clock > FIN.fireT + .12) && (t - cctvAt > 1 / 15 || t < cctvAt)) { cctvAt = t; cctvDraw(); }   // после выстрела кадр камеры замирает   // итог на весь экран — камеру наблюдения не рисуем
     if (Math.floor(t * 2) !== ovAt) { ovAt = Math.floor(t * 2); ovDraw(t); }
     if (W._led) W._led.visible = Math.floor(t * 1.4) % 2 === 0;
+    if (cenMain) { ren.getDrawingBufferSize(_cv3); cenMain.enabled = cenSet(cenMain, cam, _cv3.x, _cv3.y, false) > 0; }
     if (comp) comp.render(); else ren.render(scene, cam);
   };
 
