@@ -2240,19 +2240,8 @@ function liveMine(d) {
 }
 
 // «золотая пыль» поверх фона удалена вместе со старым фоном (владелец 21.11); вспышка на крупный дроп — пустышка
-let fxBurst = () => {};
-function burst(n = 70) {
-  fxBurst(n);
-  const box = document.createElement('div'); box.className = 'burst';
-  const cols = ['#f5c76b', '#ffe7a3', '#ffffff', '#a78bfa', '#d6912c'];
-  for (let i = 0; i < n; i++) {
-    const l = document.createElement('i');
-    l.style.cssText = `--x:${rand(0, 100)}vw;--dx:${rand(-180, 180)}px;--r:${rand(-900, 900)}deg;--d:${rand(2.4, 4.6)}s;--dl:${rand(0, .6)}s;--s:${rand(.5, 1.2)};--c:${pick(cols)}`;
-    box.appendChild(l);
-  }
-  document.body.appendChild(box);
-  setTimeout(() => box.remove(), 5800);
-}
+// конфетти убраны со всего сайта (владелец 22.11: «убрать эти тупые конфетти») — вызовы burst() остались, звуки и сообщения на месте
+function burst() {}
 
 /* ---------- page timers ---------- */
 let timers = [];
@@ -3778,6 +3767,8 @@ function rollDemo(c) {
   return pool[0];
 }
 const freeN = c => Math.max(0, Math.floor(+((st.user && st.free && st.free[c.id]) || 0))); // бесплатные открытия из подарка (supabase/gift_open.sql)
+// проверка прокрутки без входа — только на localhost (на сайте нет): rcDemo('cs2') на странице кейса = демо-открытие
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.rcDemo = id => openCase(caseById(id), true);
 async function openCase(c, demo, ok, gift, free) { // ok — подтверждено в окне CS2 CASE; gift — бесплатный кейс по реферальной ссылке (ref_gift_open); free — открытие из подарка (open_case_free)
   if (spinning) return;
   const c2 = c2On(c); if (c2 || gift) caseN = 1;
@@ -4165,6 +4156,7 @@ function cs2Idle(c) {
   const p = $('.c2p');
   if (p && p.classList.contains('c2-go') && c2s && c2s.ready) { c2s.rest(); c2s.play(C2D.DROP); c2FallSnd(); } // открыли — новый кейс падает
   if (p) p.classList.remove('c2-go', 'c2-dim'); // ряд предметов снова виден
+  c2BgHold(false);
   c2Fact(false);
   let main;
   if (c.disabled) main = `<button class="c2-btn" disabled>Кейс временно закрыт</button>`;
@@ -4683,6 +4675,13 @@ async function c2Need(ms = 2500) {
   const t = performance.now();
   while (urls.some(u => !Snd.bufs[u]) && performance.now() - t < ms) await sleep(50);
 }
+// пока крутится рулетка, фон под сильным размытием и затемнением — видео фона на паузе (22.11, оптимизация): движения под
+// размытием не видно, а браузеру не нужно заново размывать весь экран на каждом кадре видео. Вернулись к кейсу — видео идёт дальше
+function c2BgHold(on) {
+  const v = $('#c2Stage video'); clearTimeout(c2BgHold.t); if (!v) return;
+  if (on) c2BgHold.t = setTimeout(() => { if ($('.c2p.c2-dim') && !v.paused) { v.pause(); c2BgHold.v = v; } }, 800);   // после того как размытие набрало силу
+  else if (c2BgHold.v === v && v.paused) { c2BgHold.v = null; v.play().catch(() => {}); }   // продолжаем, только если ставили на паузу мы
+}
 const C2_FAST = false; // в CS2-кейсах быстрого открытия нет (просьба владельца, 08.11) — st.fast здесь не действует
 async function cs2Spin(c, wins, given, demo) {
   if (st.sound) await c2Need(C2_FAST ? 1500 : 2500);
@@ -4692,7 +4691,9 @@ async function cs2Spin(c, wins, given, demo) {
   spinning = true;
   const my = ++spinId, rl = $('#rl'), box = $('#strips');
   $('.c2p').classList.add('c2-go'); // ряд предметов плавно убирается, лупа — по центру экрана
-  const cards = Array.from({ length: STRIP_LEN }, (_, i) => c2Tile(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT ? 'is-win' : '')).join('');
+  // 22.11 (оптимизация): картинки ленты грузятся сразу, а не «лениво» на лету (въезжали в кадр недокачанными — рывки);
+  // c2-near — карточки рядом с выигрышем: только их затемняет конец прокрутки (в лупе видно 2–3, раньше фильтр включался у всех 154)
+  const cards = Array.from({ length: STRIP_LEN }, (_, i) => c2Tile(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT ? 'is-win' : Math.abs(i - WIN_AT) <= 4 ? 'c2-near' : '')).join('').replace(/ loading="lazy"/g, ' decoding="async"');
   // туман вокруг лупы → лента снаружи (размыта) → лупа (крупно) → край лупы (ещё крупнее — преломление) → стекло и черта
   box.innerHTML = `<i class="c2-fog" aria-hidden="true"></i><div class="c2-band c2-out"><div class="track">${cards}</div></div>
     <div class="c2-lens"><div class="c2-lens-in"><div class="c2-band"><div class="track">${cards}</div></div></div></div>
@@ -4704,13 +4705,17 @@ async function cs2Spin(c, wins, given, demo) {
   // «Открытие+замок» — через 30 мс после начала анимации, и в быстром режиме тоже (раньше там играл стандартный замок сайта —
   // «старый звук открытия» в Chrome владельца, у него включено «Быстрое открытие»); рулетка — с появлением ленты
   let track = null;
+  // картинки ленты — скачать и распаковать, пока открывается замок (22.11: при первом открытии они догружались прямо в полёте — рывки)
+  const imgsReady = Promise.all($$('.c2-out img', box).map(i => i.decode ? i.decode().catch(() => {}) : null));
   setTimeout(async () => { if (alive() && !(await Snd.playCtl(C2S.lock, C2S.vol))) Snd.lock(); }, C2S.lockDelay * 1000);
   // лента появляется, как только крышка резко распахнулась (кадр LID), анимация доигрывает под размытием
   if (c2s && c2s.ready) { const sp = C2_FAST ? 2 : 1; c2s.play(C2D.OPEN, sp); await sleep((C2D.LID - C2D.OPEN[0]) / C2D.FPS / sp * 1000); }
   else { rl.classList.add('unlocking'); await sleep(C2_FAST ? 450 : 850); rl.classList.remove('unlocking'); }
   if (!alive()) return track && track.stop(.2);
+  await Promise.race([imgsReady, sleep(1000)]);   // обычно уже готовы; медленный интернет — ждём не дольше секунды сверх замка
+  if (!alive()) return track && track.stop(.2);
   // 2) фон размывается, кейс уходит, раскрывается лупа
-  $('.c2p').classList.add('c2-dim'); rl.classList.add('spinning'); c2WindQuiet(true);
+  $('.c2p').classList.add('c2-dim'); rl.classList.add('spinning'); c2WindQuiet(true); c2BgHold(true);
   await sleep(C2_FAST ? 120 : 220);
   if (!alive()) { c2WindQuiet(false); return track && track.stop(.2); }
   const tracks = $$('.track', box), band = $('.c2-out', box), win = $('.is-win', tracks[0]);
@@ -4726,7 +4731,8 @@ async function cs2Spin(c, wins, given, demo) {
   // щелчок — когда середина промежутка между карточками проходит под чертой
   const gapHalf = (step - cw) / 2;
   const tick = () => Snd.playCtl(C2S.tick, C2S.tickVol).then(t => { if (!t) Snd.tickCase(); });
-  const loop = () => { const idx = Math.floor((-pos() + center + gapHalf) / step); if (last !== null && idx !== last) tick(); last = idx; raf = requestAnimationFrame(loop); };
+  let nF = 0, hid = false; const tS = performance.now();   // автопроверка (GFX, 22.11): прокрутка идёт меньше 36 кадров/с — экономная графика
+  const loop = () => { nF++; if (document.hidden) hid = true; const idx = Math.floor((-pos() + center + gapHalf) / step); if (last !== null && idx !== last) tick(); last = idx; raf = requestAnimationFrame(loop); };
   raf = requestAnimationFrame(loop);
   await new Promise(res => {
     let done = false;
@@ -4736,6 +4742,7 @@ async function cs2Spin(c, wins, given, demo) {
     $('#skipBtn').onclick = () => { if (done) return; clearTimeout(t); const p = pos(); set('none', p); void tracks[0].offsetWidth; set('transform .4s cubic-bezier(.2,.8,.3,1)', target); t = setTimeout(fin, 430); };
   });
   cancelAnimationFrame(raf);
+  { const sec = (performance.now() - tS) / 1000; if (!hid && !document.hidden && sec > 2 && nF / sec < 36) GFX.slow(); }   // не считаем, если вкладку прятали или нажали «Пропустить» сразу
   if (!alive()) { c2WindQuiet(false); return track && track.stop(.2); }
   // 3) доводка к центру предмета, предмет подсвечивается
   set('transform .5s cubic-bezier(.3,1.3,.5,1)', -base);

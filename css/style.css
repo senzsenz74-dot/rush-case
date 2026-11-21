@@ -405,11 +405,6 @@ html{scroll-padding-top:calc(var(--lv) + var(--hd))}
 .cc-spin{display:flex;align-items:center;gap:14px;height:58px;padding:0 26px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid var(--stroke2);font-weight:800;color:var(--txt2)}
 .spinner{width:20px;height:20px;border-radius:50%;border:2.5px solid rgba(245,199,107,.22);border-top-color:var(--gold);animation:spin .8s linear infinite}
 
-/* confetti burst */
-.burst{position:fixed;inset:0;pointer-events:none;z-index:300;overflow:hidden}
-.burst i{position:absolute;top:-30px;left:var(--x);width:8px;height:14px;border-radius:2px;background:var(--c);box-shadow:0 0 10px var(--c);opacity:.95;animation:confetti var(--d) var(--dl) cubic-bezier(.3,.1,.6,1) forwards}
-.burst i:nth-child(3n){width:10px;height:10px;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);border-radius:0}
-@keyframes confetti{0%{transform:translate(0,0) rotate(0) rotateY(0) scale(var(--s))}100%{transform:translate(var(--dx),112vh) rotate(var(--r)) rotateY(900deg) scale(var(--s));opacity:.6}}
 
 /* ---------- panels ---------- */
 .panel{border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012));border:1px solid var(--stroke);padding:20px;backdrop-filter:blur(10px)}
@@ -4565,7 +4560,7 @@ body.pg-contracts .dos{max-width:1120px}
 .c2-mark{position:absolute;left:50%;top:var(--cy);width:3px;height:268px;transform:translate(-50%,-50%);background:linear-gradient(180deg,#f7d774,#e3a923);box-shadow:0 0 10px rgba(240,190,60,.8);border-radius:2px;opacity:0;transition:opacity .3s .35s}
 .c2-rl.spinning .c2-mark{opacity:1}
 .c2-rl.c2-close .c2-mark{opacity:0;transition-delay:0s}
-.c2-spin.done .c2-lens .c2t:not(.is-win){filter:brightness(.45) grayscale(.5);transition:filter .4s}
+.c2-spin.done .c2-lens .c2t.c2-near:not(.is-win){filter:brightness(.45) grayscale(.5);transition:filter .4s} /* 22.11: только соседние с выигрышем (в лупе видно 2–3) — раньше фильтр включался у 154 карточек разом */
 .c2-spin.done .c2-lens .c2t.is-win{box-shadow:inset 0 -5px 0 var(--rc,#e4ae39),inset 0 -26px 24px -18px color-mix(in srgb,var(--rc,#e4ae39) 55%,transparent),inset 0 1px 0 rgba(255,255,255,.3),inset 0 0 46px rgba(0,0,0,.42),0 0 0 2px #f7d774,0 0 40px color-mix(in srgb,var(--rc,#e4ae39) 70%,transparent)}
 .c2-rl .rl-reveal{z-index:9}
 .c2-rl.revealed .rl-reveal{opacity:1;visibility:visible}
@@ -7702,3 +7697,9 @@ html.gfx-low *,html.gfx-low *::before,html.gfx-low *::after{-webkit-backdrop-fil
    на вид то же, а при прокрутке браузер больше не пересчитывает 65 размытий на каждом кадре.
    Карточка за пределами экрана (.ix-away, ставит mountCases) — анимации поверх кейса (мошки, лампы, пар, лучи) на паузе */
 .ix-away *,.ix-away *::before,.ix-away *::after{animation-play-state:paused!important}
+/* прокрутка CS2-кейса в экономной графике (GFX, 22.11): туман вокруг лупы без живого размытия всего экрана (backdrop-filter снят общим
+   правилом) — ленту снаружи размываем сильнее сами; подложку тумана оставляем своей (не тёмную из gfxGlassCss); без кольца преломления
+   у кромки лупы — третьей копии ленты с маской и размытием */
+html.gfx-low .c2-out{filter:blur(16px) brightness(.4) saturate(.6)}
+html.gfx-low .c2-fog{background-color:rgba(6,7,10,.34)}
+html.gfx-low .c2-lens-edge{display:none}
