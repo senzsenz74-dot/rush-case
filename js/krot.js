@@ -1567,7 +1567,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     const cb = new T.Mesh(new T.PlaneGeometry(.095, .135), new T.MeshStandardMaterial({ map: backT, roughness: .6 })); cb.rotation.y = Math.PI; card.add(cb);
     cf.castShadow = cb.castShadow = true;
     // ник над головой
-    const tag = new T.Sprite(new T.SpriteMaterial({ transparent: true, depthTest: false })); tag.scale.set(.46, .158, 1); tag.position.set(0, 1.47, 0); tag.renderOrder = 10; tag.visible = false; g.add(tag); a.tag = tag;
+    const tag = new T.Sprite(new T.SpriteMaterial({ transparent: true, depthTest: false })); tag.scale.set(.46, .1725, 1); tag.position.set(0, 1.463, 0); tag.renderOrder = 10; tag.visible = false; g.add(tag); a.tag = tag;
     const sp = new T.Sprite(new T.SpriteMaterial({ map: spkT, transparent: true, depthTest: false, opacity: 0 })); sp.scale.set(.1, .1, 1); sp.position.set(0, 1.64, 0); sp.renderOrder = 11; sp.visible = false; g.add(sp); a.sp = sp; a.spk = false;
     AV[s] = a;
   }
@@ -1598,7 +1598,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   const _e1 = V(0, 0, 0), _e2 = V(0, 0, 0), _e3 = V(0, 0, 0), _e4 = V(0, 0, 0), _f1 = V(0, 0, 0), _f2 = V(0, 0, 0), _f3 = V(0, 0, 0), _t1 = V(0, 0, 0), _t2 = V(0, 0, 0), _t3 = V(0, 0, 0);
   const _qa = new T.Quaternion(), _qb = new T.Quaternion(), _qc = new T.Quaternion(), _qg = new T.Quaternion(), _qs = new T.Quaternion(), _qh = new T.Quaternion(), _qh2 = new T.Quaternion(), _qI = new T.Quaternion(), _m2 = new T.Matrix4(), _mi = new T.Matrix4(), _eg = new T.Euler(0, 0, 0, 'YXZ');
   const wp = (b, o) => o.setFromMatrixPosition(b.matrixWorld);
-  const _hw = V(0, 0, 0), TAG_UP = .23;   // плашка ника — над головой (кость head_0 + столько вверх)
+  const _hw = V(0, 0, 0), TAG_UP = .223;   // плашка ника — над головой (кость head_0 + столько вверх)
   const wq = (o, q) => { o.matrixWorld.decompose(_ps, q, _sc); return q; };
   const rotW = (b, q) => { wq(b.parent, _qa); _qb.copy(_qa).invert().multiply(q).multiply(_qa); b.quaternion.premultiply(_qb); b.updateMatrixWorld(true); };   // поворот кости в мировых осях
   const setW = (b, q) => { wq(b.parent, _qa); b.quaternion.copy(_qa.invert()).multiply(q); b.updateMatrixWorld(true); };                                       // задать кости мировой поворот
@@ -1790,7 +1790,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     _qh.copy(_qs).multiply(_qI.identity().slerp(_qg, .35 + .4 * ff)).multiply(M.rel.neck); setW(B.neck_0, _qh);   // упал — шея гнётся за головой
     _qh3.copy(_qs).multiply(_qg); _qh.copy(_qh3).multiply(M.rel.head); setW(B.head_0, _qh);
     (a.hq || (a.hq = new T.Quaternion())).copy(_qh3);   // поворот головы — для брызг при выстреле
-    if (a.tag) { wp(B.head_0, _hw); a.tag.parent.worldToLocal(_hw); const ty = Math.max(1.2, _hw.y + TAG_UP); a.tag.position.set(_hw.x, ty, _hw.z); a.sp.position.set(_hw.x, ty + .17, _hw.z); }   // ник со званием закреплён за головой (владелец 21.11)
+    if (a.tag) { wp(B.head_0, _hw); a.tag.parent.worldToLocal(_hw); const ty = Math.max(1.2, _hw.y + TAG_UP); a.tag.position.set(_hw.x, ty, _hw.z); a.sp.position.set(_hw.x, ty + .177, _hw.z); }   // ник со званием закреплён за головой (владелец 21.11)
     if (fl && !a.stain && M.head.scale.x > .5) bloodStain(a, B, _qh3);   // пятно на виске
     if (fl && fl.t > FALL_HIT && !a.pool) bloodHit(a, wp(B.head_0, V(0, 0, 0)), _qh3);   // удар о стол: брызги, потёки, лужа, капли на пол
     // револьвер в руке: на столе → дугой к виску (от первого лица уходит за правый край кадра); рывки курка и выстрела — дуло вверх
@@ -2435,7 +2435,7 @@ function rankImg(n, onload) {   // картинка значка (SVG); пока
   if (onload) im.addEventListener('load', onload, { once: true }); return null;
 }
 function paintTag(s, name, st2, rn) {   // над головой: номер + ник, под ником — значок звания (без свечения, владелец 21.11), ниже статус
-  const c = cnv(512, 176), x = c.getContext('2d'); name = String(name || 'Игрок'); const im = rn ? rankImg(rn) : null;
+  const c = cnv(512, 192), x = c.getContext('2d'); name = String(name || 'Игрок'); const im = rn ? rankImg(rn) : null;
   if (st2 === 'free') { x.fillStyle = 'rgba(12,15,19,.55)'; rr(x, 96, 14, 320, 60, 6); x.fill(); x.fillStyle = 'rgba(233,238,243,.5)'; x.font = F_H(34); x.textAlign = 'center'; x.fillText('СВОБОДНО', 256, 56); return c; }
   x.font = F_B(38, 800); const nm = name.length > 16 ? name.slice(0, 15) + '…' : name;
   const lab = { ready: ['ГОТОВ', '#4fd08a'], wait: ['НЕ ГОТОВ', 'rgba(233,238,243,.55)'], off: ['НЕТ СВЯЗИ', '#ff6b61'], left: ['ВЫШЕЛ', '#ff6b61'], turn: ['ХОДИТ', '#84d9fd'], dead: ['ВЫБЫЛ', '#ff6b61'], win: ['ПОБЕДИТЕЛЬ', '#4fd08a'] }[st2];
@@ -2443,7 +2443,7 @@ function paintTag(s, name, st2, rn) {   // над головой: номер + �
   x.fillStyle = 'rgba(12,15,19,.78)'; rr(x, X, 8, w, 62, 5); x.fill(); x.strokeStyle = 'rgba(255,255,255,.16)'; x.lineWidth = 2; x.stroke();
   x.fillStyle = '#84d9fd'; rr(x, X + 10, 18, 42, 42, 3); x.fill(); x.fillStyle = '#0a1016'; x.font = F_H(32); x.textAlign = 'center'; x.fillText(String(s), X + 31, 51);
   x.fillStyle = '#eef2f6'; x.font = F_B(38, 800); x.textAlign = 'left'; x.fillText(nm, X + 64, 53);
-  let y = 80; if (im) { x.drawImage(im, 200.5, y - 9.8, 111, 55.5); y += 46; }   // значок по центру под ником: сама плашка ~111×36
+  let y = 80; if (im) { x.drawImage(im, 181, y - 13.2, 150, 75); y += 57; }   // значок по центру под ником: сама плашка ~141×48 (владелец 21.11: «чуть больше»)
   if (lab) { x.font = F_H(30); const lw = x.measureText(lab[0]).width + 26; x.fillStyle = 'rgba(12,15,19,.82)'; rr(x, 256 - lw / 2, y, lw, 38, 4); x.fill(); x.fillStyle = lab[1]; x.textAlign = 'center'; x.fillText(lab[0], 256, y + 29); }
   return c;
 }
