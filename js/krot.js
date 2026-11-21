@@ -2046,15 +2046,17 @@ function makeWorld(T, RB, RE, cv, PP) {
   }, 400);
 
   // жесты рукой (круг на H, владелец 22.11): up — большой палец вверх, fu — средний палец, wave — помахать, gun — пистолет из пальцев с выстрелом
-  const GEST_T = { up: 2.3, fu: 2.4, wave: 3.4, gun: 2.4 };
+  const GEST_T = { up: 2.3, fu: 2.4, wave: 3.4, gun: 2.7 };
+  const GEST_IO = { gun: [.55, .6] };   // подъём / опускание руки, с (остальные .35 / .4)
+  const smS = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }, smS2 = x => { x = clamp(x, 0, 1); return x * x * x * (x * (6 * x - 15) + 10); };   // плавно; ещё плавнее (без рывка в начале и конце)
   const _gP = V(0, 0, 0), _gE = V(0, 0, 0), _gF = V(0, 0, 0), _gA = V(0, 0, 0), _gT = V(0, 0, 0), _gN = V(0, 0, 0), _gV = V(0, 0, 0), _gJ = V(0, 0, 0), _gC = V(0, 0, 0), _gQ = new T.Quaternion(), _gY = new T.Quaternion(), _gYa = V(0, 1, 0);
   let gExt = [0, 0, 0, 0], gTh = null;   // большой палец: по фаланге [к пальцам F, к стороне большого A, к ладони N]
   const TH_FOLD = [[.45, .15, .6], [.25, -.75, .45], [.1, -.9, .3]];   // загнут поверх сжатых пальцев (фак)
   const gestW = (a, now) => {   // вес жеста 0…1 (плавно поднял — подержал — опустил)
     const st = a.gst; if (!st) return 0;
     const tt = now - st.at, d = GEST_T[st.k] || 2.3; if (tt >= d) { a.gst = null; return 0; }
-    const sm = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
-    return sm(tt / .35) * sm((d - tt) / .4);
+    const io = GEST_IO[st.k], sm = io ? smS2 : smS;
+    return sm(tt / (io ? io[0] : .35)) * sm((d - tt) / (io ? io[1] : .4));
   };
   // поза кисти жеста в осях места (правая рука; левая — зеркально): куда запястье, куда пальцы (F), куда большой палец (A), куда локоть; пальцы: какие прямые, куда большой
   const gestPose = (a, k, sd, tt, g, qs) => {
@@ -2064,7 +2066,8 @@ function makeWorld(T, RB, RE, cv, PP) {
     else if (st.k === 'fu') { const th = Math.sin(Math.PI * clamp(tt / .7, 0, 1)); px = .1; py = 1.14 + th * .03; pz = -.56 - th * .06; fx = 0; fy = 1; fz = -.18; ax = sd; ay = 0; az = 0; ex = sd * .6; ey = -1; ez = .3; gExt = [0, 1, 0, 0]; gTh = TH_FOLD; }
     else if (st.k === 'wave') { const th = Math.sin(tt * 4.2) * .42, ph = th * 1.25, L = .3; px = (me ? .24 : .42) + L * Math.sin(th); py = 1.34 - L * (1 - Math.cos(th)); pz = me ? -.48 : -.38; fx = sd * Math.sin(ph); fy = Math.cos(ph); fz = 0; ax = -sd * Math.cos(ph); ay = Math.sin(ph); az = 0;   // машет всем предплечьем от локтя, ~0,7 взмаха в секунду (владелец 22.11)
       ex = sd; ey = -.6; ez = .3; gExt = [1, 1, 1, 1]; gTh = [[.7, .55, 0], [.55, .8, 0], [.5, .85, 0]]; }
-    else { const kk = tt > 1.05 ? Math.exp(-(tt - 1.05) * 7) : 0, hd = clamp((tt - 1.05) / .12, 0, 1); px = .1; py = 1.18 + kk * .05; pz = -.64 + kk * .05; fx = -.08; fy = kk * .9; fz = -1; ax = 0; ay = 1; az = 0; ex = sd * .5; ey = -1; ez = .1; gExt = [1, 0, 0, 0]; gTh = [[.6, .6, 0], [.3 + hd * .6, 1 - hd * .75, 0], [.25 + hd * .75, 1 - hd * .8, 0]]; }
+    else { const u = tt - 1.25, kk = smS2(u / .14) * (1 - smS2((u - .14) / .75)), hd = smS2((u + .04) / .22), sw = Math.sin(tt * 2.6) * (1 - smS(u / .1));   // владелец 22.11: плавнее — рука поднимается мягко, чуть ведёт прицел, отдача нарастает и спадает без скачка, большой палец («курок») опускается плавно
+      px = .1 + sw * .006; py = 1.18 + kk * .045 + sw * .004; pz = -.64 + kk * .04; fx = -.08; fy = kk * .62; fz = -1; ax = 0; ay = 1; az = 0; ex = sd * .5; ey = -1; ez = .1; gExt = [1, 0, 0, 0]; gTh = [[.6, .6, 0], [.3 + hd * .6, 1 - hd * .75, 0], [.25 + hd * .75, 1 - hd * .8, 0]]; }
     _gY.setFromAxisAngle(_gYa, clamp(a.hy || 0, -1.2, 1.2) * .75);   // жест туда, куда смотрит голова
     _gP.set(px * sd, py, pz).applyQuaternion(_gY).applyMatrix4(g.matrixWorld);
     _gF.set(fx, fy, fz).applyQuaternion(_gY).applyQuaternion(qs).normalize();
