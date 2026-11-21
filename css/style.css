@@ -5076,6 +5076,15 @@ body.pg-main::after{background:linear-gradient(90deg,rgba(6,8,12,.38),rgba(6,8,1
 .nw-top.nw-drop .nw-tx{left:calc(var(--nu)*8);right:calc(var(--nu)*8);bottom:calc(var(--nu)*10);align-items:center;gap:calc(var(--nu)*3);text-align:center}
 .nw-top.nw-drop .nw-t{font:500 calc(var(--nu)*21)/1 'Oswald',var(--ff);letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 calc(var(--nu)*1) calc(var(--nu)*6) rgba(0,0,0,.85)}
 .nw-top.nw-drop .nw-s{font:500 calc(var(--nu)*10)/1 'Oswald',var(--ff);letter-spacing:.32em;margin-right:-.32em;text-transform:uppercase;color:#f2c94c;text-shadow:0 0 calc(var(--nu)*6) rgba(242,201,76,.45)}
+/* анимация текста (владелец 21.11): по заголовку пробегает золотой блик; удар кейса о пол (класс .hit от nwDropSync) — текст вздрагивает, строка вспыхивает */
+.nw-top.nw-drop .nw-t{color:transparent;background:linear-gradient(100deg,#fff 0 42%,#ffe39a 48%,#fff8e0 50%,#ffe39a 52%,#fff 58% 100%) 100% 0/260% 100% no-repeat;-webkit-background-clip:text;background-clip:text;text-shadow:none;filter:drop-shadow(0 calc(var(--nu)*1) calc(var(--nu)*3) rgba(0,0,0,.85));animation:nwShine 4.6s linear infinite}
+.nw-top.nw-drop .nw-tx{transform-origin:50% 100%}
+.nw-drop.hit .nw-tx{animation:nwHit .5s cubic-bezier(.2,.8,.3,1)}
+.nw-drop.hit .nw-s{animation:nwFlash .9s ease-out}
+@keyframes nwShine{0%{background-position:100% 0}55%,100%{background-position:0 0}}
+@keyframes nwHit{0%{transform:none}14%{transform:translateY(calc(var(--nu)*2.5)) scale(1.07)}34%{transform:translate(calc(var(--nu)*-1),calc(var(--nu)*-1)) scale(.985)}56%{transform:translateX(calc(var(--nu)*.7))}100%{transform:none}}
+@keyframes nwFlash{0%{color:#fff;text-shadow:0 0 calc(var(--nu)*8) #ffd76a,0 0 calc(var(--nu)*18) rgba(255,190,60,.85)}100%{color:#f2c94c;text-shadow:0 0 calc(var(--nu)*6) rgba(242,201,76,.45)}}
+@media (prefers-reduced-motion:reduce){.nw-top.nw-drop .nw-t,.nw-drop.hit .nw-tx,.nw-drop.hit .nw-s{animation:none}}
 .nw-top .nw-s{color:rgba(255,255,255,.85)}
 
 /* 2 — промо: картинка, снизу светлая полоса «ИГРАТЬ / НАЗВАНИЕ / подпись» */

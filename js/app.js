@@ -2307,7 +2307,7 @@ async function loadCaseCfg() {
   const nw = data.find(r => r.k === 'news'), nwWas = JSON.stringify(NEWS); // новости главного экрана (вкладка «Новости» в админке)
   NEWS = nw && Array.isArray(nw.v) ? nw.v : null;
   try { if (NEWS) localStorage.setItem('rc.news', JSON.stringify(NEWS)); else localStorage.removeItem('rc.news'); } catch (e) { /* */ }
-  if (JSON.stringify(NEWS) !== nwWas && $('#nwCol')) { $('#nwCol').innerHTML = newsCol(); nwFeed(); }
+  if (JSON.stringify(NEWS) !== nwWas && $('#nwCol')) { $('#nwCol').innerHTML = newsCol(); nwFeed(); nwDropSync(); }
   const an = data.find(r => r.k === 'announce'); ANN = an && an.v && typeof an.v === 'object' ? an.v : null; annMaybe(); // объявление при входе (вкладка «Объявление»)
   const tc = data.find(r => r.k === 'tower'); if (tc && tc.v) { if (+tc.v.rtp >= .3 && +tc.v.rtp <= .98) TOWER.rtp = +tc.v.rtp; TOWER.off = !!tc.v.off; if (Array.isArray(tc.v.top) && tc.v.top.length === 3) TOWER.top = tc.v.top.map(Number); if ($('#twTower') && !tw.game) drawTower(); }
   const sk = data.find(r => r.k === 'skins'); if (sk && sk.v && sk.v.hold != null) SK_HOLD = Math.max(0, +sk.v.hold || 0);
@@ -2442,6 +2442,22 @@ function newsCard(x) {
     <div class="nw-fs" id="nwFeed"></div><div class="nw-pg"><button data-d="-1" aria-label="Назад">${NW_ARR(-1)}</button><span id="nwDots"></span><button data-d="1" aria-label="Вперёд">${NW_ARR(1)}</button></div></div>`;
 }
 const newsCol = () => newsList().map(newsCard).join('');
+// верхняя новость «падение кейсов» (владелец 21.11): в момент удара кейса о пол текст вздрагивает, золотая строка вспыхивает.
+// Удары в видео assets/news-drop.* — кадр 13 каждого падения: 0,43 / 3,53 / 6,63 с (склейка — tools/news-drop-encode.cjs)
+const NW_HITS = [0.43, 3.53, 6.63];
+function nwDropSync() {
+  const card = $('.nw-drop'), v = card && $('video', card); if (!v) return;
+  let last = -1;
+  const hit = () => { card.classList.remove('hit'); void card.offsetWidth; card.classList.add('hit'); };
+  const tick = () => {
+    if (!card.isConnected) return;
+    const t = v.currentTime;
+    if (last >= 0) NW_HITS.forEach(h => { if ((t >= last && last < h && t >= h) || (t < last && t >= h)) hit(); });   // t < last — видео пошло по новому кругу
+    last = t;
+    if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(tick); else requestAnimationFrame(tick);
+  };
+  tick();
+}
 function pageMain() {
   // справа от первой новости — значок «?»: при наведении (или нажатии) стеклянная подложка с реквизитами продавца (подвала на главной нет);
   // в самом низу — мелкая приписка про Valve
@@ -2488,7 +2504,7 @@ async function mnRank() {   // очки за всё время — сумма rr
   mnRankDraw((data || []).reduce((s, r) => s + (r.pts || 0), 0));
 }
 function mountMain() {
-  nwFeed(); mnCfgUi(); mnRank();
+  nwFeed(); mnCfgUi(); mnRank(); nwDropSync();
   Snd.preloadSet({ k: MNK_SND }); const kgo = $('.mnk-go'); if (kgo) kgo.addEventListener('click', () => Snd.playCtl(MNK_SND, .2).then(t => { if (!t) Snd.file(MNK_SND, .2); })); // если звук ещё не скачался — обычным плеером (при выключенном звуке молчит)
   mnLampsPos(); later(mnLampsPos, 700); if (!mnLampsPos.on) { mnLampsPos.on = 1; addEventListener('resize', mnLampsPos); $('#app').addEventListener('animationend', e => { if (e.target.id === 'app') mnLampsPos(); }); } // второй раз — после «въезда» страницы
   later(() => (window.requestIdleCallback || (f => f()))(mnAgent, { timeout: 1200 }), 300); // 3D-агент — после показа страницы
