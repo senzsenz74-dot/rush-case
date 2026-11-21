@@ -7691,3 +7691,9 @@ body.mn-alt.pg-cases::before,body.mn-alt.pg-bonus::before,body.mn-alt.pg-doc::be
 .mna-psh{position:absolute;z-index:0;transform:translate(-38%,-58%);border-radius:50%;pointer-events:none;
   background:radial-gradient(closest-side,rgba(20,12,16,.6),rgba(20,12,16,.32) 55%,rgba(20,12,16,0));filter:blur(1.5px)}
 
+/* ===== экономная графика (html.gfx-low — js/app.js GFX, владелец 22.11: слабые ПК тормозят, телефоны греются) =====
+   Живое размытие стекла выключено везде: под 3D-агентом и видео оно пересчитывается каждый кадр — главный расход видеокарты.
+   Вместо размытия — тёмная подложка там, где своя почти прозрачная: правила строит gfxGlassCss() (style#gfxGlass) */
+html.gfx-low *,html.gfx-low *::before,html.gfx-low *::after{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.mm-i small+b{margin-left:6px}
+.mm-note{margin:0;padding:10px 22px 14px;border-top:1px solid rgba(255,255,255,.08);color:#8d8f94;font:400 12.5px/1.4 var(--ff)}

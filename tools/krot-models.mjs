@@ -6,7 +6,7 @@
 //   node krot-models.mjs "<источник>.glb" assets/krot/<имя>.glb [--drop-back-bag]
 // --drop-back-bag — только для «Профессионала» (assets/main/agent.glb): сумка за поясом протыкает спинку стула.
 // Источники 12.11.2026: Загрузки владельца balkan-cs2-agent-model-romanov / -dragomir-no2 / fbi-cs2-agent-model-no2 (source/*.glb),
-// «Профессионал» — assets/main/agent.glb.
+// «Профессионал» — assets/main/agent.glb. С 22.11.2026 он сжат (tools/main-models.mjs) — исходник брать несжатый: git show b857061:assets/main/agent.glb > agent-src.glb
 // 22.11.2026: phoenix / mccoy — Загрузки street-soldier-phoenix.zip / two-times-mccoy-tacp-cavalry.zip; пришли БЕЗ костей —
 // сначала tools/krot-rig.py (скелет Романова), потом этот скрипт.
 import { NodeIO } from '@gltf-transform/core';

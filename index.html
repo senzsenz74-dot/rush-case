@@ -12,10 +12,17 @@
    браузер сам уменьшает компьютерную версию под телефон; вертикально — экран «Поверните телефон» (#rot) */
 (function () {
   var touch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
-  if (touch && Math.min(screen.width, screen.height) < 600) {
+  var phone = touch && Math.min(screen.width, screen.height) < 600, de = document.documentElement;
+  if (phone) {
     document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=1280');
-    document.documentElement.classList.add('phone');
+    de.classList.add('phone');
   }
+  /* экономная графика (js/app.js GFX) — класс сразу, до первой отрисовки: стекло не мигает размытием.
+     rc.gfx — выбор игрока (auto/high/eco); в «Авто» экономная у телефона и у ПК, который не потянул 3D (rc.gfxAuto, 3 дня) */
+  try {
+    var g = localStorage.getItem('rc.gfx'), t = +localStorage.getItem('rc.gfxAuto');
+    if (g === 'eco' || (g !== 'high' && (phone || (t > 0 && Date.now() - t < 2592e5)))) de.classList.add('gfx-low');
+  } catch (e) { if (phone) de.classList.add('gfx-low'); }
 })();
 </script>
 <title>RUSH CASE — открытие кейсов CS2</title>
@@ -32,7 +39,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800;900&family=Barlow+Semi+Condensed:wght@500;600&family=Ubuntu+Condensed&family=Sofia+Sans+Extra+Condensed:wght@500;700;800&family=Oswald:wght@400;500&family=Rubik:wght@400;500&family=Sofia+Sans+Semi+Condensed:ital,wght@0,500;0,600;0,700;1,800&family=PT+Mono&family=Caveat:wght@500;600;700&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/logo.webp">
 <link rel="preload" as="image" href="assets/rcoin.webp">
-<link rel="stylesheet" href="css/style.css?v=202611220332">
+<link rel="stylesheet" href="css/style.css?v=202611220411">
 </head>
 <body>
 <div id="rot" role="alert"><div class="rot-in"><img src="assets/logo.webp" alt="RUSH CASE"><i class="rot-ph" aria-hidden="true"><i></i></i><b>Поверните телефон</b><span>RUSH CASE работает в горизонтальном режиме</span></div></div>
@@ -140,9 +147,9 @@
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="js/skins.js?v=202611220332"></script>
-<script src="js/wears.js?v=202611220332"></script>
-<script src="js/extra.js?v=202611220332"></script>
-<script src="js/app.js?v=202611220332"></script>
+<script src="js/skins.js?v=202611220411"></script>
+<script src="js/wears.js?v=202611220411"></script>
+<script src="js/extra.js?v=202611220411"></script>
+<script src="js/app.js?v=202611220411"></script>
 </body>
 </html>

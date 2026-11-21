@@ -1888,6 +1888,61 @@ function luRankDraw() {
 }
 const UA_DESK = matchMedia('(min-width:1025px)');
 UA_DESK.addEventListener('change', () => renderUser());
+/* ---------- графика: Авто / Высокая / Экономная (владелец 22.11: на слабых ПК сайт тормозит, телефоны греются) ----------
+   Выбор игрока — localStorage rc.gfx ('auto' | 'high' | 'eco'): меню «Настройки главного экрана» → «Графика».
+   Авто: телефон — экономная; компьютер — высокая, пока 3D-агент держит частоту кадров; не держит — экономная на 3 дня (rc.gfxAuto — время).
+   Экономная (html.gfx-low): стекло без живого размытия (тёмная подложка — gfxGlassCss), без живой фактуры шапки,
+   3D — 30 кадров/с, меньше разрешение, простые тени. Класс ставится ещё в index.html — до первой отрисовки. */
+const GFX = {
+  low: false,
+  phone: document.documentElement.classList.contains('phone'),
+  pref() { try { const v = localStorage.getItem('rc.gfx'); return v === 'high' || v === 'eco' ? v : 'auto'; } catch (e) { return 'auto'; } },
+  autoEco() { try { const t = +localStorage.getItem('rc.gfxAuto'); return t > 0 && Date.now() - t < 3 * 864e5; } catch (e) { return false; } },
+  apply() {
+    const p = GFX.pref(); GFX.low = p === 'eco' || (p === 'auto' && (GFX.phone || GFX.autoEco()));
+    document.documentElement.classList.toggle('gfx-low', GFX.low); if (GFX.low) gfxGlassCss(); return GFX.low;
+  },
+  set(p) { try { localStorage.setItem('rc.gfx', p); localStorage.removeItem('rc.gfxAuto'); } catch (e) { /* */ } GFX.reapply(); },
+  slow() { // автопроверка (3D-агент): компьютер не тянет — экономная, только в «Авто»
+    if (GFX.low || GFX.pref() !== 'auto') return;
+    try { localStorage.setItem('rc.gfxAuto', String(Date.now())); } catch (e) { /* */ }
+    GFX.reapply(); toast('Включена экономная графика — так сайт работает плавнее. Вернуть: настройки главного экрана → Графика', 'info');
+  },
+  reapply() { const was = GFX.low; if (GFX.apply() === was) return; hdFx(); if ($('#mnAgent')) mnAgent(); },
+  // 3D: пикселей холста на точку страницы. У телефона страница 1280 точек и уменьшена браузером — лишнее не рисуем
+  dpr(max) { const v = window.visualViewport, s = v && v.scale > 0 && v.scale < 1 ? v.scale : 1; return Math.min((window.devicePixelRatio || 1) * s, max); },
+};
+// экономная графика: живое размытие стекла выключено (style.css, «экономная графика»). Где своя подложка стекла почти прозрачная
+// (держалась на размытии), подкладываем тёмную. Правила строятся сами по style.css — новые стёкла подхватываются без правок
+function gfxGlassCss() {
+  if (gfxGlassCss.done) return; gfxGlassCss.done = 1;
+  const T = 0.74, out = [];
+  const alpha = c => { // прозрачность одного цвета: rgba(), rgb(… / a), hsla(), #rrggbbaa, transparent
+    if (/^transparent$/i.test(c)) return 0;
+    if (c[0] === '#') { const h = c.slice(1); return h.length === 8 ? parseInt(h.slice(6), 16) / 255 : h.length === 4 ? parseInt(h[3], 16) / 15 : 1; }
+    const n = c.replace(/^[a-z]+\(|\)$/gi, '').split(/[\s,/]+/).filter(Boolean); if (n.length < 4) return 1;
+    const a = n[3]; return /%$/.test(a) ? parseFloat(a) / 100 : parseFloat(a);
+  };
+  const avg = s => { const L = s.match(/rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-f]{3,8}\b|\btransparent\b/gi) || []; return L.length ? L.reduce((m, c) => m + alpha(c), 0) / L.length : 0; };
+  const parts = sel => { const L = []; let d = 0, q = '', cur = ''; for (const ch of sel) { // список селекторов → по одному (запятые внутри скобок не режем)
+    if (q) { if (ch === q) q = ''; } else if (ch === '"' || ch === "'") q = ch; else if (ch === '(' || ch === '[') d++; else if (ch === ')' || ch === ']') d--; else if (ch === ',' && !d) { L.push(cur.trim()); cur = ''; continue; }
+    cur += ch; } L.push(cur.trim()); return L.filter(Boolean); };
+  const pre = s => /^html\b/i.test(s) ? s.replace(/^html/i, 'html:where(.gfx-low)') : /^:root\b/.test(s) ? s.replace(/^:root/, ':root:where(.gfx-low)') : ':where(html.gfx-low) ' + s;
+  const walk = (rules, wrap) => { for (const r of rules) {
+    if (r.selectorText && r.style) {
+      const st = r.style, bf = st.getPropertyValue('backdrop-filter') || st.getPropertyValue('-webkit-backdrop-filter'); if (!bf || bf === 'none') continue;
+      const bc = st.getPropertyValue('background-color'), bi = st.getPropertyValue('background-image'); if (/url\(/.test(bi)) continue;
+      const aC = bc ? alpha(bc.trim()) : 0, aI = bi && bi !== 'none' ? Math.min(avg(bi), 0.95) : 0;
+      const fill = Math.max(aC, 1 - (1 - T) / (1 - aI)); if (!(fill > aC + 0.04)) continue;
+      const m = bc && bc.match(/rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/), rgb = m && (m[1] * .3 + m[2] * .59 + m[3] * .11) / 255 < .35 ? `${m[1]},${m[2]},${m[3]}` : '13,16,22';
+      const css = parts(r.selectorText).map(pre).join(',') + `{background-color:rgba(${rgb},${fill.toFixed(2)})}`;
+      out.push(wrap.reduceRight((s, w) => `${w}{${s}}`, css));
+    } else if (r.cssRules && (r.media || r.conditionText)) walk(r.cssRules, wrap.concat(r.media ? '@media ' + r.media.mediaText : '@supports ' + r.conditionText));
+  } };
+  for (const sh of document.styleSheets) { let R; try { R = sh.cssRules; } catch (e) { continue; } if (R) walk(R, []); }
+  const el = document.createElement('style'); el.id = 'gfxGlass'; el.textContent = out.join('\n'); document.head.appendChild(el);
+}
+GFX.apply(); window.rcGFX = GFX; // для проверки из браузера
 // плоский белый значок Steam (для кнопки входа в стекле)
 const STEAM_LOGO = '<svg class="steam-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.5 1.009 2.455-.397.957-1.497 1.41-2.454 1.012H7.54zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.663 0 3.015-1.35 3.015-3.015zm-5.273-.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.251-1.017 2.265-2.266 2.265-1.253 0-2.265-1.014-2.265-2.265z"/></svg>';
 /* ---------- живая фактура шапки и блока профиля (ПК): серые видео из CS2 — крестики premier_gain в шапке, карта linemap в профиле.
@@ -1926,9 +1981,9 @@ function texFx(host, src, o) {
     if (!cur) cur = Float32Array.from(tgt);
   };
   const tick = now => {
-    if (!cv.isConnected) { v.pause(); v.innerHTML = ''; v.load(); return; } // блок перерисовали — старый холст больше не нужен
+    if (!cv.isConnected || GFX.low) { v.pause(); v.innerHTML = ''; v.load(); cv.remove(); return; } // блок перерисовали или включили экономную графику — холст не нужен
     requestAnimationFrame(tick);
-    if (v.readyState < 2 || !host.offsetWidth || now - prev < 15) return; // не чаще 60 раз в секунду
+    if (v.readyState < 2 || !host.offsetWidth || now - prev < 31) return; // не чаще 30 раз в секунду (22.11: фактура медленная — на глаз как 60, процессору вдвое легче)
     const dt = prev ? Math.min(100, now - prev) : 16; prev = now;
     const w = Math.max(1, Math.round(host.offsetWidth * o.q)), h = Math.max(1, Math.round(host.offsetHeight * o.q));
     if (w !== W || h !== H) { W = cv.width = tmp.width = w; H = cv.height = tmp.height = h; tgt = new Float32Array(W * H); cur = null; im = g.createImageData(W, H); last = -1; }
@@ -1943,7 +1998,7 @@ function texFx(host, src, o) {
   };
   v.play().then(() => { v.playbackRate = o.rate; requestAnimationFrame(tick); }, () => cv.remove());
 }
-const hdFx = () => { if (UA_DESK.matches && !matchMedia('(prefers-reduced-motion: reduce)').matches) TEX_FX.forEach(([s, src, o]) => texFx($(s), src, o)); };
+const hdFx = () => { if (UA_DESK.matches && !GFX.low && !matchMedia('(prefers-reduced-motion: reduce)').matches) TEX_FX.forEach(([s, src, o]) => texFx($(s), src, o)); };
 function renderUser() {
   setTimeout(() => { if (typeof supAdmBadge === 'function' && st.user && st.user.admin) supAdmBadge(); });
   setTimeout(hdFx); // живая фактура шапки и блока профиля
@@ -2307,7 +2362,7 @@ async function loadCaseCfg() {
   const nw = data.find(r => r.k === 'news'), nwWas = JSON.stringify(NEWS); // новости главного экрана (вкладка «Новости» в админке)
   NEWS = nw && Array.isArray(nw.v) ? nw.v : null;
   try { if (NEWS) localStorage.setItem('rc.news', JSON.stringify(NEWS)); else localStorage.removeItem('rc.news'); } catch (e) { /* */ }
-  if (JSON.stringify(NEWS) !== nwWas && $('#nwCol')) { $('#nwCol').innerHTML = newsCol(); nwFeed(); nwPromos(); nwDropSync(); }
+  if (JSON.stringify(NEWS) !== nwWas && $('#nwCol')) { $('#nwCol').innerHTML = newsCol(); nwFeed(); nwPromos(); nwDropSync(); nwVids(); }
   const an = data.find(r => r.k === 'announce'); ANN = an && an.v && typeof an.v === 'object' ? an.v : null; annMaybe(); // объявление при входе (вкладка «Объявление»)
   const tc = data.find(r => r.k === 'tower'); if (tc && tc.v) { if (+tc.v.rtp >= .3 && +tc.v.rtp <= .98) TOWER.rtp = +tc.v.rtp; TOWER.off = !!tc.v.off; if (Array.isArray(tc.v.top) && tc.v.top.length === 3) TOWER.top = tc.v.top.map(Number); if ($('#twTower') && !tw.game) drawTower(); }
   const sk = data.find(r => r.k === 'skins'); if (sk && sk.v && sk.v.hold != null) SK_HOLD = Math.max(0, +sk.v.hold || 0);
@@ -2450,6 +2505,12 @@ function newsCard(x) {
     <div class="nw-fs" id="nwFeed"></div><div class="nw-pg"><button data-d="-1" aria-label="Назад">${NW_ARR(-1)}</button><span id="nwDots"></span><button data-d="1" aria-label="Вперёд">${NW_ARR(1)}</button></div></div>`;
 }
 const newsCol = () => newsList().map(newsCard).join('');
+// видео-фоны новостей (autoplay) играют, только пока видны на экране (22.11, оптимизация: не декодировать невидимое)
+const NW_IO = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => {
+  const v = e.target; if (!v.isConnected) return NW_IO.unobserve(v);
+  if (e.isIntersecting) { const p = v.play(); if (p) p.catch(() => {}); } else v.pause();
+})) : null;
+function nwVids() { if (NW_IO) $$('#nwCol video[autoplay]').forEach(v => NW_IO.observe(v)); }
 // верхняя новость «падение кейсов» (владелец 21.11): в момент удара кейса о пол текст вздрагивает, золотая строка вспыхивает.
 // Удары в видео assets/news-drop.* — кадр 13 каждого падения: 0,43 / 3,53 / 6,63 с (склейка — tools/news-drop-encode.cjs)
 const NW_HITS = [0.43, 3.53, 6.63];
@@ -2530,7 +2591,7 @@ async function mnRank() {   // очки за всё время — сумма rr
   mnRankDraw((data || []).reduce((s, r) => s + (r.pts || 0), 0));
 }
 function mountMain() {
-  nwFeed(); nwPromos(); mnCfgUi(); mnRank(); nwDropSync();
+  nwFeed(); nwPromos(); mnCfgUi(); mnRank(); nwDropSync(); nwVids();
   Snd.preloadSet({ k: MNK_SND }); const kgo = $('.mnk-go'); if (kgo) kgo.addEventListener('click', () => Snd.playCtl(MNK_SND, .2).then(t => { if (!t) Snd.file(MNK_SND, .2); })); // если звук ещё не скачался — обычным плеером (при выключенном звуке молчит)
   mnLampsPos(); later(mnLampsPos, 700); if (!mnLampsPos.on) { mnLampsPos.on = 1; addEventListener('resize', mnLampsPos); $('#app').addEventListener('animationend', e => { if (e.target.id === 'app') mnLampsPos(); }); } // второй раз — после «въезда» страницы
   later(() => (window.requestIdleCallback || (f => f()))(mnAgent, { timeout: 1200 }), 300); // 3D-агент — после показа страницы
@@ -2545,14 +2606,16 @@ function mountMain() {
    висит на кости wpn (её двигают сами клипы). Первый показ во вкладке — выход (walkup), дальше idle по кругу и раз в 6–14 с
    случайное движение. Зажал мышь на агенте — поворот, отпустил — плавно назад. Нажал без поворота — брейк-данс один раз
    (assets/main/breakdance.glb — Mixamo «Breakdance Freeze Var 2», перенесён на скелет агента; AWP на время танца прячется).
-   Телефон / нет WebGL — картинка agent.webp. */
-const MNA = { v: 3, dir: 'assets/main/', s: null, seen: false, gl: null,
+   Нет WebGL или устройство не тянет даже экономную графику (rc.gfxPic, 3 дня) — картинка agent.webp.
+   22.11: телефон и экономная графика — тот же живой агент, но 30 кадров/с, меньше разрешение, простые тени (GFX).
+   Модели сжаты meshopt (tools/main-models.mjs) — загрузчику нужен MeshoptDecoder. */
+const MNA = { v: 4, dir: 'assets/main/', s: null, seen: false, gl: null,
   moves: [['weightshift', 3], ['lookaround', 3], ['lookback', 2], ['lookback02', 2], ['lookbatgun', 1]] };
 window.rcMNA = MNA; // для проверки из браузера
 const mnaStop = () => { if (MNA.s) { MNA.s.kill(); MNA.s = null; } };
 function mnaLoad() { // модели держим в памяти вкладки (без видеокарты): при возврате на главную не качаем заново
-  if (!MNA.gl) MNA.gl = c2Lib().then(([THREE, { GLTFLoader }]) => {
-    MNA.ld = u => new Promise((ok, bad) => new GLTFLoader().load(MNA.dir + u + '?v=' + MNA.v, ok, undefined, bad));
+  if (!MNA.gl) MNA.gl = Promise.all([c2Lib(), import('three/addons/libs/meshopt_decoder.module.js')]).then(([[THREE, { GLTFLoader }], { MeshoptDecoder }]) => {
+    MNA.ld = u => new Promise((ok, bad) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(MNA.dir + u + '?v=' + MNA.v, ok, undefined, bad));
     return Promise.all([MNA.ld('agent.glb'), MNA.ld('breakdance.glb').catch(() => null)]); // без танца агент всё равно показывается
   }).catch(e => { MNA.gl = null; throw e; });
   const k = mnWpnKey(); MNA.wg = MNA.wg || {}; // оружие — по выбору игрока (меню над поддержкой), каждое качаем один раз
@@ -2579,7 +2642,7 @@ function mnaWind(THREE, scene, camera, tex) {
   for (let v = 0; v < V; v++) {
     const t = tex.clone(); t.repeat.set(0.25, 0.5); t.offset.set((v % 4) * 0.25, v < 4 ? 0.5 : 0); t.needsUpdate = true;
     const mat = new THREE.MeshStandardMaterial({ map: t, color: new THREE.Color(1.4, 1.25, 1.1), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8, metalness: 0 });
-    const mesh = new THREE.InstancedMesh(geo, mat, CAP); mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.castShadow = true; mesh.frustumCulled = false;
+    const mesh = new THREE.InstancedMesh(geo, mat, CAP); mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.castShadow = !GFX.low; // экономная: листья без теней (8 проходов тени меньше) mesh.frustumCulled = false;
     mesh.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: t, alphaTest: 0.5 });
     scene.add(mesh); meshes.push(mesh); trash.push(t, mat, mesh.customDepthMaterial);
   }
@@ -2663,6 +2726,7 @@ function mnCfg() { let c = {}; try { c = JSON.parse(localStorage.getItem('rc.mai
 function mnCfgSet(k, v) { const c = mnCfg(); c[k] = v; try { localStorage.setItem('rc.mainCfg', JSON.stringify(c)); } catch (e) { /* */ } return c; }
 const mnWpnKey = () => mnCfg().wpn;
 function mnBgApply() { const b = MN_BG.find(x => x.id === mnCfg().bg) || MN_BG[0]; document.body.style.setProperty("--mn-bg", `url("${new URL(b.img, location.href).href}")`); document.body.classList.toggle('mn-alt', b.id !== 'ancient'); }
+const GFX_N = { auto: 'Авто', high: 'Высокая', eco: 'Экономная' }; // меню «Графика» (GFX)
 const MN_CFG_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>';
 function mnCfgUi() {
   mnBgApply();
@@ -2674,9 +2738,14 @@ function mnCfgUi() {
     const opt = (k, v, n) => `<button class="mm-i${c[k] === v ? ' on' : ''}" data-k="${k}" data-x="${v}">${esc(n)}${c[k] === v ? '<b>✓</b>' : ''}</button>`;
     menu.innerHTML = view === 'bg' ? back('Фон главного меню') + '<div class="mm-list">' + MN_BG.map(b => opt('bg', b.id, b.n)).join('') + '</div>'
       : view === 'wpn' ? back('Оружие') + Object.entries(MN_WPN).map(([id, w]) => opt('wpn', id, w.n)).join('')
+      : view === 'gfx' ? back('Графика') + Object.entries(GFX_N).map(([p, n]) => { const on = GFX.pref() === p;
+          return `<button class="mm-i${on ? ' on' : ''}" data-g="${p}">${n}${p === 'auto' && on ? `<small>сейчас ${GFX.low ? 'экономная' : 'высокая'}</small>` : ''}${on ? '<b>✓</b>' : ''}</button>`; }).join('')
+          + '<p class="mm-note">Экономная — без живого размытия стекла, 3D плавнее на слабых компьютерах и меньше греет телефон</p>'
       : `<button class="mm-i" data-v="bg">Изменить фон главного меню</button><button class="mm-i" disabled>Сменить оружие<small>скоро</small></button><hr>
-         <button class="mm-i" disabled>Сменить агента<small>скоро</small></button>`;
+         <button class="mm-i" disabled>Сменить агента<small>скоро</small></button><hr>
+         <button class="mm-i" data-v="gfx">Графика<small>${GFX_N[GFX.pref()]}</small></button>`;
     $$('[data-v]', menu).forEach(b => b.onclick = e => { e.stopPropagation(); draw(b.dataset.v); });
+    $$('[data-g]', menu).forEach(b => b.onclick = e => { e.stopPropagation(); GFX.set(b.dataset.g); draw('gfx'); });
     $$('[data-k]', menu).forEach(b => b.onclick = e => {
       e.stopPropagation(); const { k, x } = b.dataset; if (mnCfg()[k] === x) return;
       const sc = $('.mm-list', menu); const top = sc ? sc.scrollTop : 0; mnCfgSet(k, x); draw(view); const sc2 = $('.mm-list', menu); if (sc2) sc2.scrollTop = top;
@@ -2696,21 +2765,23 @@ function mnAgent() {
     const im = $('img', host); im.onload = () => host.classList.add('on'); im.onerror = () => im.remove();
   };
   const hasGL = (() => { try { const g = document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl'); const x = g && g.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); return !!g; } catch (e) { return false; } })();
-  if (document.documentElement.classList.contains('phone') || !hasGL) return pic(); // без WebGL модели не качаем; узкое окно (до 1024 px) — агент спрятан стилями, отрисовка стоит
+  let weak = false; try { const t = +localStorage.getItem('rc.gfxPic'); weak = t > 0 && Date.now() - t < 3 * 864e5 && GFX.pref() !== 'high'; } catch (e) { /* */ }
+  if (!hasGL || weak) return pic(); // без WebGL (или слишком слабое устройство) модели не качаем; узкое окно (до 1024 px) — агент спрятан стилями, отрисовка стоит
+  const low = GFX.low, FPS = low ? 30 : 60; // экономная: 30 кадров/с, разрешение до 1,25, тень 1024 без смягчения, листья без теней
   const S = MNA.s = { alive: true, kill: () => { S.alive = false; } };
   Promise.all([c2Lib(), import('three/addons/environments/RoomEnvironment.js'), mnaLoad()]).then(([[THREE], { RoomEnvironment }, [ag, wp, bd]]) => {
     if (!S.alive || !host.isConnected) return;
     const canvas = document.createElement('canvas');
     let renderer; try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' }); } catch (e) { return pic(); }
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.setClearColor(0x000000, 0);
+    renderer.setPixelRatio(GFX.dpr(low ? 1.25 : 2)); renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.8;
-    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = low ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(26, 1, 0.1, 40);
     const pm = new THREE.PMREMGenerator(renderer); const envRT = pm.fromScene(new RoomEnvironment(), 0.04); scene.environment = envRT.texture; scene.environmentIntensity = 0.2;
     // свет под фон (Ancient в сумерках): небо холодное, земля тёплая, сверху слева — лунный ключ с тенью, справа сзади — лампы хижины
     scene.add(new THREE.HemisphereLight(0x7f95b8, 0x3a3226, 0.8));
     const key = new THREE.DirectionalLight(0xc0d0f4, 1.3); key.position.set(-2.2, 4.2, 2.6); key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 4; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+    key.shadow.mapSize.setScalar(low ? 1024 : 2048); key.shadow.radius = 4; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
     Object.assign(key.shadow.camera, { left: -1.4, right: 1.4, top: 2.4, bottom: -0.4, near: 0.5, far: 12 }); scene.add(key);
     const RIM = 2.2, rim = new THREE.DirectionalLight(0xffb36b, RIM), lampB = $('.mnl-b'); rim.position.set(3, 2.2, -2.2); scene.add(rim);
     const fill = new THREE.DirectionalLight(0xffffff, 0.18); fill.position.set(0.5, 1.2, 4); scene.add(fill);
@@ -2804,11 +2875,23 @@ function mnAgent() {
     hit.addEventListener('pointerup', up); hit.addEventListener('pointercancel', up);
     host.append(canvas, hit); fit();
     const ro = new ResizeObserver(fit); ro.observe(host); ro.observe(document.documentElement);
-    let last = performance.now(); S.frames = 0;
+    let last = performance.now(), prev = last, acc = 0, m0 = 0, mF = 0; S.frames = 0;
+    const upright = GFX.phone && matchMedia('(orientation: portrait)');
+    // не чаще FPS кадров/с: раньше рисовали каждый кадр экрана — на мониторах 120–144 Гц вдвое-втрое больше работы видеокарте.
+    // Автопроверка: с 3-й секунды 5 с считаем кадры. Высокая в «Авто» < 36 к/с → экономная (GFX.slow); экономная < 12 → картинка на 3 дня
+    const measure = now => {
+      if (!m0) { if (t > 3) { m0 = now; mF = S.frames; } return; }
+      if (m0 < 0 || now - m0 < 5000) return;
+      const fps = (S.frames - mF) * 1000 / (now - m0); m0 = -1; S.fps = +fps.toFixed(1);
+      if (!low && fps < 36) { GFX.slow(); return true; }
+      if (low && fps < 12 && GFX.pref() !== 'high') { try { localStorage.setItem('rc.gfxPic', String(Date.now())); } catch (e) { /* */ } S.kill(); MNA.s = null; pic(); return true; }
+    };
     const loop = now => {
       if (!S.alive) return; if (!host.isConnected) return S.kill(); // ушли с главной — освобождаем видеокарту
-      if (!host.offsetWidth) { last = now; return; } // спрятан (узкое окно) — не рисуем
-      const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now; t += dt; S.frames++; // метка кадра бывает чуть раньше запуска: без max(0) разовое движение «кончается» сразу
+      if (!host.offsetWidth || (upright && upright.matches)) { last = prev = now; if (m0 > 0) m0 = 0; return; } // спрятан (узкое окно) или телефон стоит вертикально (поверх экран «Поверните телефон») — не рисуем
+      acc += now - prev; prev = now; if (acc < 1000 / FPS - 2) return; acc = Math.max(0, Math.min(acc - 1000 / FPS, 1000 / FPS));
+      const dt = Math.max(0, Math.min(0.1, (now - last) / 1000)); last = now; t += dt; S.frames++; // метка кадра бывает чуть раньше запуска: без max(0) разовое движение «кончается» сразу
+      if (measure(now)) return;
       if (!calm && cur === idle && t >= nextAt) pickMove();
       if (gunAt && t >= gunAt) { gunAt = 0; gun.visible = true; }
       if (!drag) { yaw += vYaw; vYaw *= 0.86; yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw)); if (dirty && Math.abs(vYaw) < 4e-4) saveYaw(); } // отпустил — чуть докручивается по инерции и остаётся
@@ -2816,7 +2899,7 @@ function mnAgent() {
       if (lampB) { const fl = parseFloat(getComputedStyle(lampB).getPropertyValue('--f')); rim.intensity = RIM * (0.25 + 0.75 * (isNaN(fl) ? 1 : fl)); }
       pivot.rotation.y = yaw; mixer.update(dt); renderer.render(scene, camera); placeCard();
     };
-    const vis = () => { if (!S.alive) return; if (document.hidden) renderer.setAnimationLoop(null); else { last = performance.now(); renderer.setAnimationLoop(loop); } };
+    const vis = () => { if (!S.alive) return; if (document.hidden) renderer.setAnimationLoop(null); else { last = prev = performance.now(); acc = 0; if (m0 > 0) m0 = 0; renderer.setAnimationLoop(loop); } }; // вкладку прятали — проверку частоты начинаем заново
     document.addEventListener('visibilitychange', vis); vis();
     requestAnimationFrame(() => host.classList.add('on'));
     S.cur = () => cur.getClip().name; S.act = () => ({ clip: cur.getClip().name, time: +cur.time.toFixed(2), w: +cur.getEffectiveWeight().toFixed(2), run: cur.isRunning(), gun: gun.visible, dance: !!dance }); S.card = () => kLast; S.wind = () => wind; S.yaw = () => yaw; S.renderer = renderer;
@@ -4323,7 +4406,7 @@ function c2X3D(host, s) {
     if (!host.isConnected) return;
     const canvas = document.createElement('canvas'); canvas.className = 'c2x-3d'; canvas.setAttribute('aria-label', '3D-модель — крутится мышкой');
     let renderer; try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true }); } catch (e) { return showImg(); }
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.setClearColor(0x000000, 0);
+    renderer.setPixelRatio(GFX.dpr(GFX.low ? 1.25 : 2)); renderer.setClearColor(0x000000, 0); // экономная графика: меньше разрешение и 30 кадров/с (ниже)
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
     const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(30, 1, 0.01, 50); camera.position.set(0, 0, 3.2);
     const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.55;
@@ -4369,6 +4452,7 @@ function c2X3D(host, s) {
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
     renderer.setAnimationLoop(now => {
       if (!alive) return; if (!host.isConnected) return kill(); // экран закрыли — освобождаем видеокарту
+      if (now - last < (GFX.low ? 31 : 14)) return; // не чаще 30 (экономная) / ~60 кадров/с
       const k = Math.min(3, (now - last) / 16.67); last = now;
       if (!drag) { yaw += vy * k; pitch = THREE.MathUtils.clamp(pitch + vp * k, -0.9, 0.9); vy *= Math.pow(0.92, k); vp *= Math.pow(0.92, k); }
       let iy = 0, ip = 0, is = 1, fy = 0, fr = 0;
