@@ -2557,7 +2557,7 @@ const newsCol = () => newsList().map(newsCard).join('');
 function pageMain() {
   // справа от первой новости — значок «?»: при наведении (или нажатии) стеклянная подложка с реквизитами продавца (подвала на главной нет);
   // в самом низу — мелкая приписка про Valve
-  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><img src="${MNA.dir}rr-logo.webp?v=${MNA.v}" alt="Русская рулетка — RUSH CASE" decoding="async"><a class="mnk-go" href="#/krot">${krotOpen() ? 'Играть' : 'Скоро'}</a>${krotOpen() ? '<button class="mnk-lb" type="button">Создать лобби</button>' : ''}</div>
+  return `<section class="mn"><div class="nw-col" id="nwCol">${newsCol()}</div><div class="mn-lamps" id="mnLamps" aria-hidden="true"><i class="mnl mnl-a"><b class="mnl-d"></b><b class="mnl-g"></b></i><i class="mnl mnl-b"><b class="mnl-d"></b><b class="mnl-g"></b></i></div><div class="mn-agent" id="mnAgent" aria-hidden="true"></div><a class="mni" id="mnInvite" href="#/invite"><i>${INVITE_SVG}</i><span>Пригласить друзей</span></a><div class="mnk" id="mnKrot"><img src="${MNA.dir}rr-logo.webp?v=${MNA.v}" alt="Русская рулетка — RUSH CASE" decoding="async"><a class="mnk-go" href="#/krot">${krotOpen() ? 'Играть' : 'Скоро'}</a>${krotOpen() ? '<button class="mnk-lb" type="button">Создать лобби</button>' : ''}</div><div class="mnr" id="mnRank" hidden></div>
     <div class="mn-info"><button class="mn-q" id="mnQ" aria-label="Реквизиты продавца" aria-expanded="false"><i></i></button>
       <div class="mn-req" role="tooltip"><small>Продавец</small><b>${LEGAL.name}</b><span>ИНН ${LEGAL.inn}</span><span>ОГРНИП ${LEGAL.ogrnip}</span>
         <span>E-mail: <a href="mailto:${LEGAL.mail}">${LEGAL.mail}</a></span>
@@ -2583,8 +2583,26 @@ function nwFeed() {
 }
 const INVITE_SVG = '<svg viewBox="0 0 15 14" aria-hidden="true"><path d="M0.817197 5.34773H5.9052V0.0677261H9.2972V5.34773H14.3852V8.38773H9.2972V13.6677H5.9052V8.38773H0.817197V5.34773Z" fill="currentColor"/></svg>'; // «Оформление сайта/ИНВАЙТ.svg»
 const MNK_SND = 'assets/main/play.mp3?v=1'; // звук кнопки «Играть» в карточке КРОТ (cs2.mp3 владельца); громкость 0,2 — владелец 12.11: «намного тише»
+// звания «Русской рулетки» за очки недели (владелец 21.11): значки assets/rr/ranks (генератор tools/rr/ranks.js), максимум 780
+const RR_RANKS = [['Новичок', 0], ['Игрок', 20], ['Смельчак', 50], ['Счастливчик', 90], ['Хладнокровный', 140], ['Стальные нервы', 210], ['Фаталист', 300], ['Ветеран барабана', 420], ['Бессмертный', 580], ['Легенда рулетки', 780]];
+const rrWeekStart = () => { const m = new Date(Date.now() + 3 * 3600e3); m.setUTCDate(m.getUTCDate() - (m.getUTCDay() + 6) % 7); return m.toISOString().slice(0, 10); }; // понедельник по Москве (дни очков сервер пишет по Москве)
+function mnRankDraw(pts) {   // над головой агента: значок, полоска до следующего звания, число очков — без подложки
+  const el = $('#mnRank'); if (!el) return;
+  pts = Math.max(0, Math.min(780, pts | 0)); let i = 0; while (i < RR_RANKS.length - 1 && pts >= RR_RANKS[i + 1][1]) i++;
+  const [nm, lo] = RR_RANKS[i], nx = RR_RANKS[i + 1], pc = nx ? (pts - lo) / (nx[1] - lo) * 100 : 100;
+  el.title = `${nm} — очки недели в «Русской рулетке»` + (nx ? `. До звания «${nx[0]}» ещё ${nx[1] - pts}` : '');
+  el.innerHTML = `<img src="assets/rr/ranks/rank-${i + 1}.svg" alt="${nm}" decoding="async"><i class="mnr-bar"><b style="width:${pc.toFixed(1)}%"></b></i><span class="mnr-n">${pts}${nx ? `<small> / ${nx[1]}</small>` : ''}</span>`;
+  el.hidden = false;
+}
+async function mnRank() {   // очки недели — сумма дней с понедельника из rr_points (игроку видны только свои строки)
+  const el = $('#mnRank'); if (!el) return;
+  if (!sb || !st.user || !st.user.sb || !krotOpen()) { el.hidden = true; return; }
+  const { data, error } = await sb.from('rr_points').select('pts').eq('uid', st.user.id).gte('day', rrWeekStart());
+  if (error || !document.body.contains(el)) return;
+  mnRankDraw((data || []).reduce((s, r) => s + (r.pts || 0), 0));
+}
 function mountMain() {
-  nwFeed(); mnCfgUi();
+  nwFeed(); mnCfgUi(); mnRank();
   Snd.preloadSet({ k: MNK_SND }); const kgo = $('.mnk-go'); if (kgo) kgo.addEventListener('click', () => Snd.playCtl(MNK_SND, .2).then(t => { if (!t) Snd.file(MNK_SND, .2); })); // если звук ещё не скачался — обычным плеером (при выключенном звуке молчит)
   mnLampsPos(); later(mnLampsPos, 700); if (!mnLampsPos.on) { mnLampsPos.on = 1; addEventListener('resize', mnLampsPos); $('#app').addEventListener('animationend', e => { if (e.target.id === 'app') mnLampsPos(); }); } // второй раз — после «въезда» страницы
   later(() => (window.requestIdleCallback || (f => f()))(mnAgent, { timeout: 1200 }), 300); // 3D-агент — после показа страницы
@@ -2826,14 +2844,15 @@ function mnAgent() {
     const hit = document.createElement('div'); hit.className = 'mna-hit'; hit.setAttribute('aria-label', 'Агент — нажмите, чтобы станцевать, или поверните мышкой');
     const nw = $('#nwCol'), mn = host.parentElement;
     // карточка КРОТ идёт за агентом (выход, переминание), но не за поворотом мышью: сдвиг таза от позы покоя, повёрнутый вместе с агентом
-    const kr = $('#mnKrot'), kv = new THREE.Vector3(), YA = new THREE.Vector3(0, 1, 0), kg = { w: 1, h: 1, l: 0, b: 0 }; let kLast = '';
-    const kp = (x, z) => { kv.set(x, 0.1, z).project(camera); return [(kv.x + 1) / 2 * kg.w, (1 - kv.y) / 2 * kg.h]; };
+    const kr = $('#mnKrot'), rk = $('#mnRank'), kv = new THREE.Vector3(), YA = new THREE.Vector3(0, 1, 0), kg = { w: 1, h: 1, l: 0, b: 0 }; let kLast = '';
+    const kp = (x, z, y = 0.1) => { kv.set(x, y, z).project(camera); return [(kv.x + 1) / 2 * kg.w, (1 - kv.y) / 2 * kg.h]; };
     const placeCard = () => {
       if (!kr) return; let dx = 0, dz = 0;
       if (pelvis) { pelvis.getWorldPosition(kv); pivot.worldToLocal(kv).sub(kref); kv.y = 0; kv.applyAxisAngle(YA, yaw); dx = kv.x; dz = kv.z; }
-      const [xa, ya] = kp(dx - 0.25, dz), [xb] = kp(dx + 0.25, dz);
-      const st = (kg.l + (xa + xb) / 2).toFixed(1) + '|' + (kg.b - ya).toFixed(1) + '|' + (xb - xa).toFixed(1); if (st === kLast) return; kLast = st;
-      const [L, B, W] = st.split('|'); Object.assign(kr.style, { left: L + 'px', bottom: B + 'px', width: W + 'px' });
+      const [xa, ya] = kp(dx - 0.25, dz), [xb] = kp(dx + 0.25, dz), [, yh] = kp(dx, dz, 2.06);   // yh — чуть выше макушки: там звание рулетки
+      const st = (kg.l + (xa + xb) / 2).toFixed(1) + '|' + (kg.b - ya).toFixed(1) + '|' + (xb - xa).toFixed(1) + '|' + (kg.b - yh).toFixed(1); if (st === kLast) return; kLast = st;
+      const [L, B, W, H] = st.split('|'); Object.assign(kr.style, { left: L + 'px', bottom: B + 'px', width: W + 'px' });
+      if (rk) Object.assign(rk.style, { left: L + 'px', bottom: H + 'px', width: W + 'px' });
     };
     const fit = () => {
       if (nw && mn) host.style.left = Math.max(0, nw.getBoundingClientRect().right - mn.getBoundingClientRect().left) + 'px';
