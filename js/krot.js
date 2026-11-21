@@ -1437,28 +1437,27 @@ function makeWorld(T, RB, RE, cv, PP) {
   // 22.11 (владелец): квадраты не поворачиваются вместе с камерой, а закреплены на голове — сетка объёмная, в осях головы
   // (как будто голова собрана из кубиков): луч из камеры входит в шар вокруг головы, точка попадает в кубик сетки (ребро uS),
   // весь кубик — один цвет (среднее 4 точек вокруг его центра на экране). «Жизнь»: 8 раз в секунду цвет каждого кубика чуть сдвигается
-  const CEN_U = () => ({ tDiffuse: { value: null }, uIVP: { value: new T.Matrix4() }, uVP: { value: new T.Matrix4() }, uCam: { value: new T.Vector3() }, uT: { value: 0 },
-    uHc: { value: [0, 1, 2, 3].map(() => new T.Vector4()) }, uHe: { value: [0, 1, 2, 3].map(() => new T.Vector3()) }, uHr: { value: [0, 1, 2, 3].map(() => new T.Matrix3()) }, uS: { value: [0, 0, 0, 0] }, uHn: { value: 0 } });
+  const CEN_U = () => ({ tDiffuse: { value: null }, uRes: { value: new T.Vector2(1, 1) }, uIVP: { value: new T.Matrix4() }, uVP: { value: new T.Matrix4() }, uCam: { value: new T.Vector3() }, uT: { value: 0 },
+    uHc: { value: [0, 1, 2, 3].map(() => new T.Vector4()) }, uHe: { value: [0, 1, 2, 3].map(() => new T.Vector3()) }, uHr: { value: [0, 1, 2, 3].map(() => new T.Matrix3()) }, uHs: { value: [0, 1, 2, 3].map(() => new T.Vector4()) }, uS: { value: [0, 0, 0, 0] }, uHn: { value: 0 } });
+  // 22.11 (владелец): квадраты чёткие («как пиксели», не гладкие), чуть крупнее (~12 поперёк головы), разного размера и меняются;
+  // привязаны к голове: начало сетки — центр головы на экране, поворот — по «верху» головы, так что при облёте камеры они едут и
+  // поворачиваются вместе с головой. Какие квадраты закрашивать — луч через центр квадрата попадает в овал головы (замер модели)
   const CEN_SH = {
     uniforms: CEN_U(),
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-    fragmentShader: 'uniform sampler2D tDiffuse; uniform mat4 uIVP; uniform mat4 uVP; uniform vec3 uCam; uniform float uT; uniform vec4 uHc[4]; uniform vec3 uHe[4]; uniform mat3 uHr[4]; uniform float uS[4]; uniform int uHn; varying vec2 vUv;\n'
+    fragmentShader: 'uniform sampler2D tDiffuse; uniform vec2 uRes; uniform mat4 uIVP; uniform vec3 uCam; uniform float uT; uniform vec4 uHc[4]; uniform vec3 uHe[4]; uniform mat3 uHr[4]; uniform vec4 uHs[4]; uniform int uHn; varying vec2 vUv;\n'
       + 'float h1(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }\n'
-      + 'vec2 toUv(vec3 w) { vec4 c = uVP * vec4(w, 1.); return c.xy / c.w * .5 + .5; }\n'
-      + 'void main() {\n  vec4 col = texture2D(tDiffuse, vUv);\n  vec2 nd = vUv * 2. - 1.;\n'
-      + '  vec4 a0 = uIVP * vec4(nd, -1., 1.), a1 = uIVP * vec4(nd, 1., 1.);\n  vec3 ro = uCam, rd = normalize(a1.xyz / a1.w - a0.xyz / a0.w);\n  float best = 1e9;\n'
-      + '  for (int i = 0; i < 4; i++) {\n    if (i >= uHn) break;\n    vec3 c = uHc[i].xyz, E = uHe[i]; float s = uS[i]; mat3 M = uHr[i];\n'
-      + '    vec3 ol = (ro - c) * M, dl = rd * M, E2 = E + s, os = ol / E2, ds = dl / E2;\n'
-      + '    float A = dot(ds, ds), B = dot(os, ds), d = B * B - A * (dot(os, os) - 1.);\n    if (d < 0.) continue;\n'
-      + '    float sq = sqrt(d), t0 = max((-B - sq) / A, 0.), t1 = (-B + sq) / A;\n    if (t1 < 0. || t0 > best) continue;\n'
-      + '    for (int k = 0; k < 16; k++) {\n      float t = t0 + float(k) * s * .5; if (t > t1) break;\n'
-      + '      vec3 L = ol + dl * t, cell = floor(L / s), cc = (cell + .5) * s;\n'
-      + '      if (length(cc / E) < 1.) {\n        float fr = floor(uT * 8.);\n'
-      + '        vec3 j = (vec3(h1(cell + fr), h1(cell + fr + 7.1), h1(cell + fr + 3.7)) - .5) * s * .35;\n'
-      + '        vec3 W = c + M * (cc + j), ex = M * vec3(s * .3, 0., 0.), ey = M * vec3(0., s * .3, 0.);\n'
-      + '        vec4 a = texture2D(tDiffuse, toUv(W + ex)) + texture2D(tDiffuse, toUv(W - ex)) + texture2D(tDiffuse, toUv(W + ey)) + texture2D(tDiffuse, toUv(W - ey));\n'
-      + '        col = a * .25 * (.94 + .12 * h1(cell * 1.3 + fr + 11.)); best = t; break;\n      }\n    }\n  }\n'
-      + '  gl_FragColor = col;\n}'
+      + 'vec2 rot(vec2 v, float cs, float sn) { return vec2(cs * v.x - sn * v.y, sn * v.x + cs * v.y); }\n'
+      + 'bool hit(vec2 px, vec3 c, vec3 E, mat3 M) {\n  vec2 nd = px / uRes * 2. - 1.; vec4 a0 = uIVP * vec4(nd, -1., 1.), a1 = uIVP * vec4(nd, 1., 1.);\n'
+      + '  vec3 rd = normalize(a1.xyz / a1.w - a0.xyz / a0.w), os = ((uCam - c) * M) / E, ds = (rd * M) / E;\n'
+      + '  float A = dot(ds, ds), B = dot(os, ds), d = B * B - A * (dot(os, os) - 1.);\n  return d > 0. && -B + sqrt(d) > 0.;\n}\n'
+      + 'void main() {\n  vec2 px = vUv * uRes; vec4 col = texture2D(tDiffuse, vUv); float fm = floor(uT * 3.), fb = floor(uT * 8.);\n'
+      + '  for (int i = 0; i < 4; i++) {\n    if (i >= uHn) break;\n    vec4 h = uHs[i]; float b = h.z, cs = cos(h.w), sn = sin(h.w);\n'
+      + '    vec2 g = rot(px - h.xy, cs, -sn), big = floor(g / (2. * b));\n    float sz = h1(vec3(big, fm + float(i) * 17.)) < .35 ? 2. * b : b;\n'
+      + '    vec2 id = floor(g / sz), gc = (id + .5) * sz, cc = h.xy + rot(gc, cs, sn);\n'
+      + '    if (!hit(cc, uHc[i].xyz, uHe[i], uHr[i])) continue;\n    vec4 a = vec4(0.);\n'
+      + '    for (int y = 0; y < 3; y++) for (int x = 0; x < 3; x++) a += texture2D(tDiffuse, (cc + rot((vec2(float(x), float(y)) - 1.) * sz * .3, cs, sn)) / uRes);\n'
+      + '    col = a / 9. * (.94 + .12 * h1(vec3(id * sz, fb + float(i))));\n    break;\n  }\n  gl_FragColor = col;\n}'
   };
   let cenMain = null;
   if (PP && PP.EffectComposer) { try { comp = new PP.EffectComposer(ren); comp.addPass(new PP.RenderPass(scene, cam)); if (PP.ShaderPass) { cenMain = new PP.ShaderPass(CEN_SH); cenMain.enabled = false; comp.addPass(cenMain); } comp.addPass(new PP.UnrealBloomPass(new T.Vector2(512, 512), .38, .35, 1)); comp.addPass(new PP.OutputPass()); } catch (e) { comp = null; } }
@@ -1534,7 +1533,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   // экран на задней стене (владелец: оставить) — над панелями
   // экран на задней стене (владелец: оставить) — камера наблюдения: снимает стол из угла в реальном времени (15 кадров/с, эффект CCTV)
   const cctvRT = new T.WebGLRenderTarget(640, 344, { type: T.HalfFloatType }), cctvRT2 = new T.WebGLRenderTarget(640, 344, { type: T.HalfFloatType });
-  const cenCC = PP && PP.ShaderPass ? new PP.ShaderPass(CEN_SH) : null; if (cenCC) { const u = CEN_U(); for (const k of ['uHc', 'uHe', 'uHr', 'uS']) cenCC.uniforms[k].value = u[k].value; }   // мозаика в кадре камеры (свои векторы: clone копирует массив поверхностно)
+  const cenCC = PP && PP.ShaderPass ? new PP.ShaderPass(CEN_SH) : null; if (cenCC) { const u = CEN_U(); for (const k of ['uHc', 'uHe', 'uHr', 'uHs', 'uS']) cenCC.uniforms[k].value = u[k].value; }   // мозаика в кадре камеры (свои векторы: clone копирует массив поверхностно)
   const cctvCam = new T.PerspectiveCamera(60, 2.7 / 1.45, .05, 30); cctvCam.position.set(0, H - .27, 0); cctvCam.up.set(0, 0, -1); cctvCam.lookAt(0, TOP, 0); scene.add(cctvCam);
   const overhead = [];   // что висит между камерой и столом (лампа, провода, луч, дым) — в кадре камеры не рисуем
   const ovC = cnv(640, 344), ovT = tex(ovC);
@@ -1559,8 +1558,8 @@ function makeWorld(T, RB, RE, cv, PP) {
     x.strokeStyle = 'rgba(255,255,255,.85)'; x.lineWidth = 1.2; x.stroke();
     crT.needsUpdate = true; }
   const FIN = { on: false, done: false, start: 0, win: 0, chips: false, roul: false, fired: false, fireAt: 0, fireT: 0, resAt: 0, mix: 0, crack: 0, flash: 0, shake: 0, gl: 0 };
-  const cctvM = new T.ShaderMaterial({ uniforms: { tFeed: { value: cctvRT.texture }, tOver: { value: ovT }, uT: { value: 0 }, tRes: { value: tvT }, uMix: { value: 0 }, tCrack: { value: crT }, uCrack: { value: 0 }, uFlash: { value: 0 }, uGl: { value: 0 } }, vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }",
-    fragmentShader: "uniform sampler2D tFeed; uniform sampler2D tOver; uniform sampler2D tRes; uniform float uT; uniform float uMix; uniform sampler2D tCrack; uniform float uCrack; uniform float uFlash; uniform float uGl; varying vec2 vUv;\nfloat rnd(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 c = vUv - .5; vec2 uv = .5 + c * (1. - .16 * dot(c, c) * 4.) * .97;\n  float ln = floor(uv.y * 220.); uv.x += (rnd(vec2(ln, floor(uT * 15.))) - .5) * .0025;\n  float band = 1. - smoothstep(0., .03, abs(fract(uv.y + uT * .06) - .5)); uv.x += band * .006;\n  float fr = floor(uT * 24.);\n  if (uGl > .001) { float rw = floor(uv.y * 46.) + fr * 13.; uv.x += (rnd(vec2(rw, 3.)) - .5) * .12 * uGl * step(.5, rnd(vec2(rw, 7.))); uv.y += (rnd(vec2(fr, 1.)) - .5) * .03 * uGl; }\n  float sp = .0018 + .016 * uGl;\n  vec3 col = vec3(texture2D(tFeed, uv + vec2(sp, 0.)).r, texture2D(tFeed, uv).g, texture2D(tFeed, uv - vec2(sp, 0.)).b);\n  col *= 2.5; col = col / (1. + col) * 1.25;\n  float l = dot(col, vec3(.3, .59, .11)); col = mix(vec3(l), col, .22) * vec3(.86, 1., .9);\n  col *= .86 + .14 * sin(vUv.y * 1100.);\n  col += (rnd(vUv * 517. + fract(uT) * 91.) - .5) * .075 + band * .04;\n  col *= 1. - smoothstep(.3, .8, length(c * vec2(1., .9)));\n  if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) col = vec3(0.);\n  vec4 o = texture2D(tOver, vUv); col = mix(col, o.rgb, o.a);\n  col = max(col, 0.) * .85;\n  if (uCrack > .001) {\n    float dd = length((vUv - vec2(.55, .44)) * vec2(1.86, 1.));\n    col *= mix(1., .12 + .88 * smoothstep(.02, .5, dd), uCrack);\n    float f2 = floor(uT * 13.);\n    float bl = step(.6, rnd(vec2(floor(vUv.y * 24.), f2))) * step(.15, rnd(vec2(f2, 2.)));\n    col *= 1. - bl * .95 * uCrack;\n    float bw = step(.93, rnd(vec2(floor(vUv.y * 6.), floor(uT * 5.)))); col *= 1. - bw * uCrack;\n    float vb = step(.88, rnd(vec2(floor(vUv.x * 16.), f2 + 5.))); col *= 1. - vb * .85 * uCrack;\n    col += (rnd(vUv * 911. + fract(uT * 7.) * 53.) - .5) * .55 * uGl;\n    col *= 1. - .85 * step(.8, rnd(vec2(fr, 9.))) * uGl;\n    col = mix(col, vec3(dot(col, vec3(.33))), .55 * uCrack);\n  }\n  if (uMix > .001) {\n    vec2 ru = .5 + c * (1. - .18 * dot(c, c)); vec3 rs = texture2D(tRes, ru).rgb;\n    rs *= .93 + .07 * sin(vUv.y * 1100.); rs += (rnd(vUv * 731. + fract(uT) * 37.) - .5) * .022;\n    rs *= 1. - .3 * smoothstep(.4, .9, length(c * vec2(1., .9)));\n    if (ru.x < 0. || ru.x > 1. || ru.y < 0. || ru.y > 1.) rs = vec3(0.);\n    col = mix(col, rs, uMix);\n  }\n  if (uCrack > .001) { vec4 k = texture2D(tCrack, vUv); col = mix(col, k.rgb, k.a * uCrack); }\n  col = mix(col, vec3(1.), clamp(uFlash, 0., 1.));\n  gl_FragColor = vec4(col, 1.);\n}" });
+  const cctvM = new T.ShaderMaterial({ uniforms: { tFeed: { value: cctvRT.texture }, tOver: { value: ovT }, uT: { value: 0 }, tRes: { value: tvT }, uMix: { value: 0 }, tCrack: { value: crT }, uCrack: { value: 0 }, uFlash: { value: 0 }, uGl: { value: 0 }, uBx: { value: [0, 1, 2, 3].map(() => new T.Vector4()) }, uBn: { value: 0 } }, vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }",
+    fragmentShader: "uniform sampler2D tFeed; uniform sampler2D tOver; uniform sampler2D tRes; uniform float uT; uniform float uMix; uniform sampler2D tCrack; uniform float uCrack; uniform float uFlash; uniform float uGl; uniform vec4 uBx[4]; uniform int uBn; varying vec2 vUv;\nfloat rnd(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nvoid main() {\n  vec2 c = vUv - .5; vec2 uv = .5 + c * (1. - .16 * dot(c, c) * 4.) * .97;\n  float ln = floor(uv.y * 220.); uv.x += (rnd(vec2(ln, floor(uT * 15.))) - .5) * .0025;\n  float band = 1. - smoothstep(0., .03, abs(fract(uv.y + uT * .06) - .5)); uv.x += band * .006;\n  float fr = floor(uT * 24.);\n  if (uGl > .001) { float rw = floor(uv.y * 46.) + fr * 13.; uv.x += (rnd(vec2(rw, 3.)) - .5) * .12 * uGl * step(.5, rnd(vec2(rw, 7.))); uv.y += (rnd(vec2(fr, 1.)) - .5) * .03 * uGl; }\n  float sp = .0018 + .016 * uGl;\n  vec3 col = vec3(texture2D(tFeed, uv + vec2(sp, 0.)).r, texture2D(tFeed, uv).g, texture2D(tFeed, uv - vec2(sp, 0.)).b);\n  col *= 2.5; col = col / (1. + col) * 1.25;\n  float l = dot(col, vec3(.3, .59, .11)); col = mix(vec3(l), col, .22) * vec3(.86, 1., .9);\n  vec2 fp = uv * vec2(640., 344.); for (int i = 0; i < 4; i++) { if (i >= uBn) break; vec4 bx = uBx[i]; vec2 q = abs(fp - bx.xy); float e = abs(max(q.x, q.y) - bx.z); col = mix(col, vec3(.95, .1, .08), (1. - smoothstep(.5, 1.4, e)) * bx.w); }\n  col *= .86 + .14 * sin(vUv.y * 1100.);\n  col += (rnd(vUv * 517. + fract(uT) * 91.) - .5) * .075 + band * .04;\n  col *= 1. - smoothstep(.3, .8, length(c * vec2(1., .9)));\n  if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) col = vec3(0.);\n  vec4 o = texture2D(tOver, vUv); col = mix(col, o.rgb, o.a);\n  col = max(col, 0.) * .85;\n  if (uCrack > .001) {\n    float dd = length((vUv - vec2(.55, .44)) * vec2(1.86, 1.));\n    col *= mix(1., .12 + .88 * smoothstep(.02, .5, dd), uCrack);\n    float f2 = floor(uT * 13.);\n    float bl = step(.6, rnd(vec2(floor(vUv.y * 24.), f2))) * step(.15, rnd(vec2(f2, 2.)));\n    col *= 1. - bl * .95 * uCrack;\n    float bw = step(.93, rnd(vec2(floor(vUv.y * 6.), floor(uT * 5.)))); col *= 1. - bw * uCrack;\n    float vb = step(.88, rnd(vec2(floor(vUv.x * 16.), f2 + 5.))); col *= 1. - vb * .85 * uCrack;\n    col += (rnd(vUv * 911. + fract(uT * 7.) * 53.) - .5) * .55 * uGl;\n    col *= 1. - .85 * step(.8, rnd(vec2(fr, 9.))) * uGl;\n    col = mix(col, vec3(dot(col, vec3(.33))), .55 * uCrack);\n  }\n  if (uMix > .001) {\n    vec2 ru = .5 + c * (1. - .18 * dot(c, c)); vec3 rs = texture2D(tRes, ru).rgb;\n    rs *= .93 + .07 * sin(vUv.y * 1100.); rs += (rnd(vUv * 731. + fract(uT) * 37.) - .5) * .022;\n    rs *= 1. - .3 * smoothstep(.4, .9, length(c * vec2(1., .9)));\n    if (ru.x < 0. || ru.x > 1. || ru.y < 0. || ru.y > 1.) rs = vec3(0.);\n    col = mix(col, rs, uMix);\n  }\n  if (uCrack > .001) { vec4 k = texture2D(tCrack, vUv); col = mix(col, k.rgb, k.a * uCrack); }\n  col = mix(col, vec3(1.), clamp(uFlash, 0., 1.));\n  gl_FragColor = vec4(col, 1.);\n}" });
   const board = new T.Mesh(new T.PlaneGeometry(2.7, 1.45), cctvM); board.position.set(0, 2.05, -4.94); scene.add(board);
   const boards = [board];   // тот же экран (камера, в конце — итог) на всех 4 стенах: вместо полок и за спиной места 1 — чтобы все видели (владелец 20.11)
   for (const [x, z, ry] of [[-4.94, 0, Math.PI / 2], [4.94, 0, -Math.PI / 2], [0, 4.94, Math.PI]]) { const b = new T.Mesh(board.geometry, cctvM); b.position.set(x, 2.05, z); b.rotation.y = ry; scene.add(b); boards.push(b); }   // на 1 см перед рамкой (иначе рамка перекрывает)
@@ -1685,20 +1684,26 @@ function makeWorld(T, RB, RE, cv, PP) {
     M.cenBox = cnt > 50 ? { c: mn.clone().add(mx).multiplyScalar(.5), e: mx.clone().sub(mn).multiplyScalar(.5 * 1.04) } : null;   // чуть с запасом — нос и подбородок в углах
     return M.cenBox;
   }
-  function cenSet(p, c, w, h, cc) {   // h — высота кадра в пикселях (для наименьшего кубика)
-    if (!p) return 0; const U = p.uniforms; let n = 0;
-    c.updateMatrixWorld(); U.uVP.value.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); U.uIVP.value.copy(U.uVP.value).invert(); c.getWorldPosition(U.uCam.value); U.uT.value = clock;
+  const _cvU = V(0, 0, 0), CEN_N = 12;   // квадратов поперёк головы
+  function cenSet(p, c, w, h, cc) {   // w × h — размер кадра в пикселях
+    if (!p) return 0; const U = p.uniforms; let n = 0, nb = 0;
+    c.updateMatrixWorld(); U.uVP.value.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); U.uIVP.value.copy(U.uVP.value).invert(); c.getWorldPosition(U.uCam.value); U.uT.value = clock; U.uRes.value.set(w, h);
+    const th = Math.tan(c.fov * Math.PI / 360);
     for (const s of SEATS) {
       const a = AV[s]; if (n >= 4) break;
       if (!a || !a.on || !a.M || !a.cen || !a.hq || (!cc && a.me && a.M.head.scale.x < .5)) continue;   // своя голова от первого лица скрыта — нечего закрывать
-      const hb = headBox(a); _ce.copy(hb ? hb.e : _cv2.set(CEN_R, CEN_R, CEN_R)).multiplyScalar(a.cen);
+      const hb = headBox(a), e = hb ? hb.e : _cvU.set(CEN_R, CEN_R, CEN_R), em = Math.max(e.x, e.y, e.z), ea = (e.x + e.y + e.z) / 3;
+      _ce.copy(e).multiplyScalar(a.cen);
       _cv.copy(hb ? hb.c : CEN_C).applyQuaternion(a.hq).add(wp(a.M.B.head_0, _cv2));
       const dz = -_cv2.copy(_cv).applyMatrix4(c.matrixWorldInverse).z; if (dz < c.near) continue;   // голова за камерой
-      const px = 2 * dz * Math.tan(c.fov * Math.PI / 360) / h, need = (cc ? 4 : 5) * px;   // кубик не мельче 4–5 пикселей (камера наблюдения — 640×344, голова там ~25 px)
-      const sz = need > CEN_S ? CEN_S * Math.pow(2, Math.ceil(Math.log2(need / CEN_S))) : CEN_S;   // крупнее — скачками ×2, чтобы сетка не дрожала при движении камеры
-      U.uHc.value[n].set(_cv.x, _cv.y, _cv.z, 1); U.uHe.value[n].copy(_ce); U.uHr.value[n].setFromMatrix4(_cm4.makeRotationFromQuaternion(a.hq)); U.uS.value[n] = sz; n++;
+      const ppm = h / (2 * dz * th), b = Math.max(cc ? 4 : 5, 2 * ea * ppm / CEN_N);   // пикселей на метр; квадрат — не мельче 4–5 px
+      _cv2.copy(_cv).project(c); const sx = (_cv2.x * .5 + .5) * w, sy = (_cv2.y * .5 + .5) * h;
+      _cvU.set(0, .1, 0).applyQuaternion(a.hq).add(_cv).project(c); const ux = (_cvU.x * .5 + .5) * w - sx, uy = (_cvU.y * .5 + .5) * h - sy;
+      const ang = ux * ux + uy * uy > 1 ? Math.atan2(uy, ux) - Math.PI / 2 : 0;   // сетка повёрнута по «верху» головы
+      U.uHc.value[n].set(_cv.x, _cv.y, _cv.z, 1); U.uHe.value[n].copy(_ce); U.uHr.value[n].setFromMatrix4(_cm4.makeRotationFromQuaternion(a.hq)); U.uHs.value[n].set(sx, sy, b, ang); U.uS.value[n] = b; n++;
+      if (cc && nb < 4) cctvM.uniforms.uBx.value[nb++].set(sx, sy, em * ppm * 1.3 + 2, Math.min(1, a.cen));   // красная рамка «выбыл» на экране камеры
     }
-    U.uHn.value = n; return n;
+    U.uHn.value = n; if (cc) cctvM.uniforms.uBn.value = nb; return n;
   }
   function cctvDraw() {   // кадр камеры: свою голову на это время возвращаем (от первого лица она скрыта), экран прячем (нельзя рисовать в текстуру, которую он показывает)
     const me = AV[mySeat], M = me && me.on && me.M;
