@@ -599,6 +599,45 @@ log('K. не хватает баланса');
   ok(/low balance/.test(await err(rpc(x, 'rr_quick'))), 'открытое лобби быстрой игры — тоже нельзя');
 }
 
+log('M. игра админа с ботами: ставят только люди, банк — лучшему из людей');
+{
+  const A = '00000000-0000-0000-0000-0000000000b1', B = '00000000-0000-0000-0000-0000000000b2';
+  await db.query(`insert into public.profiles (id, name, pid) values ($1, 'Админ', 300001), ($2, 'Друг', 300002)`, [A, B]);
+  await staff(true);
+  let m = await rpc(A, 'rr_party_open');
+  await rpc(B, 'rr_party_join', { p_code: m.party.code });
+  m = await rpc(A, 'rr_party_bot', { p_add: true });
+  await staff(false);
+  m = await rpc(A, 'rr_search', { p_on: true });
+  ok(m.match && m.match.players.length === 5, 'с ботами: двое людей + боты — стол собран', m.match);
+  const room = m.match.room;
+  for (const u of [A, B]) await rpc(u, 'rr_accept');
+  await shift(1); for (const u of [A, B]) await rpc(u, 'rr_loaded', { p_room: room });
+  for (let i = 0; i < 20 && (await phaseOf(room)) === 'lobby'; i++) { await shift(1); await rpc(A, 'rr_tick', { p_room: room }); }
+  let s = await rpc(A, 'rr_state', { p_room: room });
+  ok(s.room.money === true && s.room.points === false, 'с ботами и двумя людьми — на деньги, без очков', s.room);
+  ok(s.players.filter(p => p.bot).every(p => p.bet === null) && s.players.filter(p => !p.bot).every(p => p.bet === 100), 'ставят только люди (по 100), боты — нет');
+  ok(s.room.bank === 200 && await bal(A) === 900 && await bal(B) === 900, 'банк 200 — только люди', [s.room.bank, await bal(A)]);
+  await rpc(B, 'rr_bet', { p_room: room, p_amount: 300 });
+  let guard = 0;
+  while (guard++ < 900) {
+    await rpc(A, 'rr_tick', { p_room: room }); await rpc(B, 'rr_tick', { p_room: room });
+    s = await rpc(A, 'rr_state', { p_room: room });
+    if (s.room.phase === 'done') break;
+    if (s.room.phase === 'play' && s.room.phase_at <= s.now && !s.game.vote) {
+      const tp = s.players.find(p => p.seat === s.game.turn);
+      if (!tp.bot) await err(rpc(await seatUid(room, tp.seat), 'rr_shoot', { p_room: room, p_turn: s.game.n }));
+    }
+    await shift(s.room.phase === 'next' ? 5.1 : 1);
+  }
+  checkFinal(s, false);
+  const hs = s.players.filter(p => !p.bot).sort((x, y) => x.place - y.place), W = hs[0], L = hs[1];
+  const t = Math.min(L.bet, W.bet), pay = Math.floor((W.bet + t) * 0.95);
+  ok(+W.won === pay && +L.back === L.bet - t, 'банк забрал лучший из людей (место ' + W.place + '), проигравшему — сверх ставки назад', [W, L]);
+  ok(await bal(await seatUid(room, W.seat)) === 1000 - W.bet + pay && await bal(await seatUid(room, L.seat)) === 1000 - L.bet + (L.bet - t), 'балансы людей сходятся');
+  ok(s.players.filter(p => p.bot).every(p => p.won === null), 'ботам денег нет');
+}
+
 log('L. финал вдвоём — голосовать нельзя');
 {
   const P = U.slice(5, 10);

@@ -168,6 +168,7 @@ K.mount = (el, arg, dep) => {
 
 K.stop = () => {
   gen++;
+  try { for (const k in sndLoop) rrLoop(k, false, .2); clearTimeout(fearT); } catch (e) { /* звук недоступен */ }   // ушли со страницы — гул телевизора, сердце, дыхание, музыка выключаются (владелец 21.11)
   vcLeave();
   stopSync();
   if (raf) cancelAnimationFrame(raf); raf = 0;
@@ -580,7 +581,8 @@ async function realtime(id, g) {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rr_chat', filter: 'room_id=eq.' + id }, p => { if (p && p.new) addChat([rowMsg(p.new)]); })
     .subscribe();
   const onRt = ch => ch.on('broadcast', { event: 'h' }, m => { const q = m && m.payload; if (G && q && q.s) G.head(q.s, q.y, q.p); })
-    .on('broadcast', { event: 'rtc' }, m => { if (m && m.payload && VC.core) VC.core.onSig(m.payload); });
+    .on('broadcast', { event: 'rtc' }, m => { if (m && m.payload && VC.core) VC.core.onSig(m.payload); })
+    .on('broadcast', { event: 'v' }, m => { const q = m && m.payload; if (!q || !q.s) return; if (q.k === 'start') { voteLocal = { seat: q.s, until: Date.now() + 3000 }; if (G && G.vote) G.vote(q.s); } soon(); });   // кто-то поднял руку / проголосовал — сразу
   const sendOn = ch => p => ch.send({ type: 'broadcast', event: 'rtc', payload: p });
   chRt = onRt(sb.channel('rr:' + id, { config: { private: true, broadcast: { self: false } } }));
   chRt.subscribe(st3 => {
@@ -870,7 +872,8 @@ async function betSend(v) {
 }
 // ---------- голосование за патрон (владелец 21.11, образец — окно голосования CS2) ----------
 // «Поднять руку» может только тот, кто выстрелил и выжил, — пока следующий не выстрелил (один ход). Окно — у всех; голосуют живые: ✓ или ✕
-let voteBusy = false, voteRes = null, voteLast = null, voteMine = null;
+let voteBusy = false, voteRes = null, voteLast = null, voteMine = null, voteLocal = null, voteFastAt = 0;   // voteLocal — рука вверх сразу (своя по нажатию, чужая — по сигналу из канала), пока сервер не подтвердил
+const voteCast = (k, seat) => { try { if (chRt) chRt.send({ type: 'broadcast', event: 'v', payload: { s: seat, k } }); } catch (e) { /* канал не готов */ } };   // мгновенный сигнал остальным
 const ICV = { y: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   n: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>',
   hand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 013 0V11m0-6.5a1.5 1.5 0 013 0V11m0-5a1.5 1.5 0 013 0v7.5c0 4-2.5 7-6.5 7-2.6 0-4-1.2-5.6-3.4L4 13.6a1.5 1.5 0 012.3-1.9L8 13.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>' };
@@ -927,9 +930,12 @@ function bankSpend(c) {   // патрон куплен: под банком «�
 async function voteAct(kind) {   // 'start' | 'yes' | 'no'
   if (voteBusy || !S || !S.game) return;
   if (kind !== 'start') { const v = S.game.vote; if (!v) return; voteMine = { at: v.at, yes: kind === 'yes' }; }
+  const me = myPlayer();
+  if (kind === 'start' && me) { voteLocal = { seat: me.seat, until: Date.now() + 3000 }; if (G && G.vote) G.vote(me.seat); }   // рука вверх сразу, не ждём сервер
+  if (me) voteCast(kind, me.seat);
   voteBusy = true; drawVoteBtn(); drawVote();
   try { await api.rpc(kind === 'start' ? 'rr_vote_start' : 'rr_vote', kind === 'start' ? { p_room: room } : { p_room: room, p_yes: kind === 'yes' }); }
-  catch (e) { note(errText(e), 'err'); if (kind !== 'start') voteMine = null; }
+  catch (e) { note(errText(e), 'err'); if (kind !== 'start') voteMine = null; else { voteLocal = null; if (G && G.vote) G.vote(0); } }
   finally { voteBusy = false; soon(); drawVoteBtn(); drawVote(); }
 }
 // выбывший смотрит молча: микрофон не передаёт, чат — только чтение
@@ -1051,7 +1057,7 @@ function drawMid() {
   el.className = 'kr-mid'; root.classList.remove('show-res');
   if (G && G.tv) G.tv(ph === 'done' ? tvData() : null);   // итог — на экране на стене (3D)
   if (r.paused) { const p = S.players.find(x => x.seat === r.pause_seat); el.innerHTML = `<section class="kr-pause kr-glass"><span class="kr-h">Пауза</span><h2 class="kr-t">Игрок потерял связь</h2><p>${p ? seatB(p.seat) + esc(p.name) : 'Игрок'} — ждём <b id="krPl">…</b>.</p></section>`; return; }
-  if (ph === 'lobby' && r.mm) { el.className = 'kr-mid ld'; const pl = $('#rlPl', el); if (pl) pl.innerHTML = loadPlayers(); else el.innerHTML = loadHtml(); return; }   // все приняли — экран загрузки
+  if (ph === 'lobby' && r.mm) { el.className = 'kr-mid ld'; if (!$('#rlBg', el)) el.innerHTML = loadHtml(); return; }   // кадры не перерисовываем (слайды идут дальше)   // все приняли — экран загрузки
   if (ph === 'lobby') { el.className = 'kr-mid lob'; el.innerHTML = lobbyHtml(); return; }
   if (ph === 'done') { el.className = 'kr-mid res'; root.classList.add('show-res'); el.innerHTML = ''; return; }
   drawBet();
@@ -1085,9 +1091,9 @@ function markLoaded() {   // игра у меня загрузилась (3D г�
   loadSent = room; const id = room;
   api.rpc('krot_loaded', { p_room: id }).then(() => { if (room === id) refresh(); }, () => { loadSent = 0; });
 }
-// экран загрузки как в CS2 (владелец 20.11): кадры комнаты (assets/rr/load/1–6.webp) сменяются с медленным наездом, логотип, игроки,
+// экран загрузки как в CS2 (владелец 20.11): кадры пустой комнаты (assets/rr/load/1–8.webp, ?v=2; снимает tools/rr/load-shot.mjs) сменяются с медленным наездом, логотип, игроки,
 // внизу — место, режим, тематические фразы и полоска загрузки; настроек микрофона нет. Перерисовывается только список игроков (иначе сбрасывается показ кадров)
-const LOAD_N = 6;
+const LOAD_N = 8;   // владелец 21.11: только пустая комната (tools/rr/load-shot.mjs)
 function loadPlayers() {
   return SEATS.map(s2 => {
     const p = S.players.find(q => q.seat === s2);
@@ -1098,9 +1104,8 @@ function loadPlayers() {
 function loadHtml() {
   const n0 = rnd(LOAD_N); slideAt = Date.now();
   return `<section class="rrl">
-    <div class="rrl-bg" id="rlBg">${Array.from({ length: LOAD_N }, (_, i) => `<i class="${i === n0 ? 'on' : ''}" style="background-image:url(assets/rr/load/${i + 1}.webp)"></i>`).join('')}</div>
-    <div class="rrl-top"><img class="rrl-logo" src="assets/main/rr-logo.webp" alt="Русская рулетка" draggable="false"><button class="rrl-x" data-a="leave" type="button">Выйти</button></div>
-    <aside class="rrl-pl"><span class="rrl-h">Игроки</span><ol id="rlPl">${loadPlayers()}</ol></aside>
+    <div class="rrl-bg" id="rlBg">${Array.from({ length: LOAD_N }, (_, i) => `<i class="${i === n0 ? 'on' : ''}" style="background-image:url(assets/rr/load/${i + 1}.webp?v=2)"></i>`).join('')}</div>
+    <div class="rrl-top"><button class="rrl-x" data-a="leave" type="button">Выйти</button></div>   <!-- владелец 21.11: без логотипа и без списка игроков -->
     <div class="rrl-bot">
       <div class="rrl-map"><span class="rrl-mode">${S.room.points ? 'Быстрая игра' : 'Игра с друзьями'}</span><h1>Подпольное казино</h1></div>
       <p class="rrl-tip in" id="krTip">${esc(TIPS[tipN % TIPS.length])}</p>
@@ -1159,6 +1164,7 @@ function tvData() {   // итог для экрана на стене (рису�
     t1: w ? (w.me ? 'ВЫ ПОБЕДИЛИ' : 'ПОБЕДИЛ') : 'ИГРА ОКОНЧЕНА', t2: w && !w.me ? up(w.name) : '',
     me: me && me.place ? (me.place === 1 ? 'ВЫ ВЫЖИЛИ' : 'ВАШЕ МЕСТО: ' + me.place) + (r.money && me.won ? ` · +${Math.round(me.won)} ₽` : r.money && me.back ? ` · ВОЗВРАТ ${Math.round(me.back)} ₽` : '')
       + (r.points ? (me.pts ? ` · +${me.pts} ОЧКОВ` : '') : ' · БЕЗ ОЧКОВ') : '', win: !!(me && me.place === 1),
+    mw: (S.players.find(p => +p.won > 0) || {}).seat || 0,   // кто забрал банк (с ботами — лучший из людей): к нему едут фишки
     rows: list.map(p => ({ pl: p.place || 0, s: p.seat, n: p.name, me: !!p.me, out: p.place !== 1, pts: r.points && p.pts != null ? '+' + p.pts : '—' })),
     btns: [{ a: 'again', l: 'ИГРАТЬ ЕЩЁ', go: true }, { a: 'copyres', l: 'СКОПИРОВАТЬ ИТОГ' }, { a: 'players', l: 'ПОЖАЛОВАТЬСЯ' }, { a: 'menu', l: 'В МЕНЮ' }]
   };
@@ -1296,6 +1302,7 @@ function uiTick() {
   if (view !== 'room' || !S || !root) return;
   if (S.room.phase === 'play') { drawTop(); drawAct(); }   // жребий кончился — подписи хода
   drawVote(); drawVoteBtn();   // секунды голосования, итог гаснет через 4,5 с
+  if (S.game && S.game.vote && api !== Demo && Date.now() - voteFastAt > 1000) { voteFastAt = Date.now(); pulse(); }   // идёт голосование — сервер раз в секунду (голоса ботов, конец по времени)
   if (S.room.phase === 'lobby' && S.room.mm) loadTick();
   if (capHoldUntil && Date.now() >= capHoldUntil) { capHoldUntil = 0; drawAct(); }
   if (actShown && ((actShown.endsWith('true') && !actBusy && Date.now() >= actLock) || (keyDown && Date.now() - keyDownAt > 400) || (spinNote && Date.now() > spinNote.until))) { if (keyDown && Date.now() - keyDownAt > 400) keyDown = ''; if (spinNote && Date.now() > spinNote.until) spinNote = null; drawAct(); }   // кнопки снова активны после анимации
@@ -1537,7 +1544,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     if (d && !tvD) {
       tvAt = clock + 1.2;
       const w = d.rows && d.rows.find(r => r.pl === 1);   // финал: камера у экрана → на записи фишки едут к победителю, револьвер «стреляет в камеру», потом итог
-      Object.assign(FIN, { on: !!w && !menuOn, done: !w || menuOn, start: tvAt + 1.5, win: w ? w.s : 0, chips: false, roul: false, fired: false, fireAt: 0, fireT: 0, resAt: 0, mix: 0, crack: 0, flash: 0, shake: 0, gl: 0 });
+      Object.assign(FIN, { on: !!w && !menuOn, done: !w || menuOn, start: tvAt + 1.5, win: w ? w.s : 0, cw: d.mw || (w ? w.s : 0), chips: false, roul: false, fired: false, fireAt: 0, fireT: 0, resAt: 0, mix: 0, crack: 0, flash: 0, shake: 0, gl: 0 });
     }
     tvKey = k; tvD = d; tvHov = null; tvDraw();
   };
@@ -1573,7 +1580,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     FIN.gl = FIN.crack > 0 ? (Math.random() < dt * 4 ? 1 : Math.max(.35, FIN.gl - dt * 2.2)) : 0;   // помехи: держатся и вспыхивают
     if (!FIN.on) return;
     const t = clock - FIN.start; if (t < 0) return;
-    if (!FIN.chips) { FIN.chips = true; chipsTo(FIN.win); }
+    if (!FIN.chips) { FIN.chips = true; chipsTo(FIN.cw || FIN.win); }   // фишки — тому, кто забрал банк
     if (!FIN.roul && t >= (Object.keys(CH).length ? 2.3 : .3)) {   // фишки доехали — револьвер в центр, крутится, ствол вниз кадра (к зрителю камеры)
       FIN.roul = true; W.roulDir(0, 1, () => { rrSound('cock'); tween(.18, k => { gun.kz = k < 1 ? Math.sin(Math.PI * k) * .05 : 0; }); FIN.fireAt = clock + COCK_MS / 1000; });
     }
@@ -2139,7 +2146,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     btnActive = false;
     gun.play = ph === 'play';
     W.chipSync(d.players, !!(g && ph === 'next' && !g.round), !!d.room.money);   // фишки ставок
-    W.vote(g && g.vote && ph === 'play' ? g.vote.by : 0);                       // кто поднял руку
+    W.vote(g && g.vote && ph === 'play' ? g.vote.by : voteLocal && Date.now() < voteLocal.until && ph === 'play' ? voteLocal.seat : 0);   // кто поднял руку (пока сервер не ответил — по сигналу)
     { const gid = g ? g.id : null; if (gid !== bloodGid) { bloodGid = gid; bloodClear(); } }   // новая игра — крови нет   // револьвер берут в руки только во время хода
     gunTo(g && ['play', 'next'].includes(ph) ? g.turn || 0 : 0);
   };
