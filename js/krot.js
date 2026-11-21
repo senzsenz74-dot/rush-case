@@ -1568,9 +1568,20 @@ function makeWorld(T, RB, RE, cv, PP) {
     cf.castShadow = cb.castShadow = true;
     // ник над головой
     const tag = new T.Sprite(new T.SpriteMaterial({ transparent: true, depthTest: false })); tag.scale.set(.46, .115, 1); tag.position.set(0, 1.5, 0); tag.renderOrder = 10; tag.visible = false; g.add(tag); a.tag = tag;
-    const sp = new T.Sprite(new T.SpriteMaterial({ map: spkT, transparent: true, depthTest: false, opacity: 0 })); sp.scale.set(.1, .1, 1); sp.position.set(0, 1.64, 0); sp.renderOrder = 11; sp.visible = false; g.add(sp); a.sp = sp; a.spk = false;
+    // звание рулетки над ником (владелец 21.11): значок со свечением, текстура — rankTex()
+    const rk = new T.Sprite(new T.SpriteMaterial({ transparent: true, depthTest: false })); rk.scale.set(.17, .085, 1); rk.position.set(0, 1.583, 0); rk.renderOrder = 10; rk.visible = false; g.add(rk); a.rk = rk; a.rkN = 0;
+    const sp = new T.Sprite(new T.SpriteMaterial({ map: spkT, transparent: true, depthTest: false, opacity: 0 })); sp.scale.set(.1, .1, 1); sp.position.set(0, 1.71, 0); sp.renderOrder = 11; sp.visible = false; g.add(sp); a.sp = sp; a.spk = false;
     AV[s] = a;
   }
+
+  // значок звания со свечением цвета звания (серебро → золото → огонь); одна текстура на звание
+  const RK_TEX = {}, RK_GLOW = ['', '#cfe9ff', '#cfe9ff', '#9fd4ff', '#9fd4ff', '#ffd36a', '#ffd36a', '#ffc04a', '#ffc04a', '#ffb43c', '#ff7a1a'];
+  const rankTex = n => {
+    if (RK_TEX[n]) return RK_TEX[n];
+    const c = cnv(320, 160), t = tex(c), im = new Image(); RK_TEX[n] = t;
+    im.onload = () => { const x = c.getContext('2d'); x.shadowColor = RK_GLOW[n]; x.shadowBlur = 22; x.drawImage(im, 20, 10, 280, 140); x.shadowBlur = 8; x.drawImage(im, 20, 10, 280, 140); t.needsUpdate = true; };
+    im.src = `assets/rr/ranks/rank-${n}.svg`; return t;
+  };
 
   /* состояние камеры и ввода */
   let btnActive = false, aimBtn = false;
@@ -1854,7 +1865,7 @@ function makeWorld(T, RB, RE, cv, PP) {
     }
   };
 
-  W.menu = on => { menuOn = on; for (const s in AV) { showAV(AV[s]); AV[s].tag.visible = !on && !AV[s].me; } };
+  W.menu = on => { menuOn = on; for (const s in AV) { showAV(AV[s]); AV[s].tag.visible = !on && !AV[s].me; AV[s].rk.visible = AV[s].tag.visible && AV[s].rkN > 0; } };
   W.setLock = on => { locked = on; };
   W.setRead = on => { readHold = on; };
   W.look = (dx, dy) => { if (menuOn) return; yaw = clamp(yaw - dx * .0023, -1.5, 1.5); pitch = clamp(pitch - dy * .0023, -1.15, .5); userAt = clock; auto = null; };
@@ -1884,6 +1895,8 @@ function makeWorld(T, RB, RE, cv, PP) {
       const st2 = !p ? 'free' : ph === 'lobby' ? (p.online ? (p.ready ? 'ready' : 'wait') : 'off') : p.left ? 'left' : a.dead ? 'dead' : ph === 'done' && p.place === 1 ? 'win' : g && ph === 'play' && g.turn === s ? 'turn' : !p.online ? 'off' : '';
       const key = (p ? p.name + (p.bot ? '·b' : '') : '') + '|' + st2;
       if (key !== a.tagKey) { a.tagKey = key; if (a.tag.material.map) a.tag.material.map.dispose(); a.tag.material.map = tex(paintTag(s, p ? p.name + (p.bot ? ' · БОТ' : '') : '', st2)); a.tag.material.needsUpdate = true; }
+      const rn = p ? rrRank(p) : 0; if (rn !== a.rkN) { a.rkN = rn; if (rn) { a.rk.material.map = rankTex(rn); a.rk.material.needsUpdate = true; } }
+      a.rk.visible = a.tag.visible && rn > 0;
     }
     btnActive = false;
     gun.play = ph === 'play';
@@ -2414,6 +2427,13 @@ function paintDecal(n, b) {
   x.strokeStyle = 'rgba(236,241,246,.93)'; drawSym(x, b.sym, 150, 360, 128, 13);
   x.fillStyle = 'rgba(236,241,246,.93)'; drawGun(x, b.gun, 352, 360, 230);
   return c;
+}
+// звание «Русской рулетки» (владелец 21.11): по очкам недели p.wk с сервера; у ботов — случайное, но постоянное по имени
+const RK_PTS = [0, 20, 50, 90, 140, 210, 300, 420, 580, 780];
+function rrRank(p) {
+  if (p.bot) { let h = 7; for (const ch of String(p.name || '')) h = (h * 31 + ch.charCodeAt(0)) | 0; return 1 + Math.abs(h) % 10; }
+  if (p.wk == null) return 0;   // сервер ещё без очков недели — значок не показываем
+  let i = 0; while (i < 9 && p.wk >= RK_PTS[i + 1]) i++; return i + 1;
 }
 function paintTag(s, name, st2) {
   const c = cnv(512, 128), x = c.getContext('2d'); name = String(name || 'Игрок');
@@ -3126,7 +3146,7 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   const LINES = { turn: ['Ну, с богом.', 'Моя очередь…', 'Руки трясутся, честно.', 'Давай уже.', 'Ладно, поехали.'], click: ['Фух.', 'Пусто!', 'Живой.', 'Следующий!'],
     bang: ['Минус один…', 'Жёстко.', 'Вот и раунд.', 'Ох.'], chat: ['Ага.', 'Посмотрим.', 'Удачи всем.', 'Не тяни.', '😅'] };
   const now = () => Date.now();
-  const pl = (seat, me) => ({ seat, name: me ? myName() : NAMES[seat - 2], me: !!me, ready: false, online: true, left: false, loaded: false, alive: true, place: null, pts: null, clicks: 0, spins: 0 });
+  const pl = (seat, me) => ({ seat, name: me ? myName() : NAMES[seat - 2], me: !!me, ready: false, online: true, left: false, loaded: false, alive: true, place: null, pts: null, clicks: 0, spins: 0, wk: me ? 0 : Math.floor(Math.random() * 781) });
   function reset() {
     st2 = { room: { id: 900001, code: 'DEMO42', kind: 'quick', points: true, phase: 'lobby', rev: 1, phase_at: now(), deadline: null, paused: false, owner: true, turn_sec: RR.turn },
       players: [pl(1, true)], chat: [], cid: 0, g: null, plan: [] };

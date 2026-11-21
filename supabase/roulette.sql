@@ -667,7 +667,10 @@ begin
     'players', coalesce((select jsonb_agg(jsonb_build_object('seat', p.seat, 'name', p.name, 'ava', p.ava, 'pid', p.pid,
         'me', p.uid = auth.uid(), 'ready', p.ready, 'loaded', p.loaded, 'bot', p.bot,
         'online', p.bot or (p.left_at is null and p.seen_at >= now_ts - public._rr_dur(c, 'offline')), 'left', p.left_at is not null,
-        'alive', p.alive, 'place', p.place, 'pts', p.pts, 'clicks', p.clicks, 'spins', p.spins) order by p.seat)
+        'alive', p.alive, 'place', p.place, 'pts', p.pts, 'clicks', p.clicks, 'spins', p.spins,
+        -- очки недели (с понедельника по Москве) — звание над головой в комнате (владелец 21.11); у ботов звание рисует сайт
+        'wk', case when p.bot then null else (select coalesce(sum(x.pts), 0) from public.rr_points x
+          where x.uid = p.uid and x.day >= date_trunc('week', now_ts at time zone 'Europe/Moscow')::date) end) order by p.seat)
       from public.rr_players p where p.room_id = rm.id), '[]'::jsonb),
     'me', jsonb_build_object('seat', me.seat, 'ready', me.ready, 'alive', me.alive, 'admin', public._rr_staff()),
     'game', case when g.id is null then null else jsonb_build_object('id', g.id, 'round', g.round, 'bullets', g.bullets,
