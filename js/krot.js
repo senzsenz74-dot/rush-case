@@ -2421,12 +2421,12 @@ function paintDecal(n, b) {
   x.fillStyle = 'rgba(236,241,246,.93)'; drawGun(x, b.gun, 352, 360, 230);
   return c;
 }
-// звание «Русской рулетки» (владелец 21.11): по очкам недели p.wk с сервера; у ботов — случайное, но постоянное по имени
+// звание «Русской рулетки» (владелец 21.11): по очкам за всё время p.tp с сервера; у ботов — случайное, но постоянное по имени
 const RK_PTS = [0, 20, 50, 90, 140, 210, 300, 420, 580, 780];
 function rrRank(p) {
   if (p.bot) { let h = 7; for (const ch of String(p.name || '')) h = (h * 31 + ch.charCodeAt(0)) | 0; return 1 + Math.abs(h) % 10; }
-  if (p.wk == null) return 0;   // сервер ещё без очков недели — значок не показываем
-  let i = 0; while (i < 9 && p.wk >= RK_PTS[i + 1]) i++; return i + 1;
+  if (p.tp == null) return 0;   // сервер ещё без очков — значок не показываем
+  let i = 0; while (i < 9 && p.tp >= RK_PTS[i + 1]) i++; return i + 1;
 }
 const RK_IMG = {};
 function rankImg(n, onload) {   // картинка значка (SVG); пока грузится — null, по загрузке вызовет onload
@@ -3146,7 +3146,7 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   const LINES = { turn: ['Ну, с богом.', 'Моя очередь…', 'Руки трясутся, честно.', 'Давай уже.', 'Ладно, поехали.'], click: ['Фух.', 'Пусто!', 'Живой.', 'Следующий!'],
     bang: ['Минус один…', 'Жёстко.', 'Вот и раунд.', 'Ох.'], chat: ['Ага.', 'Посмотрим.', 'Удачи всем.', 'Не тяни.', '😅'] };
   const now = () => Date.now();
-  const pl = (seat, me) => ({ seat, name: me ? myName() : NAMES[seat - 2], me: !!me, ready: false, online: true, left: false, loaded: false, alive: true, place: null, pts: null, clicks: 0, spins: 0, wk: me ? 0 : Math.floor(Math.random() * 781) });
+  const pl = (seat, me) => ({ seat, name: me ? myName() : NAMES[seat - 2], me: !!me, ready: false, online: true, left: false, loaded: false, alive: true, place: null, pts: null, clicks: 0, spins: 0, tp: me ? 0 : Math.floor(Math.random() * 900) });
   function reset() {
     st2 = { room: { id: 900001, code: 'DEMO42', kind: 'quick', points: true, phase: 'lobby', rev: 1, phase_at: now(), deadline: null, paused: false, owner: true, turn_sec: RR.turn },
       players: [pl(1, true)], chat: [], cid: 0, g: null, plan: [] };

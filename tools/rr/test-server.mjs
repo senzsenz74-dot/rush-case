@@ -445,5 +445,18 @@ log('H. боты в лобби группы');
   await staff(false);
 }
 
+log('I. рейтинг за всё время (rr_top) и очки за всё время');
+{
+  const t = await rpc(U[0], 'rr_top', { p_limit: 100 });
+  ok(t && Array.isArray(t.rows) && t.rows.length > 0, 'rr_top: есть строки', t);
+  ok(t.rows.every((r, i, a) => !i || a[i - 1].pts >= r.pts), 'rr_top: по убыванию очков', t.rows.map(r => r.pts));
+  const sum = await as(null, `select coalesce(sum(pts), 0)::int from public.rr_points where uid = $1`, [U[0]]);
+  ok(t.me && t.me.me === true && t.me.pts === sum, 'rr_top: своё место и очки = сумма rr_points', [t.me, sum]);
+  const g = await rpc(null, 'rr_top');
+  ok(g && g.me === null && Array.isArray(g.rows) && g.rows.every(r => r.me === false), 'rr_top: гость видит рейтинг без «своего места»', g && g.me);
+  const pr = await as(null, `select has_function_privilege('anon', 'public.rr_top(int)', 'execute') and has_function_privilege('authenticated', 'public.rr_top(int)', 'execute')`);
+  ok(pr === true, 'rr_top: доступна гостям и игрокам');
+}
+
 log(`\nПроверок: ${checks}, ошибок: ${fails}`);
 process.exit(fails ? 1 : 0);

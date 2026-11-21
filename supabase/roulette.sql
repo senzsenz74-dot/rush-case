@@ -668,9 +668,8 @@ begin
         'me', p.uid = auth.uid(), 'ready', p.ready, 'loaded', p.loaded, 'bot', p.bot,
         'online', p.bot or (p.left_at is null and p.seen_at >= now_ts - public._rr_dur(c, 'offline')), 'left', p.left_at is not null,
         'alive', p.alive, 'place', p.place, 'pts', p.pts, 'clicks', p.clicks, 'spins', p.spins,
-        -- очки недели (с понедельника по Москве) — звание над головой в комнате (владелец 21.11); у ботов звание рисует сайт
-        'wk', case when p.bot then null else (select coalesce(sum(x.pts), 0) from public.rr_points x
-          where x.uid = p.uid and x.day >= date_trunc('week', now_ts at time zone 'Europe/Moscow')::date) end) order by p.seat)
+        -- очки за всё время — звание над головой в комнате (владелец 21.11); у ботов звание рисует сайт
+        'tp', case when p.bot then null else (select coalesce(sum(x.pts), 0) from public.rr_points x where x.uid = p.uid) end) order by p.seat)
       from public.rr_players p where p.room_id = rm.id), '[]'::jsonb),
     'me', jsonb_build_object('seat', me.seat, 'ready', me.ready, 'alive', me.alive, 'admin', public._rr_staff()),
     'game', case when g.id is null then null else jsonb_build_object('id', g.id, 'round', g.round, 'bullets', g.bullets,
@@ -1366,6 +1365,29 @@ begin
   return public.rr_tick(p_room);
 end $$;
 
+-- ---------- рейтинг (владелец 21.11): очки за всё время, топ до 100 + своё место; видят и гости ----------
+create or replace function public.rr_top(p_limit int default 100) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare lim int := least(greatest(coalesce(p_limit, 100), 1), 100); v_rows jsonb; v_me jsonb; v_total int;
+begin
+  with t as (
+    select uid, sum(pts)::int as pts, sum(games)::int as games, sum(wins)::int as wins
+      from public.rr_points group by uid having sum(pts) > 0
+  ), r as (
+    select t.*, rank() over (order by t.pts desc, t.wins desc) as place from t
+  )
+  select
+    (select coalesce(jsonb_agg(jsonb_build_object('place', x.place, 'pid', x.pid, 'name', coalesce(x.name, 'Игрок'), 'ava', x.ava,
+        'pts', x.pts, 'games', x.games, 'wins', x.wins, 'me', coalesce(x.uid = auth.uid(), false)) order by x.place, x.pid), '[]'::jsonb)
+       from (select r.*, p.pid, p.name, p.ava from r join public.profiles p on p.id = r.uid order by r.place, p.pid limit lim) x),
+    (select jsonb_build_object('place', r.place, 'pts', coalesce(r.pts, 0), 'games', coalesce(r.games, 0), 'wins', coalesce(r.wins, 0),
+        'pid', p.pid, 'name', coalesce(p.name, 'Игрок'), 'ava', p.ava, 'me', true)
+       from public.profiles p left join r on r.uid = p.id where p.id = auth.uid()),
+    (select count(*)::int from r)
+  into v_rows, v_me, v_total;
+  return jsonb_build_object('rows', v_rows, 'me', v_me, 'total', v_total, 'pts', public._rr_cfg()->'pts');
+end $$;
+
 -- ---------- права на функции ----------
 do $$ declare f regprocedure; begin
   for f in select p.oid::regprocedure from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -1379,6 +1401,7 @@ grant execute on function public.rr_state(bigint, bigint), public.rr_tick(bigint
   public.rr_spin(bigint, int), public.rr_shoot(bigint, int), public.rr_chat_send(bigint, text), public.rr_report(bigint, int, text, text),
   public.rr_loaded(bigint), public.rr_mm_state(), public.rr_party_open(), public.rr_party_join(text), public.rr_party_leave(),
   public.rr_party_kick(int), public.rr_search(boolean), public.rr_accept(), public.rr_bot_add(bigint), public.rr_bot_del(bigint, int), public.rr_party_bot(boolean, int) to authenticated;
+grant execute on function public.rr_top(int) to anon, authenticated;   -- рейтинг видят и гости
 -- rr_selftest — только из SQL Editor
 
 select public.rr_selftest(3000) as "РУЛЕТКА: самопроверка";

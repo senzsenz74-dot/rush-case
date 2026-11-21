@@ -2583,20 +2583,19 @@ function nwFeed() {
 }
 const INVITE_SVG = '<svg viewBox="0 0 15 14" aria-hidden="true"><path d="M0.817197 5.34773H5.9052V0.0677261H9.2972V5.34773H14.3852V8.38773H9.2972V13.6677H5.9052V8.38773H0.817197V5.34773Z" fill="currentColor"/></svg>'; // «Оформление сайта/ИНВАЙТ.svg»
 const MNK_SND = 'assets/main/play.mp3?v=1'; // звук кнопки «Играть» в карточке КРОТ (cs2.mp3 владельца); громкость 0,2 — владелец 12.11: «намного тише»
-// звания «Русской рулетки» за очки недели (владелец 21.11): значки assets/rr/ranks (генератор tools/rr/ranks.js), максимум 780
+// звания «Русской рулетки» за очки за всё время (владелец 21.11): значки assets/rr/ranks (генератор tools/rr/ranks.js), с 780 — высшее
 const RR_RANKS = [['Новичок', 0], ['Игрок', 20], ['Смельчак', 50], ['Счастливчик', 90], ['Хладнокровный', 140], ['Стальные нервы', 210], ['Фаталист', 300], ['Ветеран барабана', 420], ['Бессмертный', 580], ['Легенда рулетки', 780]];
-const rrWeekStart = () => { const m = new Date(Date.now() + 3 * 3600e3); m.setUTCDate(m.getUTCDate() - (m.getUTCDay() + 6) % 7); return m.toISOString().slice(0, 10); }; // понедельник по Москве (дни очков сервер пишет по Москве)
 function mnRankDraw(pts) {   // над головой агента: значок, полоска до следующего звания, число очков — без подложки
   const el = $('#mnRank'); if (!el) return;
-  pts = Math.max(0, Math.min(780, pts | 0)); let i = 0; while (i < RR_RANKS.length - 1 && pts >= RR_RANKS[i + 1][1]) i++;
+  pts = Math.max(0, pts | 0); let i = 0; while (i < RR_RANKS.length - 1 && pts >= RR_RANKS[i + 1][1]) i++;
   const [nm, lo] = RR_RANKS[i], nx = RR_RANKS[i + 1], pc = nx ? (pts - lo) / (nx[1] - lo) * 100 : 100;
   el.innerHTML = `<span class="mnr-t">${nm}</span><img src="assets/rr/ranks/rank-${i + 1}.svg" alt="${nm}" decoding="async"><i class="mnr-bar"><b style="width:${pc.toFixed(1)}%"></b></i><span class="mnr-n">${pts}${nx ? `<small> / ${nx[1]}</small>` : ''}</span>`;
   el.hidden = false;
 }
-async function mnRank() {   // очки недели — сумма дней с понедельника из rr_points (игроку видны только свои строки)
+async function mnRank() {   // очки за всё время — сумма rr_points игрока (ему видны только свои строки)
   const el = $('#mnRank'); if (!el) return;
   if (!sb || !st.user || !st.user.sb || !krotOpen()) { el.hidden = true; return; }
-  const { data, error } = await sb.from('rr_points').select('pts').eq('uid', st.user.id).gte('day', rrWeekStart());
+  const { data, error } = await sb.from('rr_points').select('pts').eq('uid', st.user.id);
   if (error || !document.body.contains(el)) return;
   mnRankDraw((data || []).reduce((s, r) => s + (r.pts || 0), 0));
 }
@@ -11328,10 +11327,43 @@ function tutPlace(anim) {
   if (side === 'top' || side === 'bot') ar.style.left = Math.max(22, Math.min(cw - 22, fx - cx)) + 'px', ar.style.top = '';
   else ar.style.top = Math.max(22, Math.min(ch - 22, y + h / 2 - cy)) + 'px', ar.style.left = '';
 }
+/* ---------- рейтинг «Русской рулетки» #/rrtop (владелец 21.11): очки за всё время, топ-100 + своё место; стиль CS2 ---------- */
+const rrRankIdx = pts => { let i = 0; while (i < RR_RANKS.length - 1 && pts >= RR_RANKS[i + 1][1]) i++; return i; };
+const rrAva = u => u.ava ? `<span class="rrt-av"><img src="${esc(u.ava)}" alt="" loading="lazy"></span>` : `<span class="rrt-av">${esc(String(u.name || '?')[0].toUpperCase())}</span>`;
+const rrHow = P => `Очки дают за место в быстрой игре: ${P.map((v, i) => `${i + 1}-е — <b>${v}</b>`).join(' · ')}. Очки не сгорают и копятся за всё время, за них — звания.`;
+function rrtRow(r) {
+  const i = rrRankIdx(r.pts || 0), tag = r.pid ? 'a' : 'span';
+  return `<div class="rrt-r${r.me ? ' me' : ''}${r.place && r.place <= 3 ? ' p' + r.place : ''}"><span class="rrt-pl">${r.place || '—'}</span>`
+    + `<${tag}${r.pid ? ` href="#/u/${r.pid}"` : ''} class="rrt-pn">${rrAva(r)}<b>${esc(r.name || 'Игрок')}</b>${r.me ? '<i>Вы</i>' : ''}</${tag}>`
+    + `<span class="rrt-rk"><img src="assets/rr/ranks/rank-${i + 1}.svg" alt=""><em>${RR_RANKS[i][0]}</em></span>`
+    + `<span class="rrt-g">${r.games || 0}</span><span class="rrt-w">${r.wins || 0}</span><span class="rrt-pt">${r.pts || 0}</span></div>`;
+}
+function pageRrTop() {
+  return `<section class="rrt"><div class="rrt-hd"><div class="rrt-tl"><span class="rrt-k">Русская рулетка</span><h1>Рейтинг игроков</h1><p id="rrtHow">${rrHow([10, 6, 3, 1, 0])}</p></div>`
+    + `<a class="rrt-go" href="#/krot">Играть</a></div>`
+    + `<div class="rrt-ranks">${RR_RANKS.map(([n, p], i) => `<div class="rrt-rc"><img src="assets/rr/ranks/rank-${i + 1}.svg" alt="${n}"><b>${n}</b><span>от ${p}</span></div>`).join('')}</div>`
+    + `<div class="rrt-tb"><div class="rrt-r rrt-th"><span>#</span><span>Игрок</span><span>Звание</span><span class="rrt-g">Игр</span><span class="rrt-w">Побед</span><span class="rrt-pt">Очки</span></div>`
+    + `<div id="rrtList"><div class="rrt-msg">Загружаем рейтинг…</div></div></div><div id="rrtMe"></div></section>`;
+}
+function rrTopDemo() {   // только для localhost: выдуманные строки, чтобы видеть вёрстку
+  const N = ['Lynx', 'Сова', 'Grizzly', 'Shade', 'Кот Бегемот', 'AWP_Master', 'Дракон', 'Mirage_Pro', 'Фантом', 'Rush_B'];
+  let p = 1240; const rows = Array.from({ length: 24 }, (_, i) => { p = Math.max(4, p - Math.round(30 + Math.random() * 90)); const g = Math.round(p / 4); return { place: i + 1, pid: 100100 + i, name: N[i % 10] + (i >= 10 ? ' ' + i : ''), ava: null, pts: p, games: g, wins: Math.round(g / 5), me: false }; });
+  return { rows, me: { place: 57, pts: 64, games: 15, wins: 2, name: 'Вы', ava: null, pid: 100003, me: true }, total: 140, pts: { 1: 10, 2: 6, 3: 3, 4: 1, 5: 0 } };
+}
+async function mountRrTop() {
+  let d = null; try { if (sb) { const { data, error } = await sb.rpc('rr_top', { p_limit: 100 }); if (!error) d = data; } } catch (e) { d = null; }
+  const box = $('#rrtList'); if (!box) return;   // пока грузили — ушли со страницы
+  if (!d && /^(localhost|127.0.0.1)$/.test(location.hostname)) d = rrTopDemo();   // локальный просмотр без серверной функции
+  if (!d) { box.innerHTML = '<div class="rrt-msg">Рейтинг не загрузился — обновите страницу</div>'; return; }
+  if (d.pts) { const P = [1, 2, 3, 4, 5].map(k => +d.pts[k] || 0), h = $('#rrtHow'); if (h) h.innerHTML = rrHow(P); }
+  const rows = d.rows || [];
+  box.innerHTML = rows.length ? rows.map(rrtRow).join('') : '<div class="rrt-msg">Пока никто не набрал очков. Сыграйте быструю игру — и займите первое место.</div>';
+  if (d.me && !rows.some(r => r.me)) $('#rrtMe').innerHTML = `<div class="rrt-tb rrt-mine">${rrtRow(d.me)}</div>`;   // своё место — внизу, если не в сотне
+}
 const ROUTES = {
   '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, mountInvite], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], jackpot: [pageJackpot, mountJackpot], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, mountDoc], privacy: [pagePrivacy, mountDoc], payment: [pagePayment, mountDoc], cookies: [pageCookies, mountDoc], admin: [pageAdmin, mountAdmin],
-  tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer],
+  tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer], rrtop: [pageRrTop, mountRrTop],
   staff: [pageStaff, mountStaff], // вход для админов и сотрудников по почте (ссылок на неё нет)
 };
 // анимации за экраном — на паузу (покачивание кейсов, светлячки, искры баннера): браузеру меньше работы при прокрутке.
@@ -11378,7 +11410,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Русская рулетка', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', news: 'Новости', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', jackpot: 'Ставки', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', news: 'Новости', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
