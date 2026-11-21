@@ -200,12 +200,13 @@ function listen() {
     drag = null; if (root) root.classList.remove('drag');
   };
   H.bu = e => { if (S && room && ['play', 'next'].includes(S.room.phase) && S.me && S.me.alive !== false) { e.preventDefault(); e.returnValue = ''; } };
-  H.blur = () => { if (plTemp) showPlayers(false); vcKey(false); };
+  H.blur = () => { if (plTemp) showPlayers(false); vcKey(false); gestClose(false); };
   window.addEventListener('keydown', H.kd, true); window.addEventListener('keyup', H.ku, true);
   document.addEventListener('pointerlockchange', H.plc); window.addEventListener('resize', H.res); window.addEventListener('scroll', H.scr, { passive: true });
   window.addEventListener('pointerup', H.pu); window.addEventListener('beforeunload', H.bu); window.addEventListener('blur', H.blur);
 }
 function unlisten() {
+  gestClose(false);
   window.removeEventListener('keydown', H.kd, true); window.removeEventListener('keyup', H.ku, true);
   document.removeEventListener('pointerlockchange', H.plc); window.removeEventListener('resize', H.res); window.removeEventListener('scroll', H.scr);
   window.removeEventListener('pointerup', H.pu); window.removeEventListener('beforeunload', H.bu); window.removeEventListener('blur', H.blur);
@@ -219,11 +220,13 @@ function onKey(e, down) {
   }   // зажать V — говорить
   if (e.key === 'Tab' && !$('.modal-ov')) { e.preventDefault(); if (down && !e.repeat && ov !== 'players') { plTemp = true; showPlayers(true); } else if (!down && plTemp) showPlayers(false); return; }
   if (e.code === 'KeyR' && !down) { spinUp(); return; }   // отпустили R — барабан останавливается на делении
+  if (e.code === 'KeyH' && !down) { if (gWheel) { e.preventDefault(); gestClose(true); } return; }   // отпустили H — показать выбранный жест
   if (!down) return;
-  if (e.key === 'Escape') { if (inp) { e.target.blur(); return; } if (ov) { closeOv(); return; } return; }
+  if (e.key === 'Escape') { if (gWheel) { gestClose(false); return; } if (inp) { e.target.blur(); return; } if (ov) { closeOv(); return; } return; }
   if (inp || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'Enter') { const i = $('#krIn', root); if (i) { e.preventDefault(); if (document.pointerLockElement) document.exitPointerLock(); openChat(true); i.focus({ preventScroll: true }); } return; }
   if (e.code === 'KeyR') { e.preventDefault(); if (!e.repeat) spinDown(); return; }
+  if (e.code === 'KeyH') { e.preventDefault(); if (!e.repeat) gestOpen(); return; }   // зажать H — круг жестов (владелец 22.11)
   if (e.code === 'KeyG' && !e.repeat && canVote()) { e.preventDefault(); voteAct('start'); return; }   // поднять руку: +1 патрон
   if ((e.key === 'F1' || e.key === 'F2') && S && S.game && S.game.vote) { e.preventDefault(); if (!e.repeat) voteAct(e.key === 'F1' ? 'yes' : 'no'); return; }       // владелец 21.11: нажал — 1 деление, зажал — крутится
   if ((e.code === 'Space' || e.code === 'KeyF') && !e.repeat) { e.preventDefault(); rrAct('shoot'); }   // выстрел
@@ -583,6 +586,7 @@ async function realtime(id, g) {
   const onRt = ch => ch.on('broadcast', { event: 'h' }, m => { const q = m && m.payload; if (G && q && q.s) G.head(q.s, q.y, q.p); })
     .on('broadcast', { event: 'rtc' }, m => { if (m && m.payload && VC.core) VC.core.onSig(m.payload); })
     .on('broadcast', { event: 'sp' }, m => { const q = m && m.payload; if (!q || !q.s || !G || !G.drum || !S || !S.game || S.game.turn !== q.s) return; spinMirror[q.s] = Date.now(); G.drum(q.k); })   // чужая прокрутка — как у него
+    .on('broadcast', { event: 'gs' }, m => { const q = m && m.payload; if (!q || !q.s || !G || !G.gest || !S) return; const p = S.players.find(x => x.seat === q.s); if (p && p.alive !== false) G.gest(q.s, q.k); })   // чужой жест рукой (H)
     .on('broadcast', { event: 'v' }, m => { const q = m && m.payload; if (!q || !q.s) return; if (q.k === 'start') { voteLocal = { seat: q.s, until: Date.now() + 3000 }; if (G && G.vote) G.vote(q.s); } soon(); });   // кто-то поднял руку / проголосовал — сразу
   const sendOn = ch => p => ch.send({ type: 'broadcast', event: 'rtc', payload: p });
   chRt = onRt(sb.channel('rr:' + id, { config: { private: true, broadcast: { self: false } } }));
@@ -806,6 +810,41 @@ async function rrAct(kind) {
 let spinHeld = 0, spinHoldT = 0, spinSendT = 0, spinPend = false, spinLast = 0, spinBlur = false;
 // чужая прокрутка (владелец 21.11): крутящий шлёт нажал / зажал / отпустил по каналу комнаты — у остальных барабан крутится так же (и звук тот же)
 const spinMirror = {};
+/* ---------- круг жестов: зажать H, навести курсор, отпустить (владелец 22.11, образец — круг оружия) ---------- */
+const GESTS = [{ k: 'up', t: 'Класс', i: '👍' }, { k: 'fu', t: 'Фак', i: '🖕' }, { k: 'wave', t: 'Привет', i: '👋' }, { k: 'gun', t: 'Пистолет', i: '👉' }];   // по часовой, с верха
+let gWheel = null, gestAt = 0;
+const canGest = () => { const me = myPlayer(), g = S && S.game, ph = S && S.room.phase; return !!(me && me.alive !== false && G && G.gest && (ph === 'play' || ph === 'next') && !(ph === 'play' && g && g.turn === me.seat)); };   // живой и не в свой ход (револьвер в руке)
+function gestHtml() {
+  const R = 98, r = 44, pt = (rr, a) => (rr * Math.cos(a)).toFixed(2) + ' ' + (rr * Math.sin(a)).toFixed(2);
+  const seg = i => { const a0 = (-135 + i * 90 + 2.2) * Math.PI / 180, a1 = (-45 + i * 90 - 2.2) * Math.PI / 180; return `<path class="rr-gs" data-g="${i}" d="M${pt(R, a0)} A${R} ${R} 0 0 1 ${pt(R, a1)} L${pt(r, a1)} A${r} ${r} 0 0 0 ${pt(r, a0)}Z"/>`; };
+  const pos = i => { const a = (-90 + i * 90) * Math.PI / 180; return `left:${(50 + 35.5 * Math.cos(a)).toFixed(1)}%;top:${(50 + 35.5 * Math.sin(a)).toFixed(1)}%`; };
+  return `<svg viewBox="-100 -100 200 200" aria-hidden="true">${GESTS.map((x, i) => seg(i)).join('')}<circle class="rr-gc" r="38"/></svg>`
+    + GESTS.map((x, i) => `<div class="rr-gi" data-g="${i}" style="${pos(i)}"><i>${x.i}</i><b>${x.t}</b></div>`).join('')
+    + '<span class="rr-gm">Отмена</span><em class="rr-gh">Наведи курсор и отпусти <kbd>H</kbd></em>';
+}
+function gestSel(i) { if (!gWheel || gWheel.sel === i) return; gWheel.sel = i; gWheel.el.classList.toggle('c', i < 0); gWheel.el.querySelectorAll('[data-g]').forEach(n => n.classList.toggle('on', +n.dataset.g === i)); }
+function gestMove(e) {
+  if (!gWheel) return;
+  const r = gWheel.el.getBoundingClientRect(), x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2);
+  gestSel(Math.hypot(x, y) < r.width * .2 ? -1 : ((Math.round(Math.atan2(y, x) / (Math.PI / 2)) + 1) % 4 + 4) % 4);   // в центре — отмена
+}
+function gestOpen() {
+  if (gWheel || !root || !canGest()) return;
+  const el = document.createElement('div'); el.className = 'rr-gw c'; el.innerHTML = gestHtml(); root.appendChild(el);
+  gWheel = { el, sel: -1 };
+  window.addEventListener('pointermove', gestMove, true);
+  el.addEventListener('pointerdown', e => { if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); gestMove(e); gestClose(true); });   // можно и кликнуть
+}
+function gestClose(go) {
+  if (!gWheel) return;
+  const i = gWheel.sel; window.removeEventListener('pointermove', gestMove, true); gWheel.el.remove(); gWheel = null;
+  if (go && i >= 0) gestDo(GESTS[i].k);
+}
+function gestDo(k) {
+  const me = myPlayer(); if (!me || !canGest() || Date.now() - gestAt < 700) return; gestAt = Date.now();
+  G.gest(me.seat, k);
+  try { if (chRt) chRt.send({ type: 'broadcast', event: 'gs', payload: { s: me.seat, k } }); } catch (e) { /* канал не готов */ }
+}
 const spinCast = k => { try { const me = myPlayer(); if (chRt && me) chRt.send({ type: 'broadcast', event: 'sp', payload: { s: me.seat, k } }); } catch (e) { /* канал не готов */ } };
 function spinDown() {
   if (myTurn() && S.game.vote) { voteWarn(); return; }
@@ -980,7 +1019,8 @@ function rrEvent(ev) {
   else if (ev.kind === 'vote_end') { voteRes = { ok: !!ev.ok, yes: ev.yes || 0, no: ev.no || 0, bullets: ev.bullets, until: Date.now() + 4500,
       v: voteLast && voteLast.by === ev.seat ? voteLast : { by: ev.seat, at: 0, yes: [], no: [], need: '', cost: 0 } }; voteLast = null; drawVote(); if (ev.ok) rrSound('load'); if (ev.ok && ev.cost) bankSpend(ev.cost); }   // +1 патрон — звук зарядки (владелец 21.11)
   else if (ev.kind === 'spin') { if (!me) { spinNote = { seat: ev.seat, until: Date.now() + 1400 }; drawAct(); } }
-  else if (ev.kind === 'click') showEv('В барабане пусто', me ? 'вы живы' : nm + ' жив', 'click', 1600);   // владелец 20.11: без «Щелчок» и без «время вышло»
+  else if (ev.kind === 'click') { showEv('В барабане пусто', me ? 'вы живы' : nm + ' жив', 'click', 1600);
+    if (p && !me && (p.bot || api === Demo) && G && G.gest) { const h = (((S.game && S.game.id) || 0) * 31 + (ev.n || 0) * 7 + ev.seat) % 20; if (h < 6) setTimeout(() => { const q = S && S.players.find(x => x.seat === ev.seat); if (G && q && q.alive !== false) G.gest(ev.seat, GESTS[h % 4].k); }, 1400); } }   // бот выжил — иногда жест рукой   // владелец 20.11: без «Щелчок» и без «время вышло»
   else if (ev.kind === 'bang') {
     showEv('Выстрел', `${auto}${me ? 'вы выбыли' : nm + ' выбыл'}`, 'bang', 2600);
     const f = root && $('#rrFl', root); if (f) { f.className = 'rr-fl'; void f.offsetWidth; f.className = 'rr-fl on' + (me ? ' me' : ''); }
@@ -1214,7 +1254,7 @@ function ovHtml(kind, arg) {
     </ol>
     <h3 class="kr-h2">Очки</h3><p>Быстрая игра — очки недели за место: 1-е — 10, 2-е — 6, 3-е — 3, 4-е — 1. Лучшим за неделю — скины. Комнаты друзей — без очков.</p>
     <h3 class="kr-h2">Ставки</h3><p>Быстрая игра — на деньги: на старте списывается 100 ₽, за 15 секунд подготовки ставку можно поднять. Последний выживший забирает банк: с каждого — не больше, чем поставил сам (остальное возвращается), минус купленные патроны и 5% сайту.</p>
-    <h3 class="kr-h2">Управление</h3><ul class="kr-keyl"><li><kbd>ЛКМ</kbd> зажать и вести мышью — осмотреться</li><li><kbd>R</kbd> — нажать: барабан на одно деление; зажать — крутится, пока держите</li><li><kbd>G</kbd> — поднять руку: +1 патрон следующему (после своего пустого выстрела)</li><li><kbd>F1</kbd> / <kbd>F2</kbd> — голос «да» / «нет»</li><li><kbd>Пробел</kbd> — выстрел</li><li><kbd>V</kbd> зажать — говорить</li><li><kbd>Enter</kbd> — чат, <kbd>Tab</kbd> — игроки</li></ul></aside>`;
+    <h3 class="kr-h2">Управление</h3><ul class="kr-keyl"><li><kbd>ЛКМ</kbd> зажать и вести мышью — осмотреться</li><li><kbd>R</kbd> — нажать: барабан на одно деление; зажать — крутится, пока держите</li><li><kbd>H</kbd> зажать — круг жестов: навести курсор и отпустить</li><li><kbd>G</kbd> — поднять руку: +1 патрон следующему (после своего пустого выстрела)</li><li><kbd>F1</kbd> / <kbd>F2</kbd> — голос «да» / «нет»</li><li><kbd>Пробел</kbd> — выстрел</li><li><kbd>V</kbd> зажать — говорить</li><li><kbd>Enter</kbd> — чат, <kbd>Tab</kbd> — игроки</li></ul></aside>`;
   if (kind === 'players') {   // таблица счёта как в CS2: шапка, квадрат раунда, строки игроков; своя строка — золотом, выбывшие — с крестиком
     const ps = S ? S.players : [], g = S && S.game, ph = S ? S.room.phase : '', alive = ps.filter(p => p.alive !== false && !p.left).length;
     const order = SEATS.map(st => ps.find(q => q.seat === st)).filter(Boolean).sort((p, q) => (p.alive === false) - (q.alive === false) || (p.place || 0) - (q.place || 0) || p.seat - q.seat);
@@ -1884,6 +1924,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       M['fing' + k] = FING.map(f => [0, 1, 2].map(j => B['finger_' + f + '_' + j + '_' + k])).filter(ch => ch.every(Boolean));
       M['tip' + k] = M['fing' + k].map(ch => ch[2].position.clone().multiplyScalar(.8));   // кончик пальца: ось последней фаланги ≈ ось средней
       M['palm' + k] = len('hand_' + k, 'finger_middle_0_' + k);
+      M['thumb' + k] = [0, 1, 2].map(j => B['finger_thumb_' + j + '_' + k]); if (!M['thumb' + k].every(Boolean)) M['thumb' + k] = null; else M['ttip' + k] = M['thumb' + k][2].position.clone().multiplyScalar(.8);   // большой палец — для жестов (H)
     }
     M.ankleY = ankleY;
     return M;
@@ -2004,6 +2045,54 @@ function makeWorld(T, RB, RE, cv, PP) {
     }).catch(e => console.warn('KROT models', e));
   }, 400);
 
+  // жесты рукой (круг на H, владелец 22.11): up — большой палец вверх, fu — средний палец, wave — помахать, gun — пистолет из пальцев с выстрелом
+  const GEST_T = { up: 2.3, fu: 2.4, wave: 2.6, gun: 2.4 };
+  const _gP = V(0, 0, 0), _gE = V(0, 0, 0), _gF = V(0, 0, 0), _gA = V(0, 0, 0), _gT = V(0, 0, 0), _gN = V(0, 0, 0), _gV = V(0, 0, 0), _gJ = V(0, 0, 0), _gC = V(0, 0, 0), _gQ = new T.Quaternion(), _gY = new T.Quaternion(), _gYa = V(0, 1, 0);
+  let gExt = [0, 0, 0, 0];
+  const gestW = (a, now) => {   // вес жеста 0…1 (плавно поднял — подержал — опустил)
+    const st = a.gst; if (!st) return 0;
+    const tt = now - st.at, d = GEST_T[st.k] || 2.3; if (tt >= d) { a.gst = null; return 0; }
+    const sm = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+    return sm(tt / .35) * sm((d - tt) / .4);
+  };
+  // поза кисти жеста в осях места (правая рука; левая — зеркально): куда запястье, куда пальцы (F), куда большой палец (A), куда локоть; пальцы: какие прямые, куда большой
+  const gestPose = (a, k, sd, tt, g, qs) => {
+    const st = a.gst, me = a.me;
+    let px, py, pz, fx, fy, fz, ax, ay, az, ex = sd * .8, ey = -1, ez = .25;
+    if (st.k === 'up') { px = .15; py = 1.0 + .02 * Math.sin(Math.min(tt, 1.6) * 7); pz = -.5; fx = -.25; fy = 0; fz = -1; ax = 0; ay = 1; az = 0; gExt = [0, 0, 0, 0]; _gT.set(0, 1, .1); }
+    else if (st.k === 'fu') { const th = Math.sin(Math.PI * clamp(tt / .7, 0, 1)); px = .1; py = 1.14 + th * .03; pz = -.56 - th * .06; fx = 0; fy = 1; fz = -.18; ax = sd; ay = 0; az = 0; ex = sd * .6; ey = -1; ez = .3; gExt = [0, 1, 0, 0]; _gT.set(-sd * .5, .3, -.3); }
+    else if (st.k === 'wave') { const w = Math.sin(tt * 9) * .5; px = me ? .24 : .42; py = 1.34; pz = me ? -.48 : -.38; fx = sd * w; fy = 1; fz = 0; ax = -sd; ay = 0; az = 0; ex = sd; ey = -.6; ez = .3; gExt = [1, 1, 1, 1]; _gT.set(-sd * .9, .45, 0); }
+    else { const kk = tt > 1.05 ? Math.exp(-(tt - 1.05) * 7) : 0, hd = clamp((tt - 1.05) / .12, 0, 1); px = .1; py = 1.18 + kk * .05; pz = -.64 + kk * .05; fx = -.08; fy = kk * .9; fz = -1; ax = 0; ay = 1; az = 0; ex = sd * .5; ey = -1; ez = .1; gExt = [1, 0, 0, 0]; _gT.set(0, 1 - hd * .8, -.3 - hd * .7); }
+    _gY.setFromAxisAngle(_gYa, clamp(a.hy || 0, -1.2, 1.2) * .75);   // жест туда, куда смотрит голова
+    _gP.set(px * sd, py, pz).applyQuaternion(_gY).applyMatrix4(g.matrixWorld);
+    _gF.set(fx, fy, fz).applyQuaternion(_gY).applyQuaternion(qs).normalize();
+    _gA.set(ax, ay, az).applyQuaternion(_gY).applyQuaternion(qs).normalize();
+    _gE.set(ex, ey, ez).applyQuaternion(_gY).applyQuaternion(qs);
+    _gT.applyQuaternion(_gY).applyQuaternion(qs);   // большой палец: в осях руки → мир (x в осях места уже со знаком руки)
+    frameQ(_gF, _gA, _gQ);
+  };
+  // пальцы жеста: прямые — вдоль кисти, согнутые — в кулак (фаланга к ладони, вторая назад, третья к ладони); большой — по _gT
+  const bendTo = (b, cur, dir, w) => { wp(b, _gJ); _gV.subVectors(cur, _gJ).normalize(); _gC.copy(dir).normalize(); _gV.lerp(_gC, w).normalize(); aim(b, cur, _gC.copy(_gJ).add(_gV)); };
+  const gestFing = (M, k, sd, w) => {
+    _gN.crossVectors(_gF, _gA).multiplyScalar(-sd).normalize();   // куда смотрит ладонь
+    M['fing' + k].forEach((ch, fi) => {
+      for (let j = 0; j < 3; j++) {
+        if (gExt[fi]) _gC.copy(_gF);
+        else if (j === 0) _gC.copy(_gN).addScaledVector(_gF, .35);
+        else if (j === 1) _gC.copy(_gF).multiplyScalar(-1).addScaledVector(_gN, .3);
+        else _gC.copy(_gF).multiplyScalar(-.4).addScaledVector(_gN, -1);
+        _gC.normalize(); const d = _gE.copy(_gC);   // _gE (локоть) уже не нужен
+        if (j < 2) wp(ch[j + 1], _t1); else _t1.copy(M['tip' + k][fi]).applyMatrix4(ch[2].matrixWorld);
+        bendTo(ch[j], _t1, d, w);
+      }
+    });
+    const th = M['thumb' + k]; if (!th) return;
+    for (let j = 0; j < 3; j++) {
+      if (j < 2) wp(th[j + 1], _t1); else _t1.copy(M['ttip' + k]).applyMatrix4(th[2].matrixWorld);
+      _gE.copy(_gT); if (j === 0) _gE.lerp(_gA, .4);
+      bendTo(th[j], _t1, _gE, w);
+    }
+  };
   // поза модели за кадр (после того как карточка встала на место)
   const poseModel = (a, t, dt) => {
     const M = a.M, B = M.B, g = a.g;
@@ -2054,6 +2143,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       _gw.copy(GRIP_W).applyQuaternion(_gq).add(_gp);   // где запястье
       _t1.copy(GRIP_F).applyQuaternion(_gq); _t2.copy(GRIP_A).applyQuaternion(_gq); frameQ(_t1, _t2, _gfq);
     }
+    const gNow = performance.now() / 1000, gw = fl ? (a.gst = null, 0) : gestW(a, gNow), gH = held ? 'l' : 'r';   // жест (H): правой, а если в ней револьвер — левой
     // руки (владелец 20.11): просто лежат на бортике ладонями вниз; правая берёт револьвер в свой ход; при речи правая рука жестикулирует
     if (!a.rest || a.rest.me !== a.me) a.rest = { me: a.me, l: handRest(a, -1), r: handRest(a, 1) };
     for (const [k, sd] of [['l', -1], ['r', 1]]) {
@@ -2075,6 +2165,8 @@ function makeWorld(T, RB, RE, cv, PP) {
         _t3.set(-.21, 1.4, -.13).applyMatrix4(g.matrixWorld); _t1.set(0, 1, -.12).applyQuaternion(_qs); _t2.set(1, 0, 0).applyQuaternion(_qs); frameQ(_t1, _t2, _qc);
         _e4.lerp(_t3, a.vw); _qh.slerp(_qc, a.vw);
       }
+      const gOn = gw > .001 && k === gH;
+      if (gOn) { gestPose(a, k, sd, gNow - a.gst.at, g, _qs); _e4.lerp(_gP, gw); _qh.slerp(_gQ, gw); }   // жест из круга (H)
       if (hk) { _e4.lerp(_gw, hk); if (!lift) _e4.y += Math.sin(Math.PI * hk) * .05; _qh.slerp(_gfq, hk); }   // тянется к рукояти дугой
       if (fl || (k === 'r' && fallGun)) {
         const r = k === 'r', gIn = r && fallGun;
@@ -2088,6 +2180,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       _t3.set(sd * .75, -1, .35).applyQuaternion(_qs);                 // локти — вниз и в стороны
       if (hk && lift) _t3.lerp(_t1.set(1, -.3, .2).applyQuaternion(_qs), lift);   // у виска локоть — в сторону
       if (k === 'l' && a.vw > .01) _t3.lerp(_t1.set(-1, -.15, .4).applyQuaternion(_qs), a.vw);   // рука вверх — локоть в сторону
+      if (gOn) _t3.lerp(_gE, gw);   // жест — локоть
       if (ff) _t3.lerp(_t1.set(sd, .5, .3).applyQuaternion(_qs), ff);   // упал — локти в стороны и вверх, не в бортик
       ik2(B['arm_upper_' + k], B['arm_lower_' + k], B['hand_' + k], _e4, _t3, L[0], L[1]);
       if (k === 'r' && fallGun) {   // убит с револьвером: он в ладони, пока рука не легла на стол, потом выпадает
@@ -2104,13 +2197,14 @@ function makeWorld(T, RB, RE, cv, PP) {
         gun.g.position.copy(_gp); gun.g.quaternion.copy(_gq);
       }
       // пальцы: в исходной позе модели согнуты — на бортике каждую фалангу, что ушла бы в стол, кладём на его поверхность; рука с револьвером — согнуты вокруг рукояти
-      if (!hk && !(k === 'r' && fallGun) && gk < .5) M['fing' + k].forEach((ch, fi) => {
+      if (!hk && !(k === 'r' && fallGun) && gk < .5 && !(gOn && gw > .5)) M['fing' + k].forEach((ch, fi) => {
         for (let j = 0; j < 3; j++) {
           if (j < 2) wp(ch[j + 1], _t1); else _t1.copy(M['tip' + k][fi]).applyMatrix4(ch[2].matrixWorld);
           const y = railH(_t1.x, _t1.z) + .009; if (_t1.y >= y) continue;
           _t2.copy(_t1); _t2.y = y; aim(ch[j], _t1, _t2);
         }
       });
+      if (gOn) gestFing(M, k, sd, gw);   // пальцы жеста
     }
   };
 
@@ -2127,6 +2221,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   W.head = (s, y, p) => { const a = AV[s]; if (!a || a.me) return; a.ty = clamp(+y || 0, -1.3, 1.3); a.tp = clamp(+p || 0, -1, .45); };
   W.marks = m => { mk = m; };
   W.speak = (s, on) => { const a = AV[s]; if (a) a.spk = !!on; };
+  W.gest = (s, k) => { const a = AV[s]; if (a && GEST_T[k]) a.gst = { k, at: performance.now() / 1000 }; };   // жест рукой (круг на H)
 
   // снимок сервера → кто за столом, что на контейнерах, что на моей карточке
   // снимок сервера → кто за столом, кто ходит, кто выбыл; револьвер — перед тем, чей ход
@@ -3718,5 +3813,5 @@ const Demo = (() => {   // «Русская рулетка» без сервер
   D.vote = () => { const g = st2 && st2.g; if (!g || st2.room.phase !== 'play' || g.vote || g.bullets >= RR.maxBul || alive().length <= 2) return false; const b = alive().find(p => !p.me && p.seat !== g.turn); if (!b) return false; voteOpen(b.seat); return true; };   // проверка: бот поднимает руку сейчас (только демо)
   return D;
 })();
-K.dbg = { die: () => (DEMO_OK ? (Demo.dieMe = true) : null), vote: () => (DEMO_OK ? Demo.vote() : null), coins: n => (DEMO_OK ? coinsFly(n || 6) : null), voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st), world: () => (DEMO_OK ? G : null) };   // для проверки из браузера (подставить состояние подбора — только localhost)
+K.dbg = { die: () => (DEMO_OK ? (Demo.dieMe = true) : null), vote: () => (DEMO_OK ? Demo.vote() : null), coins: n => (DEMO_OK ? coinsFly(n || 6) : null), voiceTest: n => (DEMO_OK ? voiceSelfTest(n) : null), voice: () => VC, vkey: d => (DEMO_OK ? vcKey(d) : null), state: () => S, skip: () => Demo.skip(), demo: () => api === Demo, mm: x => (DEMO_OK && x ? mmApply(x) : MM.st), world: () => (DEMO_OK ? G : null), gest: (s, k) => (DEMO_OK && G ? G.gest(s, k) : null) };   // для проверки из браузера (подставить состояние подбора — только localhost)
 })();
