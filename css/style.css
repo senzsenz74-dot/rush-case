@@ -5872,11 +5872,13 @@ button.bw-c:focus-visible{outline:2px solid #84d9fd;outline-offset:2px}
 /* звание «Русской рулетки» над головой агента (владелец 21.11): значок, полоска очков недели, число — без подложки; место и ширину ставит placeCard() в mnAgent, как у карточки режима */
 .mnr{position:absolute;z-index:3;left:calc(50% + 120.5px);bottom:80%;width:clamp(140px,21vh,220px);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:5px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.75))}
 .mnr[hidden]{display:none}
-.mnr img{display:block;width:72%;height:auto}
+.mnr img{display:block;width:50%;height:auto}
 .mnr-bar{position:relative;display:block;width:44%;height:3px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden}
 .mnr-bar b{position:absolute;left:0;top:0;bottom:0;background:#84d9fd;box-shadow:0 0 6px rgba(132,217,253,.8)}
 .mnr-n{font:500 13px/1 'Oswald',var(--ff);letter-spacing:.06em;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9)}
 .mnr-n small{font-size:.82em;color:rgba(255,255,255,.55)}
+.mnr-t{position:absolute;left:50%;bottom:calc(100% + 4px);transform:translate(-50%,4px);white-space:nowrap;font:500 12px/1 'Oswald',var(--ff);letter-spacing:.08em;text-transform:uppercase;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s}   /* название звания — при наведении, без подложки */
+.mnr:hover .mnr-t{opacity:1;transform:translate(-50%,0)}
 @media (max-width:1024px){html:not(.phone) .mnr{display:none}}
 
 /* ===== страница-заглушка «Режим КРОТ» (#/krot, pageKrot) ===== */

@@ -2590,8 +2590,7 @@ function mnRankDraw(pts) {   // над головой агента: значок
   const el = $('#mnRank'); if (!el) return;
   pts = Math.max(0, Math.min(780, pts | 0)); let i = 0; while (i < RR_RANKS.length - 1 && pts >= RR_RANKS[i + 1][1]) i++;
   const [nm, lo] = RR_RANKS[i], nx = RR_RANKS[i + 1], pc = nx ? (pts - lo) / (nx[1] - lo) * 100 : 100;
-  el.title = `${nm} — очки недели в «Русской рулетке»` + (nx ? `. До звания «${nx[0]}» ещё ${nx[1] - pts}` : '');
-  el.innerHTML = `<img src="assets/rr/ranks/rank-${i + 1}.svg" alt="${nm}" decoding="async"><i class="mnr-bar"><b style="width:${pc.toFixed(1)}%"></b></i><span class="mnr-n">${pts}${nx ? `<small> / ${nx[1]}</small>` : ''}</span>`;
+  el.innerHTML = `<span class="mnr-t">${nm}</span><img src="assets/rr/ranks/rank-${i + 1}.svg" alt="${nm}" decoding="async"><i class="mnr-bar"><b style="width:${pc.toFixed(1)}%"></b></i><span class="mnr-n">${pts}${nx ? `<small> / ${nx[1]}</small>` : ''}</span>`;
   el.hidden = false;
 }
 async function mnRank() {   // очки недели — сумма дней с понедельника из rr_points (игроку видны только свои строки)
