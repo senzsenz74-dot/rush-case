@@ -2413,12 +2413,11 @@ function bonusMini() {
 /* главный экран: отдельная страница (адрес #/); пока заглушка на месте будущей 3D-сцены */
 /* ---------- главный экран: колонка новостей слева, как в главном меню CS2 (за ней потом встанет 3D-сцена).
    4 карточки: верхняя (видео или картинка), промо со светлой полосой, зелёная, «Новое и популярное» (листает кейсы сама).
-   Тексты и картинки — site_cfg 'news' (вкладка «Новости» в админке); нет — NEWS_DEF. Нажатие — скрытая страница #/news/<id> ---------- */
+   Тексты и картинки — site_cfg 'news' (вкладка «Новости» в админке); нет — NEWS_DEF. Нажатие — ссылка «Карточка ведёт» из админки (страницы «Новости» больше нет, владелец 21.11) ---------- */
 const NEWS_DEF = [
   { id: 'n1', kind: 'top', tag: 'Новость', note: 'сегодня', title: 'Заголовок первой новости', sub: 'Короткое описание: одна-две строки о главном.',
     text: 'Здесь будет полный текст новости. Его можно поменять во вкладке «Новости» в админ-панели.', img: 'assets/news-1.webp', video: 'assets/news-1.webm', video2: 'assets/news-1.mp4', link: '', btn: '' },
-  { id: 'n2', kind: 'promo', kicker: 'Играть', title: 'Краш', sub: 'Успей забрать выигрыш до взрыва C4',
-    text: 'Ставка растёт вместе с множителем — забери выигрыш до взрыва. Здесь будет полный текст новости.', img: 'assets/bg-crash-page.webp', link: '#/crash', btn: 'Играть' },
+  { id: 'rr', kind: 'promo', kicker: 'Новый режим', title: 'Русская рулетка', sub: 'Пять игроков. Один револьвер. Выживет один.', img: 'assets/news-roulette.webp', link: '#/krot', look: 'dark' },   // #/krot — сразу поиск игры (владелец 21.11)
   { id: 'n3', kind: 'pass', title: 'Собери сам', sub: 'Собери свой кейс из любых скинов — цена и шансы считаются сразу.',
     text: 'Выбери скины, задай шансы — сайт сам посчитает цену кейса. Здесь будет полный текст новости.', img: 'assets/case-build.webp', link: '#/build', btn: 'Собрать кейс' },
   { id: 'feed', kind: 'feed', tag: 'Новое и популярное', more: 'Показать все…' },
@@ -2434,10 +2433,10 @@ function newsMedia(x, cls = 'nw-bg') {
 const NW_ARR = d => `<svg viewBox="0 0 10 12" aria-hidden="true"><path d="${d < 0 ? 'M9 1 2 6l7 5z' : 'M1 1l7 5-7 5z'}" fill="currentColor"/></svg>`;
 function newsCard(x) {
   if (x.off) return '';
-  const href = `#/news/${x.id}`, sub = x.sub ? `<span class="nw-s">${esc(x.sub)}</span>` : '';
-  if (x.kind === 'top') return `<a class="nw-c nw-top" href="${href}">${newsMedia(x)}<span class="nw-hd"><b>${esc(x.tag || '')}</b>${x.note ? `<i>${esc(x.note)}</i>` : ''}</span><span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
-  if (x.kind === 'promo') return `<a class="nw-c nw-promo" href="${href}">${newsMedia(x)}<span class="nw-band">${x.kicker ? `<i class="nw-k">${esc(x.kicker)}</i>` : ''}<b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
-  if (x.kind === 'pass') return `<a class="nw-c nw-pass" href="${href}"><i class="nw-rays"></i>${newsMedia(x)}<span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
+  const lk = (x.link || '').replace(/^https?:\/\/(www\.)?rush-case\.online\/?(?=#|$)/, '') || (x.link && x.link.indexOf(location.origin + '/#') === 0 ? x.link.slice(location.origin.length + 1) : x.link || ''), href = lk ? `" href="${esc(lk)}${/^https?:/.test(lk) ? '" target="_blank" rel="noopener' : ''}` : '', sub = x.sub ? `<span class="nw-s">${esc(x.sub)}</span>` : '';   // без ссылки — не нажимается
+  if (x.kind === 'top') return `<a class="nw-c nw-top${href}">${newsMedia(x)}<span class="nw-hd"><b>${esc(x.tag || '')}</b>${x.note ? `<i>${esc(x.note)}</i>` : ''}</span><span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
+  if (x.kind === 'promo') return `<a class="nw-c nw-promo${x.look === 'dark' ? ' nw-dark' : ''}${href}">${newsMedia(x)}<span class="nw-band">${x.kicker ? `<i class="nw-k">${esc(x.kicker)}</i>` : ''}<b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
+  if (x.kind === 'pass') return `<a class="nw-c nw-pass${href}"><i class="nw-rays"></i>${newsMedia(x)}<span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
   return `<div class="nw-c nw-feed"><span class="nw-hd"><b>${esc(x.tag || '')}</b><a href="#/cases">${esc(x.more || 'Показать все…')}</a></span>
     <div class="nw-fs" id="nwFeed"></div><div class="nw-pg"><button data-d="-1" aria-label="Назад">${NW_ARR(-1)}</button><span id="nwDots"></span><button data-d="1" aria-label="Вперёд">${NW_ARR(1)}</button></div></div>`;
 }
@@ -3112,19 +3111,6 @@ function mountKrot(arg) {
   const el = $('#kr'); if (!el || !krotOpen()) return;
   krotLoad().then(() => { if (el.isConnected && window.KROT) { window.KROT.mmInit(krotDeps()); window.KROT.mount(el, arg, krotDeps()); } })
     .catch(() => { if (el.isConnected) el.innerHTML = '<p class="kr-boot">Не удалось загрузить режим. Проверьте интернет и обновите страницу.</p>'; });
-}
-// скрытая страница «Новости» (в меню её нет): все новости по порядку, #/news/<id> — сразу к нужной
-function pageNews() {
-  const L = newsList().filter(x => !x.off && x.kind !== 'feed');
-  return `<section class="container nwp"><h1 class="nwp-h">Новости</h1>${L.map(x => `<article class="nwp-it nwp-${x.kind}" id="nw-${esc(x.id)}">
-    <div class="nwp-m">${newsMedia(x, 'nwp-bg')}</div>
-    <div class="nwp-b">${x.kicker || x.tag ? `<i class="nwp-k">${esc(x.kicker || x.tag)}</i>` : ''}<h2>${esc(x.title || '')}</h2>
-      ${x.sub ? `<p class="nwp-s">${esc(x.sub)}</p>` : ''}${x.text ? `<p class="nwp-t">${esc(x.text).replace(/\n/g, '<br>')}</p>` : ''}
-      ${x.link ? `<a class="btn btn-primary" href="${esc(x.link)}"${/^https?:/.test(x.link) ? ' target="_blank" rel="noopener"' : ''}>${esc(x.btn || 'Перейти')}</a>` : ''}</div></article>`).join('')}</section>`;
-}
-function mountNews(id) {
-  const el = id && document.getElementById('nw-' + id); if (!el) return;
-  later(() => { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('hl'); }, 80);
 }
 
 /* ---------- страница «Кейсы» (владелец 11.11, по его примерам) ----------
@@ -8426,9 +8412,9 @@ function admBlocks(done) {
    Сохраняются в site_cfg 'news'; картинки и видео — в хранилище case-img ---------- */
 const NEWS_SLOTS = { top: 'Верхняя — видео или картинка', promo: 'Вторая — промо со светлой полосой', pass: 'Третья — зелёная', feed: 'Нижняя — «Новое и популярное» (сама листает новые и популярные кейсы)' };
 const NEWS_FIELDS = {
-  top: [['tag', 'Метка', 'Новость'], ['note', 'Рядом с меткой', 'сегодня'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['text', 'Полный текст — на странице «Новости»', '', 1], ['link', 'Кнопка ведёт', '#/crash или https://…'], ['btn', 'Надпись на кнопке', 'Перейти']],
-  promo: [['kicker', 'Надпись над заголовком', 'Играть'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['text', 'Полный текст — на странице «Новости»', '', 1], ['link', 'Кнопка ведёт', '#/crash или https://…'], ['btn', 'Надпись на кнопке', 'Играть']],
-  pass: [['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['text', 'Полный текст — на странице «Новости»', '', 1], ['link', 'Кнопка ведёт', '#/build или https://…'], ['btn', 'Надпись на кнопке', 'Перейти']],
+  top: [['tag', 'Метка', 'Новость'], ['note', 'Рядом с меткой', 'сегодня'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/krot, #/case/… или https://…']],
+  promo: [['kicker', 'Надпись над заголовком', 'Играть'], ['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/krot, #/case/… или https://…']],
+  pass: [['title', 'Заголовок'], ['sub', 'Коротко — на карточке'], ['link', 'Карточка ведёт', '#/build или https://…']],
   feed: [['tag', 'Заголовок', 'Новое и популярное'], ['more', 'Ссылка на все кейсы', 'Показать все…']],
 };
 // картинка новости: не шире 1280 px, WebP (или JPG, если браузер не умеет WebP)
@@ -8444,7 +8430,6 @@ function admNews(el) {
   let L = newsList().map(x => ({ ...x })), changed = false;
   const draw = () => {
     el.innerHTML = `<div class="adm-panel nwa"><div class="adm-ph"><h3>Новости на главном экране</h3><span class="adm-ph-acts">
-        <a class="ax-btn ax-sm" href="#/news" target="_blank" rel="noopener">Страница «Новости»</a>
         <button class="ax-btn ax-sm" id="nwReset">Вернуть как было</button>
         <button class="ax-ok ax-sm" id="nwSave"${changed ? '' : ' disabled'}>Сохранить</button></span></div>
       <p class="bn-req">Четыре карточки слева на главном экране, как в меню CS2. Нажатие на карточку открывает страницу «Новости» сразу на этой новости.
@@ -10917,7 +10902,7 @@ async function mountRrTop() {
   if (d.me && !rows.some(r => r.me)) $('#rrtMe').innerHTML = `<div class="rrt-tb rrt-mine">${rrtRow(d.me)}</div>`;   // своё место — внизу, если не в сотне
 }
 const ROUTES = {
-  '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, mountInvite], news: [pageNews, mountNews], cases: [pageCases, mountCases], top: [pageTop, mountTop], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
+  '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, mountInvite], cases: [pageCases, mountCases], top: [pageTop, mountTop], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, mountDoc], privacy: [pagePrivacy, mountDoc], payment: [pagePayment, mountDoc], cookies: [pageCookies, mountDoc], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer], rrtop: [pageRrTop, mountRrTop],
   staff: [pageStaff, mountStaff], // вход для админов и сотрудников по почте (ссылок на неё нет)
@@ -10966,7 +10951,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', news: 'Новости', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 

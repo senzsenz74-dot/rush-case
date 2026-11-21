@@ -146,7 +146,7 @@ K.mount = (el, arg, dep) => {
   if (!authed()) { drawMenu(); if (code) note('Войдите, чтобы вступить в группу ' + code); return; }
   if (code) { drawMenu(); K.mmJoin(code); return; }
   const saved = LS.get('room', 0);
-  if (!saved) return drawMenu();
+  if (!saved) { if (api !== Demo && authed()) { location.hash = '#/'; K.mmPlay(); return; } return drawMenu(); }   // владелец 21.11: #/krot без комнаты (ссылка «Играть», новость) — главная и сразу поиск
   drawMenu(true); room = saved;
   api.rpc('krot_state', { p_room: saved, p_after: 0 }).then(d => {
     if (g !== gen) return;
@@ -1581,7 +1581,7 @@ function makeWorld(T, RB, RE, cv, PP) {
   const setTag = (a, args) => { a.tagArgs = args; if (a.tag.material.map) a.tag.material.map.dispose(); a.tag.material.map = tex(paintTag(...args)); a.tag.material.needsUpdate = true; };
 
   /* состояние камеры и ввода */
-  let btnActive = false, aimBtn = false;
+  let btnActive = false, aimBtn = false, noTags = false;   // noTags — кадр без ников (K.dbg.world().tagsOff(true), только localhost — для картинок)
   const SPEC_Y = 2.45, SPEC_R = 1.05;   // камера выбывшего: высота и радиус облёта
   let specAt = Infinity, spec = 0, specF = 0, mySeat = 1, yaw = 0, pitch = -.38, readHold = false, locked = false, menuOn = true, clock = 0, userAt = 0, auto = null;
   let mouseN = null, aimN = 0, aimOn = false, mk = { mine: 0, kind: '', cands: null }, roundId = 0, cardKey = '', hideMine = false;
@@ -1864,7 +1864,8 @@ function makeWorld(T, RB, RE, cv, PP) {
     }
   };
 
-  W.menu = on => { menuOn = on; for (const s in AV) { showAV(AV[s]); AV[s].tag.visible = !on && !AV[s].me; } };
+  W.menu = on => { menuOn = on; for (const s in AV) { showAV(AV[s]); AV[s].tag.visible = !on && !AV[s].me && !noTags; } };
+  W.tagsOff = on => { noTags = !!on; for (const s in AV) AV[s].tag.visible = !menuOn && !AV[s].me && !noTags; };
   W.setLock = on => { locked = on; };
   W.setRead = on => { readHold = on; };
   W.look = (dx, dy) => { if (menuOn) return; yaw = clamp(yaw - dx * .0023, -1.5, 1.5); pitch = clamp(pitch - dy * .0023, -1.15, .5); userAt = clock; auto = null; };
@@ -1890,7 +1891,7 @@ function makeWorld(T, RB, RE, cv, PP) {
       if (!a.dead) { a.vDead = false; if (a.fallAt != null || a.fallPend || a.pool) fallReset(a); }
       else if (!a.vDead && (gun.who !== s || clock >= (gun.holdUntil || 0))) { a.vDead = true; if (a.me) a.fallPend = true; else if (a.fallAt == null) a.fallAt = clock - 5; }   // у стреляющего «выбыл» приходит раньше выстрела — голову опускаем после выстрела (W.event)
       showAV(a);
-      a.tag.visible = !menuOn && !a.me;
+      a.tag.visible = !menuOn && !a.me && !noTags;
       const st2 = !p ? 'free' : ph === 'lobby' ? (p.online ? (p.ready ? 'ready' : 'wait') : 'off') : p.left ? 'left' : a.dead ? 'dead' : ph === 'done' && p.place === 1 ? 'win' : g && ph === 'play' && g.turn === s ? 'turn' : !p.online ? 'off' : '';
       const rn = p ? rrRank(p) : 0, rim = rn ? rankImg(rn, () => { if (a.tagArgs) setTag(a, a.tagArgs); }) : null;
       const key = (p ? p.name + (p.bot ? '·b' : '') : '') + '|' + st2 + '|' + rn + (rim ? 'i' : '');

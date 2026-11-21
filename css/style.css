@@ -5078,6 +5078,12 @@ body.pg-main::after{background:linear-gradient(90deg,rgba(6,8,12,.38),rgba(6,8,1
 .nw-k{font:700 calc(var(--nu)*9)/1 'Sofia Sans Semi Condensed',var(--ff);font-style:normal;letter-spacing:.55em;margin-right:-.55em;text-transform:uppercase}
 .nw-promo .nw-t{font:800 calc(var(--nu)*34)/.95 'Sofia Sans Extra Condensed',var(--ff);text-transform:uppercase;letter-spacing:.08em;margin-right:-.08em;color:#141414;text-shadow:calc(var(--nu)*-1.6) 0 rgba(228,69,99,.85),calc(var(--nu)*1.6) 0 rgba(56,190,240,.65)}
 .nw-promo .nw-s{color:#2b2b2b}
+/* промо-новость в тёмном варианте (look:'dark' — «Русская рулетка», владелец 21.11): снизу тёмный градиент, надпись красным со свечением, заголовок белым */
+.nw-promo.nw-dark{background:#140c0a}
+.nw-promo.nw-dark .nw-band{color:#e9eef3;padding-top:calc(var(--nu)*48);background:linear-gradient(180deg,rgba(10,6,6,0),rgba(10,6,6,.72) 36%,rgba(10,6,6,.94))}
+.nw-promo.nw-dark .nw-k{color:#ff4a3d;text-shadow:0 0 calc(var(--nu)*6) rgba(255,60,40,.6)}
+.nw-promo.nw-dark .nw-t{color:#fff;text-shadow:0 calc(var(--nu)*2) calc(var(--nu)*8) rgba(0,0,0,.85),0 0 calc(var(--nu)*16) rgba(255,60,40,.4)}
+.nw-promo.nw-dark .nw-s{color:rgba(233,238,243,.85)}
 
 /* 3 — зелёная: картинка сверху в «ромбе», наклонный зелёный заголовок, белый текст */
 .nw-pass{height:calc(var(--nu)*226);background:linear-gradient(165deg,#2f8d55 0%,#1a6c3f 42%,#0f3d29 100%)}
@@ -5113,20 +5119,6 @@ body.pg-main::after{background:linear-gradient(90deg,rgba(6,8,12,.38),rgba(6,8,1
 }
 @media (prefers-reduced-motion:reduce){.nw-fi{transition:none}}
 
-/* скрытая страница «Новости» (#/news/<id>): каждая новость — картинка или видео и текст, нужная подсвечивается */
-.nwp{padding-top:28px;max-width:1100px}
-.nwp-h{margin:0 0 18px;font:700 42px/1 'Sofia Sans Extra Condensed',var(--ff);text-transform:uppercase;letter-spacing:.04em;color:#fff}
-.nwp-it{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:26px;align-items:center;margin-bottom:16px;padding:16px;border-radius:4px;border:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);scroll-margin-top:110px;transition:box-shadow .5s}
-.nwp-it.hl{box-shadow:0 0 0 2px #84d9fd,0 0 34px rgba(132,217,253,.28)}
-.nwp-m{position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:3px;background:#0b0d12}
-.nwp-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.nwp-pass .nwp-m{background:linear-gradient(165deg,#2f8d55,#0f3d29)}
-.nwp-pass .nwp-bg{inset:6%;width:88%;height:88%;object-fit:contain}
-.nwp-k{display:block;margin-bottom:6px;font:700 13px/1 'Sofia Sans Semi Condensed',var(--ff);font-style:normal;letter-spacing:.3em;text-transform:uppercase;color:#84d9fd}
-.nwp-b h2{margin:0 0 8px;font:800 36px/1.02 'Sofia Sans Extra Condensed',var(--ff);text-transform:uppercase;color:#fff}
-.nwp-s{margin:0 0 10px;font-weight:700;color:var(--txt)}
-.nwp-t{margin:0 0 16px;line-height:1.55;color:var(--txt2)}
-@media (max-width:760px){.nwp-it{grid-template-columns:1fr;gap:14px}.nwp-h{font-size:34px}.nwp-b h2{font-size:30px}}
 
 
 /* тени: шапка, лента LIVE и карточки новостей не сливаются с фоном (просьба владельца 10.11) */
