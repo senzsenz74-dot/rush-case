@@ -137,7 +137,7 @@ function pagePickem() {
   </section>`;
 }
 async function mountPickem() {
-  if (/^(localhost|127\.)/.test(location.hostname)) window.PKDBG = { PK, PKM, draw: pkDraw, SK, ITEMS }; // проверка вида на локальной копии (пробные данные)
+  if (/^(localhost|127\.)/.test(location.hostname)) window.PKDBG = { PK, PKM, draw: pkDraw, SK, ITEMS, buy: () => pkBuyWin(true) }; // проверка вида на локальной копии (пробные данные)
   if (typeof SRV_ERR === 'object') Object.assign(SRV_ERR, PK_ERR);
   pkHero(); pkPrize(); pkSide();
   $('#pkRe').onclick = async e => { e.currentTarget.classList.add('spin'); await pkLoad(); pkDraw(); setTimeout(() => $('#pkRe') && $('#pkRe').classList.remove('spin'), 500); };
@@ -451,22 +451,26 @@ function pkTick() {
 }
 
 /* ---------- покупка пропуска ---------- */
-function pkBuyWin() {
-  if (!st.user) { closeModal(); return openAuth('login'); }
+function pkBuyWin(demo) {   // demo — только показ окна на локальной копии (PKDBG.buy)
+  if (!st.user && demo !== true) { closeModal(); return openAuth('login'); }
   const price = pkPrice(), [lo, hi] = pkRw(), low = st.balance < price;
+  // окно без рамки (владелец 23.11): заголовок, билет парит над затемнённым сайтом, ниже — скруглённое стекло с пунктами и кнопкой.
+  // При открытии билет вылетает снизу, монета докатывается, затем поднимается стекло и по очереди пункты (css/pickem.css, .m-pkb)
   const md = modal(`<div class="pkb">
-    <header class="ga-mh" style="--gl:#84d9fd"><small>PGL Major Singapore 2026</small><h3>Пропуск пикема</h3></header>
-    <div class="pkb-c"><img class="pkb-coin" src="assets/pickem/pass.webp" alt="Пропуск зрителя с медалью"></div>
-    <ol class="ga-ol">
-      <li><i>1</i><span>Расстановка команд каждого этапа и прогнозы на все матчи Major: победитель и счёт.</span></li>
-      <li><i>2</i><span>За каждый верный прогноз — случайный скин ${lo}–${hi} ₽, за точный счёт — ещё один.</span></li>
-      <li><i>3</i><span>Медаль пикема в инвентарь: включите показ — она появится у вашей аватарки, её увидят все.</span></li>
-      <li><i>4</i><span>Больше всех верных прогнозов к концу Major — главный приз.</span></li>
-    </ol>
-    <footer class="ga-mf pkb-f"><span class="pkb-bal">Баланс: ${prc(st.balance)}</span>${low
-      ? `<button class="c2-btn c2-green" type="button" data-act="deposit">Пополнить баланс</button>`
-      : `<button class="c2-btn c2-green" type="button" id="pkbGo">Купить за ${moneyN(price)} ₽</button>`}</footer>
-  </div>`, 'm-ga m-pk');
+    <header class="pkb-h"><small>PGL Major Singapore 2026</small><h3>Пропуск пикема</h3></header>
+    <div class="pkb-tk"><img class="pkb-ticket" src="assets/pickem/ticket.webp" alt="Пропуск зрителя · Пикем Major 2026"><img class="pkb-coin" src="assets/pickem/coin.webp" alt="Медаль пикема"></div>
+    <div class="pkb-glass">
+      <ol class="pkb-ol">
+        <li><i>1</i><span>Расстановка команд каждого этапа и прогнозы на все матчи Major: победитель и счёт.</span></li>
+        <li><i>2</i><span>За каждый верный прогноз — случайный скин ${lo}–${hi} ₽, за точный счёт — ещё один.</span></li>
+        <li><i>3</i><span>Медаль пикема в инвентарь: включите показ — она появится у вашей аватарки, её увидят все.</span></li>
+        <li><i>4</i><span>Больше всех верных прогнозов к концу Major — главный приз.</span></li>
+      </ol>
+      <footer class="pkb-f"><span class="pkb-bal">Баланс: ${prc(st.balance)}</span>${low
+        ? `<button class="c2-btn c2-green" type="button" data-act="deposit">Пополнить баланс</button>`
+        : `<button class="c2-btn c2-green" type="button" id="pkbGo">Купить за ${moneyN(price)} ₽</button>`}</footer>
+    </div>
+  </div>`, 'm-pkb');
   const go = $('#pkbGo', md); if (!go) return;
   go.onclick = async () => {
     go.disabled = true;
