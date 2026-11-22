@@ -179,10 +179,7 @@ function pkSide() {
   const byStage = i => { const ids = new Set(M.filter(m => m.st === i + 1).map(m => m.id)); const d = done.filter(p => ids.has(p.m)); return [d.filter(p => p.ow).length, d.length]; };
   const row = (txt, val, ok) => `<li class="${has ? (ok ? 'ok' : '') : 'lk'}"><i>${has ? (ok ? ic.check : PK_IC.dot) : PK_IC.lock}</i><span>${txt}</span>${has && val != null ? `<b>${val}</b>` : ''}</li>`;
   el.innerHTML = `<div class="pk-side-h"><h6 class="pk-lbl">Прогнозы</h6>${live ? '<span class="pk-live">В эфире</span>' : ''}</div>
-    <div class="pk-pass${has ? ' on' : ''}">
-      <img class="pk-pass-coin" src="assets/pickem/coin.webp" alt="">
-      <div class="pk-pass-tk"><small>RUSH CASE · Major 2026</small><b>Пропуск</b><em>${has ? 'активирован' : 'пикема'}</em></div>
-    </div>
+    <div class="pk-pass"><img src="assets/pickem/pass.webp" alt="Пропуск зрителя · Пикем Major 2026"></div>
     ${has ? `<div class="pk-pass-ok">${ic.check}<span>Пропуск активирован${me.show ? ' · медаль у аватарки' : ''}</span></div>`
       : `<button class="c2-btn c2-green pk-buy" type="button" id="pkBuy">Купить пропуск<small>${moneyN(pkPrice())} ₽</small></button>`}
     <p class="pk-side-t">${has ? 'Нажмите на матч в таблице и выберите победителя и счёт. Прогноз можно менять до начала матча.'
@@ -365,8 +362,8 @@ function pkBuyWin() {
   if (!st.user) { closeModal(); return openAuth('login'); }
   const price = pkPrice(), [lo, hi] = pkRw(), low = st.balance < price;
   const md = modal(`<div class="pkb">
-    <header class="ga-mh" style="--gl:#f2c04d"><small>PGL Major Singapore 2026</small><h3>Пропуск пикема</h3></header>
-    <div class="pkb-c"><img class="pkb-coin" src="assets/pickem/coin.webp" alt="Медаль пикема"></div>
+    <header class="ga-mh" style="--gl:#84d9fd"><small>PGL Major Singapore 2026</small><h3>Пропуск пикема</h3></header>
+    <div class="pkb-c"><img class="pkb-coin" src="assets/pickem/pass.webp" alt="Пропуск зрителя с медалью"></div>
     <ol class="ga-ol">
       <li><i>1</i><span>Прогнозы на все матчи Major: победитель и счёт. Менять можно до начала матча.</span></li>
       <li><i>2</i><span>За каждого верного победителя — случайный скин ${lo}–${hi} ₽, за точный счёт — ещё один.</span></li>
@@ -405,7 +402,7 @@ function pkRules() {
 }
 function pkTopWin() {
   const top = (PK.s && PK.s.top) || [], me = PK.s && PK.s.me;
-  modal(`<div><header class="ga-mh" style="--gl:#f2c04d"><small>Пикем · PGL Major Singapore 2026</small><h3>Таблица лидеров</h3></header>
+  modal(`<div><header class="ga-mh" style="--gl:#84d9fd"><small>Пикем · PGL Major Singapore 2026</small><h3>Таблица лидеров</h3></header>
     <div class="pkt">${top.length ? top.map(p => `<div class="pkt-r${p.pos <= 3 ? ' t' + p.pos : ''}"><i>${p.pos}</i>${ava({ name: p.name, ava: p.ava, pid: p.pid })}<b>${plink(p.pid, esc(p.name))}</b><span>${p.ok} ${plural(p.ok, 'победитель', 'победителя', 'победителей')}</span><em>${p.pts}</em></div>`).join('')
       : '<p class="pkt-e">Таблица появится после первых сыгранных матчей.</p>'}</div>
     ${me && me.pass ? `<p class="pkt-me">Ваши очки: <b>${me.pts || 0}</b>${me.pos ? ` · место <b>#${me.pos}</b>` : ''}</p>` : ''}</div>`, 'm-ga m-pk');
@@ -11621,12 +11618,11 @@ function route() {
   wkAuto(key); // еженедельный набор: раз в неделю сам появляется на главной
   tutAuto(key); // обучение новичков (кнопка «?» и первый заход)
   document.body.classList.toggle('pg-crash', key === 'crash');
-  document.body.classList.toggle('pg-pickem', key === 'pickem'); // пикем Major — свой фон (css/pickem.css)
   document.body.classList.toggle('pg-build', key === 'build');
   document.body.classList.toggle('pg-doc', DOC_KEYS.includes(key)); // документы — размытый фон «Кейсов», как «Бонусы»
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
   document.body.classList.toggle('pg-admin', key === 'admin'); // админка — размытый фон владельца 17.11 (assets/bg-admin.webp), без пыли и виньетки
-  document.body.classList.toggle('pg-home', key === '' || key === 'faq' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite' || key === 'profile' || key === 'upgrade' || DOC_KEYS.includes(key));
+  document.body.classList.toggle('pg-home', key === '' || key === 'pickem' || key === 'faq' || key === 'cases' || key === 'bonus' || key === 'krot' || key === 'invite' || key === 'profile' || key === 'upgrade' || DOC_KEYS.includes(key));
   document.body.classList.toggle('pg-upgrade', key === 'upgrade'); // апгрейд — фон владельца 12.11 (ночные руины, assets/bg-upgrade.webp), слегка размыт
   document.body.classList.toggle('pg-invite', key === 'invite'); // «Пригласить друзей» — размытый снимок главного экрана, как профиль
   document.body.classList.toggle('pg-profile', key === 'profile'); // профиль — размытый фон главного экрана, как на образце владельца 12.11 // «Крот», «Пригласить друзей» — тот же новый фон, что у «Кейсов» // главный экран и витрина кейсов — свой фон (assets/bg-home.webp)
