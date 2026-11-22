@@ -5,6 +5,9 @@
 --   Скины выдаёт сервер в момент, когда админ вносит результат матча (admin_pk_result).
 -- Главный приз (скин из настроек) — тому, у кого больше всего верных; при равенстве — у кого больше верных
 --   победителей, дальше — кто раньше сделал свои прогнозы. Выдаёт админ кнопкой (admin_pk_final).
+-- Расстановка команд этапа (как в CS2): 2 команды «3:0», 6 — «3:1 / 3:2 прошли», 2 — «0:3 выбыли»; до первого матча этапа.
+--   Верно поставленная команда → скин 5–10 ₽ и 1 очко; выдаётся сам, как только у команды 3 победы или 3 поражения (admin_pk_result).
+-- Билет «Пропуск PIKEM · Major 2026» может выпасть из кейса MAJOR (5%): в инвентаре «Активировать» (pk_activate) или продать; вывод в Steam запрещён.
 -- Медаль пропуска: pk_passes.show — показывать значок у аватарки (видят все, pk_medals).
 -- Настройки — site_cfg 'pickem': { price, rw: [от, до], prize: { n }, off } (пишет админ).
 -- Запуск: Supabase → SQL Editor → вставить весь файл → Run. Повторный запуск безопасен.
@@ -55,12 +58,25 @@ create table if not exists public.pk_final (
   n text, pts int, ts timestamptz not null default now()
 );
 
+-- ---------- расстановка команд этапа ----------
+create table if not exists public.pk_stage_picks (
+  uid uuid not null references public.profiles (id) on delete cascade,
+  stage int not null check (stage between 1 and 3),
+  team text not null,
+  box text not null check (box in ('30', '3x', '03')),   -- 3:0 / 3:1-3:2 прошли / 0:3 выбыли
+  ts timestamptz not null default now(),
+  ok boolean,                                          -- после итога команды: угадано
+  prize jsonb not null default '[]'::jsonb,
+  primary key (uid, stage, team)
+);
+
 -- читать и менять таблицы напрямую нельзя: только через функции ниже
 alter table public.pk_matches enable row level security;
 alter table public.pk_passes enable row level security;
 alter table public.pk_picks enable row level security;
 alter table public.pk_final enable row level security;
-revoke all on public.pk_matches, public.pk_passes, public.pk_picks, public.pk_final from anon, authenticated;
+alter table public.pk_stage_picks enable row level security;
+revoke all on public.pk_matches, public.pk_passes, public.pk_picks, public.pk_final, public.pk_stage_picks from anon, authenticated;
 
 insert into public.site_cfg (k, v) values ('pickem', '{"price": 499, "rw": [5, 10], "prize": {}}'::jsonb) on conflict (k) do nothing;
 
@@ -69,17 +85,40 @@ create or replace function public._pk_scores(p_bo int) returns text[] language s
   select case p_bo when 3 then array['2:0', '2:1'] when 5 then array['3:0', '3:1', '3:2'] else array['1:0'] end
 $$;
 
--- таблица лидеров: очки = верные победители + верные счета; только у кого есть пропуск
+-- таблица лидеров: очки = верные победители + верные счета + верно поставленные команды; только у кого есть пропуск
 create or replace function public._pk_board() returns table (uid uuid, pts int, ok int, last timestamptz, pos bigint)
 language sql stable security definer set search_path = public as $$
   select b.uid, b.pts, b.ok, b.last, row_number() over (order by b.pts desc, b.ok desc, b.last asc) as pos
-  from (select p.uid,
-               (count(*) filter (where p.ok_win) + count(*) filter (where p.ok_score))::int as pts,
-               count(*) filter (where p.ok_win)::int as ok,
-               max(p.ts) as last
-        from public.pk_picks p join public.pk_passes s on s.uid = p.uid
-        group by p.uid) b
+  from (select u.uid, sum(u.pts)::int as pts, sum(u.ok)::int as ok, max(u.last) as last
+        from (select p.uid, count(*) filter (where p.ok_win) + count(*) filter (where p.ok_score) as pts, count(*) filter (where p.ok_win) as ok, max(p.ts) as last
+                from public.pk_picks p group by p.uid
+              union all
+              select sp.uid, count(*) filter (where sp.ok), count(*) filter (where sp.ok), max(sp.ts)
+                from public.pk_stage_picks sp group by sp.uid) u
+        join public.pk_passes s on s.uid = u.uid
+        group by u.uid) b
 $$;
+
+-- счёт команды на этапе по сыгранным матчам
+create or replace function public._pk_rec(p_stage int, p_team text) returns table (w int, l int)
+language sql stable security definer set search_path = public as $$
+  select count(*) filter (where win = p_team)::int, count(*) filter (where win <> p_team)::int
+  from public.pk_matches where stage = p_stage and win is not null and (ta = p_team or tb = p_team)
+$$;
+
+-- выдать игроку случайный скин из диапазона наград; вернуть название
+create or replace function public._pk_give(p_uid uuid, p_lo numeric, p_hi numeric) returns text
+language plpgsql security definer set search_path = public as $$
+declare d jsonb; sk text;
+begin
+  select public._norm(data) into d from public.profiles where id = p_uid for update;
+  if d is null then return null; end if;
+  select n into sk from public.catalog where c = 'skin' and p >= p_lo and p <= p_hi order by random() limit 1;
+  if sk is null then raise exception 'pickem no skins'; end if;
+  d := public._give(d, sk, 'pickem');
+  update public.profiles set data = d, updated_at = now() where id = p_uid;
+  return sk;
+end $$;
 
 -- ---------- всё для страницы ----------
 create or replace function public.pk_state() returns jsonb
@@ -104,7 +143,8 @@ begin
         'pass', exists (select 1 from public.pk_passes where uid = me),
         'show', coalesce((select show from public.pk_passes where uid = me), false),
         'pts', coalesce(mine.pts, 0), 'ok', coalesce(mine.ok, 0), 'pos', mine.pos,
-        'picks', coalesce((select jsonb_agg(jsonb_build_object('m', mid, 'w', win, 's', score, 'ow', ok_win, 'os', ok_score, 'pz', prize)) from public.pk_picks where uid = me), '[]'::jsonb)
+        'picks', coalesce((select jsonb_agg(jsonb_build_object('m', mid, 'w', win, 's', score, 'ow', ok_win, 'os', ok_score, 'pz', prize)) from public.pk_picks where uid = me), '[]'::jsonb),
+        'sp', coalesce((select jsonb_agg(jsonb_build_object('st', stage, 't', team, 'b', box, 'ok', ok, 'pz', prize)) from public.pk_stage_picks where uid = me), '[]'::jsonb)
       ) end);
 end $$;
 
@@ -147,6 +187,65 @@ begin
   insert into public.pk_picks (uid, mid, win, score) values (me, p_mid, p_win, p_score)
   on conflict (uid, mid) do update set win = excluded.win, score = excluded.score, ts = now();
   return jsonb_build_object('m', p_mid, 'w', p_win, 's', p_score);
+end $$;
+
+-- ---------- расстановка команд этапа: p = {"30": [..2], "3x": [..6], "03": [..2]} (можно не полностью) ----------
+create or replace function public.pk_stage_set(p_stage int, p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t0 timestamptz; allowed text[]; all_t text[] := '{}'; bx text; lim int; t text; n int := 0;
+begin
+  if me is null then raise exception 'not authenticated'; end if;
+  if not exists (select 1 from public.pk_passes where uid = me) then raise exception 'pickem no pass'; end if;
+  if p_stage not between 1 and 3 then raise exception 'pickem stage'; end if;
+  select min(starts_at), array_agg(distinct x) into t0, allowed
+    from public.pk_matches m, lateral unnest(array[m.ta, m.tb]) x where m.stage = p_stage;
+  if t0 is null then raise exception 'pickem stage closed'; end if;
+  -- закрыто с начала первого матча этапа или как только внесён любой результат этапа (если матч начали раньше расписания)
+  if t0 <= now() or exists (select 1 from public.pk_matches where stage = p_stage and win is not null) then raise exception 'pickem stage locked'; end if;
+  foreach bx in array array['30', '3x', '03'] loop
+    lim := case bx when '3x' then 6 else 2 end;
+    if jsonb_array_length(coalesce(p->bx, '[]'::jsonb)) > lim then raise exception 'pickem stage count'; end if;
+    for t in select jsonb_array_elements_text(coalesce(p->bx, '[]'::jsonb)) loop
+      if not (t = any (allowed)) or t = any (all_t) then raise exception 'pickem team'; end if;
+      all_t := all_t || t;
+    end loop;
+  end loop;
+  delete from public.pk_stage_picks where uid = me and stage = p_stage;
+  foreach bx in array array['30', '3x', '03'] loop
+    for t in select jsonb_array_elements_text(coalesce(p->bx, '[]'::jsonb)) loop
+      insert into public.pk_stage_picks (uid, stage, team, box) values (me, p_stage, t, bx); n := n + 1;
+    end loop;
+  end loop;
+  return jsonb_build_object('stage', p_stage, 'n', n);
+end $$;
+
+-- ---------- билет из кейса MAJOR → пропуск ----------
+create or replace function public.pk_activate(p_id text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); d jsonb;
+begin
+  if me is null then raise exception 'not authenticated'; end if;
+  d := public._me();
+  if exists (select 1 from public.pk_passes where uid = me) then raise exception 'pickem has pass'; end if;
+  if not exists (select 1 from jsonb_array_elements(d->'inv') e where e->>'id' = p_id and e->>'n' = 'Пропуск PIKEM · Major 2026' and e->>'st' = 'own') then raise exception 'pickem ticket'; end if;
+  d := jsonb_set(d, '{inv}', (select jsonb_agg(case when e->>'id' = p_id then e || jsonb_build_object('st', 'used', 'ut', public._ms()) else e end order by i)
+                              from jsonb_array_elements(d->'inv') with ordinality t(e, i)));
+  perform public._save(d);
+  insert into public.pk_passes (uid, price) values (me, 0);
+  return jsonb_build_object('ok', true, 'data', d);
+end $$;
+
+-- билет не выводится в Steam (такого предмета там нет)
+create or replace function public._pk_no_withdraw() returns trigger language plpgsql as $$
+begin
+  if new.n = 'Пропуск PIKEM · Major 2026' then raise exception 'item unavailable'; end if;
+  return new;
+end $$;
+do $$ begin
+  if to_regclass('public.withdrawals') is not null then
+    drop trigger if exists pk_no_withdraw on public.withdrawals;
+    create trigger pk_no_withdraw before insert on public.withdrawals for each row execute function public._pk_no_withdraw();
+  end if;
 end $$;
 
 -- ---------- медаль у аватарки: показывать / скрыть ----------
@@ -201,11 +300,13 @@ begin
   delete from public.pk_matches where id = p_id;
 end $$;
 
--- результат матча → проверка прогнозов и выдача скинов (один раз, отменить нельзя)
+-- результат матча → проверка прогнозов и выдача скинов (один раз, отменить нельзя);
+-- если у команды стало 3 победы или 3 поражения — проверка её расстановки (3:0 / прошли / 0:3) и скины за верную
 create or replace function public.admin_pk_result(p_id bigint, p_win text, p_score text) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare m public.pk_matches; cfg jsonb; lo numeric; hi numeric; r record; d jsonb; ow boolean; os boolean; nk int; sk text; pz jsonb;
-        n_ok int := 0; n_sc int := 0; n_sk int := 0; s_sk numeric := 0;
+declare m public.pk_matches; cfg jsonb; lo numeric; hi numeric; r record; sp record; rc record; ow boolean; os boolean; sok boolean;
+        nk int; sk text; pz jsonb; tm text; bx text;
+        n_ok int := 0; n_sc int := 0; n_st int := 0; n_sk int := 0; s_sk numeric := 0;
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
   select * into m from public.pk_matches where id = p_id for update;
@@ -220,22 +321,16 @@ begin
 
   update public.pk_matches set win = p_win, score = p_score, done_at = now() where id = p_id;
 
+  -- прогнозы на матч
   for r in select pk.* from public.pk_picks pk join public.pk_passes ps on ps.uid = pk.uid where pk.mid = p_id order by pk.ts loop
     ow := r.win = p_win;
     os := case when m.bo = 1 then null else ow and r.score = p_score end;   -- у Bo1 счёт не угадывают
     nk := ow::int + coalesce(os, false)::int;
     pz := '[]'::jsonb;
-    if nk > 0 then
-      select public._norm(data) into d from public.profiles where id = r.uid for update;
-      if d is not null then
-        for i in 1..nk loop
-          select n into sk from public.catalog where c = 'skin' and p >= lo and p <= hi order by random() limit 1;
-          d := public._give(d, sk, 'pickem');
-          pz := pz || to_jsonb(sk); n_sk := n_sk + 1; s_sk := s_sk + coalesce(public._price(sk), 0);
-        end loop;
-        update public.profiles set data = d, updated_at = now() where id = r.uid;
-      end if;
-    end if;
+    for i in 1..nk loop
+      sk := public._pk_give(r.uid, lo, hi);
+      if sk is not null then pz := pz || to_jsonb(sk); n_sk := n_sk + 1; s_sk := s_sk + coalesce(public._price(sk), 0); end if;
+    end loop;
     if ow then n_ok := n_ok + 1; end if;
     if os then n_sc := n_sc + 1; end if;
     update public.pk_picks set ok_win = ow, ok_score = os, prize = pz where uid = r.uid and mid = p_id;
@@ -243,7 +338,27 @@ begin
   -- прогнозы без пропуска (пропуск удалён вручную) — просто отмечаем, без наград
   update public.pk_picks set ok_win = (win = p_win), ok_score = case when m.bo = 1 then null else win = p_win and score = p_score end
    where mid = p_id and ok_win is null;
-  return jsonb_build_object('ok', n_ok, 'score', n_sc, 'skins', n_sk, 'sum', s_sk);
+
+  -- расстановка команд этапа: итог команды известен (3 победы или 3 поражения)
+  if m.stage <= 3 then
+    foreach tm in array array[m.ta, m.tb] loop
+      select * into rc from public._pk_rec(m.stage, tm);
+      if rc.w >= 3 or rc.l >= 3 then
+        bx := case when rc.w >= 3 and rc.l = 0 then '30' when rc.w >= 3 then '3x' when rc.w = 0 then '03' else 'out' end;
+        for sp in select s.* from public.pk_stage_picks s join public.pk_passes ps on ps.uid = s.uid where s.stage = m.stage and s.team = tm and s.ok is null loop
+          sok := sp.box = bx; pz := '[]'::jsonb;
+          if sok then
+            sk := public._pk_give(sp.uid, lo, hi);
+            if sk is not null then pz := to_jsonb(array[sk]); n_sk := n_sk + 1; s_sk := s_sk + coalesce(public._price(sk), 0); end if;
+            n_st := n_st + 1;
+          end if;
+          update public.pk_stage_picks set ok = sok, prize = pz where uid = sp.uid and stage = sp.stage and team = sp.team;
+        end loop;
+        update public.pk_stage_picks set ok = (box = bx) where stage = m.stage and team = tm and ok is null;
+      end if;
+    end loop;
+  end if;
+  return jsonb_build_object('ok', n_ok, 'score', n_sc, 'stage', n_st, 'skins', n_sk, 'sum', s_sk);
 end $$;
 
 -- главный приз — лидеру таблицы (один раз)
@@ -275,18 +390,19 @@ begin
     'income', (select coalesce(sum(price), 0) from public.pk_passes),
     'picks', (select count(*) from public.pk_picks),
     'players', (select count(distinct uid) from public.pk_picks),
-    'skins', (select coalesce(sum(jsonb_array_length(prize)), 0) from public.pk_picks),
-    'spent', (select coalesce(sum(public._price(e)), 0) from public.pk_picks, jsonb_array_elements_text(prize) e),
+    'skins', (select coalesce(sum(jsonb_array_length(prize)), 0) from public.pk_picks) + (select coalesce(sum(jsonb_array_length(prize)), 0) from public.pk_stage_picks),
+    'spent', (select coalesce(sum(public._price(e)), 0) from public.pk_picks, jsonb_array_elements_text(prize) e) + (select coalesce(sum(public._price(e)), 0) from public.pk_stage_picks, jsonb_array_elements_text(prize) e),
+    'stage', (select count(distinct uid) from public.pk_stage_picks),
     'top', coalesce((select jsonb_agg(jsonb_build_object('pos', b.pos, 'name', pr.name, 'pid', pr.pid, 'pts', b.pts, 'ok', b.ok) order by b.pos)
         from public._pk_board() b join public.profiles pr on pr.id = b.uid where b.pos <= 5), '[]'::jsonb));
 end $$;
 
 -- ---------- права ----------
-revoke all on function public._pk_board() from public, anon, authenticated;
-revoke all on function public.pk_state(), public.pk_buy(), public.pk_pick(bigint, text, text), public.pk_show(boolean), public.pk_medals(),
+revoke all on function public._pk_board(), public._pk_rec(int, text), public._pk_give(uuid, numeric, numeric), public._pk_no_withdraw() from public, anon, authenticated;
+revoke all on function public.pk_state(), public.pk_buy(), public.pk_pick(bigint, text, text), public.pk_show(boolean), public.pk_medals(), public.pk_stage_set(int, jsonb), public.pk_activate(text),
   public.admin_pk_save(jsonb), public.admin_pk_del(bigint), public.admin_pk_result(bigint, text, text), public.admin_pk_final(), public.admin_pk_stats() from public, anon;
 grant execute on function public.pk_state(), public.pk_medals() to anon, authenticated;
-grant execute on function public.pk_buy(), public.pk_pick(bigint, text, text), public.pk_show(boolean),
+grant execute on function public.pk_buy(), public.pk_pick(bigint, text, text), public.pk_show(boolean), public.pk_stage_set(int, jsonb), public.pk_activate(text),
   public.admin_pk_save(jsonb), public.admin_pk_del(bigint), public.admin_pk_result(bigint, text, text), public.admin_pk_final(), public.admin_pk_stats() to authenticated;
 
 -- ---------- Stage 1, раунд 1 (24.11.2026, время UTC; по Москве +3 ч) — только если матчей ещё нет ----------
