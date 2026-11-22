@@ -40,7 +40,9 @@
 .pk-link:hover{color:#b5e9ff}
 
 /* ---------- низ: слева пропуск, справа доска ---------- */
-.pk-main{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:12px;align-items:start}
+.pk-main{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:12px;align-items:stretch}   /* панели одной высоты (владелец 23.11) */
+.pk-board{display:flex;flex-direction:column}
+.pk-body{flex:1}
 .pk-side{padding:16px 16px 18px}
 .pk-side-h{display:flex;align-items:center;gap:10px}
 .pk-live{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:2px;background:#c8323c;color:#fff;font:600 11px/1 var(--ff-h);letter-spacing:.06em;text-transform:uppercase}
@@ -279,3 +281,10 @@ button.pk-m:hover{background:rgba(132,217,253,.1)}
   .pk-tabs button small{display:none}
   .pk-bar-go{width:100%}
 }
+
+/* ---------- главный экран: карточка «Рулетка ⇄ Пикем» листается (nwRot в app.js) ---------- */
+.nw-rot .nw-rs{position:absolute;inset:0;display:block;color:inherit;text-decoration:none;opacity:0;visibility:hidden;transition:opacity .5s,visibility .5s}
+.nw-rot .nw-rs.on{opacity:1;visibility:visible}
+.nw-rd{position:absolute;top:calc(var(--nu)*8);right:calc(var(--nu)*8);z-index:3;display:flex;gap:calc(var(--nu)*5)}
+.nw-rd i{width:calc(var(--nu)*7);height:calc(var(--nu)*7);border-radius:50%;background:rgba(255,255,255,.35);box-shadow:0 0 0 1px rgba(0,0,0,.35);cursor:pointer}
+.nw-rd i.on{background:#fff}

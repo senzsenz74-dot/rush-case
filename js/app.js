@@ -287,10 +287,10 @@ function pkPlayoff(M) {
     <div class="pk-champ" style="left:708px;top:${c(fTop) - 92}px"><img src="assets/pickem/coin.webp" alt=""><b>Чемпион Major</b><span>${f ? pkLogo(f.w) + esc(pkName(f.w)) : '?'}</span></div>
   </div></div></div>`;
 }
-// таблица по ширине: от 0.62 (телефон — прокрутка вбок) до 1.15
+// таблица по ширине: от 0.62 (телефон — прокрутка вбок) до 1
 function pkFit() {
   const sw = $('#pkSw'), wr = sw && sw.parentElement; if (!sw) return;
-  const pool = $('.pk-pool', sw), W = sw.classList.contains('pk-sw-po') ? 910 : pool && pool.offsetWidth ? 938 : 802, k = Math.max(0.62, Math.min(1.15, (wr.clientWidth - 4) / W));
+  const pool = $('.pk-pool', sw), W = sw.classList.contains('pk-sw-po') ? 910 : pool && pool.offsetWidth ? 938 : 802, k = Math.max(0.62, Math.min(1, (wr.clientWidth - 4) / W));   // не крупнее натурального размера (владелец 23.11)
   sw.style.zoom = k.toFixed(3);
 }
 addEventListener('resize', () => { if ($('#pkSw')) pkFit(); });
@@ -3118,7 +3118,9 @@ const NEWS_DEF = [
   // верхняя — падение кейсов BLAST → MAJOR → «Всемирная элита» (владелец 21.11; видео снято со сцены сайта: tools/news-drop.mjs + news-drop-encode.cjs).
   // новый id «drop»: старая верхняя новость в site_cfg 'news' лежит под id n1 и сюда больше не подмешивается
   { id: 'drop', kind: 'top', look: 'drop', tag: 'Ивентовые кейсы', note: '', title: 'Реальный гарант', sub: 'уже ждёт тебя', img: 'assets/news-drop.webp', video: 'assets/news-drop.webm', video2: 'assets/news-drop.mp4', link: '#/cases' },
-  { id: 'rr', kind: 'promo', kicker: 'Новый режим', title: 'Русская рулетка', sub: 'Пять игроков. Один револьвер. Выживет один.', img: 'assets/news-roulette.webp', link: '#/roulette', look: 'dark' },   // #/krot — сразу поиск игры (владелец 21.11)
+  { id: 'rr', kind: 'promo', kicker: 'Новый режим', title: 'Русская рулетка', sub: 'Пять игроков. Один револьвер. Выживет один.', img: 'assets/news-roulette.webp', link: '#/roulette', look: 'dark',
+    // вторая новость в той же карточке — листаются сами (7 с) и точками (владелец 23.11): пикем Major, картинка — blender-coin/pickem_news.py
+    more: [{ kicker: 'Новый ивент', title: 'PICK’EM MAJOR', sub: 'Угадывай исходы Major — забирай скины', img: 'assets/news-pickem.webp', link: '#/pickem' }] },   // #/krot — сразу поиск игры (владелец 21.11)
   // третья — листалка промокодов (владелец 22.11, как нижняя «Новое и популярное»): видео 640×396 из promo-banners (site-welcome / site-corner) под окно слайда,
   // каждое играет до конца и сменяется следующим (слайд может быть и картинкой — img без video, смена через dur с); нажатие — профиль, код уже в поле «Купон» (data-cpn). Новый id «promos»: старая «Собери сам» (id n3) не подмешивается
   { id: 'promos', kind: 'promos', tag: 'Промокоды', slides: [
@@ -3141,6 +3143,10 @@ function newsCard(x) {
   if (x.off) return '';
   const lk = (x.link || '').replace(/^https?:\/\/(www\.)?rush-case\.online\/?(?=#|$)/, '') || (x.link && x.link.indexOf(location.origin + '/#') === 0 ? x.link.slice(location.origin.length + 1) : x.link || ''), href = lk ? `" href="${esc(lk)}${/^https?:/.test(lk) ? '" target="_blank" rel="noopener' : ''}` : '', sub = x.sub ? `<span class="nw-s">${esc(x.sub)}</span>` : '';   // без ссылки — не нажимается
   if (x.kind === 'top') return `<a class="nw-c nw-top${x.look === 'drop' ? ' nw-drop' : ''}${href}">${newsMedia(x)}<span class="nw-hd"><b>${esc(x.tag || '')}</b>${x.note ? `<i>${esc(x.note)}</i>` : ''}</span><span class="nw-tx"><b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
+  if (x.kind === 'promo' && x.more && x.more.length) {   // несколько новостей в одной карточке — листаются (nwRot)
+    const S = [x, ...x.more], L = s => (s.link || '').replace(/^https?:\/\/(www\.)?rush-case\.online\/?(?=#|$)/, '');
+    return `<div class="nw-c nw-promo nw-rot${x.look === 'dark' ? ' nw-dark' : ''}">${S.map((s, i) => `<a class="nw-rs${i ? '' : ' on'}" href="${esc(L(s) || '#/')}">${newsMedia(s)}<span class="nw-band">${s.kicker ? `<i class="nw-k">${esc(s.kicker)}</i>` : ''}<b class="nw-t">${esc(s.title || '')}</b>${s.sub ? `<span class="nw-s">${esc(s.sub)}</span>` : ''}</span></a>`).join('')}<span class="nw-rd">${S.map((s, i) => `<i class="${i ? '' : 'on'}" data-i="${i}"></i>`).join('')}</span></div>`;
+  }
   if (x.kind === 'promo') return `<a class="nw-c nw-promo${x.look === 'dark' ? ' nw-dark' : ''}${href}">${newsMedia(x)}<span class="nw-band">${x.kicker ? `<i class="nw-k">${esc(x.kicker)}</i>` : ''}<b class="nw-t">${esc(x.title || '')}</b>${sub}</span></a>`;
   if (x.kind === 'promos') { const S = x.slides || []; return `<div class="nw-c nw-feed nw-promos"><span class="nw-hd"><b>${esc(x.tag || '')}</b></span>
     <div class="nw-fs" id="nwPs">${S.map((s, i) => `<a class="nw-ps${i ? '' : ' on'}" href="${esc(s.link || '#/profile')}" data-cpn="${esc(s.code)}" data-dur="${+s.dur || 8}" aria-label="Промокод ${esc(s.code)}">${s.video ? `<video muted playsinline preload="${i ? 'metadata' : 'auto'}"${s.img ? ` poster="${esc(s.img)}"` : ''}><source src="${esc(s.video)}" type="${vType(s.video)}"></video>` : `<img src="${esc(s.img)}" alt="Промокод ${esc(s.code)}" decoding="async">`}</a>`).join('')}</div>
@@ -3201,7 +3207,17 @@ function nwFeed() {
 }
 // листалка промокодов: картинка — смена через data-dur с; видео играет с начала, по концу (ended) — следующее (запас — data-dur + 1 с)
 let nwPI = 0, nwPT = 0;   // nwPT — один таймер на всю страницу
+let nwRI = 0, nwRT = 0;   // листалка новостей в карточке «Рулетка ⇄ Пикем»
+function nwRot() {
+  const box = $('.nw-rot'); if (!box || box.dataset.ok) return; box.dataset.ok = '1';
+  const sl = $$('.nw-rs', box), dots = $$('.nw-rd i', box);
+  const show = i => { nwRI = ((i % sl.length) + sl.length) % sl.length; sl.forEach((s, j) => s.classList.toggle('on', j === nwRI)); dots.forEach((d, j) => d.classList.toggle('on', j === nwRI));
+    clearTimeout(nwRT); nwRT = setTimeout(() => { if (box.isConnected) show(nwRI + 1); }, 7000); };
+  dots.forEach((d, j) => d.onclick = e => { e.preventDefault(); e.stopPropagation(); show(j); });
+  show(nwRI);
+}
 function nwPromos() {
+  nwRot();
   const box = $('#nwPs'), dots = $('#nwPDots'); if (!box || !dots) return;
   const sl = $$('.nw-ps', box); if (!sl.length || box.dataset.ok) return;   // повторный вызов на той же карточке — не запускать второй раз
   box.dataset.ok = '1';
