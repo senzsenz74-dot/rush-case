@@ -28,6 +28,549 @@ const pad = n => String(n).padStart(2, '0');
 
 /* ---------- icons ---------- */
 const sv = (p, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra}>${p}</svg>`;
+/* =====================================================================
+   ПИКЕМ — PGL Major Singapore 2026 (страница #/pickem, владелец 23.11.2026). Сервер — supabase/pickem.sql.
+   Пропуск 499 ₽ → прогнозы «победитель + счёт» на каждый матч до его начала. Верный победитель — случайный скин 5–10 ₽,
+   верный счёт (Bo3/Bo5) — ещё один. Главный приз — тому, кто угадал больше всех (выдаёт админ).
+   Пропуск = медаль в инвентаре: её можно показывать — значок сверху справа у аватарки по всему сайту (ava() в app.js).
+   Раздел стоит в начале app.js: PKM нужен ava() уже при первой отрисовке шапки. Стили — css/pickem.css.
+   ===================================================================== */
+const PK_TEAMS = {
+  heroic: 'HEROIC', imperial: 'Imperial', '9z': '9z Team', lynn: 'Lynn Vision', nip: 'Ninjas in Pyjamas', m80: 'M80', '100t': '100 Thieves',
+  chinggis: 'Chinggis Warriors', parivision: 'PARIVISION', dendele: 'DENDELE', liquid: 'Team Liquid', gosh: 'GOSH', faze: 'FaZe Clan',
+  wildcard: 'Wildcard', ef: 'Eternal Fire', flyquest: 'FlyQuest',
+  fut: 'FUT Esports', nemiga: 'Nemiga', g2: 'G2 Esports', theone: 'The One', navi: 'Natus Vincere', astralis: 'Astralis', mongolz: 'The MongolZ', mibr: 'MIBR',
+  mouz: 'MOUZ', vitality: 'Team Vitality', furia: 'FURIA', aurora: 'Aurora', spirit: 'Team Spirit', bb: 'BB Team', falcons: 'Team Falcons', legacy: 'Legacy',
+};
+const PK_STAGES = [
+  { n: 'Этап I', d: '24–27 нояб.', inv: ['nip', 'parivision', 'heroic', 'faze', 'liquid', 'ef', '100t', '9z', 'm80', 'dendele', 'imperial', 'wildcard', 'gosh', 'flyquest', 'chinggis', 'lynn'] },
+  { n: 'Этап II', d: '28 нояб. — 1 дек.', inv: ['fut', 'nemiga', 'g2', 'theone', 'navi', 'astralis', 'mongolz', 'mibr'] },
+  { n: 'Этап III', d: '2–6 дек.', inv: ['mouz', 'vitality', 'furia', 'aurora', 'spirit', 'bb', 'falcons', 'legacy'] },
+  { n: 'Плей-офф', d: '10–13 дек.', inv: [] },
+];
+const PK_SLOTS = { 1: ['0-0', '1-0', '0-1', '2-0', '1-1', '0-2', '2-1', '1-2', '2-2'], 4: ['qf', 'sf', 'f'] };
+PK_SLOTS[2] = PK_SLOTS[3] = PK_SLOTS[1];
+const PK_SLOT_N = { qf: '1/4 финала', sf: '1/2 финала', f: 'Финал' };
+// таблица Swiss (как у BetBoom Stage 1): столбцы по счёту команд; x, y — в точках макета 802×506
+const PK_SW = [['0-0', 0, 76, 8], ['1-0', 128, 58, 4], ['0-1', 128, 258, 4], ['2-0', 256, 40, 2], ['1-1', 256, 158, 4], ['0-2', 256, 358, 2],
+  ['2-1', 384, 98, 3], ['1-2', 384, 258, 3], ['2-2', 512, 180, 3]];
+const PK_BOX = [['30', 384, 2, 116, 88, '3:0 — прошли', 2, 'w'], ['3x', 512, 98, 290, 120, '3:1 3:2<br>прошли', 6, 'w'], ['03', 384, 416, 116, 88, '0:3 — выбыли', 2, 'l'],
+  ['23', 640, 244, 162, 88, '2:3 — выбыли', 3, 'l'], ['13', 512, 338, 162, 88, '1:3 — выбыли', 3, 'l']];
+const PK_ERR = {
+  'pickem no pass': 'Сначала купите пропуск пикема', 'pickem has pass': 'Пропуск уже куплен', 'pickem balance': 'Недостаточно средств на балансе',
+  'pickem locked': 'Прогнозы на этот матч закрыты — он уже начался', 'pickem closed': 'Пикем завершён', 'pickem team': 'Выберите команду из этого матча',
+  'pickem score': 'Выберите счёт', 'pickem match': 'Матч не найден — обновите страницу', 'pickem done': 'У матча уже есть результат',
+  'pickem has picks': 'На матч уже есть прогнозы — команды менять нельзя', 'pickem no skins': 'В каталоге нет скинов в диапазоне наград',
+  'pickem prize': 'Укажите главный приз (скин из каталога)', 'pickem no winner': 'Пока нет лидера с верными прогнозами', 'pickem final done': 'Главный приз уже выдан',
+};
+const PK = { s: null, stage: 0, loading: null };
+const PKM = { u: new Set(), p: new Set(), ok: false };   // у кого показывать медаль
+const pkName = id => PK_TEAMS[id] || id || '?';
+const pkLogo = (id, cls = '') => id && PK_TEAMS[id]
+  ? `<img class="pk-lg ${cls}" src="assets/pickem/${id}.webp" alt="${esc(pkName(id))}" title="${esc(pkName(id))}" loading="lazy" decoding="async">`
+  : id ? `<b class="pk-lg pk-lg-t ${cls}" title="${esc(id)}">${esc(String(id).slice(0, 2).toUpperCase())}</b>` : `<b class="pk-lg pk-lg-q ${cls}">?</b>`;
+const pkCfg = () => (PK.s && PK.s.cfg) || {};
+const pkPrice = () => +(pkCfg().price || 499);
+const pkRw = () => { const r = pkCfg().rw || [5, 10]; return [+r[0] || 5, +r[1] || 10]; };
+const pkNow = () => Date.now() + ((PK.s && PK.s.dt) || 0);
+const pkMine = id => PK.s && PK.s.me && PK.s.me.picks.find(p => p.m === id);
+const pkHasPass = () => !!(PK.s && PK.s.me && PK.s.me.pass);
+function pkLeft(ms) {
+  if (ms <= 0) return 'идёт';
+  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mm = m % 60;
+  return d ? `${d} д ${h} ч` : h ? `${h} ч ${mm} мин` : `${Math.max(1, mm)} мин`;
+}
+const pkWhen = t => new Date(t).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+async function pkLoad() {
+  if (!sb) return null;
+  const { data, error } = await sb.rpc('pk_state');
+  if (error || !data) { PK.err = error ? error.message : 'нет данных'; return null; }
+  data.dt = (+data.now || Date.now()) - Date.now();
+  PK.s = data; PK.err = null;
+  if (data.me) { PKM.ok && st.user && (data.me.pass && data.me.show ? PKM.u.add(st.user.id) : PKM.u.delete(st.user.id)); }
+  return data;
+}
+
+/* ---------- страница ---------- */
+function pagePickem() {
+  return `<section class="pk" id="pk">
+    <div class="pk-top">
+      <div class="pk-card pk-hero" id="pkHero"></div>
+      <div class="pk-card pk-prize" id="pkPrize"></div>
+    </div>
+    <div class="pk-main">
+      <aside class="pk-card pk-side" id="pkSide"></aside>
+      <div class="pk-card pk-board">
+        <div class="pk-bh"><nav class="pk-tabs" id="pkTabs"></nav><button class="pk-re" type="button" id="pkRe" title="Обновить" aria-label="Обновить">${PK_IC.re}</button></div>
+        <p class="pk-close" id="pkClose"></p>
+        <div class="pk-body" id="pkBody"><div class="pk-load"><span class="spinner"></span>Загружаем матчи…</div></div>
+        <div class="pk-bar" id="pkBar"></div>
+      </div>
+    </div>
+  </section>`;
+}
+async function mountPickem() {
+  if (/^(localhost|127\.)/.test(location.hostname)) window.PKDBG = { PK, PKM, draw: pkDraw, SK, ITEMS }; // проверка вида на локальной копии (пробные данные)
+  if (typeof SRV_ERR === 'object') Object.assign(SRV_ERR, PK_ERR);
+  pkHero(); pkPrize(); pkSide();
+  $('#pkRe').onclick = async e => { e.currentTarget.classList.add('spin'); await pkLoad(); pkDraw(); setTimeout(() => $('#pkRe') && $('#pkRe').classList.remove('spin'), 500); };
+  const s = await pkLoad();
+  if (!$('#pk')) return;
+  if (!s) { $('#pkBody').innerHTML = `<div class="pk-load">Пикем скоро откроется${st.user && st.user.admin ? ` <small>(${esc(PK.err || '')} — запустите supabase/pickem.sql)</small>` : ''}</div>`; return; }
+  PK.stage = pkAutoStage();
+  pkDraw();
+  every(() => { if (!$('#pk')) return; pkTick(); }, 20000);
+  every(async () => { if (!$('#pk') || document.hidden) return; await pkLoad(); pkDraw(true); }, 120000);
+}
+// этап по умолчанию: где ближайший несыгранный матч; иначе последний этап с матчами
+function pkAutoStage() {
+  const M = PK.s.matches, now = pkNow();
+  const next = M.filter(m => !m.w).sort((a, b) => a.t - b.t)[0];
+  if (next) return next.st - 1;
+  const last = M.slice().sort((a, b) => b.st - a.st)[0];
+  return last ? last.st - 1 : 0;
+}
+function pkDraw(quiet) {
+  if (!$('#pk') || !PK.s) return;
+  pkHero(); pkPrize(); pkSide(); pkTabs(); pkBoard(); pkTick();
+  if (!quiet) $('#pkBody').classList.add('in');
+}
+function pkTabs() {
+  const M = PK.s.matches, now = pkNow();
+  $('#pkTabs').innerHTML = PK_STAGES.map((s, i) => {
+    const ms = M.filter(m => m.st === i + 1), live = ms.some(m => !m.w && m.t > now);
+    return `<button type="button" data-i="${i}" class="${i === PK.stage ? 'on' : ''}">${live ? '<i class="pk-dot"></i>' : ''}${s.n}<small>${s.d}</small></button>`;
+  }).join('');
+  $$('#pkTabs button').forEach(b => b.onclick = () => { PK.stage = +b.dataset.i; pkTabs(); pkBoard(); pkTick(); });
+}
+/* верх слева — как «Магазин» в пикеме CS2: монета, логотипы фаворитов, правила */
+function pkHero() {
+  const el = $('#pkHero'); if (!el) return;
+  const [lo, hi] = pkRw();
+  const fav = ['vitality', 'spirit', 'navi', 'mouz'];
+  el.innerHTML = `<h6 class="pk-lbl">Пикем · PGL Major Singapore 2026</h6>
+    <div class="pk-hero-row"><img class="pk-coin-b" src="assets/pickem/coin.webp" alt="Медаль пикема">${fav.map(id => `<span class="pk-hero-t">${pkLogo(id)}</span>`).join('')}</div>
+    <h2 class="pk-h">Угадай исходы матчей Major</h2>
+    <p class="pk-t">За каждого верного победителя — случайный скин ${lo}–${hi} ₽, за точный счёт (BO3 и финал) — ещё один.<br>Кто угадает больше всех до конца Major, заберёт главный приз.</p>
+    <button class="c2-btn c2-green pk-how" type="button" id="pkHow">Как это работает</button>`;
+  $('#pkHow').onclick = pkRules;
+}
+/* верх справа — главный приз (как «Создание сувениров» в CS2) */
+function pkPrize() {
+  const el = $('#pkPrize'); if (!el) return;
+  const cfg = pkCfg(), s = cfg.prize && cfg.prize.n && SK[cfg.prize.n], top = (PK.s && PK.s.top) || [], fin = PK.s && PK.s.final;
+  el.innerHTML = `<h6 class="pk-lbl">Главный приз</h6>
+    <div class="pk-prize-pic">${s ? `<img src="${imgUrl(s, 'l')}" alt="${esc(s.name)}" class="r-${s.r}">` : `<img class="pk-prize-coin" src="assets/pickem/coin.webp" alt="">`}</div>
+    ${s ? `<div class="pk-prize-n"><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>` : `<div class="pk-prize-n"><b>Скин от 20 000 ₽</b></div>`}
+    <p class="pk-t">${fin ? `Главный приз получил <b>${plink(fin.pid, esc(fin.name || 'Игрок'))}</b> — ${fin.pts} ${plural(fin.pts, 'верный исход', 'верных исхода', 'верных исходов')}.`
+      : `Достанется игроку, который угадает больше всех исходов до конца Major.${top[0] ? ` Сейчас впереди <b>${plink(top[0].pid, esc(top[0].name))}</b> — ${top[0].pts} ${plural(top[0].pts, 'очко', 'очка', 'очков')}.` : ''}`}</p>
+    <button class="pk-link" type="button" id="pkTop">Таблица лидеров${PK_IC.arr}</button>`;
+  $('#pkTop').onclick = pkTopWin;
+}
+/* слева — пропуск и мои итоги (как «Прогнозы» + список заданий в CS2) */
+function pkSide() {
+  const el = $('#pkSide'); if (!el) return;
+  const me = PK.s && PK.s.me, has = pkHasPass(), M = (PK.s && PK.s.matches) || [], now = pkNow();
+  const live = M.some(m => !m.w && m.t <= now);
+  const picks = (me && me.picks) || [], done = picks.filter(p => p.ow !== null && p.ow !== undefined);
+  const nOk = done.filter(p => p.ow).length, nSc = done.filter(p => p.os).length;
+  const pz = picks.flatMap(p => p.pz || []), pzSum = pz.reduce((t, n) => t + ((SK[n] && SK[n].p) || 0), 0);
+  const byStage = i => { const ids = new Set(M.filter(m => m.st === i + 1).map(m => m.id)); const d = done.filter(p => ids.has(p.m)); return [d.filter(p => p.ow).length, d.length]; };
+  const row = (txt, val, ok) => `<li class="${has ? (ok ? 'ok' : '') : 'lk'}"><i>${has ? (ok ? ic.check : PK_IC.dot) : PK_IC.lock}</i><span>${txt}</span>${has && val != null ? `<b>${val}</b>` : ''}</li>`;
+  el.innerHTML = `<div class="pk-side-h"><h6 class="pk-lbl">Прогнозы</h6>${live ? '<span class="pk-live">В эфире</span>' : ''}</div>
+    <div class="pk-pass${has ? ' on' : ''}">
+      <img class="pk-pass-coin" src="assets/pickem/coin.webp" alt="">
+      <div class="pk-pass-tk"><small>RUSH CASE · Major 2026</small><b>Пропуск</b><em>${has ? 'активирован' : 'пикема'}</em></div>
+    </div>
+    ${has ? `<div class="pk-pass-ok">${ic.check}<span>Пропуск активирован${me.show ? ' · медаль у аватарки' : ''}</span></div>`
+      : `<button class="c2-btn c2-green pk-buy" type="button" id="pkBuy">Купить пропуск<small>${moneyN(pkPrice())} ₽</small></button>`}
+    <p class="pk-side-t">${has ? 'Нажмите на матч в таблице и выберите победителя и счёт. Прогноз можно менять до начала матча.'
+      : 'Пропуск открывает прогнозы на все матчи Major. В инвентарь придёт медаль — её можно показывать всем у аватарки.'}</p>
+    <ul class="pk-list">
+      ${row('Купите пропуск до конца Major', null, has)}
+      ${row('Верных победителей', fmt(nOk), nOk > 0)}
+      ${row('Верных счетов (BO3, финал)', fmt(nSc), nSc > 0)}
+      ${row('Скинов получено', pz.length ? `${pz.length} · ${money(pzSum)}` : '0', pz.length > 0)}
+      ${PK_STAGES.map((s, i) => { const [a, b] = byStage(i); return row(`${s.n}: верных прогнозов`, b ? `${a} из ${b}` : '—', a > 0); }).join('')}
+      ${row('Место в таблице лидеров', me && me.pos ? '#' + me.pos : '—', me && me.pos && me.pos <= 10)}
+    </ul>`;
+  const b = $('#pkBuy'); if (b) b.onclick = pkBuyWin;
+}
+/* таблица этапа */
+function pkBoard() {
+  const body = $('#pkBody'); if (!body) return;
+  const i = PK.stage, M = PK.s.matches.filter(m => m.st === i + 1);
+  body.innerHTML = i === 3 ? pkPlayoff(M) : pkSwiss(M, i);
+  pkFit();
+  $$('[data-m]', body).forEach(b => b.onclick = () => pkMatchWin(+b.dataset.m));
+  const rnd = $('#pkRnd', body); if (rnd) rnd.onclick = () => pkRandom(M);
+  const clr = $('#pkClr', body); if (clr) clr.onclick = () => pkClear(M);
+  pkBar(M);
+}
+function pkCell(m) {
+  if (!m) return `<div class="pk-m pk-q">${pkLogo(null)}<i>vs</i>${pkLogo(null)}</div>`;
+  const my = pkMine(m.id), now = pkNow(), live = !m.w && m.t <= now;
+  const cls = t => {
+    const c = [];
+    if (m.w) c.push(m.w === t ? 'w' : 'l');
+    if (my && my.w === t) c.push('pick', m.w ? (my.ow ? 'ok' : 'bad') : '');
+    return c.join(' ');
+  };
+  const sc = m.w ? `<em class="pk-sc">${esc(m.s || '')}</em>` : my && m.bo > 1 ? `<em class="pk-sc pk-sc-my">${esc(my.s)}</em>` : m.bo > 1 ? `<em class="pk-bo">BO${m.bo}</em>` : '';
+  return `<button type="button" class="pk-m${live ? ' pk-now' : ''}${m.w ? ' pk-fin' : ''}${my ? ' pk-has' : ''}" data-m="${m.id}" title="${esc(pkName(m.a))} — ${esc(pkName(m.b))} · ${pkWhen(m.t)}">
+    <span class="pk-tm ${cls(m.a)}">${pkLogo(m.a)}</span><i>vs</i><span class="pk-tm ${cls(m.b)}">${pkLogo(m.b)}</span>${sc}${live ? '<span class="pk-lv"></span>' : ''}</button>`;
+}
+function pkSwiss(M, i) {
+  // кто сколько выиграл и проиграл на этапе (по сыгранным матчам) — для боксов «прошли / выбыли»
+  const rec = {};
+  M.filter(m => m.w).forEach(m => { [m.a, m.b].forEach(t => rec[t] = rec[t] || [0, 0]); rec[m.w][0]++; rec[m.w === m.a ? m.b : m.a][1]++; });
+  const inBox = { '30': [], '3x': [], '03': [], '13': [], '23': [] };
+  Object.entries(rec).forEach(([t, [w, l]]) => { if (w >= 3) inBox[l ? '3x' : '30'].push(t); else if (l >= 3) inBox[w === 0 ? '03' : w === 1 ? '13' : '23'].push(t); });
+  const teams = [...new Set([...M.flatMap(m => [m.a, m.b]), ...PK_STAGES[i].inv])].slice(0, 16);
+  while (teams.length < 16) teams.push(null);
+  const grp = ([sl, x, y, n]) => {
+    const ms = M.filter(m => m.sl === sl).sort((a, b) => a.o - b.o || a.t - b.t);
+    const cells = Array.from({ length: Math.max(n, ms.length) }, (_, k) => pkCell(ms[k]));
+    return `<div class="pk-g" style="left:${x}px;top:${y}px"><span class="pk-g-h">${sl}</span>${cells.join('')}<i class="pk-ar g"></i><i class="pk-ar r"></i></div>`;
+  };
+  const box = ([k, x, y, w, h, t, n, kind]) => `<div class="pk-box ${kind} pk-box-${k}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">
+      <b>${t}</b><div class="pk-box-s">${Array.from({ length: n }, (_, j) => inBox[k][j] ? `<span class="pk-slot on">${pkLogo(inBox[k][j])}</span>` : `<span class="pk-slot">${kind === 'l' ? '?' : ''}</span>`).join('')}</div></div>`;
+  return `<div class="pk-sw-wrap"><div class="pk-sw" id="pkSw">
+    <div class="pk-pool"><span class="pk-pool-ic">${PK_IC.tap}</span><p>Нажмите на матч, чтобы сделать прогноз</p>
+      <div class="pk-pool-g">${teams.map(t => `<span>${pkLogo(t)}</span>`).join('')}</div>
+      ${pkHasPass() ? `<div class="pk-pool-b"><button type="button" id="pkRnd" title="Случайные прогнозы на открытые матчи без прогноза">${PK_IC.rnd}</button><button type="button" id="pkClr" title="Убрать мои прогнозы с открытых матчей">${PK_IC.x}</button></div>` : ''}</div>
+    <div class="pk-grid">${PK_BOX.map(box).join('')}${PK_SW.map(grp).join('')}</div>
+  </div></div>`;
+}
+function pkPlayoff(M) {
+  const col = (sl, n, x, gap, top) => {
+    const ms = M.filter(m => m.sl === sl).sort((a, b) => a.o - b.o || a.t - b.t);
+    return Array.from({ length: n }, (_, k) => `<div class="pk-g pk-po" style="left:${x}px;top:${top + k * gap}px"><span class="pk-g-h">${PK_SLOT_N[sl]}</span>${pkCell(ms[k])}<i class="pk-ar g"></i></div>`).join('');
+  };
+  const f = M.find(m => m.sl === 'f' && m.w);
+  return `<div class="pk-sw-wrap"><div class="pk-sw pk-sw-po" id="pkSw"><div class="pk-grid">
+    ${col('qf', 4, 0, 118, 0)}${col('sf', 2, 200, 236, 59)}${col('f', 1, 400, 0, 177)}
+    <div class="pk-champ" style="left:600px;top:120px"><img src="assets/pickem/coin.webp" alt=""><b>Чемпион Major</b><span>${f ? pkLogo(f.w) + esc(pkName(f.w)) : '?'}</span></div>
+  </div></div></div>`;
+}
+// таблица по ширине: от 0.62 (телефон — прокрутка вбок) до 1.15
+function pkFit() {
+  const sw = $('#pkSw'), wr = sw && sw.parentElement; if (!sw) return;
+  const pool = $('.pk-pool', sw), W = sw.classList.contains('pk-sw-po') ? 800 : pool && pool.offsetWidth ? 938 : 802, k = Math.max(0.62, Math.min(1.15, (wr.clientWidth - 4) / W));
+  sw.style.zoom = k.toFixed(3);
+}
+addEventListener('resize', () => { if ($('#pkSw')) pkFit(); });
+function pkBar(M) {
+  const el = $('#pkBar'); if (!el) return;
+  const mine = M.filter(m => pkMine(m.id)).length, me = PK.s.me;
+  el.innerHTML = `<div class="pk-bar-l"><b>${mine}/${M.length || 0} ${plural(M.length, 'прогноз', 'прогноза', 'прогнозов')} сделано</b><span class="pk-prog"><i style="width:${M.length ? mine / M.length * 100 : 0}%"></i></span></div>
+    <div class="pk-bar-r"><span id="pkNext"></span>${me && me.pass ? `<span class="pk-pts">Очки: <b>${me.pts || 0}</b>${me.pos ? ` · место <b>#${me.pos}</b>` : ''}</span>` : `<button class="c2-btn c2-green pk-bar-buy" type="button" id="pkBuy2">Пропуск · ${moneyN(pkPrice())} ₽</button>`}</div>`;
+  const b = $('#pkBuy2'); if (b) b.onclick = pkBuyWin;
+}
+// обратный отсчёт до ближайшего матча (раз в 20 с)
+function pkTick() {
+  if (!PK.s) return;
+  const now = pkNow(), M = PK.s.matches.filter(m => m.st === PK.stage + 1);
+  const next = M.filter(m => !m.w && m.t > now).sort((a, b) => a.t - b.t)[0];
+  const cl = $('#pkClose'), nx = $('#pkNext');
+  if (cl) cl.innerHTML = next ? `${ic.clock}<span>Прогноз на ближайший матч закроется через <b>${pkLeft(next.t - now)}</b> · ${esc(pkName(next.a))} — ${esc(pkName(next.b))}</span>`
+    : M.length && M.every(m => m.w) ? `${ic.check}<span>Все матчи этапа сыграны</span>` : M.length ? `${ic.clock}<span>Идут матчи — результаты появятся после игры</span>` : `${ic.clock}<span>Матчи этапа появятся, когда станут известны пары</span>`;
+  if (nx) nx.textContent = next ? `Ближайший матч: ${pkWhen(next.t)}` : '';
+  $$('.pk-m[data-m]').forEach(b => { const m = PK.s.matches.find(x => x.id === +b.dataset.m); if (m && !m.w) b.classList.toggle('pk-now', m.t <= now); });
+}
+
+/* ---------- окно матча: выбор победителя и счёта ---------- */
+function pkMatchWin(id) {
+  const m = PK.s.matches.find(x => x.id === id); if (!m) return;
+  const my = pkMine(id), now = pkNow(), locked = !!m.w || m.t <= now, has = pkHasPass();
+  const scores = m.bo === 5 ? ['3:0', '3:1', '3:2'] : m.bo === 3 ? ['2:0', '2:1'] : [];
+  let w = my ? my.w : null, s = my && m.bo > 1 ? my.s : null;
+  const pa = m.n ? Math.round(m.na / m.n * 100) : 50, pb = 100 - pa;
+  const [lo, hi] = pkRw(), stg = PK_STAGES[m.st - 1];
+  const md = modal(`<div class="pkm">
+    <header class="ga-mh pkm-h" style="--gl:#84d9fd"><small>${stg.n} · ${m.st === 4 ? PK_SLOT_N[m.sl] : 'счёт ' + esc(m.sl)} · BO${m.bo}</small><h3>${esc(pkName(m.a))} — ${esc(pkName(m.b))}</h3>
+      <span class="ga-mh-n">${pkWhen(m.t)}</span></header>
+    <div class="pkm-ts">
+      <div class="pkm-t${m.w === m.a ? ' w' : m.w ? ' l' : ''}">${pkLogo(m.a)}<b>${esc(pkName(m.a))}</b><small>${m.n ? pa + '%' : ''}</small></div>
+      <div class="pkm-vs">${m.w ? `<b class="pkm-res">${m.w === m.a ? esc(m.s) : esc((m.s || '').split(':').reverse().join(':'))}</b><small>матч сыгран</small>` : `<b>VS</b><small>${locked ? 'идёт матч' : 'через ' + pkLeft(m.t - now)}</small>`}</div>
+      <div class="pkm-t${m.w === m.b ? ' w' : m.w ? ' l' : ''}">${pkLogo(m.b)}<b>${esc(pkName(m.b))}</b><small>${m.n ? pb + '%' : ''}</small></div>
+    </div>
+    ${m.n ? `<div class="pkm-share"><i style="width:${pa}%"></i></div><p class="pkm-n">Прогнозов игроков: ${fmt(m.n)}</p>` : ''}
+    <div class="pkm-body" id="pkmBody"></div>
+  </div>`, 'm-ga m-pk');
+  const draw = () => {
+    const box = $('#pkmBody', md); if (!box) return;
+    if (locked) {
+      const res = my ? (m.w ? (my.ow ? `<b class="ok">Победитель угадан</b>${m.bo > 1 ? (my.os ? ' · <b class="ok">счёт угадан</b>' : ' · счёт не угадан') : ''}` : '<b class="bad">Не угадан</b>') : 'Ждём результат') : '';
+      box.innerHTML = `<div class="pkm-lock">${my ? `<p>Ваш прогноз: <b>${esc(pkName(my.w))}</b>${m.bo > 1 ? ' · ' + esc(my.s) : ''}</p><p>${res}</p>` : '<p>Прогнозы на этот матч закрыты — он уже начался.</p>'}
+        ${my && my.pz && my.pz.length ? `<div class="pkm-pz">${my.pz.map(n => { const k = SK[n]; return k ? `<div class="pkm-pz-it r-${k.r}"><img src="${imgUrl(k, 's')}" alt=""><span>${esc(k.w)} | ${esc(k.f)}</span>${prc(k.p)}</div>` : ''; }).join('')}</div><p class="pkm-hint">Скины уже в инвентаре</p>` : ''}</div>`;
+      return;
+    }
+    box.innerHTML = `<h5 class="pkm-q">Кто выиграет матч?</h5>
+      <div class="pkm-opts">${[m.a, m.b].map(t => `<button type="button" data-w="${t}" class="${w === t ? 'on' : ''}">${esc(pkName(t))}</button>`).join('')}</div>
+      ${scores.length ? `<h5 class="pkm-q">Счёт по картам${w ? ` · ${esc(pkName(w))} побеждает` : ''}</h5><div class="pkm-opts">${scores.map(x => `<button type="button" data-s="${x}" class="${s === x ? 'on' : ''}"${w ? '' : ' disabled'}>${x}</button>`).join('')}</div>` : ''}
+      <p class="pkm-rw">${PK_IC.gift}<span>Верный победитель — скин ${lo}–${hi} ₽${scores.length ? ', верный счёт — ещё один' : ''}. Скины приходят в инвентарь сразу после матча.</span></p>
+      <footer class="pkm-f">${!st.user ? `<button class="c2-btn c2-green" type="button" data-act="login">Войти, чтобы сделать прогноз</button>`
+        : !has ? `<button class="c2-btn c2-green" type="button" id="pkmBuy">Купить пропуск · ${moneyN(pkPrice())} ₽</button>`
+        : `${my ? '<button class="pkm-del" type="button" id="pkmDel">Убрать прогноз</button>' : ''}<button class="c2-btn c2-green" type="button" id="pkmSave"${w && (!scores.length || s) ? '' : ' disabled'}>${my ? 'Изменить прогноз' : 'Сохранить прогноз'}</button>`}</footer>`;
+    $$('[data-w]', box).forEach(b => b.onclick = () => { w = b.dataset.w; draw(); });
+    $$('[data-s]', box).forEach(b => b.onclick = () => { s = b.dataset.s; draw(); });
+    const bb = $('#pkmBuy', box); if (bb) bb.onclick = pkBuyWin;
+    const sv = $('#pkmSave', box); if (sv) sv.onclick = async () => {
+      sv.disabled = true;
+      const r = await srv('pk_pick', { p_mid: m.id, p_win: w, p_score: scores.length ? s : null });
+      if (!r) { sv.disabled = false; return; }
+      pkSetPick(m.id, r.w, r.s); closeModal(); toast(`Прогноз сохранён: <b>${esc(pkName(w))}</b>${scores.length ? ' · ' + esc(s) : ''}`);
+    };
+    const dl = $('#pkmDel', box); if (dl) dl.onclick = async () => {
+      dl.disabled = true;
+      const r = await srv('pk_pick', { p_mid: m.id, p_win: null, p_score: null });
+      if (!r) { dl.disabled = false; return; }
+      pkSetPick(m.id, null); closeModal(); toast('Прогноз убран', 'info');
+    };
+  };
+  draw();
+}
+function pkSetPick(id, w, s) {
+  const me = PK.s.me, i = me.picks.findIndex(p => p.m === id), m = PK.s.matches.find(x => x.id === id), old = me.picks[i];
+  if (m) { if (old) { m.n--; if (old.w === m.a) m.na--; } if (w) { m.n++; if (w === m.a) m.na++; } }
+  if (i >= 0) me.picks.splice(i, 1);
+  if (w) me.picks.push({ m: id, w, s, ow: null, os: null, pz: [] });
+  pkBoard(); pkSide();
+}
+// случайные прогнозы на открытые матчи этапа без прогноза
+async function pkRandom(M) {
+  const now = pkNow(), open = M.filter(m => !m.w && m.t > now && !pkMine(m.id));
+  if (!open.length) return toast('Нет открытых матчей без прогноза', 'info');
+  let n = 0;
+  for (const m of open) {
+    const w = Math.random() < 0.5 ? m.a : m.b, sc = m.bo === 5 ? ['3:0', '3:1', '3:2'] : m.bo === 3 ? ['2:0', '2:1'] : [null];
+    const s = sc[Math.floor(Math.random() * sc.length)];
+    const r = await srv('pk_pick', { p_mid: m.id, p_win: w, p_score: s });
+    if (!r) break;
+    pkSetPick(m.id, r.w, r.s); n++;
+  }
+  if (n) toast(`Случайные прогнозы: ${n} ${plural(n, 'матч', 'матча', 'матчей')}`);
+}
+async function pkClear(M) {
+  const now = pkNow(), mine = M.filter(m => !m.w && m.t > now && pkMine(m.id));
+  if (!mine.length) return toast('На открытых матчах нет ваших прогнозов', 'info');
+  if (!confirm(`Убрать ${mine.length} ${plural(mine.length, 'прогноз', 'прогноза', 'прогнозов')} с открытых матчей?`)) return;
+  for (const m of mine) { const r = await srv('pk_pick', { p_mid: m.id, p_win: null, p_score: null }); if (!r) break; pkSetPick(m.id, null); }
+}
+
+/* ---------- покупка пропуска ---------- */
+function pkBuyWin() {
+  if (!st.user) { closeModal(); return openAuth('login'); }
+  const price = pkPrice(), [lo, hi] = pkRw(), low = st.balance < price;
+  const md = modal(`<div class="pkb">
+    <header class="ga-mh" style="--gl:#f2c04d"><small>PGL Major Singapore 2026</small><h3>Пропуск пикема</h3></header>
+    <div class="pkb-c"><img class="pkb-coin" src="assets/pickem/coin.webp" alt="Медаль пикема"></div>
+    <ol class="ga-ol">
+      <li><i>1</i><span>Прогнозы на все матчи Major: победитель и счёт. Менять можно до начала матча.</span></li>
+      <li><i>2</i><span>За каждого верного победителя — случайный скин ${lo}–${hi} ₽, за точный счёт — ещё один.</span></li>
+      <li><i>3</i><span>Медаль пикема в инвентарь: включите показ — она появится у вашей аватарки, её увидят все.</span></li>
+      <li><i>4</i><span>Больше всех верных исходов к концу Major — главный приз.</span></li>
+    </ol>
+    <footer class="ga-mf pkb-f"><span class="pkb-bal">Баланс: ${prc(st.balance)}</span>${low
+      ? `<button class="c2-btn c2-green" type="button" data-act="deposit">Пополнить баланс</button>`
+      : `<button class="c2-btn c2-green" type="button" id="pkbGo">Купить за ${moneyN(price)} ₽</button>`}</footer>
+  </div>`, 'm-ga m-pk');
+  const go = $('#pkbGo', md); if (!go) return;
+  go.onclick = async () => {
+    go.disabled = true;
+    const r = await srv('pk_buy');
+    if (!r) { go.disabled = false; return; }
+    if (PK.s && PK.s.me) { PK.s.me.pass = true; PK.s.me.show = true; }
+    PKM.u.add(st.user.id); if (st.user.pid) PKM.p.add(+st.user.pid); PKM.ok = true;
+    closeModal(); renderUser(); pkMedalPaint();
+    toast('Пропуск активирован — медаль уже у вашей аватарки');
+    if ($('#pk')) { await pkLoad(); pkDraw(true); }
+  };
+}
+/* ---------- правила и таблица лидеров ---------- */
+function pkRules() {
+  const [lo, hi] = pkRw();
+  modal(`<div><header class="ga-mh" style="--gl:#84d9fd"><small>Пикем · PGL Major Singapore 2026</small><h3>Как это работает</h3></header>
+    <ol class="ga-ol">
+      <li><i>1</i><span>Купите пропуск за ${moneyN(pkPrice())} ₽ — он действует на весь Major (24 ноября — 13 декабря).</span></li>
+      <li><i>2</i><span>Нажмите на матч в таблице этапа и выберите победителя. В матчах до двух побед (BO3) и в финале (BO5) — ещё и счёт по картам.</span></li>
+      <li><i>3</i><span>Прогноз можно менять до начала матча. Пары следующих раундов появляются по ходу турнира — заходите каждый день.</span></li>
+      <li><i>4</i><span>Верный победитель — случайный скин ${lo}–${hi} ₽, верный счёт — ещё один. Скины приходят в инвентарь сразу после внесения результата.</span></li>
+      <li><i>5</i><span>Очки: 1 за победителя и 1 за счёт. У кого больше всех очков к концу Major, тот получает главный приз. При равенстве выше тот, у кого больше верных победителей, затем — кто раньше сделал свои прогнозы.</span></li>
+      <li><i>6</i><span>Медаль пропуска лежит в инвентаре: показ у аватарки включается и выключается там же.</span></li>
+    </ol>
+    <footer class="ga-mf"><button class="c2-btn c2-green" type="button" onclick="closeModal()">Понятно</button></footer></div>`, 'm-ga m-pk');
+}
+function pkTopWin() {
+  const top = (PK.s && PK.s.top) || [], me = PK.s && PK.s.me;
+  modal(`<div><header class="ga-mh" style="--gl:#f2c04d"><small>Пикем · PGL Major Singapore 2026</small><h3>Таблица лидеров</h3></header>
+    <div class="pkt">${top.length ? top.map(p => `<div class="pkt-r${p.pos <= 3 ? ' t' + p.pos : ''}"><i>${p.pos}</i>${ava({ name: p.name, ava: p.ava, pid: p.pid })}<b>${plink(p.pid, esc(p.name))}</b><span>${p.ok} ${plural(p.ok, 'победитель', 'победителя', 'победителей')}</span><em>${p.pts}</em></div>`).join('')
+      : '<p class="pkt-e">Таблица появится после первых сыгранных матчей.</p>'}</div>
+    ${me && me.pass ? `<p class="pkt-me">Ваши очки: <b>${me.pts || 0}</b>${me.pos ? ` · место <b>#${me.pos}</b>` : ''}</p>` : ''}</div>`, 'm-ga m-pk');
+}
+
+/* ---------- медаль у аватарки (по всему сайту) ---------- */
+function pkHasMedal(u) {
+  if (!u || !PKM.ok) return false;
+  return !!((u.id && PKM.u.has(u.id)) || (u.uid && PKM.u.has(u.uid)) || (u.pid && PKM.p.has(+u.pid)));
+}
+const pkMedalHtml = () => '<i class="ava-md" title="Медаль пикема · Major 2026" aria-hidden="true"></i>';
+// аватарки, нарисованные до загрузки списка, дорисовываем по data-u="uid|pid"
+function pkMedalPaint(root = document) {
+  $$('.ava[data-u]', root).forEach(el => {
+    const [id, pid] = el.dataset.u.split('|'), has = pkHasMedal({ id, pid: +pid || 0 }), cur = $('.ava-md', el);
+    el.classList.toggle('has-md', has);
+    if (has && !cur) el.insertAdjacentHTML('beforeend', pkMedalHtml()); else if (!has && cur) cur.remove();
+  });
+}
+async function pkMedalsLoad() {
+  if (typeof sb === 'undefined' || !sb) return;
+  const { data, error } = await sb.rpc('pk_medals');
+  if (error || !data) return;
+  PKM.u = new Set(data.u || []); PKM.p = new Set((data.p || []).map(Number)); PKM.ok = true;
+  pkMedalPaint();
+}
+addEventListener('load', () => setTimeout(pkMedalsLoad, 1200));
+setInterval(() => { if (!document.hidden) pkMedalsLoad(); }, 300000);
+
+/* ---------- медаль в инвентаре (профиль → «Предметы») ---------- */
+function pkInvCard() {
+  if (!st.user) return '';
+  const me = PK.s && PK.s.me;
+  if (!me) { if (!PK.loading) PK.loading = pkLoad().then(() => { PK.loading = null; if (PK.s && PK.s.me && PK.s.me.pass && $('#invGrid') && !$('.pk-inv')) $('#invGrid').insertAdjacentHTML('afterbegin', pkInvCard()), pkInvBind(); }); return ''; }
+  if (!me.pass) return '';
+  return `<div class="pf2-it pk-inv${me.show ? ' on' : ''}" title="Медаль пикема · PGL Major Singapore 2026">
+    <div class="pf2-it-pic"><img src="assets/pickem/coin.webp" alt=""><span class="pk-inv-st">${me.show ? 'У аватарки' : 'Скрыта'}</span>
+      <span class="pf2-it-acts"><button type="button" class="pf2-it-sell" data-pkshow>${me.show ? 'Скрыть' : 'Показывать'}</button></span></div>
+    <div class="pf2-it-tx"><span>Медаль</span><b>Пикем · Major 2026</b><em class="pk-inv-n">не продаётся</em></div>
+  </div>`;
+}
+function pkInvBind() {
+  const b = $('[data-pkshow]'); if (!b) return;
+  b.onclick = async e => {
+    e.stopPropagation();
+    const me = PK.s.me, on = !me.show; b.disabled = true;
+    const { error } = await sb.rpc('pk_show', { p_on: on });
+    b.disabled = false;
+    if (error) return toast('Не получилось: ' + esc(error.message), 'err');
+    me.show = on;
+    if (on) { PKM.u.add(st.user.id); if (st.user.pid) PKM.p.add(+st.user.pid); } else { PKM.u.delete(st.user.id); PKM.p.delete(+st.user.pid); }
+    PKM.ok = true;
+    const card = b.closest('.pk-inv'); if (card) card.outerHTML = pkInvCard();
+    pkInvBind(); renderUser(); pkMedalPaint();
+    toast(on ? 'Медаль показывается у аватарки' : 'Медаль скрыта', on ? 'ok' : 'info');
+  };
+}
+
+/* ---------- админка: вкладка «Пикем» ---------- */
+async function admPickem(box) {
+  box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем…</div>';
+  if (typeof SRV_ERR === 'object') Object.assign(SRV_ERR, PK_ERR);
+  const [{ data: A, error }, s] = await Promise.all([sb.rpc('admin_pk_stats'), pkLoad()]);
+  if (!box.isConnected || admTab !== 'pickem') return;
+  if (error || !A || !s) return (box.innerHTML = admErr(error || { message: PK.err || 'нет данных' }) + '<p class="ax-foot">Выполните supabase/pickem.sql в Supabase → SQL Editor.</p>');
+  const cfg = s.cfg || {}, rw = cfg.rw || [5, 10], prize = (cfg.prize && cfg.prize.n) || '';
+  const err = e => { const k = Object.keys(SRV_ERR).find(x => e.message.includes(x)); toast(k ? SRV_ERR[k] : 'Ошибка: ' + esc(e.message), 'err'); };
+  const tOpt = (sel) => Object.entries(PK_TEAMS).map(([k, n]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
+  const dl = ITEMS.filter(x => x.p >= 15000).sort((a, b) => a.p - b.p).slice(0, 600).map(x => `<option value="${esc(x.name)}">${moneyN(x.p)} ₽</option>`).join('');
+  const lead = A.top && A.top[0];
+  const loc = t => { const d = new Date(t); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+  const mrow = m => `<tr data-id="${m.id}"><td>${pkWhen(m.t)}</td><td>${PK_STAGES[m.st - 1].n} · ${m.st === 4 ? PK_SLOT_N[m.sl] : esc(m.sl)}</td>
+      <td class="pk-ax-tm">${pkLogo(m.a)}${esc(pkName(m.a))} <i>vs</i> ${pkLogo(m.b)}${esc(pkName(m.b))}</td><td>BO${m.bo}</td><td class="num">${fmt(m.n)}</td>
+      <td>${m.w ? `<b>${esc(pkName(m.w))}</b> ${esc(m.s)}` : `<span class="pk-ax-res"><select class="ax-inp" data-rw>${[m.a, m.b].map(t => `<option value="${t}">${esc(pkName(t))}</option>`).join('')}</select>${m.bo > 1 ? `<select class="ax-inp" data-rs>${(m.bo === 5 ? ['3:0', '3:1', '3:2'] : ['2:0', '2:1']).map(x => `<option>${x}</option>`).join('')}</select>` : ''}<button class="ax-btn ax-sm ax-ok" data-res="${m.id}">Итог</button></span>`}</td>
+      <td>${m.w ? '' : `<button class="ax-btn ax-sm" data-ed="${m.id}">Изм.</button> <button class="ax-btn ax-sm" data-del="${m.id}">Удал.</button>`}</td></tr>`;
+  box.innerHTML = `<div class="ax-kpis">${axKpi('Пропусков', fmt(+A.passes))}${axKpi('Выручка с пропусков', money(+A.income))}${axKpi('Прогнозов', fmt(+A.picks), `игроков: ${fmt(+A.players)}`)}${axKpi('Выдано скинов', fmt(+A.skins), money(+A.spent))}</div>
+    ${axCard('Настройки', `<div class="pr-form pk-ax-cfg">
+      <label>Цена пропуска, ₽<input class="ax-inp" id="pkaPrice" type="number" min="1" step="1" value="${+(cfg.price || 499)}"></label>
+      <label>Награда: скин от, ₽<input class="ax-inp" id="pkaLo" type="number" min="1" step="1" value="${+rw[0]}"></label>
+      <label>до, ₽<input class="ax-inp" id="pkaHi" type="number" min="1" step="1" value="${+rw[1]}"></label>
+      <label class="pk-ax-wide">Главный приз (название скина из каталога)<input class="ax-inp" id="pkaPrize" list="pkaPrizes" value="${esc(prize)}" placeholder="начните вводить название"><datalist id="pkaPrizes">${dl}</datalist></label>
+      <label class="ax-chk"><input type="checkbox" id="pkaOff"${cfg.off ? ' checked' : ''}> Продажа пропуска закрыта</label>
+      <button class="ax-btn ax-ok" id="pkaSave">Сохранить</button></div>
+      <p class="ax-foot">Сейчас главный приз: ${prize && SK[prize] ? `<b>${esc(prize)}</b> — ${money(SK[prize].p)}` : '<b class="neg">не выбран</b>'}.</p>`)}
+    ${axCard('Главный приз', s.final ? `<p>Выдан: <b>${esc(s.final.name || '')}</b> #${s.final.pid} — ${esc(s.final.n)} (${s.final.pts} очк.)</p>`
+      : `<p>${lead ? `Сейчас первый: <b>${esc(lead.name)}</b> #${lead.pid} — ${lead.pts} очк. (${lead.ok} победителей)` : 'Лидера пока нет.'}</p>
+         <button class="ax-btn ax-ok" id="pkaFinal"${lead ? '' : ' disabled'}>Выдать главный приз лидеру</button><p class="ax-foot">Нажимать после финала Major: приз уйдёт в инвентарь лидера, продажа пропусков закроется. Отменить нельзя.</p>`)}
+    ${axCard('Матч', `<div class="pr-form pk-ax-add" id="pkaForm">
+      <input type="hidden" id="pkaId">
+      <label>Этап<select class="ax-inp" id="pkaSt">${PK_STAGES.map((x, i) => `<option value="${i + 1}">${x.n}</option>`).join('')}</select></label>
+      <label>Столбец<select class="ax-inp" id="pkaSl"></select></label>
+      <label>Порядок<input class="ax-inp" id="pkaO" type="number" min="0" step="1" value="1"></label>
+      <label>Команда 1<select class="ax-inp" id="pkaA">${tOpt('')}</select></label>
+      <label>Команда 2<select class="ax-inp" id="pkaB">${tOpt('')}</select></label>
+      <label>Формат<select class="ax-inp" id="pkaBo"><option value="1">BO1</option><option value="3">BO3</option><option value="5">BO5</option></select></label>
+      <label>Начало (ваше время)<input class="ax-inp" id="pkaT" type="datetime-local"></label>
+      <button class="ax-btn ax-ok" id="pkaAdd">Добавить матч</button><button class="ax-btn" id="pkaCancel" hidden>Отмена</button></div>
+      <p class="ax-foot">Прогнозы принимаются до времени начала. Этапы I–II: раунды 1–2 (0-0, 1-0, 0-1) — BO1, дальше BO3; этап III — всё BO3; плей-офф — BO3, финал BO5.</p>`)}
+    ${PK_STAGES.map((x, i) => { const ms = s.matches.filter(m => m.st === i + 1); return ms.length ? axCard(`${x.n} · ${x.d}`, `<div class="ax-tw"><table class="ax-t pk-ax-tbl"><thead><tr><th>Начало</th><th>Столбец</th><th>Матч</th><th>Формат</th><th class="num">Прогнозов</th><th>Результат</th><th></th></tr></thead><tbody>${ms.sort((a, b) => a.t - b.t).map(mrow).join('')}</tbody></table></div>`) : ''; }).join('')}`;
+  const stSel = $('#pkaSt', box), slSel = $('#pkaSl', box), boSel = $('#pkaBo', box);
+  const slFill = v => { slSel.innerHTML = PK_SLOTS[+stSel.value].map(x => `<option value="${x}">${PK_SLOT_N[x] || x}</option>`).join(''); if (v) slSel.value = v; };
+  const boAuto = () => { const st_ = +stSel.value, sl = slSel.value; boSel.value = st_ === 4 ? (sl === 'f' ? 5 : 3) : st_ === 3 ? 3 : ['0-0', '1-0', '0-1'].includes(sl) ? 1 : 3; };
+  stSel.onchange = () => { slFill(); boAuto(); }; slSel.onchange = boAuto; slFill(); boAuto();
+  $('#pkaSave', box).onclick = async e => {
+    const b = e.currentTarget, v = Object.assign({}, cfg, { price: +$('#pkaPrice', box).value || 499, rw: [+$('#pkaLo', box).value || 5, +$('#pkaHi', box).value || 10], prize: { n: $('#pkaPrize', box).value.trim() || null }, off: $('#pkaOff', box).checked });
+    if (v.prize.n && !SK[v.prize.n]) return toast('Такого скина нет в каталоге — выберите из списка', 'err');
+    if (v.rw[0] > v.rw[1]) return toast('«от» больше «до»', 'err');
+    b.disabled = true;
+    const { error: e2 } = await sb.from('site_cfg').upsert({ k: 'pickem', v, updated_at: new Date().toISOString() });
+    b.disabled = false;
+    if (e2) return err(e2);
+    toast('Настройки пикема сохранены'); admPickem(box);
+  };
+  const fin = $('#pkaFinal', box); if (fin) fin.onclick = async () => {
+    if (!prize || !SK[prize]) return toast('Сначала выберите главный приз в настройках', 'err');
+    if (!confirm(`Выдать «${prize}» игроку ${lead.name} (#${lead.pid})? Отменить нельзя.`)) return;
+    fin.disabled = true;
+    const { data, error: e2 } = await sb.rpc('admin_pk_final');
+    if (e2) { fin.disabled = false; return err(e2); }
+    toast(`Главный приз у ${esc(data.name)}`); admPickem(box);
+  };
+  const form = () => ({ id: $('#pkaId', box).value ? +$('#pkaId', box).value : null, st: +stSel.value, sl: slSel.value, o: +$('#pkaO', box).value || 0, a: $('#pkaA', box).value, b: $('#pkaB', box).value, bo: +boSel.value, t: $('#pkaT', box).value ? new Date($('#pkaT', box).value).getTime() : 0 });
+  $('#pkaAdd', box).onclick = async e => {
+    const p = form(); if (!p.t) return toast('Укажите время начала', 'err'); if (p.a === p.b) return toast('Команды одинаковые', 'err');
+    e.currentTarget.disabled = true;
+    const { error: e2 } = await sb.rpc('admin_pk_save', { p });
+    e.currentTarget.disabled = false;
+    if (e2) return err(e2);
+    toast(p.id ? 'Матч изменён' : 'Матч добавлен'); admPickem(box);
+  };
+  $('#pkaCancel', box).onclick = () => admPickem(box);
+  $$('[data-ed]', box).forEach(b => b.onclick = () => {
+    const m = s.matches.find(x => x.id === +b.dataset.ed); if (!m) return;
+    $('#pkaId', box).value = m.id; stSel.value = m.st; slFill(m.sl); $('#pkaO', box).value = m.o; $('#pkaA', box).value = m.a; $('#pkaB', box).value = m.b; boSel.value = m.bo; $('#pkaT', box).value = loc(m.t);
+    $('#pkaAdd', box).textContent = 'Сохранить матч'; $('#pkaCancel', box).hidden = false; $('#pkaForm', box).scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  $$('[data-del]', box).forEach(b => b.onclick = async () => {
+    const m = s.matches.find(x => x.id === +b.dataset.del);
+    if (!confirm(`Удалить матч ${pkName(m.a)} — ${pkName(m.b)}?${m.n ? ` Прогнозы (${m.n}) удалятся.` : ''}`)) return;
+    const { error: e2 } = await sb.rpc('admin_pk_del', { p_id: m.id }); if (e2) return err(e2);
+    toast('Матч удалён', 'info'); admPickem(box);
+  });
+  $$('[data-res]', box).forEach(b => b.onclick = async () => {
+    const tr = b.closest('tr'), m = s.matches.find(x => x.id === +b.dataset.res), w = $('[data-rw]', tr).value, sc = m.bo > 1 ? $('[data-rs]', tr).value : null;
+    if (!confirm(`Итог: победил ${pkName(w)}${sc ? ' со счётом ' + sc : ''}?\nИгрокам сразу уйдут скины за верные прогнозы — отменить нельзя.`)) return;
+    b.disabled = true;
+    const { data, error: e2 } = await sb.rpc('admin_pk_result', { p_id: m.id, p_win: w, p_score: sc });
+    if (e2) { b.disabled = false; return err(e2); }
+    toast(`Результат внесён: верных победителей ${data.ok}, счетов ${data.score}, выдано скинов ${data.skins} на ${money(+data.sum)}`); admPickem(box);
+  });
+}
+
+/* ---------- значки ---------- */
+const PK_IC = {
+  re: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1Zm2 0h6V8a3 3 0 0 0-6 0v2Z"/></svg>',
+  dot: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>',
+  arr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  tap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10"/><path d="M12 9.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 10.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-.6a6 6 0 0 1-4.6-2.2L4.5 16a1.6 1.6 0 0 1 2.4-2.1L9 16V11"/></svg>',
+  rnd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm3.5 5.1L12 10.6 8.5 7.1 7.1 8.5l3.5 3.5-3.5 3.5 1.4 1.4 3.5-3.5 3.5 3.5 1.4-1.4-3.5-3.5 3.5-3.5-1.4-1.4Z"/></svg>',
+  gift: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>',
+};
+/* ===== конец раздела ПИКЕМ ===== */
+
 const ic = {
   box: sv('<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>'),
   up: sv('<circle cx="12" cy="12" r="9"/><path d="M12 16V8M8.5 11.5L12 8l3.5 3.5"/>'),
@@ -1841,9 +2384,12 @@ function caseArt(c, cls = '', badge = '') {
 }
 const ava = (u, cls = '') => {
   if (!u) return '';
-  if (u.ava) return `<span class="ava ${cls}"><img src="${u.ava}" alt=""></span>`;
+  // медаль пикема (раздел ПИКЕМ в начале app.js): значок сверху справа, выходит за рамку; data-u — чтобы дорисовать, когда загрузится список
+  const id = u.id || u.uid || '', pid = u.pid || '', md = typeof pkHasMedal === 'function' && pkHasMedal(u);
+  const du = id || pid ? ` data-u="${esc(id)}|${esc(pid)}"` : '', mc = md ? ' has-md' : '', mi = md ? pkMedalHtml() : '';
+  if (u.ava) return `<span class="ava ${cls}${mc}"${du}><img src="${u.ava}" alt="">${mi}</span>`;
   const h = [...u.name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 120 + 60;
-  return `<span class="ava ${cls}" style="--h:${h}">${esc(u.name[0].toUpperCase())}</span>`;
+  return `<span class="ava ${cls}${mc}" style="--h:${h}"${du}>${esc(u.name[0].toUpperCase())}${mi}</span>`;
 };
 
 /* ---------- header / footer ---------- */
@@ -1854,6 +2400,7 @@ const NAV = [
   // { k: 'tower', h: '/tower', t: 'Башня', i: 'tower', nw: 1 }, // «Башня» отложена — в разработке (код ниже, страница скрыта)
   { k: 'contracts', h: '/contracts', t: 'Контракты', i: 'swap' },
   { k: 'bonus', h: '/bonus', t: 'Бонусы', i: 'gift' },
+  { k: 'pickem', h: '/pickem', t: 'Пикем Major', i: 'trophy', nw: 1 }, // пикем PGL Major Singapore 2026 (раздел ПИКЕМ в начале app.js)
   { k: 'tournaments', h: '/tournaments', t: 'Турниры', i: 'crown' },
   { k: 'top', h: '/top', t: 'Топ игроков', i: 'trophy' },
 ];
@@ -5910,7 +6457,7 @@ function mountBonus() {
    PROFILE
    ========================================================= */
 const STATUS = { own: ['В инвентаре', 'st-ok'], sold: ['Продан', 'st-mute'], out: ['Выведен в Steam', 'st-ok'], pend: ['Выводится в Steam…', 'st-warn'], upg: ['Сгорел в апгрейде', 'st-bad'], con: ['Использован в контракте', 'st-mute'], bet: ['В ставке', 'st-warn'], jp: ['Поставлен в ставки', 'st-mute'], tower: ['Поставлен в башне', 'st-mute'] };
-const fromName = f => f === 'weekly' ? 'Еженедельный набор' : f === 'giveaway' ? 'Розыгрыш' : f === 'tower' ? 'Башня' : f === 'jackpot' ? 'Ставки' : f === 'upgrade' ? 'Апгрейд' : f === 'contract' ? 'Контракт' : (caseById(f) ? 'Кейс «' + caseById(f).name + '»' : f);
+const fromName = f => f === 'pickem' ? 'Пикем Major' : f === 'weekly' ? 'Еженедельный набор' : f === 'giveaway' ? 'Розыгрыш' : f === 'tower' ? 'Башня' : f === 'jackpot' ? 'Ставки' : f === 'upgrade' ? 'Апгрейд' : f === 'contract' ? 'Контракт' : (caseById(f) ? 'Кейс «' + caseById(f).name + '»' : f);
 /* ---------- профиль (новый стиль CS2, по образцу владельца 12.11): три карточки, плашка, вкладки «Предметы / История / Апгрейды» ----------
    сервер: supabase/profile_v2.sql (my_upgrades, set_cmail); купон — use_promo (promo_admin.sql); выводы — my_withdrawals (market.sql) */
 const PF_IC = {
@@ -6064,8 +6611,8 @@ function pfInv(body) {
   const bc = myBc().map(b => `<a class="pf2-it pf2-it-bc" href="#/case/b-${b.id}" title="Открыть свой кейс">
       <div class="pf2-it-pic"><img src="assets/case-build-s.webp" alt=""><span class="pf2-it-acts"><span class="pf2-it-sell">Открыть</span></span></div>
       <div class="pf2-it-tx"><span>${(b.items || []).length} ${plural((b.items || []).length, 'скин', 'скина', 'скинов')}</span><b>${esc(b.name || 'Собери сам')}</b>${prc(+b.price)}</div></a>`).join('');
-  body.innerHTML = `<div class="pf2-grid" id="invGrid">${bc}${sorted.map(card).join('')}</div>${list.length || myBc().length ? '' : `<p class="pf2-hint">Инвентарь пуст — выпавшие предметы займут эти места. <a href="#/cases">Открыть кейс</a></p>`}`;
-  invFill();
+  body.innerHTML = `<div class="pf2-grid" id="invGrid">${pkInvCard()}${bc}${sorted.map(card).join('')}</div>${list.length || myBc().length ? '' : `<p class="pf2-hint">Инвентарь пуст — выпавшие предметы займут эти места. <a href="#/cases">Открыть кейс</a></p>`}`;
+  invFill(); pkInvBind(); // медаль пикема — кнопка «Показывать / Скрыть» (раздел ПИКЕМ в начале app.js)
   const dd = $('#pfDd'), ddl = $('.pf2-dd-l', dd);
   $('.pf2-dd-b', dd).onclick = e => { e.stopPropagation(); ddl.hidden = !ddl.hidden; dd.classList.toggle('open', !ddl.hidden); };
   $$('[data-s]', ddl).forEach(b => b.onclick = () => { pfSort = b.dataset.s; drawPf(true); });
@@ -7257,7 +7804,7 @@ function pageAdmin() {
 /* аватарка в админке — квадрат тёмного стекла (новый стиль), буква ника или картинка */
 const axAva = (u, sz = '') => !u ? '' : u.ava ? `<span class="ax-ava ${sz}"><img src="${esc(u.ava)}" alt="" loading="lazy"></span>` : `<span class="ax-ava ${sz}">${esc(((u.name || '?')[0] || '?').toUpperCase())}</span>`;
 // вкладки без выбора периода (настройки, списки) — полоску дат прячем
-const ADM_NOPER = ['shop', 'news', 'ann', 'promo', 'ref', 'ga', 'staff', 'tours', 'build', 'tower'];
+const ADM_NOPER = ['shop', 'news', 'ann', 'promo', 'ref', 'ga', 'staff', 'tours', 'build', 'tower', 'pickem'];
 /* роль в админке: владелец — всё; сотрудник — только вкладки, отмеченные владельцем (права проверяет и сервер, supabase/roles.sql) */
 let admMe = null;
 async function admRole() {
@@ -7463,7 +8010,7 @@ const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
 const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash', 'build'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'ann', 'promo', 'tours', 'staff'], 'globe']];
-const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['ga', 'Розыгрыши'], ['ref', 'Рефералы'], ['shop', 'Управление витриной'], ['news', 'Новости'], ['ann', 'Объявление'], ['tours', 'Турниры'], ['staff', 'Сотрудники']];
+const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['ga', 'Розыгрыши'], ['ref', 'Рефералы'], ['shop', 'Управление витриной'], ['news', 'Новости'], ['ann', 'Объявление'], ['tours', 'Турниры'], ['pickem', 'Пикем'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
   const [f, t] = admRangeDates();
@@ -8155,6 +8702,7 @@ function admDraw() {
   if (admTab === 'promo') return admPromo(box);
   if (admTab === 'ref') return admRef(box);
   if (admTab === 'ga') return admGa(box);
+  if (admTab === 'pickem') return admPickem(box); // пикем — раздел ПИКЕМ в начале файла
   if (admTab === 'build') return admBuild(box);
   if (admTab === 'tower') return admTower(box);
   admTabData(box, R[admTab] || axDash);
@@ -11047,7 +11595,7 @@ async function mountRrTop() {
   if (d.me && !rows.some(r => r.me)) $('#rrtMe').innerHTML = `<div class="rrt-tb rrt-mine">${rrtRow(d.me)}</div>`;   // своё место — внизу, если не в сотне
 }
 const ROUTES = {
-  '': [pageMain, mountMain], krot: [pageKrot, mountKrot], invite: [pageInvite, mountInvite], cases: [pageCases, mountCases], top: [pageTop, mountTop], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
+  '': [pageMain, mountMain], pickem: [pagePickem, mountPickem], krot: [pageKrot, mountKrot], invite: [pageInvite, mountInvite], cases: [pageCases, mountCases], top: [pageTop, mountTop], case: [pageCase, mountCase], upgrade: [pageUpgrade, mountUpgrade], build: [pageBuild, mountBuild], crash: [pageCrash, mountCrash], contracts: [pageContracts, mountContracts],
   bonus: [pageBonus, mountBonus], profile: [pageProfile, mountProfile], faq: [pageFaq, mountFaq], terms: [pageTerms, mountDoc], privacy: [pagePrivacy, mountDoc], payment: [pagePayment, mountDoc], cookies: [pageCookies, mountDoc], admin: [pageAdmin, mountAdmin],
   tournaments: [pageTours, mountTours], tournament: [pageTour, mountTour], join: [pageJoin, mountJoin], u: [pagePlayer, mountPlayer], rrtop: [pageRrTop, mountRrTop],
   staff: [pageStaff, mountStaff], // вход для админов и сотрудников по почте (ссылок на неё нет)
@@ -11073,6 +11621,7 @@ function route() {
   wkAuto(key); // еженедельный набор: раз в неделю сам появляется на главной
   tutAuto(key); // обучение новичков (кнопка «?» и первый заход)
   document.body.classList.toggle('pg-crash', key === 'crash');
+  document.body.classList.toggle('pg-pickem', key === 'pickem'); // пикем Major — свой фон (css/pickem.css)
   document.body.classList.toggle('pg-build', key === 'build');
   document.body.classList.toggle('pg-doc', DOC_KEYS.includes(key)); // документы — размытый фон «Кейсов», как «Бонусы»
   document.body.classList.toggle('pg-contracts', key === 'contracts'); // «Контракты» — свой фон (assets/bg-contracts.webp)
@@ -11098,7 +11647,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ pickem: 'Пикем PGL Major Singapore 2026', krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 
