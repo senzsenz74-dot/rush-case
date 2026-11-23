@@ -266,7 +266,8 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- =====================================================================
--- админка (только владелец: is_admin())
+-- админка: матчи и итоги — владелец или сотрудник с галочкой «Пикем» (has_any_perm, supabase/staff_perms.sql + pickem_staff.sql);
+-- настройки (site_cfg pickem) и выдача главного приза — только владелец (is_admin())
 -- =====================================================================
 
 -- добавить / изменить матч: p = { id?, st, sl, o, a, b, bo, t (мс) }
@@ -274,7 +275,7 @@ create or replace function public.admin_pk_save(p jsonb) returns bigint
 language plpgsql security definer set search_path = public as $$
 declare r public.pk_matches; nid bigint; t timestamptz := to_timestamp((p->>'t')::numeric / 1000);
 begin
-  if not public.is_admin() then raise exception 'forbidden'; end if;
+  if not public.has_any_perm(array['pickem']) then raise exception 'forbidden'; end if;   -- владелец или сотрудник с галочкой «Пикем» (pickem_staff.sql)
   if coalesce(p->>'a', '') = '' or coalesce(p->>'b', '') = '' or p->>'a' = p->>'b' then raise exception 'pickem team'; end if;
   if (p->>'id') is not null then
     select * into r from public.pk_matches where id = (p->>'id')::bigint for update;
@@ -295,7 +296,7 @@ end $$;
 create or replace function public.admin_pk_del(p_id bigint) returns void
 language plpgsql security definer set search_path = public as $$
 begin
-  if not public.is_admin() then raise exception 'forbidden'; end if;
+  if not public.has_any_perm(array['pickem']) then raise exception 'forbidden'; end if;   -- владелец или сотрудник с галочкой «Пикем» (pickem_staff.sql)
   if exists (select 1 from public.pk_matches where id = p_id and win is not null) then raise exception 'pickem done'; end if;
   delete from public.pk_matches where id = p_id;
 end $$;
@@ -308,7 +309,7 @@ declare m public.pk_matches; cfg jsonb; lo numeric; hi numeric; r record; sp rec
         nk int; sk text; pz jsonb; tm text; bx text;
         n_ok int := 0; n_sc int := 0; n_st int := 0; n_sk int := 0; s_sk numeric := 0;
 begin
-  if not public.is_admin() then raise exception 'forbidden'; end if;
+  if not public.has_any_perm(array['pickem']) then raise exception 'forbidden'; end if;   -- владелец или сотрудник с галочкой «Пикем» (pickem_staff.sql)
   select * into m from public.pk_matches where id = p_id for update;
   if not found then raise exception 'pickem match'; end if;
   if m.win is not null then raise exception 'pickem done'; end if;
@@ -384,7 +385,7 @@ end $$;
 create or replace function public.admin_pk_stats() returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 begin
-  if not public.is_admin() then raise exception 'forbidden'; end if;
+  if not public.has_any_perm(array['pickem']) then raise exception 'forbidden'; end if;   -- владелец или сотрудник с галочкой «Пикем» (pickem_staff.sql)
   return jsonb_build_object(
     'passes', (select count(*) from public.pk_passes),
     'income', (select coalesce(sum(price), 0) from public.pk_passes),

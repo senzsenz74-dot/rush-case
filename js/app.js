@@ -664,6 +664,11 @@ async function admPickem(box) {
     if (e2) { b.disabled = false; return err(e2); }
     toast(`Результат внесён: верных победителей ${data.ok}, счетов ${data.score}, расстановок ${data.stage || 0}, выдано скинов ${data.skins} на ${money(+data.sum)}`); admPickem(box);
   });
+  // сотрудник с галочкой «Пикем» (supabase/pickem_staff.sql): только матчи и итоги; настройки и главный приз — у владельца
+  if (!admOwner()) {
+    $$('.ax-card', box).filter(c => /^(Настройки|Главный приз)$/.test(($('h3', c) || {}).textContent || '')).forEach(c => c.remove());
+    box.insertAdjacentHTML('afterbegin', '<p class="ax-foot">Вам доступны матчи и итоги. Настройки пикема и главный приз меняет владелец.</p>');
+  }
 }
 
 /* ---------- значки ---------- */
@@ -8138,7 +8143,7 @@ const num = 'num', tn = k => r => 'num ' + tone(r[k]);
 const pctOr = (a, b) => b ? pctS(a / b) : '—';
 const dayCol = D => [D.hours ? 'Час' : 'День', r => r.full];
 /* ---------- вкладки ---------- */
-const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash', 'build'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'ann', 'promo', 'tours', 'staff'], 'globe']];
+const ADM_GROUPS = [['Деньги', ['dash', 'money', 'books'], 'wallet'], ['Игры', ['cases', 'bets', 'upg', 'crash', 'build', 'pickem'], 'box'], ['Игроки', ['players', 'online', 'out', 'support'], 'users'], ['Сайт', ['shop', 'ann', 'promo', 'tours', 'staff'], 'globe']];
 const ADM_TABS = [['dash', 'Дашборд'], ['money', 'Касса'], ['books', 'Бухгалтерия'], ['online', 'Онлайн'], ['cases', 'Кейсы'], ['bets', 'Ставки'], ['upg', 'Апгрейд'], ['crash', 'Краш'], ['build', 'Собери сам'], ['tower', 'Башня'], ['out', 'Выводы Steam'], ['players', 'Игроки'], ['support', 'Поддержка'], ['promo', 'Промокоды'], ['ga', 'Розыгрыши'], ['ref', 'Рефералы'], ['shop', 'Управление витриной'], ['news', 'Новости'], ['ann', 'Объявление'], ['tours', 'Турниры'], ['pickem', 'Пикем'], ['staff', 'Сотрудники']];
 function admPeriodBar() {
   const box = $('#axPeriod'); if (!box) return;
