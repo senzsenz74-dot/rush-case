@@ -6114,6 +6114,59 @@ body.pg-profile::after{background:linear-gradient(180deg,rgba(6,8,12,.22),rgba(6
 .pfw-item span{font-size:13px;color:#9aa0a8}
 .pfw-item b{font:700 17px/1.2 var(--ff)}
 .pfw-item .prc{margin-top:6px;font:500 22px/1 'Oswald',var(--ff)}
+/* вывод закрыт до пополнения (wdLockWin, supabase/wd_dep_lock.sql) — как окно пропуска пикема (.m-pkb, одобрено 23.11):
+   без рамки, скин парит над затемнённым сайтом, замок, ниже скруглённое стекло; вылет скина, замок, затем стекло и пункты */
+.modal.m-wdl{width:min(560px,100%);max-height:calc(100vh - 32px);padding:0;border:0;border-radius:0;background:none;box-shadow:none;overflow:visible;transform:none;transition:none}
+.modal-ov:has(.m-wdl){background:rgba(4,6,9,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.m-wdl .m-close{top:2px;right:0;width:36px;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(30,33,40,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#c3c8cf}
+.m-wdl .m-close:hover{transform:none;color:#fff;background:rgba(255,255,255,.12)}
+.m-wdl .m-close svg{width:16px;height:16px}
+.wdl{display:flex;flex-direction:column;align-items:center}
+.wdl-h{align-self:stretch;padding:0 48px;text-align:center}
+.wdl-h small{display:block;margin-bottom:7px;font:700 11px/1 var(--ff-h);letter-spacing:.2em;text-transform:uppercase;color:#84d9fd}
+.wdl-h h3{margin:0;font:500 30px/1 'Oswald',var(--ff);text-transform:uppercase;color:#fff;text-shadow:0 4px 18px rgba(0,0,0,.6)}
+.wdl-sk{position:relative;width:min(380px,84%);margin:16px 0 2px}
+.wdl-sk::before{content:"";position:absolute;inset:6% 2%;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--rc) 42%,transparent),transparent);filter:blur(18px)}
+.wdl-img{position:relative;display:block;width:100%;height:auto;filter:drop-shadow(0 22px 30px rgba(0,0,0,.6))}
+.wdl-lk{position:absolute;right:0;bottom:4%;display:grid;place-items:center;width:52px;height:52px;border-radius:12px;background:rgba(30,33,40,.6);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px rgba(132,217,253,.42),0 12px 26px rgba(0,0,0,.5);color:#84d9fd}
+.wdl-lk svg{width:24px;height:24px}
+.wdl-cap{display:flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:18px;text-align:center}
+.wdl-cap span{font-size:13px;color:#9aa0a8}
+.wdl-cap b{font:700 17px/1.2 var(--ff);color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+.wdl-cap .prc{margin-top:4px;font:500 22px/1 'Oswald',var(--ff)}
+.wdl-glass{align-self:stretch;padding:18px 20px;border-radius:16px;background:rgba(32,35,42,.5);-webkit-backdrop-filter:blur(18px) saturate(1.1);backdrop-filter:blur(18px) saturate(1.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),inset 0 1px 0 rgba(255,255,255,.08),0 24px 50px rgba(0,0,0,.45)}
+.wdl-ol{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.wdl-ol li{display:flex;gap:12px;font-size:14px;line-height:1.5;color:#d0d5dd}
+.wdl-ol li b{color:#fff}
+.wdl-ol li small{display:block;margin-top:2px;font-size:12.5px;color:#9aa0a8}
+.wdl-ol li>i{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:rgba(132,217,253,.12);box-shadow:inset 0 0 0 1px rgba(132,217,253,.35);color:#84d9fd}
+.wdl-ol li>i svg{width:15px;height:15px}
+.wdl-bar{display:grid;gap:8px;margin-top:16px}
+.wdl-bar>span{font-size:13px;color:#aeb5c2}
+.wdl-bar>i{display:block;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+.wdl-bar>i>u{display:block;height:100%;border-radius:3px;background:#84d9fd}
+.wdl-f{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08)}
+.wdl-f .c2-btn{flex:none;width:auto;height:46px;min-width:210px;padding:0 24px;border-radius:10px;white-space:nowrap;overflow:visible}
+.wdl-bal{font-size:13px;color:#aeb5c2}
+.modal-ov.in .m-wdl .wdl-h{animation:wdlDown .45s cubic-bezier(.2,.8,.3,1) both}
+.modal-ov.in .m-wdl .wdl-img{animation:wdlFly .8s cubic-bezier(.18,.9,.24,1) .05s both}
+.modal-ov.in .m-wdl .wdl-sk::before{animation:wdlFade .9s ease .2s both}
+.modal-ov.in .m-wdl .wdl-lk{animation:wdlLock .6s cubic-bezier(.2,.85,.3,1.2) .5s both}
+.modal-ov.in .m-wdl .wdl-cap{animation:wdlUp .45s cubic-bezier(.2,.8,.3,1) .35s both}
+.modal-ov.in .m-wdl .wdl-glass{animation:wdlUp .55s cubic-bezier(.2,.8,.3,1) .42s both}
+.modal-ov.in .m-wdl .wdl-ol li,.modal-ov.in .m-wdl .wdl-bar,.modal-ov.in .m-wdl .wdl-f{animation:wdlUp .45s cubic-bezier(.2,.8,.3,1) both}
+.modal-ov.in .m-wdl .wdl-ol li:nth-child(1){animation-delay:.55s}
+.modal-ov.in .m-wdl .wdl-ol li:nth-child(2){animation-delay:.62s}
+.modal-ov.in .m-wdl .wdl-ol li:nth-child(3){animation-delay:.69s}
+.modal-ov.in .m-wdl .wdl-bar{animation-delay:.76s}
+.modal-ov.in .m-wdl .wdl-f{animation-delay:.84s}
+@keyframes wdlDown{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+@keyframes wdlFly{0%{opacity:0;transform:translateY(130px) rotate(-14deg) scale(.72)}60%{opacity:1;transform:translateY(-10px) rotate(2deg) scale(1.03)}100%{opacity:1;transform:none}}
+@keyframes wdlLock{0%{opacity:0;transform:scale(.4) rotate(-25deg)}70%{opacity:1;transform:scale(1.12) rotate(4deg)}100%{opacity:1;transform:none}}
+@keyframes wdlUp{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+@keyframes wdlFade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.modal-ov.in .m-wdl *,.modal-ov.in .m-wdl *::before{animation:none!important}}
+@media (max-width:520px){.wdl-h{padding:0 44px}.wdl-h h3{font-size:24px}.wdl-f{flex-direction:column;align-items:stretch}.wdl-f .c2-btn{width:100%;min-width:0}}
 .pfw-lead{display:flex;align-items:center;gap:16px}
 .pfw-lead-i{flex:none;width:64px;height:52px;filter:drop-shadow(0 5px 8px rgba(0,0,0,.35))}
 .pfw-lead-i svg{width:100%;height:100%}

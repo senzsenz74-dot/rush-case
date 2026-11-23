@@ -1998,7 +1998,7 @@ addEventListener('visibilitychange', () => { if (document.hidden) sbPush(); });
 /* ---------- рефералка v2 (supabase/referral2.sql, владелец 15.11): ссылка ?ref=<код или ID>; пригласившему — % от каждого
    пополнения друга навсегда, в реферальный кошелёк (забрать на баланс; вывод на карту — позже); другу — подарок (+% к первому
    пополнению, у стримеров ещё ₽ и кейс). Страница #/invite (pageInvite), вкладка админки «Рефералы» (admRef) ---------- */
-Object.assign(SRV_ERR, { 'ref lock': 'Вывод скинов откроется после первого пополнения — вы получили подарок по реферальной ссылке', 'ref no gift': 'Подарочный кейс уже открыт',
+Object.assign(SRV_ERR, { 'dep lock': 'Вывод скинов откроется после первого пополнения баланса', 'ref lock': 'Вывод скинов откроется после первого пополнения — вы получили подарок по реферальной ссылке','ref no gift': 'Подарочный кейс уже открыт',
   'ref empty': 'В реферальном кошельке пока пусто', 'ref frozen': 'Кошелёк заморожен — напишите в поддержку', 'ref min': 'Сумма меньше минимальной',
   'ref bad code': 'Код: 3–16 латинских букв, цифр или «_», хотя бы одна буква', 'ref code taken': 'Этот код уже занят', 'ref code wait': 'Код можно менять раз в сутки',
   'ref bad pct': 'Процент вне вашего лимита', 'ref bad bal': 'Сумма вне вашего лимита', 'ref bad case': 'Этот кейс нельзя подарить', 'ref bad n': 'Подарков больше, чем разрешено' });
@@ -6948,8 +6948,44 @@ function pfWdWin() {
     <div id="wdList"><div class="pf2-load"><span class="spinner"></span>Загружаем выводы…</div></div>` });
   drawWd();
 }
-function withdraw(id) {
-  const it = st.inv.find(x => x.id === id); if (!it || it.st !== 'own') return;
+/* ---------- вывод только после пополнения (supabase/wd_dep_lock.sql, владелец 23.11): пока игрок не пополнил в сумме от
+   site_cfg 'wd'.min_dep (100 ₽) — вывод закрыт для всего инвентаря. Сервер: триггер на withdrawals → ошибка 'dep lock';
+   wd_gate() → { min, dep, ok }. Здесь — окно с замком и зелёной «Пополнить» вместо окна вывода ---------- */
+const WDL_IC = sv('<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>');
+let wdOpen = false, wdBusy = false; // вывод уже открыт (после пополнения не закрывается)
+async function wdGate() {
+  if (wdOpen || !sb || !st.user || !st.user.sb) return { ok: true };
+  const { data, error } = await sb.rpc('wd_gate');
+  if (error || !data) return { ok: true }; // функции ещё нет на сервере — решит сам вывод
+  if (data.ok) wdOpen = true;
+  return data;
+}
+// окно как пропуск пикема (pkBuyWin, одобрено владельцем 23.11): без рамки, скин парит над затемнённым сайтом, на нём замок,
+// ниже скруглённое стекло с пунктами и зелёной кнопкой; скин вылетает снизу, замок защёлкивается, затем стекло и пункты (.m-wdl)
+function wdLockWin(it, g) {
+  const s = SK[it.n], min = +g.min || 100, dep = +g.dep || 0;
+  const m = modal(`<div class="wdl r-${s.r}">
+    <header class="wdl-h"><small>Вывод в Steam</small><h3>Откроется после пополнения</h3></header>
+    <div class="wdl-sk"><img class="wdl-img" src="${imgUrl(s, 'l')}" alt="${esc(s.name)}"><i class="wdl-lk">${WDL_IC}</i></div>
+    <div class="wdl-cap"><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>
+    <div class="wdl-glass">
+      <ul class="wdl-ol">
+        <li><i>${WDL_IC}</i><span>Вывести скин в Steam можно после <b>первого пополнения баланса</b> — СБП, картой или скинами.<small>Пополнение скинами засчитывается после проверки обмена — 7 дней.</small></span></li>
+        <li><i>${ic.box}</i><span>Скин останется в инвентаре: его можно продать или улучшить в апгрейде, а после пополнения — вывести.</span></li>
+        <li><i>${ic.shield}</i><span>Так мы защищаем бонусы новичков от мультиаккаунтов.</span></li>
+      </ul>
+      ${dep > 0 ? `<div class="wdl-bar"><span>Пополнено ${prc(dep)} из ${prc(min)}</span><i><u style="width:${Math.min(100, dep / min * 100).toFixed(1)}%"></u></i></div>` : ''}
+      <footer class="wdl-f"><span class="wdl-bal">Баланс: ${prc(st.balance)}</span><button class="c2-btn c2-green" type="button" id="wdlGo">Пополнить баланс</button></footer>
+    </div>
+  </div>`, 'm-wdl');
+  $('#wdlGo', m).onclick = () => openDeposit();
+}
+// показ окна на локальной копии без входа: WDDBG('AK-47 | …', 150) — как PKDBG у пикема
+if (/^(localhost|127\.)/.test(location.hostname)) window.WDDBG = (n, dep = 0) => wdLockWin({ n: n || Object.keys(SK).find(k => SK[k].r === 'covert' && SK[k].p > 500) }, { min: 100, dep, ok: false });
+async function withdraw(id) {
+  const it = st.inv.find(x => x.id === id); if (!it || it.st !== 'own' || wdBusy) return;
+  wdBusy = true; const g = await wdGate(); wdBusy = false;
+  if (!g.ok) return wdLockWin(it, g);
   if (!st.trade) { toast('Сначала укажите трейд-ссылку Steam', 'err'); return pfSettings('trade'); }
   const s = SK[it.n];
   const m = pfWin({ k: 'Steam', t: 'Вывод предмета', body: `<div class="pfw-item r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>
