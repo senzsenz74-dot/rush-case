@@ -5533,8 +5533,8 @@ function upgValue() { return upgItems().reduce((a, x) => a + SK[x.n].p, 0) + upg
 // шанс апгрейда: возврат × (ставка / цель) — upgRtp ниже; дальше резко падает (x50 ≈ 0,12%, x100 ≈ 0,007%, x500 ≈ 0,00001%) — x500/x1000 практически не выпадают
 const UPG_SOFT = 20;
 const UPG_MAX = .75; // максимальный шанс апгрейда (как на сервере)
-// возврат апгрейда: 80% на ×1,05–×5 (льгота 92% на мелких множителях убрана 02.11 — ею «накатывали» баланс), дальше как было
-const upgRtp = x => x <= 5 ? .8 : x < 6 ? .8 + (x - 5) * .12 : .92;
+// возврат апгрейда: 80% на всех множителях (владелец 23.11 — без «92% от ×6»); выше ×UPG_SOFT шанс дополнительно режется. Сервер — supabase/rtp80_modes.sql (_upg_rtp)
+const upgRtp = () => .8;
 const upgChance = (v, t) => { if (!v || !t) return 0; const x = t.p / v; return Math.min(UPG_MAX, upgRtp(x) / x * (x > UPG_SOFT ? (UPG_SOFT / x) ** 3 : 1) * myLuck()); };
 /* процент шанса: мелкие значения — без округления в ноль (0,0000118%) */
 const pctTxt = ch => { const p = ch * 100; if (p < 1e-6) return '<0,000001%'; const d = p >= 10 ? 1 : p >= 1 ? 2 : Math.min(12, 1 - Math.floor(Math.log10(p))); return p.toFixed(d).replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1').replace('.', ',') + '%'; };
@@ -8318,7 +8318,7 @@ function axUpg(box, D) {
     <p class="ax-foot">Удача игрока (меняется в «Игроки») умножает и шанс апгрейда. Шанс: x1,05–5 — в среднем отдаёт 80%, выше x5 — до 92%, максимум 75%.</p>`;
 }
 /* ---------- краш (supabase/crash_admin.sql): только реальные игроки — без ботов и админов, только завершённые раунды ---------- */
-const CR_MODES = [[-2, 'Агрессивный', 'почти всегда взрыв сразу'], [-1, 'Жёсткий', 'чаще рано, отдаёт ~65%'], [0, 'Баланс', 'отдаёт 90%, случайно'], [1, 'Щедрый', 'без мгновенных взрывов, отдаёт >100%'], [2, 'Дающий', 'чаще всего держит до 40-й секунды']];
+const CR_MODES = [[-2, 'Агрессивный', 'почти всегда взрыв сразу'], [-1, 'Жёсткий', 'чаще рано, отдаёт ~65%'], [0, 'Баланс', 'отдаёт 80%, случайно'], [1, 'Щедрый', 'без мгновенных взрывов, отдаёт >100%'], [2, 'Дающий', 'чаще всего держит до 40-й секунды']];
 const crModeName = m => (CR_MODES.find(x => x[0] === +m) || CR_MODES[2])[1];
 function axCrash(box, D) {
   if (D.crashErr) return (box.innerHTML = admErr(D.crashErr) + '<div class="ax-empty">Нужен supabase/crash_admin.sql.</div>');
@@ -10978,7 +10978,7 @@ async function crAdmSlider(box) {
 }
 function crRulesModal() {
   const m = modal(`<div class="ga-mod" style="--gl:#84d9fd"><header class="ga-mh"><small>Краш C4</small><h3>Правила</h3></header>
-    <ol class="ga-ol">${[...CR_RULES, 'Окупаемость режима — 90%: в среднем игрокам возвращается 90% ставок.'].map((t, k) => `<li><i>${k + 1}</i><span>${t}</span></li>`).join('')}</ol>
+    <ol class="ga-ol">${[...CR_RULES, 'Окупаемость режима — 80%: в среднем игрокам возвращается 80% ставок.'].map((t, k) => `<li><i>${k + 1}</i><span>${t}</span></li>`).join('')}</ol>
     <footer class="ga-mf"><button class="bw-go ga-ok" type="button">Понятно</button></footer></div>`, 'm-ga');
   $('.ga-ok', m).onclick = closeModal;
 }
