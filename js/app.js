@@ -3329,10 +3329,12 @@ const NY_SNOW_MAP = `
   float nyN = nyNs(vNyP) * 0.65 + nyNs(vNyP * 3.1) * 0.35; vec3 nyWN = normalize(vNyN);
   // снег только на голове и плечах (владелец 25.11): смотрит вверх И выше линии плеч (vNyY — высота над землёй, м); ниже — ничего, инея на теле нет, без свечения
   float nySnow = smoothstep(0.30, 0.52, nyWN.y + (nyN - 0.5) * 0.4) * smoothstep(1.40, 1.50, vNyY + (nyN - 0.5) * 0.05);
-  // иней — только на ботинках и низе штанов (владелец 25.11: с лица, туловища и рук убрать): до 0,35 м над землёй полный, к 0,55 м сходит на нет,
-  // у самой земли гуще; видимый светло-голубой налёт пятнами, без свечения
+  // иней — только на одежде (владелец 25.11): NY_CLOTH = 0 у головы/маски/перчаток/голых рук; кожу внутри текстуры одежды (у Vypa — плечи, живот)
+  // узнаём по цвету (r > g > b, тёплый) и тоже не трогаем. На одежде — видимый налёт, на ботинках и низе штанов (до 0,35–0,55 м) гуще.
+  vec3 nyC = diffuseColor.rgb;
+  float nySkin = (nyC.r > nyC.g && nyC.g > nyC.b) ? smoothstep(0.06, 0.14, nyC.r - nyC.b) * (1.0 - smoothstep(0.84, 0.94, nyC.g / max(nyC.r, 1e-3))) : 0.0;
   float nyLow = smoothstep(0.55, 0.35, vNyY + (nyN - 0.5) * 0.08);
-  float nyFrost = nyLow * (0.30 + 0.15 * smoothstep(0.3, 0.0, vNyY)) * smoothstep(0.3, 0.75, nyNs(vNyP * 2.5) * 0.7 + nyNs(vNyP * 9.0) * 0.3);
+  float nyFrost = NY_CLOTH * (1.0 - nySkin) * (0.22 + nyLow * (0.10 + 0.13 * smoothstep(0.3, 0.0, vNyY))) * smoothstep(0.3, 0.75, nyNs(vNyP * 2.5) * 0.7 + nyNs(vNyP * 9.0) * 0.3);
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.80, 0.86, 0.93), nyFrost);
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.94, 0.97), nySnow * 0.85); // немного снега на голове и плечах
 `;
@@ -3342,16 +3344,17 @@ function nySnowMat(o) {
   mats.forEach(m => {
     if (!m || m.userData.nySnow || !m.isMeshStandardMaterial) return; m.userData.nySnow = 1;
     const F = (7 / sz).toFixed(4); // ~7 пятен на высоту части модели
+    const cloth = /head|mask|glove|bare_arm/i.test(m.name || '') ? '0.0' : '1.0'; // иней только на одежде
     m.onBeforeCompile = sh => {
       sh.vertexShader = 'varying vec3 vNyN; varying vec3 vNyP; varying float vNyY;\n' + sh.vertexShader
         .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n vNyY = (modelMatrix * vec4(transformed, 1.0)).y;').replace('#include <defaultnormal_vertex>',
         '#include <defaultnormal_vertex>\n vNyN = normalize(mat3(modelMatrix) * objectNormal); vNyP = position * ' + F + ';');
-      sh.fragmentShader = 'varying vec3 vNyN; varying vec3 vNyP; varying float vNyY;\n' + NY_SNOW_FS + sh.fragmentShader
+      sh.fragmentShader = '#define NY_CLOTH ' + cloth + '\nvarying vec3 vNyN; varying vec3 vNyP; varying float vNyY;\n' + NY_SNOW_FS + sh.fragmentShader
         .replace('#include <map_fragment>', '#include <map_fragment>\n' + NY_SNOW_MAP)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.85, max(nySnow, nyFrost));')
         .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor *= 1.0 - nySnow;');
     };
-    m.customProgramCacheKey = () => 'nySnow' + F; m.needsUpdate = true;
+    m.customProgramCacheKey = () => 'nySnow' + F + cloth; m.needsUpdate = true;
   });
 }
 // хлопья снега для mnaWind (новогодний ивент): атлас 4×2 — мягкие комочки разного размера, рисуется на лету
