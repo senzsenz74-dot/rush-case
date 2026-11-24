@@ -3316,6 +3316,40 @@ function mnLampsPos() {
 }
 // ветер с листьями CS2 (assets/main/leaves.webp — 8 сухих листьев из materials/particle/leaf/leafdead): порыв раз в 15–25 с,
 // между порывами — редкие падающие листья. Листья кувыркаются, ложатся на землю, следующий порыв их поднимает; полежав ~12 с, тают
+// снег и иней на агенте (новогодний ивент, владелец 25.11): в материал агента дописываем шейдер —
+// поверхности, смотрящие вверх (плечи, макушка, верх рук и груди), покрыты снегом пятнами (шум по точкам модели — пятна не «плывут» при движении),
+// всё остальное — лёгкий голубоватый иней с редкими искрами. Материалы общие у копий агента — правим один раз (userData.nySnow).
+const NY_SNOW_FS = `
+float nyH(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float nyNs(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(nyH(i), nyH(i + vec3(1,0,0)), f.x), mix(nyH(i + vec3(0,1,0)), nyH(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(nyH(i + vec3(0,0,1)), nyH(i + vec3(1,0,1)), f.x), mix(nyH(i + vec3(0,1,1)), nyH(i + vec3(1,1,1)), f.x), f.y), f.z); }
+`;
+const NY_SNOW_MAP = `
+  float nyN = nyNs(vNyP) * 0.65 + nyNs(vNyP * 3.1) * 0.35; vec3 nyWN = normalize(vNyN);
+  float nySnow = smoothstep(0.55, 0.8, nyWN.y + (nyN - 0.5) * 0.5);
+  float nyFrost = (0.03 + 0.10 * smoothstep(0.0, 0.6, nyWN.y)) * smoothstep(0.35, 0.75, nyNs(vNyP * 2.5));
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.91, 0.98), nyFrost);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.97, 1.0), nySnow * 0.95);
+`;
+function nySnowMat(o) {
+  const mats = Array.isArray(o.material) ? o.material : [o.material];
+  o.geometry.computeBoundingBox(); const bb = o.geometry.boundingBox, sz = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) || 1;
+  mats.forEach(m => {
+    if (!m || m.userData.nySnow || !m.isMeshStandardMaterial) return; m.userData.nySnow = 1;
+    const F = (7 / sz).toFixed(4); // ~7 пятен на высоту части модели
+    m.onBeforeCompile = sh => {
+      sh.vertexShader = 'varying vec3 vNyN; varying vec3 vNyP;\n' + sh.vertexShader.replace('#include <defaultnormal_vertex>',
+        '#include <defaultnormal_vertex>\n vNyN = normalize(mat3(modelMatrix) * objectNormal); vNyP = position * ' + F + ';');
+      sh.fragmentShader = 'varying vec3 vNyN; varying vec3 vNyP;\n' + NY_SNOW_FS + sh.fragmentShader
+        .replace('#include <map_fragment>', '#include <map_fragment>\n' + NY_SNOW_MAP)
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.8, max(nySnow, nyFrost * 0.6));')
+        .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor *= 1.0 - nySnow;')
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += vec3(0.55, 0.65, 0.8) * step(0.993, nyH(floor(vNyP * 30.0))) * nySnow * 0.7;');
+    };
+    m.customProgramCacheKey = () => 'nySnow' + F; m.needsUpdate = true;
+  });
+}
 // хлопья снега для mnaWind (новогодний ивент): атлас 4×2 — мягкие комочки разного размера, рисуется на лету
 function nySnowTex(THREE) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d');
@@ -3514,7 +3548,7 @@ function mnAgent() {
     });
     MNA.props = props; // для подгонки из браузера
     const agent = ag.scene; pivot.add(agent);
-    agent.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+    agent.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (NY) nySnowMat(o); } }); // NY — снег и иней на агенте (владелец 25.11)
     const wpn = agent.getObjectByName('wpn'), gun = wp.scene;
     const WK = MN_WPN[mnWpnKey()];
     if (WK.set) { // ствол из игры со скелетом: его кость weapon ставим ровно в wpn (то же, что поворот и сдвиг у AWP ниже, но по самой модели)
