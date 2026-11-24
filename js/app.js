@@ -3282,17 +3282,24 @@ function mountMain() {
    Нет WebGL или устройство не тянет даже экономную графику (rc.gfxPic, 3 дня) — картинка agent.webp.
    22.11: телефон и экономная графика — тот же живой агент, но 30 кадров/с, меньше разрешение, простые тени (GFX).
    Модели сжаты meshopt (tools/main-models.mjs) — загрузчику нужен MeshoptDecoder. */
-const MNA = { v: 4, dir: 'assets/main/', s: null, seen: false, gl: null,
+const MNA = { v: 11, dir: 'assets/main/', s: null, seen: false, gl: null,
   moves: [['weightshift', 3], ['lookaround', 3], ['lookback', 2], ['lookback02', 2], ['lookbatgun', 1]] };
 window.rcMNA = MNA; // для проверки из браузера
 const mnaStop = () => { if (MNA.s) { MNA.s.kill(); MNA.s = null; } };
 function mnaLoad() { // модели держим в памяти вкладки (без видеокарты): при возврате на главную не качаем заново
   if (!MNA.gl) MNA.gl = Promise.all([c2Lib(), import('three/addons/libs/meshopt_decoder.module.js')]).then(([[THREE, { GLTFLoader }], { MeshoptDecoder }]) => {
     MNA.ld = u => new Promise((ok, bad) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(MNA.dir + u + '?v=' + MNA.v, ok, undefined, bad));
-    return Promise.all([MNA.ld('agent.glb'), MNA.ld('breakdance.glb').catch(() => null)]); // без танца агент всё равно показывается
+    return MNA.ld('breakdance.glb').catch(() => null); // без танца агент всё равно показывается
   }).catch(e => { MNA.gl = null; throw e; });
-  const k = mnWpnKey(); MNA.wg = MNA.wg || {}; // оружие — по выбору игрока (меню над поддержкой), каждое качаем один раз
-  return MNA.gl.then(([ag, bd]) => (MNA.wg[k] || (MNA.wg[k] = MNA.ld(MN_WPN[k].f).catch(e => { delete MNA.wg[k]; throw e; }))).then(wp => [ag, wp, bd]));
+  // агент и оружие — по выбору игрока (меню над поддержкой), каждую модель качаем один раз
+  const once = (box, key, f) => (MNA[box] = MNA[box] || {})[key] || (MNA[box][key] = MNA.ld(f).catch(e => { delete MNA[box][key]; throw e; }));
+  // телефон и экономная графика — лёгкая копия агента (картинки 512, tools/agents-lo.mjs); в памяти держим только текущего агента
+  const k = mnWpnKey(), a = mnCfg().agent, ak = a + (GFX.low ? '-lo' : ''), af = GFX.low ? MN_AGENTS[a].f.replace('.glb', '-lo.glb') : MN_AGENTS[a].f;
+  if (MNA.ag) Object.keys(MNA.ag).forEach(x => { if (x !== ak) delete MNA.ag[x]; });
+  // оружие с набором клипов (нож, USP-S, AK-47): ствол -lo в экономной графике + клипы своей стороны (T/CT)
+  const W = MN_WPN[k], lw = W.set && GFX.low, side = W.t || !MN_CT.has(a) ? 't' : 'ct', an = W.set ? W.set + '-' + side : null;
+  return MNA.gl.then(bd => Promise.all([once('ag', ak, af), once('wg', k + (lw ? '-lo' : ''), lw ? W.f.replace('.glb', '-lo.glb') : W.f), an ? once('an', an, 'anim-' + an + '.glb') : null])
+    .then(([ag, wp, pk]) => [ag, wp, bd, pk]));
 }
 // лампы на фоне главного (assets/bg-main.webp, 1920×1080): прожектор на хижине и подвесная лампа внутри.
 // Свечение и затемнение освещённого места поверх снимка; моргают стилями (переменная --f: 1 — горит, 0 — погасла)
@@ -3394,8 +3401,18 @@ const MN_BG = [{ id: 'ancient', n: 'Ancient · сумерки', img: 'assets/bg-
   { id: 'rush_001_4', n: 'Rush', img: 'assets/main/bg/rush_001_4.webp' },
   { id: 'ar_shoots_night', n: 'Shoots · ночь', img: 'assets/main/bg/ar_shoots_night.webp' },
   { id: 'ar_shoots_night_1', n: 'Shoots · ночь 2', img: 'assets/main/bg/ar_shoots_night_1.webp' }]; // снимки карт из CS2 (владелец 19.11, assets/main/bg/)
-const MN_WPN = { awp: { n: 'AWP | Dragon Lore', f: 'awp-dragon-lore.glb', p: [-5.29, 0.19, -8.99] } }; // AK и другие — когда будут анимации держания (Blender), владелец 19.11: сначала фоны
-function mnCfg() { let c = {}; try { c = JSON.parse(localStorage.getItem('rc.mainCfg') || '{}') || {}; } catch (e) { /* */ } return { bg: MN_BG.some(b => b.id === c.bg) ? c.bg : 'ancient', wpn: MN_WPN[c.wpn] ? c.wpn : 'awp' }; }
+const MN_WPN = { awp: { n: 'AWP | Dragon Lore', f: 'awp-dragon-lore.glb', p: [-5.29, 0.19, -8.99] },
+  // 25.11 (владелец): оружие в руках + свои клипы меню CS2 (tools/main-hold.mjs): assets/main/wpn-<id>(-lo).glb и anim-<set>-<t|ct>.glb
+  // (idle, walkup, i_* — осмотр оружия, раз в MN_INSPECT с). Ствол крепится к wpn своей корневой костью weapon (у бабочки кости нет — только поворот осей)
+  butterfly: { n: '★ Нож-бабочка | Легенды', f: 'wpn-butterfly.glb', set: 'knife', grip: [0, 0.03, 0] }, // grip — где кулак (оси модели, м): рукоять −0,12…+0,075, лезвие дальше; владелец 25.11: «поглубже в руку»
+  usp: { n: 'USP-S | Поток информации', f: 'wpn-usp.glb', set: 'usp' },
+  ak47: { n: 'AK-47 | Азимов', f: 'wpn-ak47.glb', set: 'ak47', t: 1 } }; // t — только клипы T (у CT в игре AK-47 нет)
+const MN_CT = new Set(['ava']), MN_INSPECT = 20; // агенты CT (их клипы меню свои); ритм осмотра оружия, с (владелец 25.11)
+// агенты главного экрана: Darryl + девушки из CS2 (25.11, tools/agents-build.mjs — глаза впечены в лицо, клипы меню с AWP; у Ava — клипы CT)
+const MN_AGENTS = { darryl: { n: 'Sir Bloody Skullhead Darryl', f: 'agent.glb' }, vypa: { n: 'Vypa Sista of the Revolution', f: 'agent-vypa.glb' },
+  sally: { n: 'Getaway Sally', f: 'agent-sally.glb' }, ava: { n: 'Special Agent Ava', f: 'agent-ava.glb' },
+  numberk: { n: 'Number K', f: 'agent-numberk.glb' }, miami: { n: 'Sir Bloody Miami Darryl', f: 'agent-miami.glb' } };
+function mnCfg() { let c = {}; try { c = JSON.parse(localStorage.getItem('rc.mainCfg') || '{}') || {}; } catch (e) { /* */ } return { bg: MN_BG.some(b => b.id === c.bg) ? c.bg : 'ancient', wpn: MN_WPN[c.wpn] ? c.wpn : 'awp', agent: MN_AGENTS[c.agent] ? c.agent : 'darryl' }; }
 function mnCfgSet(k, v) { const c = mnCfg(); c[k] = v; try { localStorage.setItem('rc.mainCfg', JSON.stringify(c)); } catch (e) { /* */ } return c; }
 const mnWpnKey = () => mnCfg().wpn;
 function mnBgApply() { const b = MN_BG.find(x => x.id === mnCfg().bg) || MN_BG[0]; document.body.style.setProperty("--mn-bg", `url("${new URL(b.img, location.href).href}")`); document.body.classList.toggle('mn-alt', b.id !== 'ancient'); }
@@ -3411,11 +3428,12 @@ function mnCfgUi() {
     const opt = (k, v, n) => `<button class="mm-i${c[k] === v ? ' on' : ''}" data-k="${k}" data-x="${v}">${esc(n)}${c[k] === v ? '<b>✓</b>' : ''}</button>`;
     menu.innerHTML = view === 'bg' ? back('Фон главного меню') + '<div class="mm-list">' + MN_BG.map(b => opt('bg', b.id, b.n)).join('') + '</div>'
       : view === 'wpn' ? back('Оружие') + Object.entries(MN_WPN).map(([id, w]) => opt('wpn', id, w.n)).join('')
+      : view === 'agent' ? back('Агент') + Object.entries(MN_AGENTS).map(([id, w]) => opt('agent', id, w.n)).join('')
       : view === 'gfx' ? back('Графика') + Object.entries(GFX_N).map(([p, n]) => { const on = GFX.pref() === p;
           return `<button class="mm-i${on ? ' on' : ''}" data-g="${p}">${n}${p === 'auto' && on ? `<small>сейчас ${GFX.low ? 'экономная' : 'высокая'}</small>` : ''}${on ? '<b>✓</b>' : ''}</button>`; }).join('')
           + '<p class="mm-note">Экономная — без живого размытия стекла, 3D плавнее на слабых компьютерах и меньше греет телефон</p>'
-      : `<button class="mm-i" data-v="bg">Изменить фон главного меню</button><button class="mm-i" disabled>Сменить оружие<small>скоро</small></button><hr>
-         <button class="mm-i" disabled>Сменить агента<small>скоро</small></button><hr>
+      : `<button class="mm-i" data-v="bg">Изменить фон главного меню</button><button class="mm-i" data-v="wpn">Сменить оружие<small>${esc(MN_WPN[c.wpn].n)}</small></button><hr>
+         <button class="mm-i" data-v="agent">Сменить агента<small>${esc(MN_AGENTS[c.agent].n)}</small></button><hr>
          <button class="mm-i" data-v="gfx">Графика<small>${GFX_N[GFX.pref()]}</small></button>`;
     $$('[data-v]', menu).forEach(b => b.onclick = e => { e.stopPropagation(); draw(b.dataset.v); });
     $$('[data-g]', menu).forEach(b => b.onclick = e => { e.stopPropagation(); GFX.set(b.dataset.g); draw('gfx'); });
@@ -3423,6 +3441,7 @@ function mnCfgUi() {
       e.stopPropagation(); const { k, x } = b.dataset; if (mnCfg()[k] === x) return;
       const sc = $('.mm-list', menu); const top = sc ? sc.scrollTop : 0; mnCfgSet(k, x); draw(view); const sc2 = $('.mm-list', menu); if (sc2) sc2.scrollTop = top;
       if (k === 'bg') { mnBgApply(); mnLampsPos(); MNA.seen = false; } // новый фон — агент выходит заново (владелец 19.11)
+      if (k === 'agent') MNA.seen = false; // новый агент тоже выходит в кадр
       if ($('#mnAgent')) mnAgent(); // новое оружие — агент пересобирается (без выхода)
     });
   };
@@ -3442,7 +3461,7 @@ function mnAgent() {
   if (!hasGL || weak) return pic(); // без WebGL (или слишком слабое устройство) модели не качаем; узкое окно (до 1024 px) — агент спрятан стилями, отрисовка стоит
   const low = GFX.low, FPS = low ? 30 : 60; // экономная: 30 кадров/с, разрешение до 1,25, тень 1024 без смягчения, листья без теней
   const S = MNA.s = { alive: true, kill: () => { S.alive = false; } };
-  Promise.all([c2Lib(), import('three/addons/environments/RoomEnvironment.js'), mnaLoad()]).then(([[THREE], { RoomEnvironment }, [ag, wp, bd]]) => {
+  Promise.all([c2Lib(), import('three/addons/environments/RoomEnvironment.js'), mnaLoad()]).then(([[THREE], { RoomEnvironment }, [ag, wp, bd, pk]]) => {
     if (!S.alive || !host.isConnected) return;
     const canvas = document.createElement('canvas');
     let renderer; try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' }); } catch (e) { return pic(); }
@@ -3481,23 +3500,42 @@ function mnAgent() {
     const agent = ag.scene; pivot.add(agent);
     agent.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
     const wpn = agent.getObjectByName('wpn'), gun = wp.scene;
-    gun.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1));
-    gun.position.fromArray(MN_WPN[mnWpnKey()].p).multiplyScalar(0.0254); // корневая кость оружия (из модели игры) совпадает с wpn, а не начало сетки
+    const WK = MN_WPN[mnWpnKey()];
+    if (WK.set) { // ствол из игры со скелетом: его кость weapon ставим ровно в wpn (то же, что поворот и сдвиг у AWP ниже, но по самой модели)
+      gun.position.set(0, 0, 0); gun.quaternion.identity(); gun.scale.setScalar(1); gun.updateMatrixWorld(true);
+      const wb = gun.getObjectByName('weapon');
+      const m = wb ? new THREE.Matrix4().copy(gun.matrixWorld).invert().multiply(wb.matrixWorld) : new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion(-0.5, -0.5, -0.5, 0.5)).setPosition(...(WK.grip || [0, 0, 0]));
+      m.invert().decompose(gun.position, gun.quaternion, gun.scale);
+    } else {
+      gun.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1));
+      gun.position.fromArray(WK.p).multiplyScalar(0.0254); // корневая кость оружия (из модели игры) совпадает с wpn, а не начало сетки
+    }
     MNA.gun = gun; // для подгонки из браузера
-    gun.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+    gun.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (WK.set && o.material.roughnessMap) skMatte(o.material); } }); // скины в руках — матовее (SK_MAT)
     if (wpn) wpn.add(gun); gun.visible = true; // модель общая для заходов: могли уйти посреди танца
     let yaw = -0.32, vYaw = 0, drag = false, lx = 0, dirty = false, px = 0, py = 0, pt = 0, moved = false;
     try { const v = parseFloat(localStorage.getItem('rc.agentYaw')); if (isFinite(v)) yaw = v; } catch (e) { /* */ }
     const saveYaw = () => { dirty = false; try { localStorage.setItem('rc.agentYaw', yaw.toFixed(3)); } catch (e) { /* */ } };
     // анимации: idle по кругу, раз в 6–14 с — случайное движение (не одно и то же дважды), переходы 0,35–0,5 с
     const mixer = new THREE.AnimationMixer(agent), A = {};
-    ag.animations.forEach(c => { A[c.name] = mixer.clipAction(c); });
+    // нож / USP-S / AK-47 — свои клипы меню из набора (pk): дорожки только тех костей, что есть у агента (имена костей из игры совпадают)
+    let INS = [], lastAt = 0;
+    if (pk) {
+      const has = new Set(); agent.traverse(o => has.add(o.name));
+      pk.animations.forEach(c => { const cl = c.clone(); cl.tracks = cl.tracks.filter(tr => has.has(THREE.PropertyBinding.parseTrackName(tr.name).nodeName)); A[c.name] = mixer.clipAction(cl); });
+      INS = Object.keys(A).filter(n => n.startsWith('i_'));
+    } else ag.animations.forEach(c => { A[c.name] = mixer.clipAction(c); });
     const idle = A.idle; idle.setLoop(THREE.LoopRepeat, Infinity);
     const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let cur = idle, lastMove = '', nextAt = 0, t = 0;
-    const plan = () => { nextAt = t + 6 + Math.random() * 8; };
+    // AWP — как раньше (движение раз в 6–14 с); с набором клипов — осмотр оружия ровно раз в MN_INSPECT с от начала прошлого (не одно и то же подряд)
+    const plan = () => { nextAt = INS.length ? Math.max(t + 3, lastAt + MN_INSPECT) : t + 6 + Math.random() * 8; };
     const to = (act, d) => { act.reset().setEffectiveWeight(1).play(); cur.crossFadeTo(act, d, false); cur = act; };
     const pickMove = () => {
+      if (INS.length) {
+        const L = INS.length > 1 ? INS.filter(n => n !== lastMove) : INS, n = L[Math.floor(Math.random() * L.length)]; lastMove = n; lastAt = t;
+        const a = A[n]; a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; return to(a, 0.4);
+      }
       const L = MNA.moves.filter(([n]) => n !== lastMove && A[n]); let r = Math.random() * L.reduce((s, [, w]) => s + w, 0);
       const m = L.find(([, w]) => (r -= w) < 0) || L[0]; lastMove = m[0];
       const a = A[m[0]]; a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; to(a, 0.35 + Math.random() * 0.15);
@@ -3506,7 +3544,7 @@ function mnAgent() {
     const dance = bd && bd.animations[0] ? mixer.clipAction(bd.animations[0]) : null; let gunAt = 0;
     if (dance) { dance.setLoop(THREE.LoopOnce, 1); dance.clampWhenFinished = true; }
     const startDance = () => { if (!dance || cur === dance) return; MNA.seen = true; gun.visible = false; gunAt = 0; to(dance, 0.3); nextAt = Infinity; };
-    mixer.addEventListener('finished', e => { if (e.action === A.walkup) MNA.seen = true; if (e.action !== idle && e.action === cur) { const d = e.action === dance ? 0.6 : 0.45; to(idle, d); plan(); if (e.action === dance) gunAt = t + d; } });
+    mixer.addEventListener('finished', e => { if (e.action === A.walkup) MNA.seen = true; if (e.action === A.walkup || e.action === dance) lastAt = t; if (e.action !== idle && e.action === cur) { const d = e.action === dance ? 0.6 : 0.45; to(idle, d); plan(); if (e.action === dance) gunAt = t + d; } });
     const kref = new THREE.Vector3(), pelvis = agent.getObjectByName('pelvis');
     idle.play(); mixer.update(0); scene.updateMatrixWorld(true); if (pelvis) pivot.worldToLocal(pelvis.getWorldPosition(kref)); idle.stop();
     if (!MNA.seen && !calm && A.walkup) { const w = A.walkup; w.setLoop(THREE.LoopOnce, 1); w.clampWhenFinished = true; w.play(); cur = w; nextAt = Infinity; }
@@ -5129,6 +5167,10 @@ const C2_3D_CACHE = new Map(); // id → Promise(gltf): модель грузи�
    на каждый скин только окраска t/<id>.webp (цвет), -mr (шероховатость/металл), -n (свой рельеф, если есть); экономная графика — -lo.
    index.json: { "название без износа (рус. и англ.)": [id, база, есть_рельеф] }. Показ — только в окне выигрыша (showReveal / c2XReveal). */
 const SK3D = { dir: 'assets/skins3d/', v: 1, map: null, p: null, base: new Map(), noflip: new Set(['m4a1-leg']) };
+// матовость краски (владелец 25.11: «блестят сильно»): в картах шероховатость из игры как есть (0,3–0,5) — в three.js это лак.
+// Множитель к карте: 0,3 → 0,5, 0,48 → 0,8; металл чуть слабее. Общая для окна выигрыша и оружия в руках агента (mnAgent)
+const SK_MAT = { r: 1.65, m: 0.85 };
+const skMatte = m => { m.roughness = SK_MAT.r; m.metalness = SK_MAT.m; m.needsUpdate = true; };
 const sk3dKey = s => s && s.name && s.name.replace(/ \([^)]+\)$/, '').replace('StatTrak™ ', '').replace(/^Souvenir |^Сувенирный /, '');
 const sk3dRec = s => SK3D.map && SK3D.map[sk3dKey(s)];
 const sk3dId = s => { const r = sk3dRec(s); return r ? 's3:' + r[0] : null; };
@@ -5147,7 +5189,7 @@ function sk3dLoad(id) { // → Promise({scene}) как у GLTFLoader: общая
       const scene = g.scene.clone(true);
       scene.traverse(o => {
         if (!o.isMesh) return; const m = o.material = o.material.clone();
-        m.map = map; m.roughnessMap = mr; m.metalnessMap = mr; m.roughness = 1; m.metalness = 1; m.color.set(0xffffff);
+        m.map = map; m.roughnessMap = mr; m.metalnessMap = mr; skMatte(m); m.color.set(0xffffff);
         if (nm) m.normalMap = nm; m.needsUpdate = true;
       });
       return { scene };
