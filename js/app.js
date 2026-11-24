@@ -3316,13 +3316,27 @@ function mnLampsPos() {
 }
 // ветер с листьями CS2 (assets/main/leaves.webp — 8 сухих листьев из materials/particle/leaf/leafdead): порыв раз в 15–25 с,
 // между порывами — редкие падающие листья. Листья кувыркаются, ложатся на землю, следующий порыв их поднимает; полежав ~12 с, тают
+// хлопья снега для mnaWind (новогодний ивент): атлас 4×2 — мягкие комочки разного размера, рисуется на лету
+function nySnowTex(THREE) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d');
+  for (let v = 0; v < 8; v++) {
+    const cx = (v % 4) * 64 + 32, cy = (v < 4 ? 0 : 64) + 32, n = 1 + (v % 3);
+    for (let k = 0; k < n; k++) {
+      const r = (n === 1 ? 22 : 15) - k * 3, ox = k ? (k % 2 ? 9 : -8) : 0, oy = k ? (k === 1 ? -6 : 8) : 0, g = x.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, r);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.55, 'rgba(255,255,255,.85)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(cx + ox, cy + oy, r, 0, 6.3); x.fill();
+    }
+  }
+  return new THREE.CanvasTexture(c);
+}
 function mnaWind(THREE, scene, camera, tex) {
+  const SN = !!window.NY_ON; // новогодний ивент (js/newyear.js): вместо листьев — хлопья снега и позёмка, ложатся так же (владелец 25.11)
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  const V = 8, CAP = 18, geo = new THREE.PlaneGeometry(1, 1), meshes = [], trash = [geo, tex];
+  const V = 8, CAP = SN ? 40 : 18, geo = new THREE.PlaneGeometry(1, 1), meshes = [], trash = [geo, tex];
   for (let v = 0; v < V; v++) {
     const t = tex.clone(); t.repeat.set(0.25, 0.5); t.offset.set((v % 4) * 0.25, v < 4 ? 0.5 : 0); t.needsUpdate = true;
-    const mat = new THREE.MeshStandardMaterial({ map: t, color: new THREE.Color(1.4, 1.25, 1.1), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8, metalness: 0 });
-    const mesh = new THREE.InstancedMesh(geo, mat, CAP); mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.castShadow = !GFX.low; // экономная: листья без теней (8 проходов тени меньше) mesh.frustumCulled = false;
+    const mat = new THREE.MeshStandardMaterial({ map: t, color: SN ? new THREE.Color(1.1, 1.14, 1.22) : new THREE.Color(1.4, 1.25, 1.1), emissive: SN ? 0x27303c : 0x000000, alphaTest: SN ? 0.3 : 0.5, side: THREE.DoubleSide, roughness: 0.8, metalness: 0 });
+    const mesh = new THREE.InstancedMesh(geo, mat, CAP); mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.castShadow = !GFX.low && !SN; // экономная: листья без теней (8 проходов тени меньше) mesh.frustumCulled = false;
     mesh.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: t, alphaTest: 0.5 });
     scene.add(mesh); meshes.push(mesh); trash.push(t, mat, mesh.customDepthMaterial);
   }
@@ -3331,14 +3345,14 @@ function mnaWind(THREE, scene, camera, tex) {
   const L = []; for (let i = 0; i < V * CAP; i++) L.push({ on: 0, v: i % V, k: (i / V) | 0, p: new THREE.Vector3(), u: new THREE.Vector3(), q: new THREE.Quaternion(), ax: new THREE.Vector3(1, 0, 0), w: 0, s: 0, ph: 0, rest: 0, fade: 1 });
   m4.makeScale(0, 0, 0); meshes.forEach(m => { for (let i = 0; i < CAP; i++) m.setMatrixAt(i, m4); m.instanceMatrix.needsUpdate = true; });
   // пыль у земли — видна только в порыв
-  const DN = 90, dpos = new Float32Array(DN * 3), dgeo = new THREE.BufferGeometry();
+  const DN = SN ? 240 : 90, dpos = new Float32Array(DN * 3), dgeo = new THREE.BufferGeometry();
   const dc = document.createElement('canvas'); dc.width = dc.height = 32; const dx = dc.getContext('2d'), dg = dx.createRadialGradient(16, 16, 0, 16, 16, 16);
   dg.addColorStop(0, 'rgba(255,255,255,.9)'); dg.addColorStop(1, 'rgba(255,255,255,0)'); dx.fillStyle = dg; dx.fillRect(0, 0, 32, 32);
-  const dtex = new THREE.CanvasTexture(dc), dmat = new THREE.PointsMaterial({ map: dtex, color: 0xb8a68a, size: 0.045, transparent: true, opacity: 0, depthWrite: false });
+  const dtex = new THREE.CanvasTexture(dc), dmat = new THREE.PointsMaterial({ map: dtex, color: SN ? 0xeef4ff : 0xb8a68a, size: SN ? 0.034 : 0.045, transparent: true, opacity: 0, depthWrite: false });
   const dust = new THREE.Points(dgeo, dmat); dust.frustumCulled = false; scene.add(dust); trash.push(dgeo, dmat, dtex);
   let t = 0, gustAt = 3 + Math.random() * 2, gustLen = 5, gustPow = 3, acc = 0, lastE = 0;
   const halfW = z => (camera.position.z - z) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
-  for (let i = 0; i < DN; i++) { const z = -2 + Math.random() * 3.6; dpos.set([(Math.random() * 2 - 1) * halfW(z), Math.pow(Math.random(), 2) * 0.7, z], i * 3); }
+  for (let i = 0; i < DN; i++) { const z = -2 + Math.random() * 3.6; dpos.set([(Math.random() * 2 - 1) * halfW(z), SN ? Math.pow(Math.random(), 1.5) * 1.4 : Math.pow(Math.random(), 2) * 0.7, z], i * 3); }
   dgeo.setAttribute('position', new THREE.BufferAttribute(dpos, 3));
   const gust = () => { // 0…1 — сила порыва сейчас
     if (t < gustAt) return 0; const g = t - gustAt;
@@ -3347,7 +3361,7 @@ function mnaWind(THREE, scene, camera, tex) {
   };
   const spawn = side => {
     const l = L.find(x => !x.on); if (!l) return;
-    const z = -1.6 + Math.random() * 3.8; l.on = 1; l.rest = 0; l.fade = 1; l.s = 0.1 + Math.random() * 0.07; l.ph = Math.random() * 6.3; l.w = 2 + Math.random() * 5;
+    const z = -1.6 + Math.random() * 3.8; l.on = 1; l.rest = 0; l.fade = 1; l.s = SN ? 0.022 + Math.random() * 0.035 : 0.1 + Math.random() * 0.07; l.ph = Math.random() * 6.3; l.w = 2 + Math.random() * 5;
     if (side) l.p.set(-halfW(z) - 0.15, Math.random() < 0.65 ? 0.02 + Math.random() * 0.5 : 0.6 + Math.random() * 1.8, z);
     else l.p.set((Math.random() * 2 - 1) * halfW(z) * 0.9, 2.6 + Math.random() * 0.3, z);
     l.u.copy(wind).multiplyScalar(0.6); l.ax.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
@@ -3357,16 +3371,16 @@ function mnaWind(THREE, scene, camera, tex) {
     update(dt) {
       t += dt; const e = gust(), W = 0.15 + e * gustPow; lastE = e;
       wind.set(W * (1 + 0.25 * Math.sin(t * 1.7)), e * (0.25 + 0.35 * Math.sin(t * 2.3)), W * 0.18 * Math.sin(t * 0.9));
-      acc += dt * (0.25 + 22 * e); while (acc >= 1) { acc -= 1; spawn(e > 0.15); }
+      acc += dt * (SN ? 1.6 + 45 * e : 0.25 + 22 * e); while (acc >= 1) { acc -= 1; spawn(e > 0.15); }
       for (const l of L) {
         if (!l.on) continue;
         if (l.rest > 0) { // лежит на земле
           l.rest += dt;
           if (e > 0.45 && Math.random() < dt * 1.5) { l.rest = 0; l.u.set(wind.x * 0.5, 0.8 + Math.random() * 1.2, wind.z * 0.5); }
-          else if (l.rest > 12) { l.fade -= dt / 1.5; if (l.fade <= 0) l.on = 0; }
+          else if (l.rest > (SN ? 25 : 12)) { l.fade -= dt / (SN ? 3 : 1.5); if (l.fade <= 0) l.on = 0; }
         } else {
-          tmp.copy(wind).sub(l.u).multiplyScalar(1.6); tmp.y -= 1.0; // сопротивление воздуха + вес
-          l.ph += dt * (3 + l.w * 0.3); tmp.x += Math.sin(l.ph) * 0.9; tmp.z += Math.cos(l.ph * 0.8) * 0.9; tmp.y += Math.sin(l.ph * 1.3) * 0.7; // порхает
+          tmp.copy(wind).sub(l.u).multiplyScalar(1.6); tmp.y -= SN ? 0.55 : 1.0; // сопротивление воздуха + вес
+          l.ph += dt * (3 + l.w * 0.3); const fa = SN ? 0.4 : 1; tmp.x += Math.sin(l.ph) * 0.9 * fa; tmp.z += Math.cos(l.ph * 0.8) * 0.9 * fa; tmp.y += Math.sin(l.ph * 1.3) * 0.7 * fa; // порхает
           l.u.addScaledVector(tmp, dt); l.p.addScaledVector(l.u, dt);
           l.q.multiply(qs.setFromAxisAngle(l.ax, l.w * dt * (0.5 + e)));
           const rr = Math.hypot(l.p.x, l.p.z); if (rr < 0.38 && l.p.y < 1.95) { const k = 0.38 / Math.max(rr, 1e-3); l.p.x *= k; l.p.z *= k; } // сквозь агента не летят
@@ -3380,7 +3394,7 @@ function mnaWind(THREE, scene, camera, tex) {
         m4.compose(l.p, l.q, sc.setScalar(l.on ? l.s * Math.max(0, l.fade) : 0)); meshes[l.v].setMatrixAt(l.k, m4);
       }
       meshes.forEach(m => { m.instanceMatrix.needsUpdate = true; });
-      dmat.opacity = 0.32 * e;
+      dmat.opacity = (SN ? 0.6 : 0.32) * e;
       if (e > 0) { for (let i = 0; i < DN; i++) { const z = dpos[i * 3 + 2], hw = halfW(z); let x = dpos[i * 3] + wind.x * dt * (1 + (i % 5) * 0.12); if (x > hw + 0.2) x = -hw - 0.2; dpos[i * 3] = x; dpos[i * 3 + 1] = Math.max(0.01, dpos[i * 3 + 1] + Math.sin(t * 3 + i) * dt * 0.15); } dgeo.attributes.position.needsUpdate = true; }
     },
     stat: () => [L.filter(l => l.on).length, L.filter(l => l.rest > 0).length, +lastE.toFixed(2)], // для проверки
@@ -3472,11 +3486,12 @@ function mnAgent() {
     const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(26, 1, 0.1, 40);
     const pm = new THREE.PMREMGenerator(renderer); const envRT = pm.fromScene(new RoomEnvironment(), 0.04); scene.environment = envRT.texture; scene.environmentIntensity = 0.2;
     // свет под фон (Ancient в сумерках): небо холодное, земля тёплая, сверху слева — лунный ключ с тенью, справа сзади — лампы хижины
-    scene.add(new THREE.HemisphereLight(0x7f95b8, 0x3a3226, 0.8));
-    const key = new THREE.DirectionalLight(0xc0d0f4, 1.3); key.position.set(-2.2, 4.2, 2.6); key.castShadow = true;
+    const NY = !!window.NY_ON; // новогодний ивент: холодный снежный свет, светлый отсвет снега снизу, тёплая мерцающая кайма от гирлянд (владелец 25.11)
+    scene.add(NY ? new THREE.HemisphereLight(0x9db4d8, 0xb4bfd0, 0.95) : new THREE.HemisphereLight(0x7f95b8, 0x3a3226, 0.8));
+    const key = new THREE.DirectionalLight(NY ? 0xd2e2ff : 0xc0d0f4, NY ? 1.2 : 1.3); key.position.set(-2.2, 4.2, 2.6); key.castShadow = true;
     key.shadow.mapSize.setScalar(low ? 1024 : 2048); key.shadow.radius = 4; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
     Object.assign(key.shadow.camera, { left: -1.4, right: 1.4, top: 2.4, bottom: -0.4, near: 0.5, far: 12 }); scene.add(key);
-    const RIM = 2.2, rim = new THREE.DirectionalLight(0xffb36b, RIM), lampB = $('.mnl-b'); rim.position.set(3, 2.2, -2.2); scene.add(rim);
+    const RIM = NY ? 2.7 : 2.2, rim = new THREE.DirectionalLight(NY ? 0xffa04a : 0xffb36b, RIM), lampB = $('.mnl-b'); rim.position.set(3, 2.2, -2.2); scene.add(rim);
     const fill = new THREE.DirectionalLight(0xffffff, 0.18); fill.position.set(0.5, 1.2, 4); scene.add(fill);
     // тень на земле + мягкое пятно под ногами
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.ShadowMaterial({ opacity: 0.38 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
@@ -3485,7 +3500,7 @@ function mnAgent() {
     const blobTex = new THREE.CanvasTexture(bc);
     const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.002; scene.add(blob);
     let wind = null;
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) new THREE.TextureLoader().load(MNA.dir + 'leaves.webp?v=' + MNA.v, tx => { if (S.alive) wind = mnaWind(THREE, scene, camera, tx); else tx.dispose(); });
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) (NY ? (f => f(nySnowTex(THREE))) : f => new THREE.TextureLoader().load(MNA.dir + 'leaves.webp?v=' + MNA.v, f))(tx => { if (S.alive) wind = mnaWind(THREE, scene, camera, tx); else tx.dispose(); });
     // агент + AWP в кости wpn (сетка AWP в осях glTF, кость — в осях игры: поворачиваем обратно)
     const pivot = new THREE.Group(); scene.add(pivot);
     // предметы фона (снеговик на Cobblestone, владелец 19.11): стоят глубоко за агентом, отбрасывают тень, мышью не крутятся
@@ -3608,7 +3623,8 @@ function mnAgent() {
       if (gunAt && t >= gunAt) { gunAt = 0; gun.visible = true; }
       if (!drag) { yaw += vYaw; vYaw *= 0.86; yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw)); if (dirty && Math.abs(vYaw) < 4e-4) saveYaw(); } // отпустил — чуть докручивается по инерции и остаётся
       if (wind) wind.update(dt);
-      if (lampB) { const fl = parseFloat(getComputedStyle(lampB).getPropertyValue('--f')); rim.intensity = RIM * (0.25 + 0.75 * (isNaN(fl) ? 1 : fl)); }
+      if (NY) { const tt = performance.now() / 1000; rim.intensity = RIM * (0.84 + 0.09 * Math.sin(tt * 2.1) + 0.05 * Math.sin(tt * 5.3 + 1)); }
+      else if (lampB) { const fl = parseFloat(getComputedStyle(lampB).getPropertyValue('--f')); rim.intensity = RIM * (0.25 + 0.75 * (isNaN(fl) ? 1 : fl)); }
       pivot.rotation.y = yaw; mixer.update(dt); renderer.render(scene, camera); placeCard();
     };
     const vis = () => { if (!S.alive) return; if (document.hidden) renderer.setAnimationLoop(null); else { last = prev = performance.now(); acc = 0; if (m0 > 0) m0 = 0; renderer.setAnimationLoop(loop); } }; // вкладку прятали — проверку частоты начинаем заново

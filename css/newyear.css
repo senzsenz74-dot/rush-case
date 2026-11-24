@@ -1,3 +1,18 @@
 /* ===== НОВОГОДНИЙ ИВЕНТ (временно, до 19.01.2027) =====
    Подключается только из js/newyear.js и только пока ивент идёт.
    Все правила — под html.ny-on, чтобы ничего не задеть после выключения. */
+
+/* ---------- мигание гирлянд и фонарей на фоне главного экрана (владелец 25.11) ----------
+   слои огоньков лежат ровно поверх фона (тот же center/cover, что у body.pg-main::before) и подсвечивают его (screen).
+   1–3 — лампочки гирлянд тремя группами вразнобой, h — мягкий ореол фонарей и окон */
+html.ny-on #nyGlow{position:fixed;inset:0;z-index:-1;pointer-events:none;display:none}
+html.ny-on #nyGlow.on{display:block}
+html.ny-on .nyg{position:absolute;inset:0;background:center/cover no-repeat;mix-blend-mode:screen;opacity:.2;will-change:opacity}
+html.ny-on .nyg-1{animation:nyTw 2.9s ease-in-out infinite alternate}
+html.ny-on .nyg-2{animation:nyTw 3.7s ease-in-out -1.3s infinite alternate}
+html.ny-on .nyg-3{animation:nyTw 3.3s ease-in-out -2.4s infinite alternate}
+html.ny-on .nyg-h{animation:nyLamp 5.3s linear infinite}
+@keyframes nyTw{0%,12%{opacity:.08}88%,100%{opacity:1}}
+/* фонарь: ровно горит, изредка неровно вздрагивает */
+@keyframes nyLamp{0%,100%{opacity:.55}20%{opacity:.62}34%{opacity:.5}36%{opacity:.72}38%{opacity:.48}52%{opacity:.6}71%{opacity:.52}73%{opacity:.68}86%{opacity:.56}}
+@media (prefers-reduced-motion:reduce){html.ny-on .nyg{animation:none;opacity:.45}}

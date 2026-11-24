@@ -29,6 +29,24 @@
     { id: 'ny_rush', n: 'Rush', img: B + 'rush.webp' }
   ];
   document.documentElement.classList.add('ny-on');
+  // мигание гирлянд и фонарей на фоне главного экрана (владелец 25.11): 3 слоя огоньков вразнобой + мягкий ореол фонарей
+  // (assets/ny/glow/<id>-1..3.webp и -h.webp, делает tools/ny-glow.mjs). Показываем только на главной (body.pg-main) под выбранный фон.
+  var glow = document.createElement('div'), gl = ['1', '2', '3', 'h'], cur = '';
+  glow.id = 'nyGlow'; glow.setAttribute('aria-hidden', 'true');
+  glow.innerHTML = gl.map(function (s) { return '<i class="nyg nyg-' + s + '"></i>'; }).join('');
+  function glowSync() {
+    var b = document.body, m = /ny\/bg\/(\w+)\.webp/.exec(b.style.getPropertyValue('--mn-bg') || ''), on = !!m && b.classList.contains('pg-main');
+    glow.classList.toggle('on', on);
+    if (on && m[1] !== cur) {
+      cur = m[1];
+      [].forEach.call(glow.children, function (el, j) { el.style.backgroundImage = 'url("assets/ny/glow/' + cur + '-' + gl[j] + '.webp")'; });
+    }
+  }
+  function glowInit() {
+    document.body.appendChild(glow); glowSync();
+    new MutationObserver(glowSync).observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
+  }
+  if (document.body) glowInit(); else document.addEventListener('DOMContentLoaded', glowInit);
   var v = (document.currentScript && document.currentScript.src.split('?v=')[1]) || '';
   var l = document.createElement('link');
   l.rel = 'stylesheet';
