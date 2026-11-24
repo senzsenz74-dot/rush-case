@@ -59,6 +59,9 @@ PK_SLOTS[2] = PK_SLOTS[3] = PK_SLOTS[1];
 const PK_SLOT_N = { qf: '1/4 финала', sf: '1/2 финала', f: 'Финал' };
 const PK_ROUNDS = { sw: [['0-0'], ['1-0', '0-1'], ['2-0', '1-1', '0-2'], ['2-1', '1-2'], ['2-2']], po: [['qf'], ['sf'], ['f']] };
 const PK_RN = { sw: ['Раунд 1', 'Раунд 2', 'Раунд 3', 'Раунд 4', 'Раунд 5'], po: ['1/4 финала', '1/2 финала', 'Финал'] };
+// подпись раунда для админки: «Раунд 2 · 1:0 — выиграли», плей-офф — «1/4 финала»
+const PK_SLOT_HINT = { '1-0': 'выиграли', '0-1': 'проиграли', '2-0': '2 победы', '1-1': '1–1', '0-2': '2 поражения', '2-1': 'матч за выход', '1-2': 'на вылет', '2-2': 'решающий' };
+const pkSlotLabel = (st, sl) => { if (+st === 4) return PK_SLOT_N[sl] || sl; const i = PK_ROUNDS.sw.findIndex(r => r.includes(sl)); return `Раунд ${i + 1} · ${sl.replace('-', ':')}${PK_SLOT_HINT[sl] ? ' — ' + PK_SLOT_HINT[sl] : ''}`; };
 // таблица Swiss (как у BetBoom Stage 1), макет 802×532: [столбец, x, y, матчей]; ничего не перекрывается
 const PK_SW = [['0-0', 0, 92, 8], ['1-0', 128, 74, 4], ['0-1', 128, 276, 4], ['2-0', 256, 56, 2], ['1-1', 256, 176, 4], ['0-2', 256, 378, 2],
   ['2-1', 384, 116, 3], ['1-2', 384, 278, 3], ['2-2', 512, 236, 3]];
@@ -585,7 +588,7 @@ async function admPickem(box) {
   const dl = ITEMS.filter(x => x.p >= 15000).sort((a, b) => a.p - b.p).slice(0, 600).map(x => `<option value="${esc(x.name)}">${moneyN(x.p)} ₽</option>`).join('');
   const lead = A.top && A.top[0];
   const loc = t => { const d = new Date(t); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
-  const mrow = m => `<tr data-id="${m.id}"><td>${pkWhen(m.t)}</td><td>${PK_STAGES[m.st - 1].n} · ${m.st === 4 ? PK_SLOT_N[m.sl] : esc(m.sl)}</td>
+  const mrow = m => `<tr data-id="${m.id}"><td>${pkWhen(m.t)}</td><td>${PK_STAGES[m.st - 1].n} · ${esc(pkSlotLabel(m.st, m.sl))}</td>
       <td class="pk-ax-tm">${pkLogo(m.a)}${esc(pkName(m.a))} <i>vs</i> ${pkLogo(m.b)}${esc(pkName(m.b))}</td><td>BO${m.bo}</td><td class="num">${fmt(m.n)}</td>
       <td>${m.w ? `<b>${esc(pkName(m.w))}</b> ${esc(m.s)}` : `<span class="pk-ax-res"><select class="ax-inp" data-rw>${[m.a, m.b].map(t => `<option value="${t}">${esc(pkName(t))}</option>`).join('')}</select>${m.bo > 1 ? `<select class="ax-inp" data-rs>${(m.bo === 5 ? ['3:0', '3:1', '3:2'] : ['2:0', '2:1']).map(x => `<option>${x}</option>`).join('')}</select>` : ''}<button class="ax-btn ax-sm ax-ok" data-res="${m.id}">Итог</button></span>`}</td>
       <td>${m.w ? '' : `<button class="ax-btn ax-sm" data-ed="${m.id}">Изм.</button> <button class="ax-btn ax-sm" data-del="${m.id}">Удал.</button>`}</td></tr>`;
@@ -604,17 +607,17 @@ async function admPickem(box) {
     ${axCard('Матч', `<div class="pr-form pk-ax-add" id="pkaForm">
       <input type="hidden" id="pkaId">
       <label>Этап<select class="ax-inp" id="pkaSt">${PK_STAGES.map((x, i) => `<option value="${i + 1}">${x.n}</option>`).join('')}</select></label>
-      <label>Столбец<select class="ax-inp" id="pkaSl"></select></label>
+      <label>Раунд<select class="ax-inp" id="pkaSl"></select></label>
       <label>Порядок<input class="ax-inp" id="pkaO" type="number" min="0" step="1" value="1"></label>
       <label>Команда 1<select class="ax-inp" id="pkaA">${tOpt('')}</select></label>
       <label>Команда 2<select class="ax-inp" id="pkaB">${tOpt('')}</select></label>
       <label>Формат<select class="ax-inp" id="pkaBo"><option value="1">BO1</option><option value="3">BO3</option><option value="5">BO5</option></select></label>
       <label>Начало (ваше время)<input class="ax-inp" id="pkaT" type="datetime-local"></label>
       <button class="ax-btn ax-ok" id="pkaAdd">Добавить матч</button><button class="ax-btn" id="pkaCancel" hidden>Отмена</button></div>
-      <p class="ax-foot">Прогнозы принимаются до времени начала. Этапы I–II: раунды 1–2 (0-0, 1-0, 0-1) — BO1, дальше BO3; этап III — всё BO3; плей-офф — BO3, финал BO5.</p>`)}
-    ${PK_STAGES.map((x, i) => { const ms = s.matches.filter(m => m.st === i + 1); return ms.length ? axCard(`${x.n} · ${x.d}`, `<div class="ax-tw"><table class="ax-t pk-ax-tbl"><thead><tr><th>Начало</th><th>Столбец</th><th>Матч</th><th>Формат</th><th class="num">Прогнозов</th><th>Результат</th><th></th></tr></thead><tbody>${ms.sort((a, b) => a.t - b.t).map(mrow).join('')}</tbody></table></div>`) : ''; }).join('')}`;
+      <p class="ax-foot">Прогнозы принимаются до времени начала. Следующий раунд: выберите этап и «Раунд 2, 3…» — матч встанет в сетку на странице пикема. Этапы I–II: раунды 1–2 — BO1, дальше BO3; этап III — всё BO3; плей-офф — BO3, финал BO5.</p>`)}
+    ${PK_STAGES.map((x, i) => { const ms = s.matches.filter(m => m.st === i + 1); return ms.length ? axCard(`${x.n} · ${x.d}`, `<div class="ax-tw"><table class="ax-t pk-ax-tbl"><thead><tr><th>Начало</th><th>Раунд</th><th>Матч</th><th>Формат</th><th class="num">Прогнозов</th><th>Результат</th><th></th></tr></thead><tbody>${ms.sort((a, b) => a.t - b.t).map(mrow).join('')}</tbody></table></div>`) : ''; }).join('')}`;
   const stSel = $('#pkaSt', box), slSel = $('#pkaSl', box), boSel = $('#pkaBo', box);
-  const slFill = v => { slSel.innerHTML = PK_SLOTS[+stSel.value].map(x => `<option value="${x}">${PK_SLOT_N[x] || x}</option>`).join(''); if (v) slSel.value = v; };
+  const slFill = v => { slSel.innerHTML = PK_SLOTS[+stSel.value].map(x => `<option value="${x}">${pkSlotLabel(+stSel.value, x)}</option>`).join(''); if (v) slSel.value = v; };
   const boAuto = () => { const st_ = +stSel.value, sl = slSel.value; boSel.value = st_ === 4 ? (sl === 'f' ? 5 : 3) : st_ === 3 ? 3 : ['0-0', '1-0', '0-1'].includes(sl) ? 1 : 3; };
   stSel.onchange = () => { slFill(); boAuto(); }; slSel.onchange = boAuto; slFill(); boAuto();
   $('#pkaSave', box).onclick = async e => {
