@@ -3334,9 +3334,15 @@ const NY_SNOW_MAP = `
   vec3 nyC = diffuseColor.rgb;
   float nySkin = (nyC.r > nyC.g && nyC.g > nyC.b) ? smoothstep(0.06, 0.14, nyC.r - nyC.b) * (1.0 - smoothstep(0.84, 0.94, nyC.g / max(nyC.r, 1e-3))) : 0.0;
   float nyLow = smoothstep(0.55, 0.35, vNyY + (nyN - 0.5) * 0.08);
-  float nyFrost = NY_CLOTH * (1.0 - nySkin) * (0.22 + nyLow * (0.10 + 0.13 * smoothstep(0.3, 0.0, vNyY))) * smoothstep(0.3, 0.75, nyNs(vNyP * 2.5) * 0.7 + nyNs(vNyP * 9.0) * 0.3);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.80, 0.86, 0.93), nyFrost);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.94, 0.97), nySnow * 0.85); // немного снега на голове и плечах
+  // фактура как у настоящего снега (владелец 25.11: «чуть меньше и с натуральной текстурой»): пятна с рваным краем (3 слоя шума),
+  // внутри — зерно: мелкие кристаллики разной яркости, часть почти белые, между ними просвечивает ткань
+  float nyPatch = nyNs(vNyP * 2.5) * 0.55 + nyNs(vNyP * 7.0) * 0.3 + nyNs(vNyP * 19.0) * 0.15;
+  float nyG1 = nyH(floor(vNyP * 45.0)), nyG2 = nyNs(vNyP * 28.0);
+  float nyGrain = clamp(nyG1 * 0.55 + nyG2 * 0.6 - 0.1, 0.0, 1.0);
+  vec3 nyIce = mix(vec3(0.74, 0.80, 0.88), vec3(0.97, 0.98, 1.0), nyGrain);
+  float nyFrost = NY_CLOTH * (1.0 - nySkin) * (0.17 + nyLow * (0.08 + 0.10 * smoothstep(0.3, 0.0, vNyY))) * smoothstep(0.38, 0.72, nyPatch) * (0.45 + 0.85 * nyGrain);
+  diffuseColor.rgb = mix(diffuseColor.rgb, nyIce, clamp(nyFrost, 0.0, 1.0));
+  diffuseColor.rgb = mix(diffuseColor.rgb, nyIce, nySnow * (0.6 + 0.3 * nyGrain)); // немного снега на голове и плечах — то же зерно
 `;
 function nySnowMat(o) {
   const mats = Array.isArray(o.material) ? o.material : [o.material];
