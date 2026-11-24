@@ -31,26 +31,6 @@
     { id: 'ny_rush', n: 'Rush', img: B + 'rush.webp' + qv }
   ];
   document.documentElement.classList.add('ny-on');
-  // мигание гирлянд и фонарей на фоне главного экрана (владелец 25.11): 3 слоя огоньков вразнобой + мягкий ореол фонарей
-  // (assets/ny/glow/<id>-1..3.webp и -h.webp, делает tools/ny-glow.mjs). Показываем только на главной (body.pg-main) под выбранный фон.
-  // #nyDim (multiply) гасит лампочки группы, #nyGlow (screen) зажигает их ярче — вместе это и есть мигание
-  var cur = '';
-  function lay(id, list) { var d = document.createElement('div'); d.id = id; d.setAttribute('aria-hidden', 'true'); d.innerHTML = list.map(function (s) { return '<i class="nyg nyg-' + s + '"></i>'; }).join(''); return d; }
-  var dimL = lay('nyDim', ['d1', 'd2', 'd3']), glow = lay('nyGlow', ['1', '2', '3', 'h']);
-  function glowSync() {
-    var b = document.body, m = /ny\/bg\/(\w+)\.webp/.exec(b.style.getPropertyValue('--mn-bg') || ''), on = !!m && b.classList.contains('pg-main');
-    glow.classList.toggle('on', on); dimL.classList.toggle('on', on);
-    if (on && m[1] !== cur) {
-      cur = m[1];
-      [].forEach.call(dimL.children, function (el) { el.style.backgroundImage = 'url("assets/ny/glow/' + cur + '-' + el.className.split('nyg-')[1] + '.webp' + qv + '")'; });
-      [].forEach.call(glow.children, function (el) { el.style.backgroundImage = 'url("assets/ny/glow/' + cur + '-' + el.className.split('nyg-')[1] + '.webp' + qv + '")'; });
-    }
-  }
-  function glowInit() {
-    document.body.appendChild(dimL); document.body.appendChild(glow); glowSync();
-    new MutationObserver(glowSync).observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
-  }
-  if (document.body) glowInit(); else document.addEventListener('DOMContentLoaded', glowInit);
   var l = document.createElement('link');
   l.rel = 'stylesheet';
   l.href = 'css/newyear.css' + (v ? '?v=' + v : '');

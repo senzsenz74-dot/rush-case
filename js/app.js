@@ -3670,7 +3670,7 @@ function mnAgent() {
       if (gunAt && t >= gunAt) { gunAt = 0; gun.visible = true; }
       if (!drag) { yaw += vYaw; vYaw *= 0.86; yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw)); if (dirty && Math.abs(vYaw) < 4e-4) saveYaw(); } // отпустил — чуть докручивается по инерции и остаётся
       if (wind) wind.update(dt);
-      if (NY) { const tt = performance.now() / 1000; rim.intensity = RIM * (0.84 + 0.09 * Math.sin(tt * 2.1) + 0.05 * Math.sin(tt * 5.3 + 1)); }
+      if (NY) rim.intensity = RIM * 0.84; // кайма ровная — мигание гирлянд убрано (владелец 25.11)
       else if (lampB) { const fl = parseFloat(getComputedStyle(lampB).getPropertyValue('--f')); rim.intensity = RIM * (0.25 + 0.75 * (isNaN(fl) ? 1 : fl)); }
       pivot.rotation.y = yaw; mixer.update(dt); renderer.render(scene, camera); placeCard();
     };

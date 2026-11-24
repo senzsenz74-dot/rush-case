@@ -1,26 +1,4 @@
 /* ===== НОВОГОДНИЙ ИВЕНТ (временно, до 19.01.2027) =====
    Подключается только из js/newyear.js и только пока ивент идёт.
-   Все правила — под html.ny-on, чтобы ничего не задеть после выключения. */
-
-/* ---------- мигание гирлянд и фонарей на фоне главного экрана (владелец 25.11) ----------
-   слои огоньков лежат ровно поверх фона (тот же center/cover, что у body.pg-main::before) и подсвечивают его (screen).
-   1–3 — лампочки гирлянд тремя группами вразнобой, h — мягкий ореол фонарей и окон */
-/* screen — у самого #nyGlow: он отдельный слой (fixed + z-index), и screen у детей смешивался бы только внутри него — чёрное закрывало фон */
-html.ny-on #nyGlow{position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;mix-blend-mode:screen}
-html.ny-on #nyDim{position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;mix-blend-mode:multiply}
-html.ny-on #nyGlow.on,html.ny-on #nyDim.on{display:block}
-html.ny-on #nyGlow .nyg{mix-blend-mode:screen}
-html.ny-on #nyDim .nyg{mix-blend-mode:multiply}
-html.ny-on .nyg{position:absolute;inset:0;background:center/cover no-repeat;opacity:.2;will-change:opacity}
-/* тень группы (d1..d3) идёт тем же ритмом наоборот: огонёк разгорелся — тень ушла, погас — тень легла */
-html.ny-on .nyg-1{animation:nyTw 1.7s ease-in-out infinite alternate}
-html.ny-on .nyg-2{animation:nyTw 2.2s ease-in-out -.9s infinite alternate}
-html.ny-on .nyg-3{animation:nyTw 1.9s ease-in-out -1.6s infinite alternate}
-html.ny-on .nyg-d1{animation:nyTw 1.7s ease-in-out infinite alternate-reverse}
-html.ny-on .nyg-d2{animation:nyTw 2.2s ease-in-out -.9s infinite alternate-reverse}
-html.ny-on .nyg-d3{animation:nyTw 1.9s ease-in-out -1.6s infinite alternate-reverse}
-html.ny-on .nyg-h{animation:nyLamp 5.3s linear infinite}
-@keyframes nyTw{0%,15%{opacity:0}85%,100%{opacity:1}}
-/* фонарь: ровно горит, изредка неровно вздрагивает */
-@keyframes nyLamp{0%,100%{opacity:.55}20%{opacity:.62}34%{opacity:.5}36%{opacity:.72}38%{opacity:.48}52%{opacity:.6}71%{opacity:.52}73%{opacity:.68}86%{opacity:.56}}
-@media (prefers-reduced-motion:reduce){html.ny-on .nyg{animation:none;opacity:.45}html.ny-on #nyDim{display:none}}
+   Все правила — под html.ny-on, чтобы ничего не задеть после выключения.
+   (мигание гирлянд на фоне убрано по просьбе владельца 25.11 — было в коммитах 2f2a04b…57447bf) */
