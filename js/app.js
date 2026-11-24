@@ -3329,8 +3329,10 @@ const NY_SNOW_MAP = `
   float nyN = nyNs(vNyP) * 0.65 + nyNs(vNyP * 3.1) * 0.35; vec3 nyWN = normalize(vNyN);
   // снег только на голове и плечах (владелец 25.11): смотрит вверх И выше линии плеч (vNyY — высота над землёй, м); ниже — ничего, инея на теле нет, без свечения
   float nySnow = smoothstep(0.30, 0.52, nyWN.y + (nyN - 0.5) * 0.4) * smoothstep(1.40, 1.50, vNyY + (nyN - 0.5) * 0.05);
-  // иней по всему агенту — видимый, светло-голубой налёт пятнами (владелец 25.11: «оставь иней, именно видимый»), без свечения
-  float nyFrost = (0.22 + 0.12 * smoothstep(-0.2, 0.6, nyWN.y)) * smoothstep(0.3, 0.75, nyNs(vNyP * 2.5) * 0.7 + nyNs(vNyP * 9.0) * 0.3);
+  // иней — только на ботинках и низе штанов (владелец 25.11: с лица, туловища и рук убрать): до 0,35 м над землёй полный, к 0,55 м сходит на нет,
+  // у самой земли гуще; видимый светло-голубой налёт пятнами, без свечения
+  float nyLow = smoothstep(0.55, 0.35, vNyY + (nyN - 0.5) * 0.08);
+  float nyFrost = nyLow * (0.30 + 0.15 * smoothstep(0.3, 0.0, vNyY)) * smoothstep(0.3, 0.75, nyNs(vNyP * 2.5) * 0.7 + nyNs(vNyP * 9.0) * 0.3);
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.80, 0.86, 0.93), nyFrost);
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.94, 0.97), nySnow * 0.85); // немного снега на голове и плечах
 `;
