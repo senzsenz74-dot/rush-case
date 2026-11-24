@@ -1,5 +1,6 @@
 // Новогодний ивент: светящиеся слои для мигания гирлянд и фонарей на фонах главного экрана.
 // Берёт assets/ny/bg/<id>.webp, находит яркие тёплые точки (лампочки, фонари, окна; белый снег не берёт),
+// + <id>-d1..3.webp — «тень» группы (лампочки тёмные на белом) для настоящего погасания (владелец 25.11: «не мигают»).
 // делит их на 3 группы вразнобой (сетка 22 px) → assets/ny/glow/<id>-1..3.webp (огоньки + ореол) и <id>-h.webp (широкий мягкий ореол фонарей).
 // Слои чёрные там, где света нет: на сайте кладутся поверх фона с mix-blend-mode: screen и мигают прозрачностью (css/newyear.css).
 // Запуск: node tools/ny-glow.mjs [id ...]   (sharp берётся из promo-video/node_modules основной папки)
@@ -21,9 +22,9 @@ for (const id of ids) {
   const { data } = await sharp(SRC + id + '.webp').resize(W, H).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   // яркость кадра и её размытые копии: огонёк = точка заметно ярче своего окружения (освещённая стена/снег — ровные, не проходят)
   const Lm = Buffer.alloc(W * H); for (let p = 0; p < W * H; p++) Lm[p] = Math.max(data[p * 3], data[p * 3 + 1], data[p * 3 + 2]);
-  const blurL = s => sharp(Lm, { raw: { width: W, height: H, channels: 1 } }).blur(s).raw().toBuffer();
+  const blurL = s => sharp(Lm, { raw: { width: W, height: H, channels: 1 } }).blur(s).extractChannel(0).raw().toBuffer();
   const [B6, B30] = await Promise.all([blurL(6), blurL(30)]);
-  const g = [0, 1, 2].map(() => Buffer.alloc(W * H * 3)), all = Buffer.alloc(W * H * 3);
+  const g = [0, 1, 2].map(() => Buffer.alloc(W * H * 3)), gm = [0, 1, 2].map(() => Buffer.alloc(W * H)), all = Buffer.alloc(W * H * 3);
   let n = 0, nl = 0;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const p = y * W + x, i = p * 3, r = data[i] / 255, gg = data[i + 1] / 255, b = data[i + 2] / 255;
@@ -34,7 +35,7 @@ for (const id of ids) {
     if (bulb <= 0.02) continue;
     n++;
     const cx = (x / CELL) | 0, cy = (y / CELL) | 0, k = ((cx * 73856093) ^ (cy * 19349663)) >>> 0;
-    const o = g[k % 3];
+    const o = g[k % 3]; gm[k % 3][p] = bulb * 255;
     // цвет огонька — свой, чуть теплее и ярче
     o[i] = Math.min(255, data[i] * bulb * 1.1); o[i + 1] = Math.min(255, data[i + 1] * bulb * 0.95); o[i + 2] = Math.min(255, data[i + 2] * bulb * 0.7);
   }
@@ -44,8 +45,12 @@ for (const id of ids) {
     const halo = await sharp(g[j], { raw: { width: W, height: H, channels: 3 } }).blur(7).linear(1.4, 0).raw().toBuffer();
     const mix = Buffer.alloc(W * H * 3); for (let i = 0; i < mix.length; i++) mix[i] = Math.min(255, core[i] + halo[i]);
     await toWebp(mix, 0, OUT + id + '-' + (j + 1) + '.webp');
+    // тень группы: белое везде, лампочки (с их ореолом на фото) — тёмные; на сайте multiply, когда группа «погасла»
+    const sp = await sharp(gm[j], { raw: { width: W, height: H, channels: 1 } }).blur(3.5).linear(3, 0).extractChannel(0).raw().toBuffer();
+    const dim = Buffer.alloc(W * H); for (let q = 0; q < dim.length; q++) dim[q] = 255 - sp[q] * 0.8;
+    await sharp(dim, { raw: { width: W, height: H, channels: 1 } }).webp({ quality: 80, effort: 6 }).toFile(OUT + id + '-d' + (j + 1) + '.webp');
   }
   await toWebp(all, 16, OUT + id + '-h.webp', 2.2);
-  const kb = ['1', '2', '3', 'h'].map(s => fs.statSync(OUT + id + '-' + s + '.webp').size >> 10);
+  const kb = ['1', '2', '3', 'h', 'd1', 'd2', 'd3'].map(s => fs.statSync(OUT + id + '-' + s + '.webp').size >> 10);
   console.log(id, 'точек', n, 'КБ', kb.join('/'));
 }
