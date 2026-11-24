@@ -3327,10 +3327,9 @@ float nyNs(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
 `;
 const NY_SNOW_MAP = `
   float nyN = nyNs(vNyP) * 0.65 + nyNs(vNyP * 3.1) * 0.35; vec3 nyWN = normalize(vNyN);
-  float nySnow = smoothstep(0.30, 0.52, nyWN.y + (nyN - 0.5) * 0.4); // голова и плечи (и их скаты) — плотный снег (владелец 25.11: «хорошо видимый»)
-  float nyFrost = (0.03 + 0.10 * smoothstep(0.0, 0.6, nyWN.y)) * smoothstep(0.35, 0.75, nyNs(vNyP * 2.5));
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.91, 0.98), nyFrost);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), nySnow);
+  // снег только на голове и плечах (владелец 25.11): смотрит вверх И выше линии плеч (vNyY — высота над землёй, м); ниже — ничего, инея на теле нет, без свечения
+  float nySnow = smoothstep(0.30, 0.52, nyWN.y + (nyN - 0.5) * 0.4) * smoothstep(1.40, 1.50, vNyY + (nyN - 0.5) * 0.05);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.94, 0.97), nySnow);
 `;
 function nySnowMat(o) {
   const mats = Array.isArray(o.material) ? o.material : [o.material];
@@ -3339,13 +3338,13 @@ function nySnowMat(o) {
     if (!m || m.userData.nySnow || !m.isMeshStandardMaterial) return; m.userData.nySnow = 1;
     const F = (7 / sz).toFixed(4); // ~7 пятен на высоту части модели
     m.onBeforeCompile = sh => {
-      sh.vertexShader = 'varying vec3 vNyN; varying vec3 vNyP;\n' + sh.vertexShader.replace('#include <defaultnormal_vertex>',
+      sh.vertexShader = 'varying vec3 vNyN; varying vec3 vNyP; varying float vNyY;\n' + sh.vertexShader
+        .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n vNyY = (modelMatrix * vec4(transformed, 1.0)).y;').replace('#include <defaultnormal_vertex>',
         '#include <defaultnormal_vertex>\n vNyN = normalize(mat3(modelMatrix) * objectNormal); vNyP = position * ' + F + ';');
-      sh.fragmentShader = 'varying vec3 vNyN; varying vec3 vNyP;\n' + NY_SNOW_FS + sh.fragmentShader
+      sh.fragmentShader = 'varying vec3 vNyN; varying vec3 vNyP; varying float vNyY;\n' + NY_SNOW_FS + sh.fragmentShader
         .replace('#include <map_fragment>', '#include <map_fragment>\n' + NY_SNOW_MAP)
-        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.8, max(nySnow, nyFrost * 0.6));')
-        .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor *= 1.0 - nySnow;')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += vec3(0.55, 0.65, 0.8) * step(0.993, nyH(floor(vNyP * 30.0))) * nySnow * 0.7 + vec3(0.16, 0.18, 0.22) * nySnow; // снег светлее тени вокруг — читается и в полумраке');
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.85, nySnow);')
+        .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor *= 1.0 - nySnow;');
     };
     m.customProgramCacheKey = () => 'nySnow' + F; m.needsUpdate = true;
   });
