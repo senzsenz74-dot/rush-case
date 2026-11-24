@@ -334,55 +334,17 @@
     }
 
     /* ---------- НОВОГОДНИЙ ИВЕНТ (до 19.01.2027, opt.ny из index.html; владелец 25.11) ----------
-       в графике логотипа: острые грани, наклон как у букв, слои цветов PAL, голубой лёд (#84d9fd — цвет сайта).
-       снег на буквах и сосульки идут по настоящему контуру букв (считаем по пикселям логотипа), шапка — угловатая, с полосами скорости.
-       всё детерминировано по кадру f, как и сама заставка */
-    var NY = !!opt.ny, nyF = [], nyCr = [], nyIc = [], nySh = [];
-    var ICE = ['#ffffff', '#e3f6ff', '#bfe9ff', '#84d9fd', '#4fb3e6'];
+       только падающий снег поверх заставки (владелец: «просто снег, без шапки и сосулек»): дальние точки, ромбы, 6-лучевые снежинки рядом.
+       детерминировано по кадру f, как и сама заставка */
+    var NY = !!opt.ny, nyF = [], ICE = ['#ffffff', '#e3f6ff', '#bfe9ff'];
     if (NY) (function () {
-      var R = rng(777), D = pc.getImageData(0, 0, LW, LH).data, i, x, y;
-      var A = function (x, y) { return D[(y * LW + x) * 4 + 3] > 140; };
-      // контур части: верх и низ каждой колонки (в px логотипа)
-      function prof(p, u0) {
-        var top = [], bot = [];
-        for (x = Math.round(p.x + p.w * u0); x < p.x + p.w; x++) {
-          var t = -1, b = -1;
-          for (y = p.y; y < p.y + p.h; y++) if (A(x, y)) { if (t < 0) t = y; b = y; }
-          top.push([x, t]); bot.push([x, b]);
-        }
-        return { top: top, bot: bot };
-      }
-      // снежная корка: куски по верху букв, где верх ровный (перепад ≤ 2 px)
-      [[P.r, .13, 1], [P.k, 0, .7]].forEach(function (q) {
-        var pr = prof(q[0], q[1]), run = [];
-        var flush = function () { if (run.length >= 5) nyCr.push({ pts: run.slice(), th: q[0].h * .075 * q[2], R: rng(run[0][0] * 31 + 5) }); run = []; };
-        for (i = 0; i < pr.top.length; i++) {
-          var c = pr.top[i];
-          if (c[1] < 0 || (run.length && Math.abs(c[1] - run[run.length - 1][1]) > 2)) flush();
-          if (c[1] >= 0) run.push(c);
-        }
-        flush();
-        // сосульки: в колонках, где низ буквы — местный самый низ (плоское дно), через 4–9 px
-        var last = -99;
-        for (i = 2; i < pr.bot.length - 2; i++) {
-          var b = pr.bot[i]; if (b[1] < 0) continue;
-          var flat = pr.bot[i - 2][1] >= b[1] - 1 && pr.bot[i + 2][1] >= b[1] - 1 && pr.bot[i - 2][1] <= b[1] + 1 && pr.bot[i + 2][1] <= b[1] + 1;
-          if (!flat || b[0] - last < 4 + R() * 5) continue;
-          last = b[0];
-          if (R() < .3) continue;
-          var big = R() < .25;
-          nyIc.push({ x: b[0] + .5, y: b[1] + .8, l: q[0].h * (q[2] > .9 ? .1 : .16) * (big ? 2 + R() : .7 + R() * 1.1), w: q[0].h * (q[2] > .9 ? .035 : .06) * (big ? 1.4 : .8 + R() * .5), dl: R() * 24, sk: (R() - .5) * .25 });
-        }
-      });
+      var R = rng(777), i;
       // снег: 0 — дальние точки, 1 — ромбы, 2 — снежинки рядом
       for (i = 0; i < 150; i++) {
         var z = i < 80 ? 0 : i < 132 ? 1 : 2;
         nyF.push({ z: z, x: R(), y: R(), v: [.05, .09, .16][z] + R() * [.04, .06, .08][z], r: [.7, 1.6, 5][z] + R() * [.8, 1.4, 5][z], a: [.35, .6, .75][z] + R() * .25, d: R() * 6.3, w: .004 + R() * .012, rot: R() * 6.3, rs: (R() - .5) * 1.2, col: R() < .25 ? ICE[2] : '#fff' });
       }
-      // иней по углам: тонкие ледяные иглы к центру
-      for (i = 0; i < 4; i++) for (var j = 0; j < 7; j++) nySh.push({ c: i, a: (R() - .5) * .9, l: .08 + R() * .16, w: .006 + R() * .012, o: .07 + R() * .12 });
     })();
-    function nyEase(x) { x = Math.max(0, Math.min(1, x)); return 1 - Math.pow(1 - x, 3); }
     function nyPoly(c, pts, col) { c.fillStyle = col; c.beginPath(); c.moveTo(pts[0], pts[1]); for (var i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.closePath(); c.fill(); }
     function nySnow(c, t) {
       for (var i = 0; i < nyF.length; i++) {
@@ -402,77 +364,7 @@
       }
       c.globalAlpha = 1;
     }
-    function nyFrostEdges(c) {
-      var m = Math.min(vw, vh), C = [[0, 0, .785], [vw, 0, 2.356], [0, vh, -.785], [vw, vh, -2.356]];
-      for (var i = 0; i < nySh.length; i++) {
-        var q = nySh[i], o = C[q.c], a = o[2] + q.a, L = q.l * m * 2.2, w = q.w * m, ca = Math.cos(a), sa = Math.sin(a), nx = -sa * w, ny = ca * w;
-        c.globalAlpha = q.o; nyPoly(c, [o[0] + nx, o[1] + ny, o[0] + ca * L, o[1] + sa * L, o[0] - nx, o[1] - ny], i % 3 ? ICE[2] : '#fff');
-      }
-      c.globalAlpha = 1;
-    }
-    // снег на буквах + сосульки; fall — секунды падения в финале
-    function nyIce(c, f, fall) {
-      var i, j, q, g, dy = fall > 0 ? 560 * fall * fall : 0, al = fall > 0 ? Math.max(0, 1 - fall / .4) : 1;
-      if (al <= 0) return;
-      var X = function (x) { return Lx + x * s; }, Y = function (y) { return Ly + y * s; };
-      g = nyEase((f - 64) / 26);
-      if (g > 0) for (i = 0; i < nyCr.length; i++) {
-        q = nyCr[i]; var R = rng(i * 97 + 3), th = q.th * g, top = [], k;
-        // верх корки — рваный угловатый край, низ — ровно по букве
-        for (j = 0; j < q.pts.length; j += 3) top.push(X(q.pts[j][0]), Y(q.pts[j][1] - th * (.55 + R() * .6)) + dy * .7);
-        var lp = q.pts[q.pts.length - 1]; top.push(X(lp[0] + 1), Y(lp[1] - th * .3) + dy * .7);
-        var poly = [X(q.pts[0][0] - .6), Y(q.pts[0][1] + th * .25) + dy * .7].concat(top);
-        for (j = q.pts.length - 1; j >= 0; j -= 3) poly.push(X(q.pts[j][0]), Y(q.pts[j][1] + th * .3) + dy * .7);
-        c.globalAlpha = al * .85; var sh = poly.slice(); for (k = 0; k < sh.length; k += 2) { sh[k] -= th * s * .5; sh[k + 1] += th * s * .45; }
-        nyPoly(c, sh, ICE[3]); // голубая «тень-полоса», как слои у букв
-        c.globalAlpha = al; nyPoly(c, poly, '#ffffff');
-      }
-      for (i = 0; i < nyIc.length; i++) {
-        q = nyIc[i]; g = nyEase((f - 72 - q.dl) / 40); if (g <= 0) continue;
-        var x = X(q.x), y = Y(q.y) + dy * (1 + q.dl / 25), L = q.l * s * g, w = q.w * s, tx = x + q.sk * w * 2;
-        c.globalAlpha = al;
-        nyPoly(c, [x - w / 2, y, x, y, tx, y + L], ICE[1]);        // левая грань — светлая
-        nyPoly(c, [x, y, x + w / 2, y, tx, y + L], ICE[3]);        // правая — голубая
-        nyPoly(c, [x - w * .3, y, x - w * .12, y, tx - w * .05, y + L * .55], '#ffffff'); // блик
-      }
-      c.globalAlpha = 1;
-    }
-    // шапка в графике логотипа (u — размер, px; (x, y) — середина низа меха; rot — наклон; tr — сила полос скорости)
-    function nyHat(c, x, y, u, rot, a, tr) {
-      c.save(); c.globalAlpha = a; c.translate(x, y); c.rotate(rot); c.scale(u, u);
-      if (tr > 0) { // полосы скорости слева, как у букв RUSH
-        var P5 = [PAL[2], PAL[3], PAL[4], PAL[5]];
-        for (var i = 0; i < 4; i++) { c.globalAlpha = a * tr * (1 - i * .18); nyPoly(c, [-.4 - .2 * i, -.62 + i * .13, -1.9 + i * .25, -.6 + i * .13, -1.95 + i * .25, -.52 + i * .13, -.42 - .2 * i, -.53 + i * .13], P5[i]); }
-        c.globalAlpha = a;
-      }
-      nyPoly(c, [-.44, -.2, -.2, -.64, .1, -.86, .44, -.78, .7, -.54, .52, -.5, .34, -.58, .52, -.2], PAL[5]);     // колпак
-      nyPoly(c, [-.44, -.2, -.2, -.64, .1, -.86, .02, -.62, -.12, -.2], PAL[4]);                                   // светлая грань
-      nyPoly(c, [-.36, -.24, -.16, -.6, .04, -.76, -.24, -.24], PAL[3]);                                             // блик
-      nyPoly(c, [.34, -.58, .52, -.5, .52, -.2, .3, -.2], '#a51d3a');                                                // складка в тени
-      // мех: косой параллелограмм с зубцами сверху, тёплая полоса снизу
-      nyPoly(c, [-.54, 0, .5, 0, .58, -.12, .5, -.2, .4, -.15, .3, -.22, .18, -.16, .06, -.23, -.06, -.16, -.18, -.22, -.3, -.15, -.42, -.21, -.47, -.12], '#ffffff');
-      nyPoly(c, [-.54, 0, .5, 0, .53, -.05, -.51, -.05], PAL[1]);
-      // помпон — восьмиугольник с гранью
-      var px = .66, py = -.5, r = .14, o = [];
-      for (var k = 0; k < 8; k++) o.push(px + Math.cos(k * .785 + .39) * r, py + Math.sin(k * .785 + .39) * r);
-      nyPoly(c, o, '#ffffff'); nyPoly(c, [px, py, o[0], o[1], o[2], o[3], o[4], o[5]], PAL[1]);
-      c.restore();
-    }
-    function nyDraw(f) {
-      var c = ctx, t = f / FPS; T(c); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
-      nyFrostEdges(c);
-      var fall = f >= 338 ? (f - 338) / FPS : 0, heavy = f >= 300 && f < 306;
-      if (f >= 64 && !heavy) nyIce(c, f, fall);
-      if (f >= 60) { // шапка: влетает сверху с полосами и отскоком (60–78), на сбоях дёргается, в финале улетает вправо-вверх
-        var cw = P.c.w * s, hx = Lx + (P.c.x + P.c.w * .56) * s, hy = Ly + (P.c.y + P.c.h * .22) * s, d = (f - 60) / 18, off = 0, offx = 0, rot = -.14, a = 1, tr = 0;
-        if (d < 1) { var e = 1 - nyEase(d); off = -cw * 1.2 * e; offx = -cw * 1.6 * e; tr = e * 1.4; }
-        else if (d < 1.4) off = -Math.sin((d - 1) / .4 * Math.PI) * cw * .05;
-        if (fall > 0) { offx = fall * 900; off = -fall * 380; rot -= fall * 1.5; tr = Math.min(1, fall * 6); a = Math.max(0, 1 - fall / .45); }
-        if (f >= 282 && f < 300 || f >= 312 && f < 318 || heavy) offx += (rng(f)() - .5) * cw * .12;
-        if (a > 0) nyHat(c, hx + offx, hy + off, cw * .52, rot, a, tr);
-      }
-      nySnow(c, t);
-    }
+    function nyDraw(f) { T(ctx); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; nySnow(ctx, f / FPS); }
     function draw(f) {
       clear(); var R = rng(f * 7919 + 17);
       if (f < 60) intro(f, R); else if (f < 338) hold(f, R); else outro(f, R);
@@ -482,7 +374,6 @@
     function calm(t) {
       clear(); var a = Math.min(1, t / .4); if (t > 1.8) a = Math.max(0, 1 - (t - 1.8) / .4);
       full(ctx, a);
-      if (NY) { ctx.globalAlpha = a; nyIce(ctx, 120, 0); nyHat(ctx, Lx + (P.c.x + P.c.w * .56) * s, Ly + (P.c.y + P.c.h * .22) * s, P.c.w * s * .52, -.14, a, 0); ctx.globalAlpha = 1; } // без движения: шапка и лёд стоят
     }
 
     function run(done, delay) { // delay — через сколько мс начать (под звук)
