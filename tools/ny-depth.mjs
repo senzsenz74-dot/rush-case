@@ -11,7 +11,7 @@ const W = 2560, H = 1440;
 const CFG = {
   // проём ворот: верх по балке с гирляндой, низ — порог; здания и небо — полная размытость, двор к порогу — резче
   nuke: { poly: [[252, 168], [1906, 302], [1906, 955], [252, 955]], sigma: 4.5, y0: 760, y1: 950, near: 0.15, feather: 4,
-    keep: [[1176, 488], [1700, 462], [1906, 466], [1906, 800], [1176, 800]] }, // здание с жёлтыми дверями и «A» — чёткое (владелец 25.11)
+    keep: [[1182, 760], [1182, 600], [1196, 526], [1290, 462], [1645, 462], [1700, 452], [1906, 398], [1906, 760]] }, // здание с жёлтыми дверями и «A» — чёткое, по контуру здания, низ — его основание (владелец 25.11: прямоугольник был заметен)
 };
 for (const id of process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(CFG)) {
   const c = CFG[id], dst = 'assets/ny/bg/' + id + '.webp', src = 'assets/ny/_src/' + id + '-orig.webp';
@@ -23,7 +23,7 @@ for (const id of process.argv.slice(2).length ? process.argv.slice(2) : Object.k
   const mask = await sharp(Buffer.from(svg)).blur(c.feather).extractChannel(0).raw().toBuffer();
   if (c.keep) {
     const ks = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><polygon points="${c.keep.map(p => p.join(',')).join(' ')}" fill="#fff"/></svg>`;
-    const km = await sharp(Buffer.from(ks)).blur(10).extractChannel(0).raw().toBuffer();
+    const km = await sharp(Buffer.from(ks)).blur(5).extractChannel(0).raw().toBuffer();
     for (let p = 0; p < mask.length; p++) mask[p] = mask[p] * (255 - km[p]) / 255;
   }
   const out = Buffer.alloc(W * H * 3);
