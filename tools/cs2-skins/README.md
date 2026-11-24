@@ -26,3 +26,12 @@
 - Подгонка вручную: `cfg/glock-moonrise.json` (сдвиг рисунка), `cfg/deagle-sputnik.json` (рисунок мельче).
 
 На сайте: `C2_3D` и `c2X3D` в js/app.js; у M4A4 «перед» модели развёрнут (`C2_3D_NOFLIP`).
+
+## С 25.11.2026: партии до ~1000 (assets/skins3d) — одна модель на оружие + окраска WebP на скин
+1. `node catalog.js` — все пары оружие×окраска игры (`cs2x/catalog.json`); `node match.js` — какие из них есть на сайте (`cs2x/site_skins.json`).
+2. Партия — JSON-список `{w, kit, ru, en, legacy}` (из site_skins.json), напр. `cs2x/batch1.json`.
+3. `node extract.js <партия.json>` — выгрузка из VPK (новые скины .vcompmat переводятся в .vmat), пишет `<партия>.x.json`.
+4. `node build.js <партия.x.json> 3` — Blender фоном (`build_skin3.py`), ~20–35 с на скин; уже собранное пропускает.
+5. `cp pack.mjs C:/Users/Admin/tools/cs2x/node/ && node C:/Users/Admin/tools/cs2x/node/pack.mjs <проект>/assets/skins3d` — WebP + сжатые модели + index.json.
+6. Проверка: `sheet.html` на локальном сервере. Подгонка кривого рисунка — `cfg/<id>.json` {"tune": {k, du, dv, vflip, bright}}, id = `<оружие>--<окраска>`.
+На сайте — только окно выигрыша (владелец 25.11: кнопок «3D» в кейсе/инвентаре нет).

@@ -5123,9 +5123,41 @@ const C2_3D = {
 };
 const C2_3D_V = 1;
 const C2_3D_NOFLIP = new Set(['m4a4-griffin']); // у этой модели «перед» смотрит в другую сторону — ствол и так слева
-const c2X3DId = s => s && C2_3D[s.name.replace(/ \([^)]+\)$/, '')];
+const c2X3DId = s => s && (C2_3D[s.name.replace(/ \([^)]+\)$/, '')] || sk3dId(s));
 const C2_3D_CACHE = new Map(); // id → Promise(gltf): модель грузится заранее, пока крутится лента
+/* 3D-скины, партии с 25.11.2026 (tools/cs2-skins, ЖУРНАЛ 25.11): assets/skins3d — base/<оружие>-hd|leg.glb одна на вид оружия (meshopt),
+   на каждый скин только окраска t/<id>.webp (цвет), -mr (шероховатость/металл), -n (свой рельеф, если есть); экономная графика — -lo.
+   index.json: { "название без износа (рус. и англ.)": [id, база, есть_рельеф] }. Показ — только в окне выигрыша (showReveal / c2XReveal). */
+const SK3D = { dir: 'assets/skins3d/', v: 1, map: null, p: null, base: new Map(), noflip: new Set(['m4a1-leg']) };
+const sk3dKey = s => s && s.name && s.name.replace(/ \([^)]+\)$/, '').replace('StatTrak™ ', '').replace(/^Souvenir |^Сувенирный /, '');
+const sk3dRec = s => SK3D.map && SK3D.map[sk3dKey(s)];
+const sk3dId = s => { const r = sk3dRec(s); return r ? 's3:' + r[0] : null; };
+function sk3dIdx() {
+  return SK3D.p || (SK3D.p = fetch(SK3D.dir + 'index.json?v=' + SK3D.v).then(r => r.json()).then(m => {
+    SK3D.map = m; SK3D.byId = {}; for (const r of Object.values(m)) SK3D.byId[r[0]] = r; return m;
+  }).catch(() => (SK3D.map = {})));
+}
+function sk3dLoad(id) { // → Promise({scene}) как у GLTFLoader: общая модель оружия + окраска скина
+  const r = SK3D.byId[id], lo = GFX.low ? '-lo' : '';
+  return Promise.all([c2Lib(), import('three/addons/libs/meshopt_decoder.module.js')]).then(([[THREE, { GLTFLoader }], { MeshoptDecoder }]) => {
+    const bk = r[1] + lo;
+    if (!SK3D.base.has(bk)) SK3D.base.set(bk, new Promise((ok, bad) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(SK3D.dir + 'base/' + bk + '.glb?v=' + SK3D.v, ok, undefined, bad)).catch(e => { SK3D.base.delete(bk); throw e; }));
+    const tl = new THREE.TextureLoader(), tx = (f, srgb) => new Promise((ok, bad) => tl.load(SK3D.dir + 't/' + id + f + '.webp?v=' + SK3D.v, t => { t.flipY = false; if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; ok(t); }, undefined, bad));
+    return Promise.all([SK3D.base.get(bk), tx(lo, true), tx('-mr'), r[2] && !lo ? tx('-n').catch(() => null) : null]).then(([g, map, mr, nm]) => {
+      const scene = g.scene.clone(true);
+      scene.traverse(o => {
+        if (!o.isMesh) return; const m = o.material = o.material.clone();
+        m.map = map; m.roughnessMap = mr; m.metalnessMap = mr; m.roughness = 1; m.metalness = 1; m.color.set(0xffffff);
+        if (nm) m.normalMap = nm; m.needsUpdate = true;
+      });
+      return { scene };
+    });
+  });
+}
+// 3D — только в окне выигрыша (владелец 25.11: кнопки «3D» в кейсе и инвентаре не нужны); список 3D-скинов грузится заранее
+setTimeout(sk3dIdx, 1500);
 function c2X3DLoad(id) {
+  if (id.startsWith('s3:')) { if (!C2_3D_CACHE.has(id)) C2_3D_CACHE.set(id, sk3dLoad(id.slice(3)).catch(e => { C2_3D_CACHE.delete(id); throw e; })); return C2_3D_CACHE.get(id); }
   if (!C2_3D_CACHE.has(id)) C2_3D_CACHE.set(id, c2Lib().then(([THREE, { GLTFLoader }]) => new Promise((ok, bad) =>
     new GLTFLoader().load('assets/cs2case/3d/' + id + '.glb?v=' + C2_3D_V, ok, undefined, bad))).catch(e => { C2_3D_CACHE.delete(id); throw e; }));
   return C2_3D_CACHE.get(id);
@@ -5164,7 +5196,7 @@ function c2X3D(host, s) {
       const m4 = new THREE.Matrix4().makeBasis(E[ax[0]], E[ax[1]], E[ax[2]]).transpose();
       if (m4.determinant() < 0) m4.premultiply(new THREE.Matrix4().makeScale(1, 1, -1));
       const holder = new THREE.Group(); holder.add(m); holder.quaternion.setFromRotationMatrix(m4);
-      if (!C2_3D_NOFLIP.has(id)) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
+      if (!C2_3D_NOFLIP.has(id) && !(id.startsWith('s3:') && SK3D.noflip.has(SK3D.byId[id.slice(3)][1]))) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
       if (knife) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2));
       len = size[ax[0]]; pivot.add(holder); hold = holder; t0 = performance.now();
       host.appendChild(canvas); host.classList.add('c2x-has3d'); host.classList.remove('c2x-wait3d'); clearTimeout(tFail); fit();
@@ -5524,6 +5556,7 @@ function showReveal(c, wins, given, demo) {
       ${!demo && !one && given[i].st === 'own' ? `<button class="btn btn-sm btn-dark" data-sellone="${given[i].id}">Продать</button>` : ''}
     </div>`).join('')}</div>`;
   if (one && c2X()) c2XReveal(wins[0], given[0]);
+  else if (one && sk3dId(wins[0])) c2X3D($('#reveal .rv-imgw'), wins[0]); // выпавший скин — 3D-моделью, если она есть (3D-скины, 25.11)
   $('#rl').classList.add('revealed');
   itemTilt($('#reveal'));
   if (!demo && !c.rc) wins.filter((s, i) => !s.cash && s.c !== 'gift' && given[i].st !== 'autosold').forEach(s => liveMine({ n: s.name, c: c.id }));

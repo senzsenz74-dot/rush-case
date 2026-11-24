@@ -1,0 +1,39 @@
+<!doctype html>
+<!-- Лист-превью 3D-скинов (assets/skins3d): все из index.json сеткой, вид сбоку, как в окне выигрыша.
+     Открыть на локальном сервере: http://localhost:5197/tools/cs2-skins/sheet.html  (?from=0&n=50 — часть списка) -->
+<meta charset="utf-8"><title>3D-скины — лист</title>
+<style>body{margin:0;background:#15181e;color:#cfd6e2;font:12px/1.2 Arial}#g{display:grid;grid-template-columns:repeat(10,1fr);gap:2px}
+figure{margin:0;background:#1e222a;position:relative}figure img{width:100%;display:block}figcaption{position:absolute;left:3px;bottom:2px;right:3px;font-size:10px;white-space:nowrap;overflow:hidden}
+figcaption b{color:#84d9fd}</style>
+<div id="g"></div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+const D = '../../assets/skins3d/', q = new URLSearchParams(location.search), NOFLIP = new Set(['m4a1-leg']);
+const idx = await (await fetch(D + 'index.json?' + Date.now())).json();
+const recs = [...new Map(Object.entries(idx).map(([n, r]) => [r[0], [n, r]])).values()].slice(+q.get('from') || 0).slice(0, +q.get('n') || 999);
+const W = 320, H = 200, R = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); R.setSize(W, H); R.outputColorSpace = THREE.SRGBColorSpace; R.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1e222a);
+const pm = new THREE.PMREMGenerator(R); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.55;
+const L = (c, i, x, y, z) => { const l = new THREE.DirectionalLight(c, i); l.position.set(x, y, z); scene.add(l); };
+L(0xffe2b8, 2.6, -3, 3.2, 2); L(0x9fb4d8, 0.6, 3, 0.5, 2.5); L(0xffffff, 1.4, 1.5, 2, -3);
+const cam = new THREE.PerspectiveCamera(30, W / H, 0.01, 50); cam.position.set(0, 0, 3.2);
+const gl = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder), tl = new THREE.TextureLoader(), base = {};
+const tx = (f, s) => new Promise(ok => tl.load(D + 't/' + f + '.webp', t => { t.flipY = false; if (s) t.colorSpace = THREE.SRGBColorSpace; ok(t); }, undefined, () => ok(null)));
+for (const [name, [id, b, n]] of recs) {
+  const g = await (base[b] ||= gl.loadAsync(D + 'base/' + b + '.glb'));
+  const [map, mr, nm] = await Promise.all([tx(id, 1), tx(id + '-mr'), n ? tx(id + '-n') : null]);
+  const m = g.scene.clone(true); m.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); Object.assign(o.material, { map, roughnessMap: mr, metalnessMap: mr, roughness: 1, metalness: 1 }); if (nm) o.material.normalMap = nm; } });
+  const box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3()); m.position.sub(box.getCenter(new THREE.Vector3()));
+  const ax = ['x', 'y', 'z'].sort((a, c) => size[c] - size[a]), E = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
+  const m4 = new THREE.Matrix4().makeBasis(E[ax[0]], E[ax[1]], E[ax[2]]).transpose(); if (m4.determinant() < 0) m4.premultiply(new THREE.Matrix4().makeScale(1, 1, -1));
+  const h = new THREE.Group(); h.add(m); h.quaternion.setFromRotationMatrix(m4);
+  if (!NOFLIP.has(b)) h.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
+  h.scale.setScalar(1.55 / size[ax[0]]); scene.add(h); R.render(scene, cam); scene.remove(h);
+  const f = document.createElement('figure'); f.innerHTML = `<img src="${R.domElement.toDataURL('image/jpeg', .85)}"><figcaption><b>${recs.indexOf(recs.find(r => r[1][0] === id)) + 1}</b> ${name}</figcaption>`; document.getElementById('g').append(f);
+}
+document.title = 'done';
+</script>
