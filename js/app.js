@@ -6953,7 +6953,7 @@ function pfWdWin() {
 }
 /* ---------- вывод только после пополнения (supabase/wd_dep_lock.sql, владелец 23.11): пока игрок не пополнил в сумме от
    site_cfg 'wd'.min_dep (100 ₽) — вывод закрыт для всего инвентаря. Сервер: триггер на withdrawals → ошибка 'dep lock';
-   wd_gate() → { min, dep, ok }. Здесь — окно с замком и зелёной «Пополнить» вместо окна вывода ---------- */
+   wd_gate() → { min, dep, ok }. Владельцы и стримеры (ref_partners.active) — без запрета (no_reg_bonus.sql, 24.11). Здесь — окно с замком и зелёной «Пополнить» вместо окна вывода ---------- */
 const WDL_IC = sv('<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>');
 let wdOpen = false, wdBusy = false; // вывод уже открыт (после пополнения не закрывается)
 async function wdGate() {
@@ -7411,7 +7411,7 @@ async function loadCaseSettings() {
 function afterLogin(isNew) {
   Snd.coin();
   try { const j = localStorage.getItem('rc.join'); if (j) setTimeout(() => { location.hash = '#/join/' + j; }, 300); } catch (e) { /* */ }
-  toast(isNew ? `Добро пожаловать в RUSH CASE, <b>${esc(st.user.name)}</b>! +100 ₽ на баланс` : `С возвращением, <b>${esc(st.user.name)}</b>!`);
+  toast(isNew ? `Добро пожаловать в RUSH CASE, <b>${esc(st.user.name)}</b>!` : `С возвращением, <b>${esc(st.user.name)}</b>!`);
   if (isNew) burst(30);
 }
 async function logout() {

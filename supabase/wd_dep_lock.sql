@@ -28,7 +28,7 @@ language sql stable security definer set search_path = public as $$
   select coalesce(sum(amount), 0) from public.payments where uid = p_uid and status = 'paid'
 $$;
 
--- запрет вывода до пополнения
+-- запрет вывода до пополнения (с 24.11 стримеры без запрета — новая версия в no_reg_bonus.sql)
 create or replace function public._wd_dep_lock() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin

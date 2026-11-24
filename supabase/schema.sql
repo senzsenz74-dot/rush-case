@@ -23,14 +23,14 @@ create policy "profiles: read own" on public.profiles for select to authenticate
 create policy "profiles: update own" on public.profiles for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
 grant select, update on public.profiles to authenticated;
 
--- новый пользователь → профиль с ником из регистрации и +100 ₽
+-- новый пользователь → профиль с ником из регистрации (с 24.11 без бонуса, баланс 0 — no_reg_bonus.sql)
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   insert into public.profiles (id, name, data)
   values (new.id,
           left(coalesce(nullif(trim(new.raw_user_meta_data->>'nick'), ''), split_part(new.email, '@', 1)), 16),
-          jsonb_build_object('balance', 100))
+          jsonb_build_object('balance', 0))
   on conflict (id) do nothing;
   return new;
 end $$;

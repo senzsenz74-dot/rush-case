@@ -270,7 +270,7 @@ begin
   return v;
 end $$;
 
--- запрет вывода скинов: получил ₽ или кейс в подарок по ссылке и ещё ни разу не пополнял
+-- запрет вывода скинов: получил ₽ или кейс в подарок по ссылке и ещё ни разу не пополнял (с 24.11 стримеры без запрета — новая версия в no_reg_bonus.sql)
 create or replace function public._ref_wd_lock() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
