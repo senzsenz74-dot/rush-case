@@ -39,8 +39,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800;900&family=Barlow+Semi+Condensed:wght@500;600&family=Ubuntu+Condensed&family=Sofia+Sans+Extra+Condensed:wght@500;700;800&family=Oswald:wght@400;500&family=Rubik:wght@400;500&family=Sofia+Sans+Semi+Condensed:ital,wght@0,500;0,600;0,700;1,800&family=PT+Mono&family=Caveat:wght@500;600;700&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/logo.webp">
 <link rel="preload" as="image" href="assets/rcoin.webp">
-<link rel="stylesheet" href="css/style.css?v=202611250323">
-<link rel="stylesheet" href="css/pickem.css?v=202611250323">
+<link rel="stylesheet" href="css/style.css?v=202611250329">
+<link rel="stylesheet" href="css/pickem.css?v=202611250329">
 </head>
 <body>
 <div id="rot" role="alert"><div class="rot-in"><img src="assets/logo.webp" alt="RUSH CASE"><i class="rot-ph" aria-hidden="true"><i></i></i><b>Поверните телефон</b><span>RUSH CASE работает в горизонтальном режиме</span></div></div>
@@ -55,8 +55,10 @@
   try { if (sessionStorage.getItem('rc.intro')) again = true; sessionStorage.setItem('rc.intro', '1'); } catch (e) { /* */ }
   if (/[?&]intro\b/.test(location.search)) again = false; // адрес с ?intro — показать заставку ещё раз (для просмотра)
   if (again) { el.parentNode.removeChild(el); return; }
-  var cv = el.firstChild, V = '202611100043', src = 'js/intro.js?v=' + V, ended = false, moved = false, actx = null, sound = null;
+  var cv = el.firstChild, V = '202611250329', src = 'js/intro.js?v=' + V, ended = false, moved = false, actx = null, sound = null;
   var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // новогодний ивент до 19.01.2027 23:59 МСК (как в js/newyear.js): снег, лёд, шапка на короне и звук с бубенцами (assets/intro-ny.mp3)
+  var ny = !/[?&]ny=0/.test(location.search) && (/[?&]ny=1/.test(location.search) || Date.now() <= Date.UTC(2027, 0, 19, 20, 59, 59));
   function end() {
     if (ended) return; ended = true; el.classList.add('out');
     setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 320);
@@ -78,13 +80,13 @@
   visible(function () { setTimeout(end, 15000); }); // страховка: если что-то сломалось, сайт всё равно откроется
   var stop = function (e) { e.preventDefault(); }; // страница под заставкой не прокручивается
   el.addEventListener('wheel', stop, { passive: false }); el.addEventListener('touchmove', stop, { passive: false });
-  function size() { return { w: innerWidth, h: innerHeight, k: Math.min(window.devicePixelRatio || 1, 2), reduce: reduce }; }
+  function size() { return { w: innerWidth, h: innerHeight, k: Math.min(window.devicePixelRatio || 1, 2), reduce: reduce, ny: ny }; }
   try {
     var on = true; try { var sv = JSON.parse(localStorage.getItem('rushcase.v1') || 'null'); if (sv && sv.sound === false) on = false; } catch (e) { /* */ }
     var AC = window.AudioContext || window.webkitAudioContext;
     if (on && !reduce && AC) { actx = new AC(); if (actx.state !== 'running') { actx.close(); actx = null; } }
   } catch (e) { actx = null; }
-  if (actx) sound = fetch('assets/intro.mp3?v=' + V).then(function (r) { return r.arrayBuffer(); })
+  if (actx) sound = fetch('assets/' + (ny ? 'intro-ny.mp3' : 'intro.mp3') + '?v=' + V).then(function (r) { return r.arrayBuffer(); })
     .then(function (b) { return new Promise(function (ok, no) { actx.decodeAudioData(b, ok, no); }); })['catch'](function () { return null; });
   // общий старт: картинка готова → ждём звук (не дольше 2 с) → запускаем вместе, с поправкой на задержку звуковой карты
   function start(run) {
@@ -147,10 +149,10 @@
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="js/skins.js?v=202611250323"></script>
-<script src="js/wears.js?v=202611250323"></script>
-<script src="js/extra.js?v=202611250323"></script>
-<script src="js/newyear.js?v=202611250323"></script>
-<script src="js/app.js?v=202611250323"></script>
+<script src="js/skins.js?v=202611250329"></script>
+<script src="js/wears.js?v=202611250329"></script>
+<script src="js/extra.js?v=202611250329"></script>
+<script src="js/newyear.js?v=202611250329"></script>
+<script src="js/app.js?v=202611250329"></script>
 </body>
 </html>

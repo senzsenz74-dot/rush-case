@@ -333,14 +333,105 @@
       G1(R, .62, .24);
     }
 
+    /* ---------- НОВОГОДНИЙ ИВЕНТ (до 19.01.2027, opt.ny из index.html; владелец 25.11) ----------
+       поверх обычной заставки: снег по экрану, иней по краям, снежные шапки на буквах, сосульки снизу (растут, на осколках падают),
+       шапка Деда Мороза падает на корону и слетает в финале. Всё детерминировано по кадру f — как и сама заставка. */
+    var NY = !!opt.ny, nyF = [], nyI = [], nyC = [];
+    if (NY) (function () {
+      var R = rng(777), i;
+      for (i = 0; i < 170; i++) { var b = R() < .07; nyF.push({ x: R(), y: R(), v: .06 + R() * .16 + (b ? .1 : 0), r: b ? 3 + R() * 3.5 : .6 + R() * 2.1, a: b ? .12 + R() * .12 : .35 + R() * .55, d: R() * 6.3, w: .004 + R() * .014 }); }
+      // сосульки: [часть, доля по ширине, длина (доли высоты части), ширина, задержка роста]
+      [[P.r, .14, 1], [P.k, .02, .98]].forEach(function (q, j) {
+        var n = j ? 16 : 22;
+        for (i = 0; i < n; i++) nyI.push({ p: q[0], u: q[1] + (q[2] - q[1]) * (i + .2 + R() * .6) / n, l: (j ? .22 : .16) + R() * (j ? .3 : .26), w: (j ? .07 : .045) + R() * .03, dl: R() * 22, wb: (R() - .5) * .3 });
+        for (i = 0; i < 34; i++) nyC.push({ p: q[0], u: q[1] + (q[2] - q[1]) * i / 33, h: .55 + R() * .6, s: .7 + R() * .6 });
+      });
+    })();
+    function nyEase(x) { x = Math.max(0, Math.min(1, x)); return 1 - Math.pow(1 - x, 3); }
+    function nySnow(c, t) {
+      for (var i = 0; i < nyF.length; i++) {
+        var q = nyF[i], y = ((q.y + t * q.v) % 1.08) - .04, x = q.x + Math.sin(t * 1.3 + q.d) * q.w + t * .012;
+        x = ((x % 1) + 1) % 1;
+        c.globalAlpha = q.a; c.beginPath(); c.arc(x * vw, y * vh, q.r, 0, 6.2832); c.fill();
+      }
+      c.globalAlpha = 1;
+    }
+    function nyFrostEdges(c) { // иней по углам экрана
+      var m = Math.max(vw, vh), pts = [[0, 0], [vw, 0], [0, vh], [vw, vh]];
+      for (var i = 0; i < 4; i++) {
+        var g = c.createRadialGradient(pts[i][0], pts[i][1], 0, pts[i][0], pts[i][1], m * .32);
+        g.addColorStop(0, 'rgba(200,225,255,.22)'); g.addColorStop(.45, 'rgba(170,205,245,.07)'); g.addColorStop(1, 'rgba(170,205,245,0)');
+        c.fillStyle = g; c.fillRect(0, 0, vw, vh);
+      }
+    }
+    // f — кадр; fall — сколько секунд падают (финал), 0 — висят/лежат
+    function nyIce(c, f, fall) {
+      var i, q, x, y, ph, len, wd, g, dy = fall > 0 ? 520 * fall * fall : 0, a = fall > 0 ? Math.max(0, 1 - fall / .45) : 1;
+      if (a <= 0) return;
+      c.globalAlpha = a;
+      // снежные шапки на верхушках букв
+      for (i = 0; i < nyC.length; i++) {
+        q = nyC[i]; ph = q.p.h * s; g = nyEase((f - 64) / 30);
+        if (g <= 0) continue;
+        x = Lx + (q.p.x + q.p.w * q.u) * s; y = Ly + q.p.y * s + dy * .6;
+        var rw = ph * .1 * q.s, rh = ph * .075 * q.h * g;
+        c.fillStyle = '#eef4fb'; c.beginPath(); c.ellipse(x, y + rh * .25, rw, rh, 0, 0, 6.2832); c.fill();
+      }
+      // сосульки снизу
+      for (i = 0; i < nyI.length; i++) {
+        q = nyI[i]; ph = q.p.h * s; g = nyEase((f - 70 - q.dl) / 45);
+        if (g <= 0) continue;
+        x = Lx + (q.p.x + q.p.w * q.u) * s; y = Ly + (q.p.y + q.p.h) * s - ph * .04 + dy * (1 + q.dl / 30);
+        len = ph * q.l * g; wd = ph * q.w;
+        var gr = c.createLinearGradient(0, y, 0, y + len);
+        gr.addColorStop(0, 'rgba(235,246,255,.95)'); gr.addColorStop(.6, 'rgba(175,215,250,.6)'); gr.addColorStop(1, 'rgba(160,205,250,.15)');
+        c.fillStyle = gr; c.beginPath(); c.moveTo(x - wd / 2, y); c.quadraticCurveTo(x - wd * .2, y + len * .5, x + q.wb * wd, y + len); c.quadraticCurveTo(x + wd * .25, y + len * .45, x + wd / 2, y); c.closePath(); c.fill();
+        c.fillStyle = 'rgba(255,255,255,.7)'; c.fillRect(x - wd * .28, y + len * .08, Math.max(.6, wd * .12), len * .45);
+      }
+      c.globalAlpha = 1;
+    }
+    // шапка Деда Мороза: u — ширина короны в px; (x, y) — середина низа меха; rot — наклон
+    function nyHat(c, x, y, u, rot, a) {
+      c.save(); c.globalAlpha = a; c.translate(x, y); c.rotate(rot); c.scale(u, u);
+      var g = c.createLinearGradient(-.4, -.9, .5, 0); g.addColorStop(0, '#f0485a'); g.addColorStop(.55, '#d0223a'); g.addColorStop(1, '#8e1424');
+      c.fillStyle = g; c.beginPath();
+      c.moveTo(-.46, -.12); c.bezierCurveTo(-.36, -.62, .05, -.92, .42, -.78); c.bezierCurveTo(.64, -.7, .78, -.5, .8, -.3);
+      c.bezierCurveTo(.66, -.42, .52, -.5, .4, -.46); c.bezierCurveTo(.36, -.3, .4, -.18, .46, -.12); c.closePath(); c.fill();
+      c.fillStyle = 'rgba(255,255,255,.18)'; c.beginPath(); c.moveTo(-.34, -.16); c.bezierCurveTo(-.24, -.56, .02, -.78, .3, -.74); c.bezierCurveTo(.06, -.66, -.14, -.46, -.22, -.16); c.closePath(); c.fill();
+      // мех: неровная белая полоса и помпон
+      c.fillStyle = '#f4f7fb';
+      for (var i = 0; i < 9; i++) { var px = -.5 + i * .125; c.beginPath(); c.arc(px, -.06 + (i % 2) * .02, .1 + (i % 3) * .012, 0, 6.2832); c.fill(); }
+      c.fillRect(-.52, -.1, 1.04, .1);
+      c.fillStyle = 'rgba(150,175,205,.35)'; c.fillRect(-.52, -.02, 1.04, .04);
+      c.fillStyle = '#f7f9fc'; c.beginPath(); c.arc(.8, -.28, .14, 0, 6.2832); c.fill();
+      c.fillStyle = 'rgba(150,175,205,.35)'; c.beginPath(); c.arc(.83, -.24, .09, 0, 3.1416); c.fill();
+      c.restore();
+    }
+    function nyDraw(f) {
+      var c = ctx, t = f / FPS; T(c); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+      nyFrostEdges(c);
+      var fall = f >= 338 ? (f - 338) / FPS : 0;
+      if (f >= 64) nyIce(c, f, fall);
+      // шапка: падает на корону с отскоком (60–80), в финале слетает вверх-вправо
+      if (f >= 60) {
+        var cw = P.c.w * s, hx = Lx + (P.c.x + P.c.w * .5) * s, hy = Ly + (P.c.y + P.c.h * .2) * s, d = (f - 60) / 20, off = 0, rot = -.2, a = 1;
+        if (d < 1) { var e = 1 - nyEase(d); off = -cw * 1.4 * e * e + Math.sin(d * 9) * cw * .06 * (1 - d); a = Math.min(1, d * 3); }
+        if (fall > 0) { off = -fall * fall * 900; hx += fall * 260; rot -= fall * 4; a = Math.max(0, 1 - fall / .5); }
+        if (f >= 282 && f < 300 || f >= 312 && f < 318) hx += (rng(f)() - .5) * cw * .08; // дёргается на сбоях вместе с логотипом
+        if (a > 0) nyHat(c, hx + cw * .06, hy + off, cw * .5, rot, a);
+      }
+      c.fillStyle = '#ffffff'; nySnow(c, t);
+    }
     function draw(f) {
       clear(); var R = rng(f * 7919 + 17);
       if (f < 60) intro(f, R); else if (f < 338) hold(f, R); else outro(f, R);
+      if (NY) nyDraw(f);
     }
     // для тех, кто просит меньше движения: просто логотип, без вспышек
     function calm(t) {
       clear(); var a = Math.min(1, t / .4); if (t > 1.8) a = Math.max(0, 1 - (t - 1.8) / .4);
       full(ctx, a);
+      if (NY) { ctx.globalAlpha = a; nyIce(ctx, 120, 0); nyHat(ctx, Lx + (P.c.x + P.c.w * .56) * s, Ly + (P.c.y + P.c.h * .2) * s, P.c.w * s * .5, -.2, a); ctx.globalAlpha = 1; } // без движения: шапка и лёд стоят
     }
 
     function run(done, delay) { // delay — через сколько мс начать (под звук)
