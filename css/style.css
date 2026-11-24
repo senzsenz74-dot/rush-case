@@ -6186,6 +6186,24 @@ body.pg-profile::after{background:linear-gradient(180deg,rgba(6,8,12,.22),rgba(6
   .pf2-row-d{display:none}
   .pf2-st{width:auto}
 }
+/* ---------- чужой профиль #/u/<id> — классы своего кабинета (.pf2-*), без баланса и кнопок ---------- */
+.pp2 .pp-top{margin:6px 0 14px}
+.pp-back{height:38px;padding:0 14px;font-size:14px;text-transform:uppercase}
+.pp-back svg{width:14px;height:14px}
+.pp2 .pf2-rk.on .pf2-rk-b{flex:1 1 auto}
+.pp2 .pf2-rk.on .pf2-rk-t{flex:0 0 auto;padding:0 12px 0 4px} /* без «Ещё N ₽» — всё место званию */
+.pp2-col{grid-template-rows:1fr}
+.pp2-out{cursor:default}
+.pp2-out:hover .pf2-out-wm{color:rgba(255,255,255,.12)}
+.pp2-meta .pf2-big{font-size:26px}
+.pp2-tag{padding:4px 8px;border-radius:2px;background:rgba(132,217,253,.12);color:#84d9fd;font:500 12px/1 'Oswald',var(--ff);text-transform:uppercase;letter-spacing:.04em}
+.pp2-team{display:flex;align-items:center;gap:10px;min-width:0;padding:8px 12px 8px 8px;border-radius:2px;background:rgba(16,18,22,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);color:#fff;text-decoration:none}
+.pp2-team:hover{background:rgba(255,255,255,.12)}
+.pp2-team .tm-logo{width:36px;height:36px;border-radius:2px;border-color:rgba(255,255,255,.14)}
+.pp2-team span{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pp2-team b{font:500 15px/1.1 'Oswald',var(--ff);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp2-team small{font-size:12px;color:#9aa0a8}
+@container (max-width:1180px){ .pp2-col{grid-template-columns:1fr} }
 /* меню профиля в шапке (стрелка у ника) — в новом стиле */
 .umenu{width:248px;padding:6px;border-radius:3px;border:0;background:linear-gradient(180deg,rgba(38,42,51,.97),rgba(20,22,27,.98) 110px);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),0 24px 60px rgba(0,0,0,.55);animation:pfEvIn .16s ease-out}
 .umenu::before{content:"";position:absolute;left:0;top:0;right:0;height:2px;background:linear-gradient(90deg,#84d9fd,rgba(132,217,253,.2) 45%,transparent 80%)}

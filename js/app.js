@@ -4186,54 +4186,104 @@ function playerSearch(box) {
   }, 250); };
   inp.onkeydown = e => { if (e.key === 'Enter') { const a = $('a', res); if (a) location.hash = a.getAttribute('href'); } };
 }
+/* ---------- чужой профиль #/u/<id> — как свой кабинет (владелец 24.11): три стеклянные плашки, вкладки, сетка предметов; без баланса и кнопок ---------- */
+let ppTab = 'inv', ppData = null, ppSort = 'exp', ppRev = false;
+const PP_SORT = [['exp', 'Сначала дорогие'], ['cheap', 'Сначала дешёвые'], ['rar', 'По редкости']];
 function pagePlayer(id) {
-  return `<section class="container pp" id="pp"><div class="pp-top"><a class="btn btn-dark btn-sm" href="#/top">${ic.left || '←'}Топ игроков</a><div id="ppSearch"></div></div>
+  return `<section class="container pf2 pp2" id="pp"><div class="pp-top"><a class="pf2-btn pp-back" href="#/top">${ic.left || '←'}Топ игроков</a><div id="ppSearch"></div></div>
     <div id="ppBody"><div class="adm-load"><span class="spinner"></span>Загружаем профиль…</div></div></section>`;
 }
 async function mountPlayer(id) {
   playerSearch($('#ppSearch'));
   const box = $('#ppBody'); if (!box) return;
-  if (!sb || !id) return (box.innerHTML = `<div class="empty-big">${ic.user}<h2>Игрок не найден</h2></div>`);
+  const none = sub => (box.innerHTML = `<div class="pf2-card pf2-guest"><span class="pf2-guest-i">${PF_IC.case}</span><h2>Игрок не найден</h2>${sub ? `<p>${sub}</p>` : ''}</div>`);
+  if (!sb || !id) return none();
   const { data: p, error } = await sb.rpc('player_card', { p_id: decodeURIComponent(id) });
   if (!$('#ppBody')) return;
-  if (error || !p) return (box.innerHTML = `<div class="empty-big">${ic.user}<h2>Игрок не найден</h2><p>Проверьте ссылку или найдите игрока по нику.</p></div>`);
+  if (error || !p) return none('Проверьте ссылку или найдите игрока по нику.');
   document.title = `${p.name} — RUSH CASE`;
-  const S = p.stats || {}, rk = rankOf(+S.spent || 0), best = S.best && SK[S.best], fav = p.fav && caseById(p.fav);
-  const inv = (p.inv || []).map(n => SK[n]).filter(Boolean), invSum = inv.reduce((a, s) => a + s.p, 0), me = st.user && st.user.id === p.id;
-  const tile = (l, v, sub = '') => `<div class="pp-st"><span>${l}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  ppData = p; ppTab = 'inv'; ppSort = 'exp'; ppRev = false;
+  const S = p.stats || {}, rk = rankOf(+S.spent || 0), best = S.best && SK[S.best], me = st.user && st.user.id === p.id;
+  const inv = (p.inv || []).filter(n => SK[n]), invSum = inv.reduce((a, n) => a + SK[n].p, 0);
+  const since = new Date(p.created_at).toLocaleDateString('ru-RU');
+  const rkHtml = +S.spent > 0
+    ? `<a class="pf2-rk on" href="#/bonus" style="--k1:${rk.cur.c[0]};--k2:${rk.cur.c[1]}" title="Ранги — на странице «Бонусы»"><span class="pf2-rk-b">${rankIcon(rk.cur, rk.i)}<b>${esc(rk.cur.n)}</b></span><span class="pf2-rk-t">${PF_IC.dbl}</span></a>`
+    : `<span class="pf2-rk"><span class="pf2-rk-b"><i></i><i></i><b>———</b></span><span class="pf2-rk-t">Без ранга</span></span>`;
   box.innerHTML = `
-    <div class="pf-hero pp-hero" style="--rk1:${rk.cur.c[0]};--rk2:${rk.cur.c[1]}">
-      <span class="pfh-wm" aria-hidden="true">${rk.cur.n}</span>
-      <div class="pfh-main">
-        <div class="pfh-ava">${ava({ name: p.name, ava: p.ava }, 'xl')}<span class="pfh-rk" title="Ранг ${rk.cur.n}">${rankIcon(rk.cur, rk.i)}</span></div>
-        <div class="pfh-info">
-          <h1>${esc(p.name)}${p.admin ? ' <i class="tt-you">админ</i>' : ''}${me ? ' <i class="tt-you">это вы</i>' : ''}</h1>
-          <div class="pfh-chips">
-            <button class="pfh-chip" data-act="copy" data-copy="${p.pid}" title="Скопировать ID">ID ${p.pid}${ic.copy}</button>
-            ${p.steamid ? `<a class="pfh-chip" href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steamid)}" target="_blank" rel="noopener">${ic.steam}Steam-профиль</a>` : ''}
-            <span class="pfh-chip">${ic.clock}с ${new Date(p.created_at).toLocaleDateString('ru-RU')}</span>
-            <span class="pfh-chip">${rankIcon(rk.cur, rk.i)}${rk.cur.n}</span>
+    <div class="pf2-top pp2-top">
+      <div class="pf2-card pf2-me">
+        <div class="pf2-me-hd">
+          <span class="pf2-ava">${ava({ name: p.name, ava: p.ava }, 'xl')}</span>
+          <div class="pf2-me-id">
+            <div class="pf2-nick"><b>${esc(p.name)}</b>${p.steamid ? `<a class="pf2-sv" href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steamid)}" target="_blank" rel="noopener" title="Профиль Steam" aria-label="Профиль Steam">${ic.steam}</a>` : ''}</div>
+            <button class="pf2-pid" type="button" data-act="copy" data-copy="${p.pid}" title="Скопировать ID">ID:<span>${p.pid}</span></button>
+            ${rkHtml}
           </div>
-          ${me ? '<a class="btn btn-dark btn-sm pp-mine" href="#/profile">Мой кабинет</a>' : ''}
+        </div>
+        <div class="pf2-me-bal pp2-meta">
+          <div class="pf2-me-bv"><span class="pf2-lbl">На сайте с</span><b class="pf2-big">${since}</b>${p.admin ? '<small class="pp2-tag">Администратор</small>' : ''}</div>
+          ${me ? '<a class="pf2-btn" href="#/profile">Мой кабинет</a>' : p.team ? `<a class="pp2-team" href="#/tournaments" title="Команда">${teamLogo(p.team)}<span><b>${esc(p.team.name)}</b><small>[${esc(p.team.tag)}]${p.team.captain ? ' · капитан' : ''}</small></span></a>` : ''}
+        </div>
+        <div class="pf2-me-st">
+          <span title="Кейсов открыто">${PF_IC.case}<b>${fmt(+S.opened || 0)}</b></span>
+          <span title="Апгрейдов${+S.upg ? ', побед ' + fmt(+S.upgWin || 0) : ''}">${PF_IC.up}<b>${fmt(+S.upg || 0)}</b></span>
+          <span title="Контрактов">${PF_IC.spark}<b>${fmt(+S.con || 0)}</b></span>
+        </div>
+      </div>
+      <div class="pf2-card pf2-best${best ? ' has r-' + best.r : ''}">
+        <span class="pf2-lbl">Лучший дроп</span>
+        <div class="pf2-best-tx">${best ? `<span>${esc(best.w)}</span><b>${esc(best.f)}</b>${prc(best.p)}` : 'Пока нет дропов'}</div>
+        <div class="pf2-best-pic">${best ? `<img src="${imgUrl(best, 'l')}" alt="">` : pfGhost()}</div>
+      </div>
+      <div class="pf2-col pp2-col">
+        <div class="pf2-card pf2-out pp2-out">
+          <span class="pf2-lbl">Инвентарь</span><b class="pf2-big">${prc(invSum)}</b><span class="pf2-out-n">Предметов: ${fmt(inv.length)}</span>
+          <span class="pf2-out-wm" aria-hidden="true">${STEAM_LOGO}</span>
         </div>
       </div>
     </div>
-    <div class="pp-stats">
-      ${tile('Открыто кейсов', fmt(+S.opened || 0))}
-      ${tile('Апгрейдов', fmt(+S.upg || 0), +S.upg ? `побед ${fmt(+S.upgWin || 0)}` : '')}
-      ${tile('Контрактов', fmt(+S.con || 0))}
-      ${tile('Любимый кейс', fav ? `<a href="#/case/${fav.id}">${esc(fav.name)}</a>` : '—')}
-      ${tile('Инвентарь', money(invSum), `${fmt(inv.length)} ${plural(inv.length, 'предмет', 'предмета', 'предметов')}`)}
+    <div class="pf2-bar">
+      <div class="pf2-tabs" id="ppTabs">${PF_TABS.map(([k, t]) => `<button type="button" data-tab="${k}">${t}</button>`).join('')}</div>
+      <div class="pf2-tools" id="pfTools"></div>
     </div>
-    <div class="pp-grid">
-      <div class="pp-col">
-        ${best ? `<section class="pp-card"><h3>Лучший дроп</h3><div class="pp-best">${itemCard(best)}</div></section>` : ''}
-        ${p.team ? `<section class="pp-card"><h3>Команда</h3><a class="pp-team" href="#/tournaments">${teamLogo(p.team)}<span><b>${esc(p.team.name)}</b><small>[${esc(p.team.tag)}]${p.team.captain ? ' · капитан' : ''}</small></span></a></section>` : ''}
-        <section class="pp-card"><h3>Последние дропы</h3>${(p.drops || []).filter(d => SK[d.n]).length ? `<div class="pp-drops">${p.drops.filter(d => SK[d.n]).map(d => { const s = SK[d.n], c = d.t === 'case' ? caseById(d.c) : null;
-          return `<div class="pp-drop r-${s.r}"><img src="${imgUrl(s, 's')}" alt=""><span><b>${esc(s.name)}</b><small>${d.t === 'crash' ? `краш x${(+d.x).toFixed(2).replace('.', ',')}` : d.t === 'upg' ? `апгрейд ×${(+d.x).toFixed(1).replace('.', ',')}` : d.t === 'con' ? 'контракт' : c ? 'кейс «' + esc(c.name) + '»' : 'кейс'} · ${new Date(d.ts).toLocaleDateString('ru-RU')}</small></span><i>${money(s.p)}</i></div>`; }).join('')}</div>` : '<div class="empty">Пока нет дропов</div>'}</section>
-      </div>
-      <section class="pp-card pp-inv"><h3>Инвентарь <small>${fmt(inv.length)} предм. · ${money(invSum)}</small></h3>${inv.length ? `<div class="inv-grid pp-inv-grid">${inv.slice(0, 60).map(s => itemCard(s)).join('')}</div>${inv.length > 60 ? `<div class="pp-more">и ещё ${inv.length - 60}</div>` : ''}` : '<div class="empty">Инвентарь пуст</div>'}</section>
-    </div>`;
+    <div id="pfBody"></div>`;
+  $$('#ppTabs button').forEach(b => b.onclick = () => { if (ppTab === b.dataset.tab) return; ppTab = b.dataset.tab; drawPp(); });
+  drawPp();
+}
+function drawPp() {
+  const body = $('#pfBody'), p = ppData; if (!body || !p || !$('#ppTabs')) return;
+  $$('#ppTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ppTab));
+  $('#pfTools').innerHTML = '';
+  const drops = (p.drops || []).filter(d => SK[d.n]);
+  const from = d => { const c = d.t === 'case' ? caseById(d.c) : null; return d.t === 'crash' ? `Краш x${(+d.x).toFixed(2).replace('.', ',')}` : d.t === 'upg' ? `Апгрейд ×${(+d.x).toFixed(1).replace('.', ',')}` : d.t === 'con' ? 'Контракт' : c ? 'Кейс «' + esc(c.name) + '»' : 'Кейс'; };
+  const kind = { case: 'Кейс', upg: 'Апгрейд', con: 'Контракт', crash: 'Краш' };
+  if (ppTab === 'hist') {
+    body.innerHTML = drops.length ? `<div class="pf2-list">${drops.map(d => { const s = SK[d.n];
+      return pfRow({ img: imgUrl(s, 's'), r: s.r, n: esc(s.name), sub: from(d), d: dstr(d.ts), st: kind[d.t] || 'Кейс', cls: 'st-mute', p: prc(s.p) }); }).join('')}</div>` : pfEmpty('Дропов пока нет', 'Здесь будут последние предметы игрока');
+    return;
+  }
+  if (ppTab === 'upg') {
+    const ups = drops.filter(d => d.t === 'upg');
+    body.innerHTML = ups.length ? `<div class="pf2-list">${ups.map(d => { const s = SK[d.n];
+      return pfRow({ img: imgUrl(s, 's'), r: s.r, cls2: 'win', n: esc(s.name), sub: from(d), d: dstr(d.ts), st: 'Победа', cls: 'st-ok', p: '+' + prc(s.p) }); }).join('')}</div>` : pfEmpty('Выигранных апгрейдов пока нет', 'Здесь будут последние победы игрока в апгрейде');
+    return;
+  }
+  const inv = (p.inv || []).filter(n => SK[n]);   // сервер отдаёт по цене; даты получения у чужого инвентаря нет — без «По новизне»
+  const cur = PP_SORT.find(s => s[0] === ppSort) || PP_SORT[0];
+  $('#pfTools').innerHTML = `<button class="pf2-sort${ppRev ? ' rev' : ''}" type="button" id="ppRev" title="Обратный порядок" aria-label="Обратный порядок">${PF_IC.sort}</button>
+    <div class="pf2-dd" id="pfDd"><button class="pf2-dd-b" type="button" aria-haspopup="listbox"><span>${cur[1]}</span>${PF_IC.chev}</button><div class="pf2-dd-l" role="listbox" hidden>${PP_SORT.map(([k, t]) => `<button type="button" data-s="${k}"${k === ppSort ? ' class="on"' : ''}>${t}</button>`).join('')}</div></div>`;
+  const rar = n => (RAR[SK[n].r] || { o: 0 }).o;
+  const by = { exp: (a, b) => SK[b].p - SK[a].p, cheap: (a, b) => SK[a].p - SK[b].p, rar: (a, b) => rar(b) - rar(a) || SK[b].p - SK[a].p }[cur[0]];
+  const sorted = inv.slice().sort(by); if (ppRev) sorted.reverse();
+  const MAX = 120;
+  body.innerHTML = `<div class="pf2-grid" id="invGrid">${sorted.slice(0, MAX).map(n => { const s = SK[n];
+    return `<div class="pf2-it r-${s.r}"><div class="pf2-it-pic"><img src="${imgUrl(s, 'm')}" alt="" loading="lazy"></div><div class="pf2-it-tx"><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div></div>`; }).join('')}</div>
+    ${inv.length > MAX ? `<p class="pf2-hint">и ещё ${fmt(inv.length - MAX)} ${plural(inv.length - MAX, 'предмет', 'предмета', 'предметов')}</p>` : inv.length ? '' : '<p class="pf2-hint">Инвентарь игрока пуст</p>'}`;
+  invFill();
+  const dd = $('#pfDd'), ddl = $('.pf2-dd-l', dd);
+  $('.pf2-dd-b', dd).onclick = e => { e.stopPropagation(); ddl.hidden = !ddl.hidden; dd.classList.toggle('open', !ddl.hidden); };
+  $$('[data-s]', ddl).forEach(b => b.onclick = () => { ppSort = b.dataset.s; drawPp(); });
+  $('#ppRev').onclick = () => { ppRev = !ppRev; drawPp(); };
 }
 function pageTop() {
   return `<section class="container">
