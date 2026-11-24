@@ -3329,7 +3329,10 @@ const NY_SNOW_MAP = `
   float nyN = nyNs(vNyP) * 0.65 + nyNs(vNyP * 3.1) * 0.35; vec3 nyWN = normalize(vNyN);
   // снег только на голове и плечах (владелец 25.11): смотрит вверх И выше линии плеч (vNyY — высота над землёй, м); ниже — ничего, инея на теле нет, без свечения
   float nySnow = smoothstep(0.30, 0.52, nyWN.y + (nyN - 0.5) * 0.4) * smoothstep(1.40, 1.50, vNyY + (nyN - 0.5) * 0.05);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.94, 0.97), nySnow);
+  // иней по всему агенту — видимый, светло-голубой налёт пятнами (владелец 25.11: «оставь иней, именно видимый»), без свечения
+  float nyFrost = (0.22 + 0.12 * smoothstep(-0.2, 0.6, nyWN.y)) * smoothstep(0.3, 0.75, nyNs(vNyP * 2.5) * 0.7 + nyNs(vNyP * 9.0) * 0.3);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.80, 0.86, 0.93), nyFrost);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.94, 0.97), nySnow * 0.85); // немного снега на голове и плечах
 `;
 function nySnowMat(o) {
   const mats = Array.isArray(o.material) ? o.material : [o.material];
@@ -3343,7 +3346,7 @@ function nySnowMat(o) {
         '#include <defaultnormal_vertex>\n vNyN = normalize(mat3(modelMatrix) * objectNormal); vNyP = position * ' + F + ';');
       sh.fragmentShader = 'varying vec3 vNyN; varying vec3 vNyP; varying float vNyY;\n' + NY_SNOW_FS + sh.fragmentShader
         .replace('#include <map_fragment>', '#include <map_fragment>\n' + NY_SNOW_MAP)
-        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.85, nySnow);')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.85, max(nySnow, nyFrost));')
         .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor *= 1.0 - nySnow;');
     };
     m.customProgramCacheKey = () => 'nySnow' + F; m.needsUpdate = true;
@@ -3547,7 +3550,7 @@ function mnAgent() {
     });
     MNA.props = props; // для подгонки из браузера
     const agent = ag.scene; pivot.add(agent);
-    agent.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (NY) nySnowMat(o); } }); // NY — снег и иней на агенте (владелец 25.11)
+    agent.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (NY) nySnowMat(o); } }); // NY — иней и немного снега на агенте (владелец 25.11)
     const wpn = agent.getObjectByName('wpn'), gun = wp.scene;
     const WK = MN_WPN[mnWpnKey()];
     if (WK.set) { // ствол из игры со скелетом: его кость weapon ставим ровно в wpn (то же, что поворот и сдвиг у AWP ниже, но по самой модели)
