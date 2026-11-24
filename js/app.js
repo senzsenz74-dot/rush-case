@@ -3327,10 +3327,10 @@ float nyNs(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
 `;
 const NY_SNOW_MAP = `
   float nyN = nyNs(vNyP) * 0.65 + nyNs(vNyP * 3.1) * 0.35; vec3 nyWN = normalize(vNyN);
-  float nySnow = smoothstep(0.55, 0.8, nyWN.y + (nyN - 0.5) * 0.5);
+  float nySnow = smoothstep(0.30, 0.52, nyWN.y + (nyN - 0.5) * 0.4); // голова и плечи (и их скаты) — плотный снег (владелец 25.11: «хорошо видимый»)
   float nyFrost = (0.03 + 0.10 * smoothstep(0.0, 0.6, nyWN.y)) * smoothstep(0.35, 0.75, nyNs(vNyP * 2.5));
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.91, 0.98), nyFrost);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.97, 1.0), nySnow * 0.95);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), nySnow);
 `;
 function nySnowMat(o) {
   const mats = Array.isArray(o.material) ? o.material : [o.material];
@@ -3345,7 +3345,7 @@ function nySnowMat(o) {
         .replace('#include <map_fragment>', '#include <map_fragment>\n' + NY_SNOW_MAP)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.8, max(nySnow, nyFrost * 0.6));')
         .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor *= 1.0 - nySnow;')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += vec3(0.55, 0.65, 0.8) * step(0.993, nyH(floor(vNyP * 30.0))) * nySnow * 0.7;');
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += vec3(0.55, 0.65, 0.8) * step(0.993, nyH(floor(vNyP * 30.0))) * nySnow * 0.7 + vec3(0.16, 0.18, 0.22) * nySnow; // снег светлее тени вокруг — читается и в полумраке');
     };
     m.customProgramCacheKey = () => 'nySnow' + F; m.needsUpdate = true;
   });
