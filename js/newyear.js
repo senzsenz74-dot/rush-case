@@ -9,24 +9,26 @@
   var force = /[?&]ny=1/.test(q), off = /[?&]ny=0/.test(q);
   if (off || (!force && Date.now() > END)) return;
   window.NY_ON = true;
+  // версия файлов (как у самого скрипта в index.html) — и к картинкам ивента, иначе браузер держит старые после пересборки
+  var v = (document.currentScript && document.currentScript.src.split('?v=')[1]) || '', qv = v ? '?v=' + v : '';
   // фоны главного экрана на время ивента (владелец 25.11, архив «бич.rar»): только новогодние, первый — по умолчанию.
   // app.js берёт этот список вместо MN_BG; выбор игрока из обычных фонов не стирается и вернётся после ивента.
   var B = 'assets/ny/bg/';
   window.NY_BG = [
-    { id: 'ny_nuke', n: 'Nuke', img: B + 'nuke.webp' },
-    { id: 'ny_ancient', n: 'Ancient', img: B + 'ancient.webp' },
-    { id: 'ny_ancient2', n: 'Ancient 2', img: B + 'ancient2.webp' },
-    { id: 'ny_ancient3', n: 'Ancient 3', img: B + 'ancient3.webp' },
-    { id: 'ny_mirage', n: 'Mirage', img: B + 'mirage.webp' },
-    { id: 'ny_inferno', n: 'Inferno', img: B + 'inferno.webp' },
-    { id: 'ny_overpass', n: 'Overpass', img: B + 'overpass.webp' },
-    { id: 'ny_vertigo', n: 'Vertigo', img: B + 'vertigo.webp' },
-    { id: 'ny_cache', n: 'Cache', img: B + 'cache.webp' },
-    { id: 'ny_cbble', n: 'Cobblestone', img: B + 'cbble.webp' },
-    { id: 'ny_train', n: 'Train', img: B + 'train.webp' },
-    { id: 'ny_office', n: 'Office', img: B + 'office.webp' },
-    { id: 'ny_office2', n: 'Office 2', img: B + 'office2.webp' },
-    { id: 'ny_rush', n: 'Rush', img: B + 'rush.webp' }
+    { id: 'ny_nuke', n: 'Nuke', img: B + 'nuke.webp' + qv },
+    { id: 'ny_ancient', n: 'Ancient', img: B + 'ancient.webp' + qv },
+    { id: 'ny_ancient2', n: 'Ancient 2', img: B + 'ancient2.webp' + qv },
+    { id: 'ny_ancient3', n: 'Ancient 3', img: B + 'ancient3.webp' + qv },
+    { id: 'ny_mirage', n: 'Mirage', img: B + 'mirage.webp' + qv },
+    { id: 'ny_inferno', n: 'Inferno', img: B + 'inferno.webp' + qv },
+    { id: 'ny_overpass', n: 'Overpass', img: B + 'overpass.webp' + qv },
+    { id: 'ny_vertigo', n: 'Vertigo', img: B + 'vertigo.webp' + qv },
+    { id: 'ny_cache', n: 'Cache', img: B + 'cache.webp' + qv },
+    { id: 'ny_cbble', n: 'Cobblestone', img: B + 'cbble.webp' + qv },
+    { id: 'ny_train', n: 'Train', img: B + 'train.webp' + qv },
+    { id: 'ny_office', n: 'Office', img: B + 'office.webp' + qv },
+    { id: 'ny_office2', n: 'Office 2', img: B + 'office2.webp' + qv },
+    { id: 'ny_rush', n: 'Rush', img: B + 'rush.webp' + qv }
   ];
   document.documentElement.classList.add('ny-on');
   // мигание гирлянд и фонарей на фоне главного экрана (владелец 25.11): 3 слоя огоньков вразнобой + мягкий ореол фонарей
@@ -40,8 +42,8 @@
     glow.classList.toggle('on', on); dimL.classList.toggle('on', on);
     if (on && m[1] !== cur) {
       cur = m[1];
-      [].forEach.call(dimL.children, function (el) { el.style.backgroundImage = 'url("assets/ny/glow/' + cur + '-' + el.className.split('nyg-')[1] + '.webp")'; });
-      [].forEach.call(glow.children, function (el) { el.style.backgroundImage = 'url("assets/ny/glow/' + cur + '-' + el.className.split('nyg-')[1] + '.webp")'; });
+      [].forEach.call(dimL.children, function (el) { el.style.backgroundImage = 'url("assets/ny/glow/' + cur + '-' + el.className.split('nyg-')[1] + '.webp' + qv + '")'; });
+      [].forEach.call(glow.children, function (el) { el.style.backgroundImage = 'url("assets/ny/glow/' + cur + '-' + el.className.split('nyg-')[1] + '.webp' + qv + '")'; });
     }
   }
   function glowInit() {
@@ -49,7 +51,6 @@
     new MutationObserver(glowSync).observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
   }
   if (document.body) glowInit(); else document.addEventListener('DOMContentLoaded', glowInit);
-  var v = (document.currentScript && document.currentScript.src.split('?v=')[1]) || '';
   var l = document.createElement('link');
   l.rel = 'stylesheet';
   l.href = 'css/newyear.css' + (v ? '?v=' + v : '');
