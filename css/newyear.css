@@ -5,7 +5,8 @@
 /* ---------- мигание гирлянд и фонарей на фоне главного экрана (владелец 25.11) ----------
    слои огоньков лежат ровно поверх фона (тот же center/cover, что у body.pg-main::before) и подсвечивают его (screen).
    1–3 — лампочки гирлянд тремя группами вразнобой, h — мягкий ореол фонарей и окон */
-html.ny-on #nyGlow{position:fixed;inset:0;z-index:-1;pointer-events:none;display:none}
+/* screen — у самого #nyGlow: он отдельный слой (fixed + z-index), и screen у детей смешивался бы только внутри него — чёрное закрывало фон */
+html.ny-on #nyGlow{position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;mix-blend-mode:screen}
 html.ny-on #nyGlow.on{display:block}
 html.ny-on .nyg{position:absolute;inset:0;background:center/cover no-repeat;mix-blend-mode:screen;opacity:.2;will-change:opacity}
 html.ny-on .nyg-1{animation:nyTw 2.9s ease-in-out infinite alternate}
