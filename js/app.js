@@ -3389,7 +3389,8 @@ function mnaWind(THREE, scene, camera, tex) {
 }
 /* ---------- настройки главного экрана (владелец 19.11): кнопка над поддержкой → меню слева: фон, оружие, агент (скоро) ----------
    выбор помнит браузер (rc.mainCfg). Фоны — фото владельца (MN_BG), у каждого фона свои лампы/«плюс» пока только у Ancient */
-const MN_BG = [{ id: 'ancient', n: 'Ancient · сумерки', img: 'assets/bg-main.webp' },
+const MN_BG = window.NY_BG || [ // NY_BG — новогодние фоны (js/newyear.js, до 19.01.2027)
+{ id: 'ancient', n: 'Ancient · сумерки', img: 'assets/bg-main.webp' },
   { id: 'de_mirage_4', n: 'Mirage', img: 'assets/main/bg/de_mirage_4.webp' },
   { id: 'de_inferno', n: 'Inferno', img: 'assets/main/bg/de_inferno.webp' },
   { id: 'de_nuke_4', n: 'Nuke', img: 'assets/main/bg/de_nuke_4.webp' },
@@ -3412,7 +3413,7 @@ const MN_CT = new Set(['ava']), MN_INSPECT = 20; // агенты CT (их кли
 const MN_AGENTS = { darryl: { n: 'Sir Bloody Skullhead Darryl', f: 'agent.glb' }, vypa: { n: 'Vypa Sista of the Revolution', f: 'agent-vypa.glb' },
   sally: { n: 'Getaway Sally', f: 'agent-sally.glb' }, ava: { n: 'Special Agent Ava', f: 'agent-ava.glb' },
   numberk: { n: 'Number K', f: 'agent-numberk.glb' }, miami: { n: 'Sir Bloody Miami Darryl', f: 'agent-miami.glb' } };
-function mnCfg() { let c = {}; try { c = JSON.parse(localStorage.getItem('rc.mainCfg') || '{}') || {}; } catch (e) { /* */ } return { bg: MN_BG.some(b => b.id === c.bg) ? c.bg : 'ancient', wpn: MN_WPN[c.wpn] ? c.wpn : 'awp', agent: MN_AGENTS[c.agent] ? c.agent : 'darryl' }; }
+function mnCfg() { let c = {}; try { c = JSON.parse(localStorage.getItem('rc.mainCfg') || '{}') || {}; } catch (e) { /* */ } return { bg: MN_BG.some(b => b.id === c.bg) ? c.bg : MN_BG[0].id, wpn: MN_WPN[c.wpn] ? c.wpn : 'awp', agent: MN_AGENTS[c.agent] ? c.agent : 'darryl' }; }
 function mnCfgSet(k, v) { const c = mnCfg(); c[k] = v; try { localStorage.setItem('rc.mainCfg', JSON.stringify(c)); } catch (e) { /* */ } return c; }
 const mnWpnKey = () => mnCfg().wpn;
 function mnBgApply() { const b = MN_BG.find(x => x.id === mnCfg().bg) || MN_BG[0]; document.body.style.setProperty("--mn-bg", `url("${new URL(b.img, location.href).href}")`); document.body.classList.toggle('mn-alt', b.id !== 'ancient'); }
