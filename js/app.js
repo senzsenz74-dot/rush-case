@@ -3340,27 +3340,28 @@ const NY_SNOW_MAP = `
   float nyG1 = nyH(floor(vNyP * 45.0)), nyG2 = nyNs(vNyP * 28.0);
   float nyGrain = clamp(nyG1 * 0.55 + nyG2 * 0.6 - 0.1, 0.0, 1.0);
   vec3 nyIce = mix(vec3(0.74, 0.80, 0.88), vec3(0.97, 0.98, 1.0), nyGrain);
-  float nyFrost = NY_CLOTH * (1.0 - nySkin) * (0.17 + nyLow * (0.08 + 0.10 * smoothstep(0.3, 0.0, vNyY))) * smoothstep(0.38, 0.72, nyPatch) * (0.45 + 0.85 * nyGrain);
+  nySkin *= 1.0 - NY_WPN; // на оружии «кожи» нет — оранжевые/золотые скины тоже в инее
+  float nyFrost = NY_CLOTH * (1.0 - nySkin) * (0.17 + 0.05 * NY_WPN + nyLow * (0.08 + 0.10 * smoothstep(0.3, 0.0, vNyY))) * smoothstep(0.38, 0.72, nyPatch) * (0.45 + 0.85 * nyGrain);
   diffuseColor.rgb = mix(diffuseColor.rgb, nyIce, clamp(nyFrost, 0.0, 1.0));
   diffuseColor.rgb = mix(diffuseColor.rgb, nyIce, nySnow * (0.6 + 0.3 * nyGrain)); // немного снега на голове и плечах — то же зерно
 `;
-function nySnowMat(o) {
+function nySnowMat(o, wpn) { // wpn — оружие в руках: иней на всём, без проверки «кожи» по цвету (владелец 25.11)
   const mats = Array.isArray(o.material) ? o.material : [o.material];
   o.geometry.computeBoundingBox(); const bb = o.geometry.boundingBox, sz = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) || 1;
   mats.forEach(m => {
     if (!m || m.userData.nySnow || !m.isMeshStandardMaterial) return; m.userData.nySnow = 1;
     const F = (7 / sz).toFixed(4); // ~7 пятен на высоту части модели
-    const cloth = /head|mask|glove|bare_arm/i.test(m.name || '') ? '0.0' : '1.0'; // иней только на одежде
+    const cloth = !wpn && /head|mask|glove|bare_arm/i.test(m.name || '') ? '0.0' : '1.0', W = wpn ? '1.0' : '0.0'; // иней только на одежде и оружии
     m.onBeforeCompile = sh => {
       sh.vertexShader = 'varying vec3 vNyN; varying vec3 vNyP; varying float vNyY;\n' + sh.vertexShader
         .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n vNyY = (modelMatrix * vec4(transformed, 1.0)).y;').replace('#include <defaultnormal_vertex>',
         '#include <defaultnormal_vertex>\n vNyN = normalize(mat3(modelMatrix) * objectNormal); vNyP = position * ' + F + ';');
-      sh.fragmentShader = '#define NY_CLOTH ' + cloth + '\nvarying vec3 vNyN; varying vec3 vNyP; varying float vNyY;\n' + NY_SNOW_FS + sh.fragmentShader
+      sh.fragmentShader = '#define NY_CLOTH ' + cloth + '\n#define NY_WPN ' + W + '\nvarying vec3 vNyN; varying vec3 vNyP; varying float vNyY;\n' + NY_SNOW_FS + sh.fragmentShader
         .replace('#include <map_fragment>', '#include <map_fragment>\n' + NY_SNOW_MAP)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.85, max(nySnow, nyFrost));')
         .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor *= 1.0 - nySnow;');
     };
-    m.customProgramCacheKey = () => 'nySnow' + F + cloth; m.needsUpdate = true;
+    m.customProgramCacheKey = () => 'nySnow' + F + cloth + W; m.needsUpdate = true;
   });
 }
 // хлопья снега для mnaWind (новогодний ивент): атлас 4×2 — мягкие комочки разного размера, рисуется на лету
@@ -3574,7 +3575,7 @@ function mnAgent() {
       gun.position.fromArray(WK.p).multiplyScalar(0.0254); // корневая кость оружия (из модели игры) совпадает с wpn, а не начало сетки
     }
     MNA.gun = gun; // для подгонки из браузера
-    gun.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (WK.set && o.material.roughnessMap) skMatte(o.material); } }); // скины в руках — матовее (SK_MAT)
+    gun.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (WK.set && o.material.roughnessMap) skMatte(o.material); if (NY) nySnowMat(o, true); } }); // NY — иней на оружии // скины в руках — матовее (SK_MAT)
     if (wpn) wpn.add(gun); gun.visible = true; // модель общая для заходов: могли уйти посреди танца
     let yaw = -0.32, vYaw = 0, drag = false, lx = 0, dirty = false, px = 0, py = 0, pt = 0, moved = false;
     try { const v = parseFloat(localStorage.getItem('rc.agentYaw')); if (isFinite(v)) yaw = v; } catch (e) { /* */ }
