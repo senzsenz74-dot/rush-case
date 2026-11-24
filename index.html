@@ -39,8 +39,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800;900&family=Barlow+Semi+Condensed:wght@500;600&family=Ubuntu+Condensed&family=Sofia+Sans+Extra+Condensed:wght@500;700;800&family=Oswald:wght@400;500&family=Rubik:wght@400;500&family=Sofia+Sans+Semi+Condensed:ital,wght@0,500;0,600;0,700;1,800&family=PT+Mono&family=Caveat:wght@500;600;700&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/logo.webp">
 <link rel="preload" as="image" href="assets/rcoin.webp">
-<link rel="stylesheet" href="css/style.css?v=202611250329">
-<link rel="stylesheet" href="css/pickem.css?v=202611250329">
+<link rel="stylesheet" href="css/style.css?v=202611250332">
+<link rel="stylesheet" href="css/pickem.css?v=202611250332">
 </head>
 <body>
 <div id="rot" role="alert"><div class="rot-in"><img src="assets/logo.webp" alt="RUSH CASE"><i class="rot-ph" aria-hidden="true"><i></i></i><b>Поверните телефон</b><span>RUSH CASE работает в горизонтальном режиме</span></div></div>
@@ -55,12 +55,14 @@
   try { if (sessionStorage.getItem('rc.intro')) again = true; sessionStorage.setItem('rc.intro', '1'); } catch (e) { /* */ }
   if (/[?&]intro\b/.test(location.search)) again = false; // адрес с ?intro — показать заставку ещё раз (для просмотра)
   if (again) { el.parentNode.removeChild(el); return; }
-  var cv = el.firstChild, V = '202611250329', src = 'js/intro.js?v=' + V, ended = false, moved = false, actx = null, sound = null;
+  var cv = el.firstChild, V = '202611250332', src = 'js/intro.js?v=' + V, ended = false, moved = false, actx = null, sound = null, sgain = null;
   var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // новогодний ивент до 19.01.2027 23:59 МСК (как в js/newyear.js): снег, лёд, шапка на короне и звук с бубенцами (assets/intro-ny.mp3)
   var ny = !/[?&]ny=0/.test(location.search) && (/[?&]ny=1/.test(location.search) || Date.now() <= Date.UTC(2027, 0, 19, 20, 59, 59));
   function end() {
     if (ended) return; ended = true; el.classList.add('out');
+    // звук гаснет вместе с заставкой — хвост не доигрывает на главной (владелец 25.11)
+    if (sgain && actx && actx.state === 'running') { try { var n = actx.currentTime; sgain.gain.cancelScheduledValues(n); sgain.gain.setValueAtTime(sgain.gain.value, n); sgain.gain.linearRampToValueAtTime(0, n + .3); setTimeout(function () { try { actx.close(); } catch (e) { /* */ } }, 400); } catch (e) { /* */ } }
     setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 320);
   }
   // ждём, пока вкладку видно и телефон повёрнут горизонтально — иначе человек пропустит заставку
@@ -95,8 +97,8 @@
       (sound || Promise.resolve(null)).then(function (buf) {
         if (!t) return; clearTimeout(t);
         if (!buf || !actx || actx.state !== 'running') return run(0);
-        var s = actx.createBufferSource(), g = actx.createGain(), lead = .06; g.gain.value = .35; s.buffer = buf; s.connect(g); g.connect(actx.destination); // громкость заставки 35% (владелец 11.11: «тише»)
-        s.onended = function () { actx.close(); };
+        var s = actx.createBufferSource(), g = sgain = actx.createGain(), lead = .06; g.gain.value = .35; s.buffer = buf; s.connect(g); g.connect(actx.destination); // громкость заставки 35% (владелец 11.11: «тише»)
+        s.onended = function () { if (actx.state !== 'closed') actx.close(); };
         s.start(actx.currentTime + lead);
         run(Math.round((lead + (actx.outputLatency || 0) + (actx.baseLatency || 0)) * 1000));
       });
@@ -149,10 +151,10 @@
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="js/skins.js?v=202611250329"></script>
-<script src="js/wears.js?v=202611250329"></script>
-<script src="js/extra.js?v=202611250329"></script>
-<script src="js/newyear.js?v=202611250329"></script>
-<script src="js/app.js?v=202611250329"></script>
+<script src="js/skins.js?v=202611250332"></script>
+<script src="js/wears.js?v=202611250332"></script>
+<script src="js/extra.js?v=202611250332"></script>
+<script src="js/newyear.js?v=202611250332"></script>
+<script src="js/app.js?v=202611250332"></script>
 </body>
 </html>
