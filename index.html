@@ -39,8 +39,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800;900&family=Barlow+Semi+Condensed:wght@500;600&family=Ubuntu+Condensed&family=Sofia+Sans+Extra+Condensed:wght@500;700;800&family=Oswald:wght@400;500&family=Rubik:wght@400;500&family=Sofia+Sans+Semi+Condensed:ital,wght@0,500;0,600;0,700;1,800&family=PT+Mono&family=Caveat:wght@500;600;700&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/logo.webp">
 <link rel="preload" as="image" href="assets/rcoin.webp">
-<link rel="stylesheet" href="css/style.css?v=202611250333">
-<link rel="stylesheet" href="css/pickem.css?v=202611250333">
+<link rel="stylesheet" href="css/style.css?v=202611250337">
+<link rel="stylesheet" href="css/pickem.css?v=202611250337">
 </head>
 <body>
 <div id="rot" role="alert"><div class="rot-in"><img src="assets/logo.webp" alt="RUSH CASE"><i class="rot-ph" aria-hidden="true"><i></i></i><b>Поверните телефон</b><span>RUSH CASE работает в горизонтальном режиме</span></div></div>
@@ -55,7 +55,7 @@
   try { if (sessionStorage.getItem('rc.intro')) again = true; sessionStorage.setItem('rc.intro', '1'); } catch (e) { /* */ }
   if (/[?&]intro\b/.test(location.search)) again = false; // адрес с ?intro — показать заставку ещё раз (для просмотра)
   if (again) { el.parentNode.removeChild(el); return; }
-  var cv = el.firstChild, V = '202611250333', src = 'js/intro.js?v=' + V, ended = false, moved = false, actx = null, sound = null, sgain = null;
+  var cv = el.firstChild, V = '202611250337', src = 'js/intro.js?v=' + V, ended = false, moved = false, actx = null, sound = null, sgain = null;
   var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // новогодний ивент до 19.01.2027 23:59 МСК (как в js/newyear.js): снег, лёд, шапка на короне и звук с бубенцами (assets/intro-ny.mp3)
   var ny = !/[?&]ny=0/.test(location.search) && (/[?&]ny=1/.test(location.search) || Date.now() <= Date.UTC(2027, 0, 19, 20, 59, 59));
@@ -105,26 +105,28 @@
     });
   }
   var img = new Image(); img.src = 'assets/logo.webp';
+  // венок новогоднего ивента (assets/ny/wreath.webp) — пролетает по диагонали на финальных помехах; не загрузился — заставка без него
+  var wreathBmp = null, wrP = !ny ? Promise.resolve(null) : (function () { var wi = new Image(); wi.src = 'assets/ny/wreath.webp?v=' + V; return (wi.decode ? wi.decode() : new Promise(function (ok, no) { wi.onload = ok; wi.onerror = no; })).then(function () { return window.createImageBitmap ? createImageBitmap(wi) : wi; }); })()['catch'](function () { return null; });
   (img.decode ? img.decode() : new Promise(function (ok, no) { img.onload = ok; img.onerror = no; }))
-    .then(function () { return window.createImageBitmap ? createImageBitmap(img) : img; })
+    .then(function () { return wrP.then(function (w) { wreathBmp = w; return window.createImageBitmap ? createImageBitmap(img) : img; }); })
     .then(function (bmp) {
       // рисуем в отдельном потоке: загрузка сайта не будет дёргать анимацию
       if (cv.transferControlToOffscreen && window.Worker && bmp !== img) {
         try {
-          var w = new Worker(src), off = cv.transferControlToOffscreen(), o = size(); moved = true; o.cv = off; o.bmp = bmp; o.hold = true;
+          var w = new Worker(src), off = cv.transferControlToOffscreen(), o = size(); moved = true; o.cv = off; o.bmp = bmp; o.hold = true; var tl = [off, bmp]; if (wreathBmp && window.ImageBitmap && wreathBmp instanceof ImageBitmap) { o.wreath = wreathBmp; tl.push(wreathBmp); }
           w.onmessage = function (e) {
             if (e.data === 'ready') start(function (ms) { w.postMessage({ go: ms }); });
             else if (e.data === 'done') { end(); w.terminate(); }
           };
           w.onerror = end;
-          w.postMessage(o, [off, bmp]);
+          w.postMessage(o, tl);
           addEventListener('resize', function () { if (!ended) w.postMessage({ resize: size() }); });
           return;
         } catch (e) { if (moved) return end(); }
       }
       var s = document.createElement('script'); s.src = src; s.onerror = end;
       s.onload = function () {
-        try { var it = window.RCIntro(cv, bmp, size()); start(function (ms) { it.run(end, ms); }); addEventListener('resize', function () { if (!ended) it.layout(size()); }); } catch (e) { end(); }
+        try { var so = size(); so.wreath = wreathBmp; var it = window.RCIntro(cv, bmp, so); start(function (ms) { it.run(end, ms); }); addEventListener('resize', function () { if (!ended) it.layout(size()); }); } catch (e) { end(); }
       };
       document.head.appendChild(s);
     })['catch'](end);
@@ -151,10 +153,10 @@
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="js/skins.js?v=202611250333"></script>
-<script src="js/wears.js?v=202611250333"></script>
-<script src="js/extra.js?v=202611250333"></script>
-<script src="js/newyear.js?v=202611250333"></script>
-<script src="js/app.js?v=202611250333"></script>
+<script src="js/skins.js?v=202611250337"></script>
+<script src="js/wears.js?v=202611250337"></script>
+<script src="js/extra.js?v=202611250337"></script>
+<script src="js/newyear.js?v=202611250337"></script>
+<script src="js/app.js?v=202611250337"></script>
 </body>
 </html>

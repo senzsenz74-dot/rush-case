@@ -364,7 +364,22 @@
       }
       c.globalAlpha = 1;
     }
-    function nyDraw(f) { T(ctx); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; nySnow(ctx, f / FPS); }
+    // венок (владелец 25.11): на финальных помехах большой венок быстро пролетает по диагонали снизу-слева вверх-вправо — переход к сайту.
+    // opt.wreath — картинка assets/ny/wreath.webp (index.html); кадры 334–362 (сайт открывается на 359, когда венок закрывает экран), смаз — 4 тени позади
+    var WR = opt.wreath || null, WR0 = 334, WR1 = 362;
+    function nyWreath(c, f) {
+      if (!WR || f < WR0 || f > WR1) return;
+      var D = Math.max(vw, vh) * 1.25, x0 = -D * .55, y0 = vh + D * .55, x1 = vw + D * .55, y1 = -D * .55;
+      for (var g = 4; g >= 0; g--) {
+        var t = (f - WR0 - g * .7) / (WR1 - WR0); if (t < 0 || t > 1) continue;
+        var e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // быстрее всего посередине
+        c.save(); c.globalAlpha = g ? .16 * (5 - g) / 4 : 1;
+        c.translate(x0 + (x1 - x0) * e, y0 + (y1 - y0) * e); c.rotate(-.6 + e * 1.4);
+        c.drawImage(WR, -D / 2, -D / 2, D, D); c.restore();
+      }
+      c.globalAlpha = 1;
+    }
+    function nyDraw(f) { T(ctx); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; nySnow(ctx, f / FPS); nyWreath(ctx, f); }
     function draw(f) {
       clear(); var R = rng(f * 7919 + 17);
       if (f < 60) intro(f, R); else if (f < 338) hold(f, R); else outro(f, R);
