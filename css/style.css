@@ -4926,7 +4926,7 @@ body.pg-home::after{content:"";display:block;position:fixed;inset:0;z-index:-1;p
 /* ===== шапка как верхняя панель CS2 (образец владельца), «Кейсы» посередине; профиль, звание и баланс — в панели ленты ===== */
 #liveUser{display:none}
 .bal-i{flex:none;display:block;width:24px;height:24px}
-.streamer .bal-i{visibility:hidden}
+.streamer .bal-i{display:none}
 @media (max-width:1024px){
   .nav-l,.nav-r{display:contents}
   .nav a.nav-big{order:-1}
@@ -7783,3 +7783,16 @@ html.gfx-low .c2-out{filter:blur(16px) brightness(.4) saturate(.6)}
 html.gfx-low .c2-fog{background-color:rgba(6,7,10,.34)}
 html.gfx-low .c2-lens-edge{display:none}
 
+/* ===== режим стримера: ДУБЛЕЙ (владелец 26.11) — вместо значка баланса «$» у цен, «₽» в тексте (js curSwap → .dub) и значка
+   баланса в шапке (.dub-bal) пишем слово «ДУБЛЕЙ», всегда без склонения. Шрифт — Oswald 500, цвет — как у цены. Бонусные R-COIN (.prc-rc) не трогаем ===== */
+.dub{font:500 .74em/1 'Oswald',var(--ff);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.dub-bal{display:none}
+.streamer .dub-bal{display:inline;flex:none;font-size:12px;color:rgba(255,255,255,.72)}
+.lu .dub-bal{font-size:calc(var(--u)*12)}
+body.streamer :not(.prc-rc)>.prc-i{width:auto!important;height:auto!important;background:none!important;-webkit-mask:none!important;mask:none!important;vertical-align:baseline!important;margin-left:.32em}
+body.streamer :not(.prc-rc)>.prc-i::before{content:"ДУБЛЕЙ";font:500 .74em/1 'Oswald',var(--ff);letter-spacing:.05em}
+/* апгрейд: плитка «с баланса» — сумма рядом уже со словом, значок прячем; поле суммы — слово без отступа; большой значок слота — кружок с «Д» */
+body.streamer .ug-tile-b>.prc-i{display:none}
+body.streamer .ug-pop-in .prc-i{margin:0}
+body.streamer .ug-sl-bal .prc-i{display:grid!important;place-items:center;width:118px!important;height:118px!important;margin:0;box-sizing:border-box;border:5px solid currentColor;border-radius:50%}
+body.streamer .ug-sl-bal .prc-i::before{content:"Д";font:500 62px/1 'Oswald',var(--ff);letter-spacing:0}

@@ -2691,7 +2691,7 @@ function renderUser() {
   // плашка баланса, на её уголке — бейдж бонусов (подарок и число), кнопка «+»
   const wal = `<div class="wal wal-g">
       <div class="wal-chip">
-        <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><img class="bal-i" src="assets/icon-balance.svg" alt="" aria-hidden="true"><b id="balance">${moneyN(st.balance)}</b></div>
+        <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><img class="bal-i" src="assets/icon-balance.svg" alt="" aria-hidden="true"><b id="balance">${moneyN(st.balance)}</b><i class="dub dub-bal">${DUB}</i></div>
         <a class="rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><span class="rc-gift"><img src="assets/icon-bonus.svg" alt="" aria-hidden="true"></span><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
       </div>
       <button class="wal-dep" data-act="deposit" title="Пополнить баланс" aria-label="Пополнить баланс">${ic.plus}</button>`;
@@ -2713,7 +2713,7 @@ function renderUser() {
         <div class="ubox"><button class="ubtn" id="ubtn" aria-haspopup="true" aria-label="Меню профиля">${ic.chev}</button>${menu}</div>
       </div>
       <div class="lu-wal">
-        <div class="lu-c bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><span class="lu-v"><img class="bal-i" src="assets/icon-balance.svg" alt="" aria-hidden="true"><b id="balance">${moneyN(st.balance)}</b></span></div>
+        <div class="lu-c bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><span class="lu-v"><img class="bal-i" src="assets/icon-balance.svg" alt="" aria-hidden="true"><b id="balance">${moneyN(st.balance)}</b><i class="dub dub-bal">${DUB}</i></span></div>
         <a class="lu-c rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><span class="lu-v"><span class="rc-gift"><img src="assets/icon-bonus.svg" alt="" aria-hidden="true"></span><b id="rcoin">${rc(st.rcoin || 0)}</b></span></a>
       </div>
       <div class="lu-acts">${wkHeadBtn()}<button class="lu-dep" data-act="deposit">${ic.plus}<span>Пополнить</span></button>${snd}</div>
@@ -2745,18 +2745,26 @@ function spendRcoin(v, note) {
   (st.rlog = st.rlog || []).unshift({ v: -v, note, ts: Date.now() }); if (st.rlog.length > 60) st.rlog.length = 60;
   save(); const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin);
 }
-/* режим стримера (настройка в браузере): вместо «₽» — золотая монета, ID и трейд-ссылка скрыты. Работает на всех страницах:
-   каждый знак «₽» в тексте страницы меняется на монету сразу, как появляется (в том числе в анимациях чисел) */
+/* режим стримера (настройка в браузере): вместо «₽» и значка баланса «$» — слово «ДУБЛЕЙ» (владелец 26.11, всегда без склонения), ID и трейд-ссылка скрыты.
+   Работает на всех страницах: каждый знак «₽» в тексте, подсказках (title) и полях (placeholder) меняется на «ДУБЛЕЙ» сразу, как появляется
+   (в том числе в анимациях чисел); значки у цен (.prc-i) и у баланса в шапке меняет css (body.streamer, раздел «режим стримера: ДУБЛЕЙ») */
+const DUB = 'ДУБЛЕЙ', NBSP = String.fromCharCode(160);
 function curSwap(root) {
   if (!st.streamer || !root || root.nodeType === 3 && !(root = root.parentNode)) return;
   if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
   const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.nodeValue.includes('₽') && !(n.parentElement && n.parentElement.closest('script,style,textarea,.cn')) ? 1 : 2 });
   const list = []; while (w.nextNode()) list.push(w.currentNode);
   list.forEach(n => {
-    const fr = document.createDocumentFragment();
-    n.nodeValue.split('₽').forEach((p, i) => { if (i) { const c = document.createElement('i'); c.className = 'cn'; c.setAttribute('aria-label', 'монет'); fr.appendChild(c); } if (p) fr.appendChild(document.createTextNode(p.replace(/\u00a0$|\s$/, '\u2009'))); });
+    const fr = document.createDocumentFragment(), parts = n.nodeValue.split('₽'), last = parts.length - 1;
+    parts.forEach((p, i) => {
+      if (i) { const c = document.createElement('i'); c.className = 'dub'; c.textContent = DUB; fr.appendChild(c); }
+      if (i < last && p) p = p.replace(/\s$/, '') + NBSP; // «450 ₽» и «450₽» → «450 ДУБЛЕЙ» (неразрывный пробел)
+      if (p) fr.appendChild(document.createTextNode(p));
+    });
     n.replaceWith(fr);
   });
+  const sw = el => ['title', 'placeholder'].forEach(a => { const v = el.getAttribute && el.getAttribute(a); if (v && v.includes('₽')) el.setAttribute(a, v.replace(/\s?₽/g, ' ' + DUB)); });
+  sw(root); if (root.querySelectorAll) root.querySelectorAll('[title*="₽"],[placeholder*="₽"]').forEach(sw);
 }
 let curObs = null;
 function streamerApply() {
@@ -2766,13 +2774,13 @@ function streamerApply() {
     curObs.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
   if (!st.streamer && curObs) { curObs.disconnect(); curObs = null; }
-  if (st.streamer) { curSwap(document.body); document.title = document.title.replace(/₽/g, ''); }
+  if (st.streamer) { curSwap(document.body); document.title = document.title.replace(/\s?₽/g, ' ' + DUB); }
 }
 function streamerToggle() {
   st.streamer = !st.streamer; save();
   if (!st.streamer) { location.reload(); return; } // вернуть «₽» на все страницы — проще перезагрузить
   streamerApply(); renderUser(); route();
-  toast('Режим стримера включён: вместо рублей — монеты, ID и трейд-ссылка скрыты');
+  toast(`Режим стримера включён: вместо рублей — ${DUB}, ID и трейд-ссылка скрыты`);
 }
 function setBalance(v) {
   const from = shownBal == null ? st.balance : shownBal;
@@ -6980,7 +6988,7 @@ function pfSettings(focus) {
       <form class="pfw-row" id="sTradeF"><input class="pf2-inp priv" id="sTrade" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade || '')}" spellcheck="false" autocomplete="off"><button class="pf2-btn" type="submit">Сохранить</button></form></div>
     <div class="pfw-fl"><span>Почта для предложений</span>
       ${mail ? `<div class="pfw-ro priv">${esc(st.user.email || '')}</div>` : `<form class="pfw-row" id="sMailF"><input class="pf2-inp priv" id="sMail" type="email" placeholder="name@mail.ru" value="${esc(st.cmail || '')}" spellcheck="false" autocomplete="email"><button class="pf2-btn" type="submit">Сохранить</button></form>`}</div>
-    <div class="pfw-tg"><span>Режим стримера<small>Вместо рублей — монеты, ID и трейд-ссылка скрыты</small></span><button class="pfw-sw${st.streamer ? ' on' : ''}" type="button" id="sStream" role="switch" aria-checked="${!!st.streamer}" aria-label="Режим стримера"><i></i></button></div>
+    <div class="pfw-tg"><span>Режим стримера<small>Вместо рублей — ДУБЛЕЙ, ID и трейд-ссылка скрыты</small></span><button class="pfw-sw${st.streamer ? ' on' : ''}" type="button" id="sStream" role="switch" aria-checked="${!!st.streamer}" aria-label="Режим стримера"><i></i></button></div>
     <div class="pfw-tg"><span>Звук<small>Звуки открытия кейсов и интерфейса</small></span><button class="pfw-sw${st.sound ? ' on' : ''}" type="button" id="sSnd" role="switch" aria-checked="${!!st.sound}" aria-label="Звук"><i></i></button></div>` });
   $('#sTradeF', m).onsubmit = async e => { e.preventDefault(); const b = $('#sTradeF button', m); b.disabled = true; await pfSaveTrade($('#sTrade', m)); b.disabled = false; };
   const mf = $('#sMailF', m); if (mf) mf.onsubmit = async e => { e.preventDefault(); const b = $('button', mf); b.disabled = true; await pfSaveMail($('#sMail', m)); b.disabled = false; };
