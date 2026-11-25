@@ -6889,7 +6889,7 @@ function pfInv(body) {
     $('#cfYes', m).onclick = async () => { closeModal(); const t = await sellItems(own().map(x => x.id), true); if (t) { Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); pfEvList = null; } drawPf(); };
   };
   $$('[data-sell]', body).forEach(b => b.onclick = async () => { b.disabled = true; await sellItem(b.dataset.sell); pfEvList = null; drawPf(); });
-  $$('[data-wd]', body).forEach(b => b.onclick = () => withdraw(b.dataset.wd));
+  $$('[data-wd]', body).forEach(b => b.onclick = () => withdraw(b.dataset.wd, b));
   drawWd();
 }
 // пустые ячейки: дорисовываем до полных рядов (минимум 2 ряда) — по фактическому числу колонок сетки
@@ -7048,8 +7048,8 @@ document.addEventListener('mousedown', e => { const p = $('#pfEv'), t = e.target
 window.addEventListener('scroll', pfEvClose, { passive: true });
 window.addEventListener('hashchange', pfEvClose);
 /* ---------- вывод в Steam через market.csgo: заявка → покупка на маркете → обмен игроку (supabase/market.sql, functions/market) ---------- */
-const WD_ST = { wait: ['Проверяется', 'st-warn', 'заявку проверяет администратор'], new: ['В очереди', 'st-warn', 'покупаем предмет на маркете'], buying: ['Покупаем', 'st-warn', 'покупаем предмет на маркете'],
-  sent: ['Примите обмен', 'st-warn', 'продавец отправляет обмен — примите его в Steam'], prot: ['Получен', 'st-ok', 'обмен принят, идёт защита обмена Steam'], done: ['Выведен', 'st-ok', 'предмет в вашем инвентаре Steam'], fail: ['Отменён', 'st-bad', ''] };
+const WD_ST = { wait: ['Проверяется', 'st-warn', 'заявку проверяет администратор'], new: ['В очереди', 'st-warn', 'готовим обмен'], buying: ['Готовим обмен', 'st-warn', 'готовим обмен'],
+  sent: ['Примите обмен', 'st-warn', 'обмен отправлен — примите его в Steam'], prot: ['Получен', 'st-ok', 'обмен принят, идёт защита обмена Steam'], done: ['Выведен', 'st-ok', 'предмет в вашем инвентаре Steam'], fail: ['Отменён', 'st-bad', ''] };
 const wdKick = () => { try { fetch(`${SB_URL}/functions/v1/market?action=tick`, { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: '{}' }).catch(() => {}); } catch (e) { /* без сети */ } };
 let wdTimer = 0, wdSeen = '';
 // статусы выводов: пока что-то выводится — проверяем раз в 15 с; статус поменялся — обновляем инвентарь; окно «Выводы» (карточка «Выведено») — полный список
@@ -7074,7 +7074,7 @@ async function drawWd() {
   if (act.length) wdTimer = setTimeout(() => { wdKick(); drawWd(); }, 15000);
 }
 function pfWdWin() {
-  pfWin({ k: 'Steam', t: 'Выводы', cls: 'm-pf-wide', body: `<div class="pfw-note">${ic.steam}<span>Мы покупаем предмет на маркете, и продавец отправляет его обменом на вашу трейд-ссылку — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.${st.trade ? '' : ' <b>Сначала укажите трейд-ссылку в настройках профиля.</b>'}</span></div>
+  pfWin({ k: 'Steam', t: 'Выводы', cls: 'm-pf-wide', body: `<div class="pfw-note">${ic.steam}<span>Предмет приходит обменом на вашу трейд-ссылку — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.${st.trade ? '' : ' <b>Сначала укажите трейд-ссылку в настройках профиля.</b>'}</span></div>
     <div id="wdList"><div class="pf2-load"><span class="spinner"></span>Загружаем выводы…</div></div>` });
   drawWd();
 }
@@ -7112,22 +7112,19 @@ function wdLockWin(it, g) {
 }
 // показ окна на локальной копии без входа: WDDBG('AK-47 | …', 150) — как PKDBG у пикема
 if (/^(localhost|127\.)/.test(location.hostname)) window.WDDBG = (n, dep = 0) => wdLockWin({ n: n || Object.keys(SK).find(k => SK[k].r === 'covert' && SK[k].p > 500) }, { min: 100, dep, ok: false });
-async function withdraw(id) {
+// владелец 26.11: без окна подтверждения и без надписей — нажал «Вывести», и предмет сразу уходит на вывод (статус — в карточке «Выведено»).
+// Остаются только нужные остановки: замок «после пополнения» (wdLockWin), нет трейд-ссылки, ошибка сервера (её показывает srv)
+async function withdraw(id, btn) {
   const it = st.inv.find(x => x.id === id); if (!it || it.st !== 'own' || wdBusy) return;
-  wdBusy = true; const g = await wdGate(); wdBusy = false;
-  if (!g.ok) return wdLockWin(it, g);
-  if (!st.trade) { toast('Сначала укажите трейд-ссылку Steam', 'err'); return pfSettings('trade'); }
-  const s = SK[it.n];
-  const m = pfWin({ k: 'Steam', t: 'Вывод предмета', body: `<div class="pfw-item r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>
-      <p class="pfw-p">Мы купим этот предмет на маркете, и продавец отправит его обменом на вашу трейд-ссылку. Обычно это занимает несколько минут — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.</p>`,
-    foot: `<button class="pf2-btn" type="button" id="wdNo">Отмена</button><button class="pf2-go" type="button" id="wdGo">${ic.send}Вывести</button>` });
-  $('#wdNo', m).onclick = closeModal;
-  $('#wdGo', m).onclick = async () => {
-    const b = $('#wdGo', m); b.disabled = true; b.innerHTML = '<span class="spinner"></span>Создаём заявку…';
-    const r = await srv('withdraw', { p_id: id }); closeModal();
-    if (r) { wdKick(); wdSeen = ''; pfEvList = null; toast(r.status === 'wait' ? `Заявка на вывод <b>${esc(s.name)}</b> принята — её проверит администратор` : `Выводим <b>${esc(s.name)}</b> — примите обмен в Steam. Статус — в карточке «Выведено»`); }
+  wdBusy = true; if (btn) btn.disabled = true;
+  try {
+    const g = await wdGate();
+    if (!g.ok) return wdLockWin(it, g);
+    if (!st.trade) { toast('Сначала укажите трейд-ссылку Steam', 'err'); return pfSettings('trade'); }
+    const r = await srv('withdraw', { p_id: id });
+    if (r) { wdKick(); wdSeen = ''; pfEvList = null; }
     if ($('#pfBody')) drawPf();
-  };
+  } finally { wdBusy = false; if (btn) btn.disabled = false; }
 }
 
 /* =========================================================
@@ -7135,7 +7132,7 @@ async function withdraw(id) {
    ========================================================= */
 const FAQ = [
   ['Как пополнить баланс?', 'Нажмите на баланс в шапке сайта или «Пополнить» в профиле. Доступны СБП, банковские карты, криптовалюта и скины. Промокод RUSH35 даёт +35% к сумме.'],
-  ['Как вывести скин в Steam?', 'Укажите трейд-ссылку в профиле, затем нажмите «Вывести» на нужном предмете. Мы купим предмет на маркете, и продавец отправит обмен на вашу трейд-ссылку — примите его в Steam. Статус вывода виден в профиле; если обмен не состоится, предмет вернётся в инвентарь.'],
+  ['Как вывести скин в Steam?', 'Укажите трейд-ссылку в профиле, затем нажмите «Вывести» на нужном предмете — на вашу трейд-ссылку придёт обмен, примите его в Steam. Статус вывода виден в профиле; если обмен не состоится, предмет вернётся в инвентарь.'],
   ['Почему не приходит обмен?', 'Проверьте, что ваш инвентарь Steam открыт, на аккаунте нет торговой блокировки и трейд-ссылка актуальна. Если проблема осталась — напишите в поддержку.'],
   ['Насколько честно выпадает дроп?', 'Результат определяется на сервере в момент нажатия «Открыть» — рулетка лишь показывает уже выпавший предмет. Подкрутить его во время анимации невозможно.'],
   ['Что такое апгрейд?', 'Вы ставите предмет или часть баланса и выбираете скин дороже. Шанс зависит от соотношения цен (максимум 80%). Если стрелка остановится в зелёной зоне — получаете скин, иначе ставка сгорает.'],
