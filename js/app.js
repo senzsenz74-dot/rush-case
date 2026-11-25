@@ -4814,7 +4814,7 @@ const c2Lib = () => C2D.lib || (C2D.lib = Promise.all([
    в снег вокруг кейса, комья разлетаются и остаются на земле (+ пыль удара белая, см. dust). Момент удара — кадр, где низ
    кейса опускается ниже верха сугроба (считается по анимации кейса, у каждой модели свой). Снег — assets/ny/snow.webp (Poly Haven snow_02, CC0). */
 const C2NY_HIT = 'assets/ny/snow-hit.wav?v=1'; // удар о сугроб: хруст и шорох снега (tools/snow-hit-sound.js)
-function c2NySnow(THREE, S, { scene, at, floorY, caseRoot, setFrame, mats }) {
+function c2NySnow(THREE, S, { scene, host, at, floorY, caseRoot, setFrame, mats }) {
   const H = .28, RX = .8, RZ = .65, FLAT = .18, WIDE = 1.35;
   const tex = new THREE.TextureLoader().load('assets/ny/snow.webp?v=1', () => { S.nyDirty = true; });
   tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1.6, 1.6);
@@ -4826,31 +4826,84 @@ function c2NySnow(THREE, S, { scene, at, floorY, caseRoot, setFrame, mats }) {
   }
   geo.computeVertexNormals();
   const mound = new THREE.Mesh(geo, mat); mound.position.copy(at); mound.castShadow = mound.receiveShadow = true; scene.add(mound);
-  const cg = new THREE.IcosahedronGeometry(1, 1), cp = cg.attributes.position;
-  for (let i = 0; i < cp.count; i++) { v.fromBufferAttribute(cp, i); v.multiplyScalar(.75 + Math.abs(Math.sin(i * 12.9898)) * .45); cp.setXYZ(i, v.x, v.y, v.z); } // комья неровные
-  cg.computeVertexNormals();
-  const chunks = Array.from({ length: 38 }, () => { const m = new THREE.Mesh(cg, mat); m.visible = false; m.castShadow = true; scene.add(m); return { m, r: .02 + Math.random() * .04, v: new THREE.Vector3(), w: new THREE.Vector3(), live: false }; });
+  // комья — мягкие, округлые, бугристые (не грани: острые грани выглядели как скомканная бумага — владелец 26.11)
+  const lumpGeo = k => {
+    const g = new THREE.SphereGeometry(1, 12, 9), q = g.attributes.position;
+    for (let i = 0; i < q.count; i++) {
+      v.fromBufferAttribute(q, i);
+      const n = 1 + .14 * Math.sin(v.x * 2.6 + k * 1.7) * Math.sin(v.y * 2.1 + k) + .08 * Math.sin(v.z * 4.3 + v.x * 1.9 + k * 2.3);
+      q.setXYZ(i, v.x * n, v.y * n * .82, v.z * n);
+    }
+    g.computeVertexNormals(); return g;
+  };
+  const cgs = [0, 1, 2].map(lumpGeo);
+  const cmat = new THREE.MeshStandardMaterial({ map: tex, color: 0xf3f6fb, roughness: 1 }); mats.add(cmat);
+  const chunks = Array.from({ length: 46 }, (_, i) => { const m = new THREE.Mesh(cgs[i % 3], cmat); m.visible = false; m.castShadow = true; scene.add(m); return { m, r: .012 + Math.random() * .03, v: new THREE.Vector3(), w: new THREE.Vector3(), live: false }; });
+  // снежная пыль: облачко мелких мягких точек, разлетается и тает за ~1 с
+  const dot = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.45, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+  const PN = 280, pgeo = new THREE.BufferGeometry(), pp = new Float32Array(PN * 3), pv = new Float32Array(PN * 3);
+  pgeo.setAttribute('position', new THREE.BufferAttribute(pp, 3));
+  const pmat = new THREE.PointsMaterial({ map: dot, size: .045, sizeAttenuation: true, transparent: true, depthWrite: false, color: 0xf6f9ff, opacity: 0 }); mats.add(pmat);
+  const powder = new THREE.Points(pgeo, pmat); powder.frustumCulled = false; powder.visible = false; scene.add(powder);
+  // снег на экране: при разлёте пара снежных пятен «прилипает» к экрану и остаётся (до следующего падения кейса)
+  const splats = [];
+  const splatImg = () => {
+    const N = 192, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), img = g.createImageData(N, N);
+    const ph = [0, 1, 2].map(() => Math.random() * 6.28), R = N * .3;
+    const rad = a => R * (1 + .16 * Math.sin(a * 3 + ph[0]) + .1 * Math.sin(a * 5 + ph[1]) + .05 * Math.sin(a * 11 + ph[2]));
+    const drops = Array.from({ length: 7 }, () => { const a = Math.random() * 6.28, d = R * (1.12 + Math.random() * .5); return [N / 2 + Math.cos(a) * d, N / 2 + Math.sin(a) * d, 2 + Math.random() * 7]; });
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const dx = x - N / 2, dy = y - N / 2, r = Math.hypot(dx, dy);
+      let m = Math.min(1, Math.max(0, (rad(Math.atan2(dy, dx)) - r) / (R * .3)));
+      for (const [px, py, pr] of drops) m = Math.max(m, Math.min(1, Math.max(0, (pr - Math.hypot(x - px, y - py)) / (pr * .6))));
+      const i = (y * N + x) * 4; img.data[i] = img.data[i + 1] = 244; img.data[i + 2] = 255; img.data[i + 3] = m * (60 + Math.random() * 120 * m);
+    }
+    g.putImageData(img, 0, 0); return c.toDataURL();
+  };
+  const splat = (lx, ty, wf) => {
+    if (!host.isConnected) return;
+    const d = document.createElement('i'), u = splatImg(), w = Math.round(host.clientWidth * wf);
+    d.className = 'ny-splat'; d.setAttribute('aria-hidden', 'true');
+    Object.assign(d.style, { left: lx * 100 + '%', top: ty * 100 + '%', width: w + 'px', height: w + 'px', backgroundImage: `url(${u})`, webkitMaskImage: `url(${u})`, maskImage: `url(${u})`, rotate: Math.random() * 360 + 'deg' });
+    host.appendChild(d); splats.push(d);
+  };
   // кадр удара: низ кейса ниже верха сугроба
   const box = new THREE.Box3(), bottom = () => { box.makeEmpty(); caseRoot.traverse(o => { if (o.isMesh && o.name !== 'KEY' && !/^SN_/.test(o.name)) box.expandByObject(o); }); return box.min.y; };
   let hitF = 15, prev = null;
   for (let f = 1; f <= 45; f += .5) { setFrame(f); caseRoot.updateMatrixWorld(true); const b = bottom(); if (prev !== null && b <= floorY + H * .9) { hitF = f; break; } prev = b; }
   setFrame(1);
-  let t0 = 0, last = 0;
-  const reset = () => { t0 = 0; mound.scale.set(RX, H, RZ); chunks.forEach(c => { c.m.visible = c.live = false; }); };
-  const burst = now => {
+  let t0 = 0, last = 0, timers = [];
+  const reset = () => {
+    t0 = 0; mound.scale.set(RX, H, RZ); chunks.forEach(c => { c.m.visible = c.live = false; }); powder.visible = false;
+    timers.forEach(clearTimeout); timers = []; splats.splice(0).forEach(d => d.remove());
+  };
+  const burst = (now, live) => {
     t0 = last = now;
     chunks.forEach(c => {
       const a = Math.random() * Math.PI * 2, t = .45 + Math.random() * .55, d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
       c.m.position.set(at.x + d.x * RX * t, floorY + H * Math.sqrt(1 - t * t) * .9 + c.r, at.z + d.z * RZ * t);
-      c.v.copy(d).multiplyScalar(1 + Math.random() * 2.2).setY(1.2 + Math.random() * 2.4);
-      c.w.set(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(14);
-      c.m.scale.set(c.r, c.r * (.7 + Math.random() * .3), c.r); c.m.visible = c.live = true;
+      c.v.copy(d).multiplyScalar(.8 + Math.random() * 2).setY(1 + Math.random() * 2.2);
+      c.w.set(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(9);
+      c.m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+      c.m.scale.set(c.r, c.r, c.r); c.m.visible = c.live = true;
     });
+    for (let i = 0; i < PN; i++) {
+      const a = Math.random() * Math.PI * 2, t = Math.random(), sp = .6 + Math.random() * 2.6;
+      pp[i * 3] = at.x + Math.cos(a) * RX * t * .9; pp[i * 3 + 1] = floorY + .03 + Math.random() * H; pp[i * 3 + 2] = at.z + Math.sin(a) * RZ * t * .9;
+      pv[i * 3] = Math.cos(a) * sp; pv[i * 3 + 1] = .5 + Math.random() * 2.2; pv[i * 3 + 2] = Math.sin(a) * sp;
+    }
+    pgeo.attributes.position.needsUpdate = true; powder.visible = true;
+    if (live) { // снег на экран — только когда кейс долетел сам
+      const sx = Math.random() < .5;
+      timers.push(setTimeout(() => splat(sx ? .1 + Math.random() * .12 : .66 + Math.random() * .12, .42 + Math.random() * .18, .13 + Math.random() * .06), 150));
+      timers.push(setTimeout(() => splat(sx ? .7 + Math.random() * .14 : .12 + Math.random() * .12, .5 + Math.random() * .16, .07 + Math.random() * .04), 230));
+    }
   };
   reset();
   Snd.preloadSet({ ny: C2NY_HIT });
   S.nyF = f => { // звук снега (поверх обычного падения) — только когда кейс долетел сам, а не при прыжке на кадр покоя
-    if (f < hitF) { if (t0) reset(); } else if (!t0) { burst(performance.now()); if (f < hitF + 2) Snd.playCtl(C2NY_HIT, C2S.vol * 1.1); }
+    if (f < hitF) { if (t0) reset(); } else if (!t0) { const live = f < hitF + 2; burst(performance.now(), live); if (live) Snd.playCtl(C2NY_HIT, C2S.vol * 1.1); }
   };
   S.nyT = now => {
     let busy = S.nyDirty; S.nyDirty = false;
@@ -4862,12 +4915,25 @@ function c2NySnow(THREE, S, { scene, at, floorY, caseRoot, setFrame, mats }) {
       if (!c.live) return; busy = true;
       c.v.y -= 9.8 * dt; c.m.position.addScaledVector(c.v, dt);
       c.m.rotation.x += c.w.x * dt; c.m.rotation.y += c.w.y * dt; c.m.rotation.z += c.w.z * dt;
-      const g = floorY + c.r * .55;
+      const g = floorY + c.r * .45;
       if (c.m.position.y <= g) {
         c.m.position.y = g;
-        if (c.v.y < -1.2) { c.v.y *= -.22; c.v.x *= .45; c.v.z *= .45; c.w.multiplyScalar(.4); } else c.live = false; // лёг на землю
+        if (c.v.y < -1.2) { c.v.y *= -.15; c.v.x *= .35; c.v.z *= .35; c.w.multiplyScalar(.3); c.m.scale.y *= .8; } // мягкий снег почти не прыгает
+        else { c.live = false; c.m.scale.y = c.r * .55; c.m.rotation.x = c.m.rotation.z = 0; } // лёг и осел
       }
     });
+    if (powder.visible) {
+      const pe = (now - t0) / 1100; busy = true;
+      if (pe >= 1) powder.visible = false;
+      else {
+        const drag = Math.max(0, 1 - 2.4 * dt);
+        for (let i = 0; i < PN; i++) {
+          pv[i * 3] *= drag; pv[i * 3 + 2] *= drag; pv[i * 3 + 1] = pv[i * 3 + 1] * drag - 1.6 * dt;
+          pp[i * 3] += pv[i * 3] * dt; pp[i * 3 + 1] = Math.max(floorY + .01, pp[i * 3 + 1] + pv[i * 3 + 1] * dt); pp[i * 3 + 2] += pv[i * 3 + 2] * dt;
+        }
+        pgeo.attributes.position.needsUpdate = true; pmat.opacity = .85 * (1 - pe) * Math.min(1, pe * 8); pmat.size = .045 + pe * .05;
+      }
+    }
     return busy;
   };
 }
@@ -5016,7 +5082,7 @@ function c2Mount(c) {
       try { video.pause(); video.removeAttribute('src'); video.load(); } catch (e) { /* */ }
       renderer.dispose(); renderer.forceContextLoss();
     };
-    if (window.NY_ON) c2NySnow(THREE, S, { scene, at: CASE_POS, floorY: FLOOR_Y, caseRoot: gl.scene.getObjectByName('CASE_ROOT'), setFrame, mats: caseMats });
+    if (window.NY_ON) c2NySnow(THREE, S, { scene, host, at: CASE_POS, floorY: FLOOR_Y, caseRoot: gl.scene.getObjectByName('CASE_ROOT'), setFrame, mats: caseMats });
     await vReady;
     if (!S.alive) return;
     clearTimeout(timer);

@@ -37,3 +37,12 @@ html.ny-on .ix .ix-name,html.ny-on .ix .ix-price{position:relative;z-index:8}
 html.ny-on .ugw-ptr .ugw-ndl{display:none}
 html.ny-on .ugw-ptr .ugw-tri{d:path("M149 -8H171L163.5 22L160.6 40L159.4 40L156.5 22Z");fill:#e9f7ff;stroke:rgba(132,217,253,.95);stroke-width:1.2;stroke-linejoin:round;
   filter:drop-shadow(0 0 4px rgba(132,217,253,.85)) drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+
+/* ---------- Сцена кейса (Mirage): снег на экране ----------
+   При разлёте сугроба (c2NySnow, js/app.js) пара снежных пятен «прилипает» к экрану: под пятном сцена размыта и светлее
+   (как снег на стекле камеры), сверху зернистый снег; держится до следующего падения кейса. */
+html.ny-on .ny-splat{position:absolute;z-index:2;pointer-events:none;background:center/100% 100% no-repeat;
+  -webkit-mask:center/100% 100% no-repeat;mask:center/100% 100% no-repeat;
+  -webkit-backdrop-filter:blur(7px) brightness(1.2) saturate(.7);backdrop-filter:blur(7px) brightness(1.2) saturate(.7);
+  translate:-50% -50%;animation:nySplat .22s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes nySplat{from{scale:.25;opacity:0}to{scale:1;opacity:1}}
