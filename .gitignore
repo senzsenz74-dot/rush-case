@@ -19,3 +19,8 @@ promo-video/.frames/
 promo-video/output/
 promo-video/assets/sfx.wav
 assets/ny/_src/
+
+# новогодний Mirage: сцена и кадры рендера (тяжёлые, не в git)
+blender/ny/*.blend
+blender/ny/*.blend1
+blender/ny/renders/
