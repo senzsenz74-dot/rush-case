@@ -11159,7 +11159,7 @@ function mountCrash() {
   crStop();
   const gen = ++cr.gen;
   Snd.warm(['c4Beep', 'c4Tick', 'c4Plant', 'c4Boom']);
-  cr.busy = false; cr.boomed = 0; cr.lcdKey = ''; cr.sel = [];
+  cr.busy = false; cr.betBusy = false; cr.boomed = 0; cr.lcdKey = ''; cr.sel = [];
   const ai = $('#crAutoIn'); ai.value = cr.auto; ai.oninput = () => { cr.auto = ai.value; };
   $('#crRules').onclick = crRulesModal;
   $('#crClr').onclick = () => { cr.sel = []; crDrawInv(); };
@@ -11306,8 +11306,15 @@ function crSum() {
   const its = crSelItems(), s = its.reduce((a, x) => a + SK[x.n].p, 0), e = $('#crSel'); if (!e) return;
   e.innerHTML = prc(s);
   $('#crSelN').textContent = its.length ? `${its.length} из ${CR_MAXN} предм.${s < CR_MIN ? ` · нужно от ${CR_MIN} ₽` : ''}` : 'выберите скины ниже';
-  const b = $('#crBet'); if (b) b.disabled = !its.length || s < CR_MIN;
+  const b = $('#crBet'); if (b) { const off = !its.length || s < CR_MIN; b.classList.toggle('cr-off', off); b.setAttribute('aria-disabled', off); }
 }
+/* кнопки краша срабатывают в момент нажатия (pointerdown), а не при отпускании: нажатие не теряется, если кнопка
+   перерисовалась или палец/мышь чуть сдвинулись (владелец 26.11: «иногда жмёшь, а она не нажимается»). Enter/пробел — обычный click */
+const crTap = (b, fn) => {
+  if (!b) return;
+  b.addEventListener('pointerdown', e => { if (e.button) return; e.preventDefault(); fn(); });
+  b.addEventListener('click', e => { if (!e.detail) fn(); });
+};
 function crRender() {
   const act = $('#crAct'); if (!act) return;
   const ph = crPhase(), me = crMe();
@@ -11317,7 +11324,7 @@ function crRender() {
   if (hb.dataset.k !== hk) hb.dataset.k = hk, hb.innerHTML = cr.hist.map((h, i) => `<span class="cr-tk ${crCls(h.x)}" style="--rt:${[-2, 1.5, -1, 2, -1.5, 1, -2.5, 1.5, -1, 2][i % 10]}deg"><small>№${h.id}</small><b>${crTxt(h.x)}</b></span>`).join('') || '<span class="cr-h-empty">Раундов ещё не было</span>';
   // главная кнопка (вверху меню ставки, на уровне бомбы)
   const key = [cr.err, ph, !!st.user, me ? `${me.cash}|${me.stake}|${me.auto}` : '-'].join('/');
-  if (act.dataset.k !== key) {
+  if (act.dataset.k !== key && !cr.busy && !cr.betBusy) {
     act.dataset.k = key;
     if (cr.err || !sb) act.innerHTML = `<div class="cr-note">Нет связи с сервером — переподключаемся…</div>`;
     else if (ph === 'load') act.innerHTML = `<div class="cr-note"><span class="spinner"></span></div>`;
@@ -11325,9 +11332,9 @@ function crRender() {
     else if (me) {
       if (me.cash) act.innerHTML = `<div class="cr-done win">Забрали на <b>${crTxt(me.cash)}</b>${me.prize && SK[me.prize] ? `<small>${esc(me.prize)} · ${money(SK[me.prize].p)}</small>` : ''}</div>`;
       else if (ph === 'bet') act.innerHTML = `<div class="cr-done">Ставка <b>${prc(me.stake)}</b> принята${me.auto ? `<small>автовывод ${crTxt(me.auto)}</small>` : '<small>ждём старта</small>'}</div>`;
-      else if (ph === 'fly') { act.innerHTML = `<button class="c2-btn c2-green cr-go cr-cash" id="crCash">Забрать <b id="crCashV">${money(me.stake * crCurX())}</b></button>`; $('#crCash').onclick = crCashout; }
+      else if (ph === 'fly') { act.innerHTML = `<button class="c2-btn c2-green cr-go cr-cash" id="crCash">Забрать <b id="crCashV">${money(me.stake * crCurX())}</b></button>`; crTap($('#crCash'), crCashout); }
       else act.innerHTML = `<div class="cr-done lose">Взрыв на <b>${crTxt(cr.r.crash_x)}</b><small>ставка ${money(me.stake)} сгорела</small></div>`;
-    } else if (ph === 'bet') { act.innerHTML = `<button class="c2-btn c2-green cr-go" id="crBet">Сделать ставку</button>`; $('#crBet').onclick = crPlaceBet; crSum(); }
+    } else if (ph === 'bet') { act.innerHTML = `<button class="c2-btn c2-green cr-go" id="crBet">Сделать ставку</button>`; crTap($('#crBet'), crPlaceBet); crSum(); }
     else act.innerHTML = `<div class="cr-note">${ph === 'fly' ? 'Раунд идёт — ставки откроются после взрыва' : 'Новый раунд через несколько секунд'}</div>`;
   }
   // игроки: ставка и итог
@@ -11354,21 +11361,23 @@ async function crPlaceBet() {
   if (s < CR_MIN) return toast(`Ставка — от ${CR_MIN} ₽`, 'err');
   const raw = String(cr.auto || '').replace(',', '.').trim(), auto = raw ? Math.round(parseFloat(raw) * 100) / 100 : null;
   if (raw && !(auto >= 1.01 && auto <= 100)) return toast('Автовывод — от x1.01 до x100', 'err');
-  const b = $('#crBet'); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+  if (cr.betBusy) return;
+  const b = $('#crBet'); cr.betBusy = true; if (b) { b.disabled = true; b.classList.add('is-busy'); b.innerHTML = '<span class="spinner"></span>'; }
   const r = await srv('crash_bet', { p_ids: its.map(x => x.id), p_auto: auto });
+  cr.betBusy = false;
   if (!$('#crash')) return;
   if (!r) { $('#crAct').dataset.k = ''; crRender(); return; }
   cr.sel = []; crDrawInv();
   Snd.coin(); toast(`Ставка ${money(r.stake)} принята`);
-  crPoll(cr.gen);
+  crRender(); crPoll(cr.gen);
 }
 async function crCashout() {
   if (cr.busy || !cr.r) return;
   cr.busy = true;
-  const b = $('#crCash'); if (b) b.disabled = true;
+  const b = $('#crCash'); if (b) { b.disabled = true; b.classList.add('is-busy'); }
   const r = await srv('crash_cashout', { p_round: cr.r.id });
   cr.busy = false;
-  if (!r) { if (b) b.disabled = false; return; }
+  if (!r) { if (b) { b.disabled = false; b.classList.remove('is-busy'); } crRender(); return; }
   const me = crMe();
   if (r.win) { if (me) { me.cash = r.x; me.prize = r.prize; } crWon(r.x, r.prize); }
   else { toast('Не успели — бомба взорвалась', 'err'); crPoll(); }
