@@ -7,7 +7,7 @@
    .ix-ice — последний слой карточки (js/app.js, ixTile): стекло под инеем — лёгкое размытие того, что под ним, холодный оттенок,
    морозный узор assets/ny/frost.webp (tools/ny-frost.mjs: перья инея от краёв, к центру реже), светлая кромка.
    Маска ниже — исходный лёд (центр чуть прозрачнее, низ с названием и ценой светлее). Когда мышь водят по карточке,
-   js/newyear.js рисует свою маску (протаявший след) и ставит её прямо в style, капли рисует в .ix-drip; лёд намерз — style убирается. */
+   js/newyear.js рисует поверх льда холст .ix-melt: там, где протаяло, — сам кейс чётко; капли — холст .ix-drip. */
 html.ny-on .ix-ice{position:absolute;inset:0;z-index:6;display:block;pointer-events:none;border-radius:inherit;
   background:url("../assets/ny/frost.webp?v=2") center/cover no-repeat,
     radial-gradient(120% 95% at 50% 40%,rgba(205,232,255,.05),rgba(196,226,252,.16) 62%,rgba(222,240,255,.34));
@@ -16,10 +16,12 @@ html.ny-on .ix-ice{position:absolute;inset:0;z-index:6;display:block;pointer-eve
   -webkit-mask-image:radial-gradient(135% 120% at 50% 42%,transparent 0,#000 16%),linear-gradient(180deg,#000 70%,rgba(0,0,0,.42) 79%);
   mask-image:radial-gradient(135% 120% at 50% 42%,transparent 0,#000 16%),linear-gradient(180deg,#000 70%,rgba(0,0,0,.42) 79%);
   -webkit-mask-composite:source-in;mask-composite:intersect}
-/* капли талой воды (холст поверх льда, рисует js/newyear.js) */
-html.ny-on .ix-drip{position:absolute;inset:0;z-index:6;width:100%;height:100%;pointer-events:none}
+/* протаявшее (кейс чётко, поверх льда) и капли — холсты внутри .ix-img, рисует js/newyear.js */
+html.ny-on .ix-melt,html.ny-on .ix-drip{position:absolute;inset:0;z-index:7;width:100%;height:100%;pointer-events:none}
 /* экономная графика — без живого размытия, оттенок чуть плотнее */
 html.ny-on.gfx-low .ix-ice{-webkit-backdrop-filter:none;backdrop-filter:none;
   background:url("../assets/ny/frost.webp?v=2") center/cover no-repeat,radial-gradient(120% 95% at 50% 40%,rgba(205,232,255,.12),rgba(196,226,252,.24) 62%,rgba(222,240,255,.4))}
 /* метки NEW / Hot / «Закончился» / риск — поверх льда, чтобы читались */
-html.ny-on .ix .ix-tag,html.ny-on .ix .ix-risk{z-index:7}
+html.ny-on .ix .ix-tag,html.ny-on .ix .ix-risk{z-index:8}
+/* блик наведения (.ix-fx) подо льдом выглядит как второй слой льда, ползущий по стеклу (владелец 25.11) — на время ивента без него */
+html.ny-on .ix .ix-fx{display:none}
