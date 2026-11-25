@@ -4041,7 +4041,7 @@ function ixTile(c, i, o = {}) {
   const rk = o.risk && c.items && c.items.length ? ixRisk(c) : null;
   return `<a class="ix${c.disabled ? ' ix-closed' : ''}${rk ? ' ix-rk' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a};--i:${i}${rk ? `;--rk:${rk[1]}` : ''}" data-price="${c.price}"${c.rc ? ' data-rc="1"' : ''} data-q="${ixQ(c)}"><span class="ix-c">
     <span class="ix-img">${caseArt(c)}<i class="ix-fx" aria-hidden="true"></i>${tag}${c2Old(c) ? c2OldTag() : ''}${rk ? `<i class="ix-risk" title="Риск: шанс окупить кейс — ${rk[2]}%">${rk[0]}</i>` : ''}</span>
-    <span class="ix-info"><b class="ix-name">${esc(c.name)}</b><span class="ix-price">${casePrice(c, c.price)}</span></span>${window.NY_ON ? NY_ICE : ''}${o.bow ? '<i class="ix-bow" aria-hidden="true"></i>' : ''}</span></a>`;
+    <span class="ix-info"><b class="ix-name">${esc(c.name)}</b><span class="ix-price">${casePrice(c, c.price)}</span></span>${window.NY_ON ? NY_ICE : ''}</span></a>`;
 }
 const ixShort = s => String(s.name || '').replace(/ \([^)]+\)$/, '');
 const ixBase = s => ixShort(s).replace('StatTrak™ ', '');            // без износа и StatTrak
@@ -4116,7 +4116,7 @@ function ixPlan() {
 function pageCases() {
   const P = ixPlan(), tabs = [], secs = [];
   const top = P.rest.filter(([b]) => b.fresh); P.rest = P.rest.filter(([b]) => !b.fresh); // новый раздел (НОВЫЙ 2027) — самым первым
-  top.forEach(([b, L]) => { tabs.push([b.id, ixTab(b)]); secs.push(ixSec(b.id, esc(b.t), `<div class="ix-grid">${L.map((c, i) => ixTile(c, i, { bow: !!window.NY_ON })).join('')}</div>`)); }); // NY — бант на угол карточки (css/newyear.css)
+  top.forEach(([b, L]) => { tabs.push([b.id, ixTab(b)]); secs.push(ixSec(b.id, esc(b.t), `<div class="ix-grid">${L.map((c, i) => ixTile(c, i)).join('')}</div>`)); });
   if (P.fresh.length) { tabs.push(['new', 'Новые']); secs.push(ixSec('new', 'Новые кейсы', `<div class="ix-grid">${P.fresh.map((c, i) => ixTile(c, i)).join('')}</div>`)); }
   tabs.push(['auth', 'Авторские']);
   secs.push(ixSec('auth', 'Авторские кейсы', P.auth.length ? `<div class="ix-grid">${P.auth.map((c, i) => ixTile(c, i, { risk: true })).join('')}</div>` : '<p class="ix-soon">Скоро здесь появятся кейсы, которые соберут сами игроки.</p>',

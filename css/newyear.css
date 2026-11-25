@@ -30,8 +30,3 @@ html.ny-on .ix .ix-tag,html.ny-on .ix .ix-risk{z-index:8}
 html.ny-on .ix .ix-fx{display:none}
 /* название и цена — над льдом (владелец 25.11: «цену же не видно»): лёд морозит только фон полосы, текст всегда чёткий */
 html.ny-on .ix .ix-name,html.ny-on .ix .ix-price{position:relative;z-index:8}
-/* бант на правый верхний угол карточек раздела «НОВЫЙ 2027» (владелец 25.11: «как настоящий бант»): assets/ny/bow-real.webp —
-   настоящий атласный бант, вырезан с новогоднего фона Nuke (assets/ny/_src/nuke-orig.webp); чуть наклонён, с тенью, над льдом */
-html.ny-on .ix-bow{position:absolute;top:4px;right:4px;z-index:9;width:clamp(58px,30%,96px);aspect-ratio:207/215;pointer-events:none;
-  background:url("../assets/ny/bow-real.webp?v=1") center/contain no-repeat;transform:rotate(12deg);transform-origin:70% 20%;
-  filter:drop-shadow(0 3px 4px rgba(0,0,0,.55))}
