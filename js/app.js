@@ -4728,7 +4728,8 @@ function itemTilt(root) {
    фарм (по 20–100 штук), купленные «Собери сам», только ножи или перчатки (всё ушло бы в одну золотую плитку), БАБА ЧАЙ (своя рамка,
    звуки, живая цена золота). У «старых» — прежняя страница; на странице «Кейсы» админ видит у них метку «старый» */
 // бонусные (c.rc) с 26.11 тоже на сцене CS2 (владелец): цена и кнопка — в R-COIN (cs2Idle, cs2Confirm, правила)
-const c2Old = c => !!(c.farm || c.bcid || c.build || c.liveGold || c.frame || c.snd) || (c.items || []).filter(s => s.r !== 'covert' && s.r !== 'rare').length < 2;
+// кейсы из одних редких (только перчатки, только ножи) с 26.11 тоже на сцене CS2 (владелец): в панели одна золотая плашка «★ Редкий предмет» с числом предметов
+const c2Old = c => !!(c.farm || c.bcid || c.build || c.liveGold || c.frame || c.snd);
 const c2Like = c => c.ui === 'cs2' || !c2Old(c);
 const c2OldTag = () => st.user && st.user.admin ? '<i class="ix-old" title="Страница кейса ещё старая (не в стиле BLAST)">старый</i>' : '';
 const c2On = c => c2Like(c) && !!$('.c2p');
@@ -4745,6 +4746,9 @@ const c2Sorted = c => c.items.slice().sort((a, b) => RAR[a.r].o - RAR[b.r].o || 
 const C2BADGE = { rare: 'assets/cs2case/rare.webp?v=2', covert: 'assets/cs2case/secret.webp?v=2', gift: 'assets/cs2case/gift.webp?v=1' };
 const c2Badge = (r, cls = '') => `<div class="c2t c2t-badge ${r === 'rare' ? 'c2t-gold' : r === 'gift' ? 'c2t-gift' : 'c2t-red'} ${cls}"><img src="${C2BADGE[r]}" alt="" draggable="false"></div>`;
 const c2Secret = n => n ? `<div class="c2-it c2-secret">${c2Badge('covert')}<em>${n} ${plural(n, 'предмет', 'предмета', 'предметов')}</em><b>ЗАСЕКРЕЧЕНО</b><span>Тайное</span></div>` : '';
+// подпись под плашкой «★ Редкий предмет»: что за ней — перчатки (вкл. обмотки), ножи или и то и другое
+const c2Glove = s => s.c === 'gloves' || /Gloves|Wraps|Перчатки|Обмотки/i.test(s.name);
+const c2RareKind = L => L.every(c2Glove) ? 'перчатки' : L.some(c2Glove) ? 'ножи и перчатки' : 'ножи';
 const c2Tile = (s, cls = '') => C2BADGE[s.r] ? c2Badge(s.r, cls)
   : `<div class="c2t r-${s.r} ${cls}"><img src="${imgUrl(s, 'm')}" alt="" draggable="false" loading="lazy"></div>`;
 /* ---------- CS2 CASE: 3D-сцена — видео-фон Mirage + 3D-кейс из Blender (файлы в assets/cs2case/) ----------
@@ -4931,7 +4935,7 @@ function pageCaseCs2(c) {
     <div class="c2-panel">
       <div class="c2-items"><div>
       <div class="c2-ptitle">Откройте и получите один из следующих предметов</div>
-      <div class="c2-grid${many ? ' c2-many' : ''}">${reg.filter(s => s.r !== 'covert').map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${c2Secret(reg.filter(s => s.r === 'covert').length)}${rare.length ? `<div class="c2-it c2-rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет</b><span>ножи и перчатки</span></div>` : ''}</div></div></div>
+      <div class="c2-grid${many ? ' c2-many' : ''}">${reg.filter(s => s.r !== 'covert').map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${c2Secret(reg.filter(s => s.r === 'covert').length)}${rare.length ? `<div class="c2-it c2-rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет</b><span>${c2RareKind(rare)}</span></div>` : ''}</div></div></div>
       <div class="c2-cc" id="cc"></div>
     </div>
   </section>`;
