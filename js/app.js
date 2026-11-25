@@ -3027,7 +3027,8 @@ async function loadCaseCfg() {
   const bl = data.find(r => r.k === 'blocks');
   if (bl && Array.isArray(bl.v) && bl.v.length) {
     const fresh = CASE_BLOCKS.filter(b => b.fresh && !bl.v.some(x => x.id === b.id)); // новые разделы из кода, которых нет в сохранённом списке
-    CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...fresh.map(b => ({ ...b, ids: [] })), ...bl.v.map(b => ({ ...b, ids: [] })));
+    const codeFresh = id => !!(CASE_BLOCKS.find(x => x.id === id) || {}).fresh; // пометка «первым» (fresh) — из кода: в сохранённом списке её нет, раздел НОВЫЙ 2027 уезжал вниз (владелец 25.11)
+    CASE_BLOCKS.splice(0, CASE_BLOCKS.length, ...fresh.map(b => ({ ...b, ids: [] })), ...bl.v.map(b => ({ ...b, ids: [], fresh: b.fresh || codeFresh(b.id) })));
   }
   CASES.forEach(applyCaseCfg); CASES.sort((a, b) => a.price - b.price);
 }
@@ -4034,12 +4035,13 @@ const ixRisk = c => {
   const ok = (c.items || []).reduce((a, s) => a + (s.p >= c.price ? s.ch : 0), 0);
   return [ok < .2 ? 'High' : ok < .4 ? 'Medium' : 'Low', ok < .2 ? '#e5484d' : ok < .4 ? '#c026d3' : '#2fbf71', Math.round(ok * 100)];
 };
+const NY_ICE = '<i class="ix-ice" aria-hidden="true"></i>'; // новогодний ивент: ледяной слой на карточке, тает при наведении (css/newyear.css, владелец 25.11)
 function ixTile(c, i, o = {}) {
   const tag = c.disabled ? '<i class="ix-tag ix-off">Закончился</i>' : isNewCase(c) ? '<i class="ix-tag ix-new">New</i>' : isHitCase(c) ? '<i class="ix-tag ix-hit">Hot</i>' : '';
   const rk = o.risk && c.items && c.items.length ? ixRisk(c) : null;
   return `<a class="ix${c.disabled ? ' ix-closed' : ''}${rk ? ' ix-rk' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a};--i:${i}${rk ? `;--rk:${rk[1]}` : ''}" data-price="${c.price}"${c.rc ? ' data-rc="1"' : ''} data-q="${ixQ(c)}"><span class="ix-c">
     <span class="ix-img">${caseArt(c)}<i class="ix-fx" aria-hidden="true"></i>${tag}${c2Old(c) ? c2OldTag() : ''}${rk ? `<i class="ix-risk" title="Риск: шанс окупить кейс — ${rk[2]}%">${rk[0]}</i>` : ''}</span>
-    <span class="ix-info"><b class="ix-name">${esc(c.name)}</b><span class="ix-price">${casePrice(c, c.price)}</span></span></span></a>`;
+    <span class="ix-info"><b class="ix-name">${esc(c.name)}</b><span class="ix-price">${casePrice(c, c.price)}</span></span>${window.NY_ON ? NY_ICE : ''}</span></a>`;
 }
 const ixShort = s => String(s.name || '').replace(/ \([^)]+\)$/, '');
 const ixBase = s => ixShort(s).replace('StatTrak™ ', '');            // без износа и StatTrak
