@@ -4806,6 +4806,7 @@ const c2Tile = (s, cls = '') => C2BADGE[s.r] ? c2Badge(s.r, cls)
    анимация одна, по кадрам (30 к/с): падение 1–75, покой 75, открытие ключом 101–168.
    пока всё не загрузилось — на сцене только значок загрузки; не загрузилось за 30 с — картинка кейса как раньше */
 const C2D = { dir: 'assets/cs2case/', v: 3, FPS: 30, DROP: [1, 75], OPEN: [101, 168], REST: 75, LID: 136 }; // LID — кадр, где крышка резко распахивается (135–140)
+const c2Bg = () => window.NY_ON ? 'assets/ny/bg-mirage.mp4?v=1' : C2D.dir + 'bg.mp4?v=' + C2D.v; // Новый год: зимний Mirage (blender/ny/location-mirage-ny.blend), та же камера и солнце
 let c2s = null; // текущая 3D-сцена страницы
 const c2Lib = () => C2D.lib || (C2D.lib = Promise.all([
   import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/loaders/RGBELoader.js'),
@@ -4945,7 +4946,7 @@ function c2Mount(c) {
   if (c && c.ui !== 'cs2') { // 3D-модели кейса пока нет: тот же видео-фон Mirage, что у BLAST, а вместо 3D — картинка кейса (.c2-case)
     root.classList.add('c2-ready', 'c2-pic'); // S.ready не ставим: падение/открытие ключом — только у 3D, здесь картинка вздрагивает
     video.addEventListener('canplay', () => { if (!S.alive || !host.isConnected) return; root.classList.add('c2-vid'); video.play().catch(() => {}); }, { once: true });
-    video.src = C2D.dir + 'bg.mp4?v=' + C2D.v; video.load();
+    video.src = c2Bg(); video.load();
     S.kill = () => { S.alive = false; try { video.pause(); video.removeAttribute('src'); video.load(); } catch (e) { /* */ } };
     return;
   }
@@ -4954,7 +4955,7 @@ function c2Mount(c) {
   const vReady = new Promise(res => {
     const ok = () => res(); video.addEventListener('canplaythrough', ok, { once: true }); video.addEventListener('error', ok, { once: true });
   });
-  video.src = C2D.dir + 'bg.mp4?v=' + C2D.v; video.load();
+  video.src = c2Bg(); video.load();
   c2Lib().then(async ([THREE, { GLTFLoader }, { RGBELoader }]) => {
     if (!S.alive) return;
     const url = f => C2D.dir + f + '?v=' + C2D.v;
@@ -4977,7 +4978,7 @@ function c2Mount(c) {
     sun.position.copy(CASE_POS).addScaledVector(sunDir, -14); sun.target.position.copy(CASE_POS); sun.castShadow = true;
     Object.assign(sun.shadow.camera, { left: -1.6, right: 1.6, top: 1.6, bottom: -1.6, near: .5, far: 20 });
     sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = .015; sun.shadow.radius = 4;
-    scene.add(sun, sun.target, new THREE.HemisphereLight(0xffb070, 0x8a5a30, P.fill)); // + тёплый отсвет песочных стен
+    scene.add(sun, sun.target, (window.NY_ON ? new THREE.HemisphereLight(0xd6e2f2, 0xdde4ee, P.fill) : new THREE.HemisphereLight(0xffb070, 0x8a5a30, P.fill))); // + отсвет стен: песочный тёплый; на Новый год — холодный от снега
     let dirty = true;
     const load = f => new Promise((res, rej) => new GLTFLoader().load(url(f), res, undefined, rej));
     // пол-«ловец теней»: только тень кейса (тени домов уже в видео)

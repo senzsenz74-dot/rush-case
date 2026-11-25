@@ -2,7 +2,7 @@
 # Запуск в фоне из папки ветки newyear (D:/Кейсы/.claude/worktrees/newyear), ~1 ч (EEVEE ~11 с/кадр, 300 кадров Full HD):
 #   "D:/SteamLibrary/steamapps/common/Blender/blender.exe" -b blender/ny/location-mirage-ny.blend -P blender/ny/render_bg.py -a
 # Кадры → blender/ny/renders/frames/0001.png … 0300.png (готовые кадры не перерисовываются — можно прервать и продолжить).
-# Склейка: "D:/SteamLibrary/steamapps/common/Blender/blender.exe" -b --factory-startup -P blender/ny/encode_bg.py -- blender/ny/renders/frames assets/ny/bg-mirage.mp4 300
+# Склейка (Blender 5.3 падает на encode_bg.py — склеивать ffmpeg из promo-video): D:/Кейсы/promo-video/node_modules/ffmpeg-static/ffmpeg.exe -framerate 30 -i blender/ny/renders/frames/%04d.png -frames:v 300 -c:v libx264 -profile:v high -preset slow -crf 20 -pix_fmt yuv420p -g 30 -movflags +faststart -an assets/ny/bg-mirage.mp4
 import bpy
 sc = bpy.context.scene
 sc.camera = bpy.data.objects['CAM_MAIN']          # камеру не менять: на ней 3D-кейс сайта
