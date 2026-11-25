@@ -2981,9 +2981,12 @@ const isHitCase = c => c.hit != null ? !!c.hit : HOME_POP.includes(c.id);
 // кейс с adm: true (заготовка) видит только админ
 const caseSeen = c => !c.adm || !!(st.user && st.user.admin);
 const blockCases = b => CASES.filter(c => caseSeen(c) && caseBlockId(c) === b.id).sort((x, y) => caseOrd(x) - caseOrd(y));
+// витрина (главная, «Кейсы»): закрытые админом кейсы («Закончился») не показываем никому, даже владельцу (владелец 26.11: «убери, чё позориться»).
+// По прямой ссылке кейс открывается со словами «временно закрыт»; в админке (blockCases) закрытые остаются
+const shopCases = b => blockCases(b).filter(c => !c.disabled);
 const listIdx = (L, c) => { const i = L.indexOf(c.id); return i < 0 ? -1 : i; };
-const homeHits = () => CASES.filter(c => caseSeen(c) && isHitCase(c) && !c.rc).sort((x, y) => (listIdx(HOME_POP, x) - listIdx(HOME_POP, y)) || caseOrd(x) - caseOrd(y));
-const homeNew = () => CASES.filter(c => caseSeen(c) && isNewCase(c) && !c.rc).sort((x, y) => (listIdx(NEW_CASES, x) - listIdx(NEW_CASES, y)) || x.price - y.price);
+const homeHits = () => CASES.filter(c => caseSeen(c) && !c.disabled && isHitCase(c) && !c.rc).sort((x, y) => (listIdx(HOME_POP, x) - listIdx(HOME_POP, y)) || caseOrd(x) - caseOrd(y));
+const homeNew = () => CASES.filter(c => caseSeen(c) && !c.disabled && isNewCase(c) && !c.rc).sort((x, y) => (listIdx(NEW_CASES, x) - listIdx(NEW_CASES, y)) || x.price - y.price);
 /* правки кейсов из админ-панели: таблица site_cfg — 'case:<id>' (поля кейса) и 'blocks' (список разделов) */
 let caseCfg = {};
 const CASE_DEF = {}; // исходный кейс из кода — для сброса и сравнения
@@ -3052,10 +3055,10 @@ const secHead = (t, sub, icon, a, n) => `<div class="sh" style="--bc:${a}">
 // фон за разделом (по id раздела): картинка во всю ширину, края растушёваны
 const BLOCK_BG = { babushka: 'assets/bg-babushka.webp', maps: 'assets/bg-maps.webp' };
 const caseBlock = (b, grp) => {
-  const list = blockCases(b); if (!list.length) return '';
+  const list = shopCases(b); if (!list.length) return '';
   return `<section class="cs-block cs-b-${b.id}${BLOCK_BG[b.id] ? ' cs-has-bg' : ''}" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>${BLOCK_BG[b.id] ? `<i class="cs-bg" style="background-image:url(${BLOCK_BG[b.id]})" aria-hidden="true"></i>` : ''}
     ${secHead(b.t, b.sub, b.rc ? RC_IMG : ic[b.ic], b.a, list.length)}
-    <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${b === CASE_BLOCKS.find(x => blockCases(x).length) ? buildCard() : ''}${list.map(caseCard).join('')}</div>
+    <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${b === CASE_BLOCKS.find(x => shopCases(x).length) ? buildCard() : ''}${list.map(caseCard).join('')}</div>
   </section>`;
 };
 const caseCard = c => `<a class="case-card${c.disabled ? ' cc-closed' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
@@ -4046,14 +4049,14 @@ const ixSec = (id, t, body, o = {}) => `<section class="ix-sec${o.cls ? ' ' + o.
     <header class="ix-sh"><h2>${t}</h2>${o.side || ''}</header>${body}</section>`;
 // что в каком блоке
 function ixPlan() {
-  const seen = c => c && caseSeen(c), byId = id => CASES.find(c => c.id === id);
+  const seen = c => c && caseSeen(c) && !c.disabled, byId = id => CASES.find(c => c.id === id);
   const specOwn = IX_SPEC_CASES.map(byId).filter(seen);
   const blk = id => CASE_BLOCKS.find(b => b.id === id);
   const fresh = [...specOwn, ...homeNew().filter(c => !specOwn.includes(c))].slice(0, IX_NEW_MAX);
-  const auth = blk(IX_AUTH_BLOCK) ? blockCases(blk(IX_AUTH_BLOCK)) : [];
-  const spec = [...specOwn.slice(0, 1), 'build', ...specOwn.slice(1), ...(blk(IX_SPEC_BLOCK) ? blockCases(blk(IX_SPEC_BLOCK)) : [])];
+  const auth = blk(IX_AUTH_BLOCK) ? shopCases(blk(IX_AUTH_BLOCK)) : [];
+  const spec = [...specOwn.slice(0, 1), 'build', ...specOwn.slice(1), ...(blk(IX_SPEC_BLOCK) ? shopCases(blk(IX_SPEC_BLOCK)) : [])];
   const rest = CASE_BLOCKS.filter(b => b.id !== IX_AUTH_BLOCK && b.id !== IX_SPEC_BLOCK)
-    .map(b => [b, blockCases(b).filter(c => !IX_SPEC_CASES.includes(c.id))]).filter(([, L]) => L.length);
+    .map(b => [b, shopCases(b).filter(c => !IX_SPEC_CASES.includes(c.id))]).filter(([, L]) => L.length);
   return { fresh, auth, spec, rest };
 }
 function pageCases() {
@@ -4724,7 +4727,8 @@ function itemTilt(root) {
 /* страница кейса в стиле BLAST — у всех кейсов (владелец 11.11), кроме «старых»: им механика BLAST не подходит — бонусные за R-COIN,
    фарм (по 20–100 штук), купленные «Собери сам», только ножи или перчатки (всё ушло бы в одну золотую плитку), БАБА ЧАЙ (своя рамка,
    звуки, живая цена золота). У «старых» — прежняя страница; на странице «Кейсы» админ видит у них метку «старый» */
-const c2Old = c => !!(c.rc || c.farm || c.bcid || c.build || c.liveGold || c.frame || c.snd) || (c.items || []).filter(s => s.r !== 'covert' && s.r !== 'rare').length < 2;
+// бонусные (c.rc) с 26.11 тоже на сцене CS2 (владелец): цена и кнопка — в R-COIN (cs2Idle, cs2Confirm, правила)
+const c2Old = c => !!(c.farm || c.bcid || c.build || c.liveGold || c.frame || c.snd) || (c.items || []).filter(s => s.r !== 'covert' && s.r !== 'rare').length < 2;
 const c2Like = c => c.ui === 'cs2' || !c2Old(c);
 const c2OldTag = () => st.user && st.user.admin ? '<i class="ix-old" title="Страница кейса ещё старая (не в стиле BLAST)">старый</i>' : '';
 const c2On = c => c2Like(c) && !!$('.c2p');
@@ -4945,6 +4949,8 @@ function cs2Idle(c) {
   else if (!st.user) main = `<button class="c2-btn" data-act="login">Войти и открыть</button>`;
   else if (refGiftCase === c.id) main = `<button class="c2-btn rf-c2g" id="giftBtn">Открыть бесплатно<small>подарок</small></button>`;
   else if (freeN(c)) main = `<button class="c2-btn rf-c2g" id="freeBtn">Открыть бесплатно (${freeN(c)})<small>подарок из кейса</small></button>`;
+  else if (c.rc) main = (st.rcoin || 0) >= c.price ? `<button class="c2-btn" id="openBtn">Открыть кейс<small>${casePrice(c, c.price)}</small></button>`
+    : `<a class="c2-btn" href="#/profile">Не хватает ${casePrice(c, c.price - (st.rcoin || 0))}<small>R-COIN копятся с открытий кейсов</small></a>`;
   else if (st.balance >= c.price) main = `<button class="c2-btn" id="openBtn">Открыть кейс<small>${prc(c.price)}</small></button>`;
   else main = `<button class="c2-btn" data-act="deposit" data-need="${c.price - st.balance}">Пополнить на ${money(c.price - st.balance)}</button>`;
   // вместо «Демо» — «Правила» (просьба владельца, 08.11); слева — шкала гаранта; «Быстрого открытия» здесь нет (владелец, 08.11)
@@ -4982,7 +4988,7 @@ function cs2Rules(c, at, back) {
       `Сайт может обновлять правила. Новая редакция действует с момента публикации в этом окне; дата редакции указана вверху. Открытия, сделанные раньше, проводятся по редакции, действовавшей на момент открытия.`,
     ] },
     { id: 'open', t: 'Открытие кейса', p: [
-      'Стоимость открытия указана на кнопке «Открыть кейс» и списывается с баланса после подтверждения в окне «Открыть».',
+      `Стоимость открытия указана на кнопке «Открыть кейс» и списывается ${c.rc ? 'с бонусного счёта R-COIN' : 'с баланса'} после подтверждения в окне «Открыть».`,
       'Одно открытие приносит ровно один предмет. Он сразу зачисляется в ваш инвентарь.',
       'Выпавший предмет определяется на сервере сайта в момент открытия — ещё до начала анимации. Анимация кейса, лента, звуки и кнопка «Пропустить» на результат не влияют.',
       'Подтверждённое открытие отменить нельзя.',
@@ -5084,7 +5090,7 @@ function cs2Confirm(c, go) {
   const m = modal(`${C2OK_FX}<div class="c2ok"><div class="c2ok-art">${caseArt(c)}</div><div class="c2ok-tx">
       <h3>Открыть ${esc(c.name)}</h3>
       <p>Вы получите один предмет из кейса ${esc(c.name)} — он сразу попадёт в ваш инвентарь.</p>
-      <p class="c2ok-sum">Спишется <b>${prc(c.price)}</b> · на балансе ${prc(st.balance)}</p>
+      <p class="c2ok-sum">Спишется <b>${casePrice(c, c.price)}</b> · ${c.rc ? `у вас ${casePrice(c, st.rcoin || 0)}` : `на балансе ${prc(st.balance)}`}</p>
       <p class="c2ok-rules">Открывая кейс, вы принимаете <button type="button" id="c2okRules">правила кейса</button></p>
       <div class="c2ok-btns"><button class="c2-btn c2-green" id="c2Go">Открыть</button><button class="c2-btn c2-ghost" id="c2No">Отмена</button></div>
     </div></div>`, 'm-c2ok');
