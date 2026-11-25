@@ -2,29 +2,16 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<!-- защита CSP (25.11): скрипты только свои и с cdn.jsdelivr.net / cdnjs, связь — только своя база Supabase. Встроенные <script> и onclick="…" запрещены
+     (кроме importmap — его отпечаток sha256 ниже: поменяли importmap → пересчитать: node tools/csp-hash.js). Новый внешний сервис — дописать сюда -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'wasm-unsafe-eval' 'sha256-UBv+PPJv6fMSYrBr9qlyODnQMZKK1FIUUEOSBh0tVdE='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https://gkeexoyrxnsarosymdyp.supabase.co wss://gkeexoyrxnsarosymdyp.supabase.co https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="1plat" content="2678"><!-- подтверждение сайта для платёжки 1plata -->
   <meta name="enot" content="59e42050"><!-- подтверждение сайта для платёжки Enot -->
   <!-- подтверждение сайта для платёжки Prime Payments -->
   <!--prime:f8f8e8e5-->
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script>
-/* телефоны — только горизонтально и «как на компьютере» (правило владельца): страница считает, что ширина экрана 1280,
-   браузер сам уменьшает компьютерную версию под телефон; вертикально — экран «Поверните телефон» (#rot) */
-(function () {
-  var touch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
-  var phone = touch && Math.min(screen.width, screen.height) < 600, de = document.documentElement;
-  if (phone) {
-    document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=1280');
-    de.classList.add('phone');
-  }
-  /* экономная графика (js/app.js GFX) — класс сразу, до первой отрисовки: стекло не мигает размытием.
-     rc.gfx — выбор игрока (auto/high/eco); в «Авто» экономная у телефона и у ПК, который не потянул 3D (rc.gfxAuto, 3 дня) */
-  try {
-    var g = localStorage.getItem('rc.gfx'), t = +localStorage.getItem('rc.gfxAuto');
-    if (g === 'eco' || (g !== 'high' && (phone || (t > 0 && Date.now() - t < 2592e5)))) de.classList.add('gfx-low');
-  } catch (e) { if (phone) de.classList.add('gfx-low'); }
-})();
-</script>
+<script src="js/boot.js?v=202611252248"></script>
 <title>RUSH CASE — открытие кейсов CS2</title>
 <meta name="description" content="RUSH CASE — открывай кейсы CS2, апгрейди скины, подписывай контракты и забирай дроп в Steam.">
 <meta name="theme-color" content="#06050b">
@@ -39,93 +26,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800;900&family=Barlow+Semi+Condensed:wght@500;600&family=Ubuntu+Condensed&family=Sofia+Sans+Extra+Condensed:wght@500;700;800&family=Oswald:wght@400;500&family=Rubik:wght@400;500&family=Sofia+Sans+Semi+Condensed:ital,wght@0,500;0,600;0,700;1,800&family=PT+Mono&family=Caveat:wght@500;600;700&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/logo.webp">
 <link rel="preload" as="image" href="assets/rcoin.webp">
-<link rel="stylesheet" href="css/style.css?v=202611250240">
-<link rel="stylesheet" href="css/pickem.css?v=202611250240">
+<link rel="stylesheet" href="css/style.css?v=202611252248">
+<link rel="stylesheet" href="css/pickem.css?v=202611252248">
 </head>
 <body>
 <div id="rot" role="alert"><div class="rot-in"><img src="assets/logo.webp" alt="RUSH CASE"><i class="rot-ph" aria-hidden="true"><i></i></i><b>Поверните телефон</b><span>RUSH CASE работает в горизонтальном режиме</span></div></div>
 <div id="intro" aria-hidden="true"><canvas></canvas></div>
-<script>
-/* заставка при открытии сайта (рисует js/intro.js, 6 с; звук assets/intro.mp3 — tools/intro-sound.js).
-   Только когда сайт открыли заново: при F5, «назад» и возврате в той же вкладке (вход через Steam, касса) её нет — сайт сразу.
-   Звук — только если браузер разрешает его без нажатия и игрок не выключал звук на сайте; иначе звук даже не скачивается */
-(function () {
-  var el = document.getElementById('intro'); if (!el) return;
-  var nav = performance.getEntriesByType ? performance.getEntriesByType('navigation')[0] : null, again = nav ? nav.type !== 'navigate' : false;
-  try { if (sessionStorage.getItem('rc.intro')) again = true; sessionStorage.setItem('rc.intro', '1'); } catch (e) { /* */ }
-  if (/[?&]intro\b/.test(location.search)) again = false; // адрес с ?intro — показать заставку ещё раз (для просмотра)
-  if (again) { el.parentNode.removeChild(el); return; }
-  var cv = el.firstChild, V = '202611100043', src = 'js/intro.js?v=' + V, ended = false, moved = false, actx = null, sound = null;
-  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function end() {
-    if (ended) return; ended = true; el.classList.add('out');
-    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 320);
-  }
-  // ждём, пока вкладку видно и телефон повёрнут горизонтально — иначе человек пропустит заставку
-  var portrait = matchMedia('(orientation: portrait)'), phone = document.documentElement.classList.contains('phone');
-  function visible(fn) {
-    var ok = function () { return !document.hidden && !(phone && portrait.matches); };
-    if (ok()) return fn();
-    var h = function () {
-      if (!ok()) return;
-      document.removeEventListener('visibilitychange', h);
-      if (portrait.removeEventListener) portrait.removeEventListener('change', h); else portrait.removeListener(h);
-      fn();
-    };
-    document.addEventListener('visibilitychange', h);
-    if (portrait.addEventListener) portrait.addEventListener('change', h); else portrait.addListener(h);
-  }
-  visible(function () { setTimeout(end, 15000); }); // страховка: если что-то сломалось, сайт всё равно откроется
-  var stop = function (e) { e.preventDefault(); }; // страница под заставкой не прокручивается
-  el.addEventListener('wheel', stop, { passive: false }); el.addEventListener('touchmove', stop, { passive: false });
-  function size() { return { w: innerWidth, h: innerHeight, k: Math.min(window.devicePixelRatio || 1, 2), reduce: reduce }; }
-  try {
-    var on = true; try { var sv = JSON.parse(localStorage.getItem('rushcase.v1') || 'null'); if (sv && sv.sound === false) on = false; } catch (e) { /* */ }
-    var AC = window.AudioContext || window.webkitAudioContext;
-    if (on && !reduce && AC) { actx = new AC(); if (actx.state !== 'running') { actx.close(); actx = null; } }
-  } catch (e) { actx = null; }
-  if (actx) sound = fetch('assets/intro.mp3?v=' + V).then(function (r) { return r.arrayBuffer(); })
-    .then(function (b) { return new Promise(function (ok, no) { actx.decodeAudioData(b, ok, no); }); })['catch'](function () { return null; });
-  // общий старт: картинка готова → ждём звук (не дольше 2 с) → запускаем вместе, с поправкой на задержку звуковой карты
-  function start(run) {
-    visible(function () {
-      var t = setTimeout(function () { t = 0; run(0); }, 2000);
-      (sound || Promise.resolve(null)).then(function (buf) {
-        if (!t) return; clearTimeout(t);
-        if (!buf || !actx || actx.state !== 'running') return run(0);
-        var s = actx.createBufferSource(), g = actx.createGain(), lead = .06; g.gain.value = .35; s.buffer = buf; s.connect(g); g.connect(actx.destination); // громкость заставки 35% (владелец 11.11: «тише»)
-        s.onended = function () { actx.close(); };
-        s.start(actx.currentTime + lead);
-        run(Math.round((lead + (actx.outputLatency || 0) + (actx.baseLatency || 0)) * 1000));
-      });
-    });
-  }
-  var img = new Image(); img.src = 'assets/logo.webp';
-  (img.decode ? img.decode() : new Promise(function (ok, no) { img.onload = ok; img.onerror = no; }))
-    .then(function () { return window.createImageBitmap ? createImageBitmap(img) : img; })
-    .then(function (bmp) {
-      // рисуем в отдельном потоке: загрузка сайта не будет дёргать анимацию
-      if (cv.transferControlToOffscreen && window.Worker && bmp !== img) {
-        try {
-          var w = new Worker(src), off = cv.transferControlToOffscreen(), o = size(); moved = true; o.cv = off; o.bmp = bmp; o.hold = true;
-          w.onmessage = function (e) {
-            if (e.data === 'ready') start(function (ms) { w.postMessage({ go: ms }); });
-            else if (e.data === 'done') { end(); w.terminate(); }
-          };
-          w.onerror = end;
-          w.postMessage(o, [off, bmp]);
-          addEventListener('resize', function () { if (!ended) w.postMessage({ resize: size() }); });
-          return;
-        } catch (e) { if (moved) return end(); }
-      }
-      var s = document.createElement('script'); s.src = src; s.onerror = end;
-      s.onload = function () {
-        try { var it = window.RCIntro(cv, bmp, size()); start(function (ms) { it.run(end, ms); }); addEventListener('resize', function () { if (!ended) it.layout(size()); }); } catch (e) { end(); }
-      };
-      document.head.appendChild(s);
-    })['catch'](end);
-})();
-</script>
+<script src="js/intro-boot.js?v=202611252248"></script>
 
 <div class="live" id="live">
   <div id="liveUser"></div>
@@ -146,10 +53,10 @@
 <div id="toasts" aria-live="polite"></div>
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="js/skins.js?v=202611250240"></script>
-<script src="js/wears.js?v=202611250240"></script>
-<script src="js/extra.js?v=202611250240"></script>
-<script src="js/app.js?v=202611250240"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
+<script src="js/skins.js?v=202611252248"></script>
+<script src="js/wears.js?v=202611252248"></script>
+<script src="js/extra.js?v=202611252248"></script>
+<script src="js/app.js?v=202611252248"></script>
 </body>
 </html>

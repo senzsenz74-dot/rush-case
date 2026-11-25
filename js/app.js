@@ -492,7 +492,7 @@ function pkPassOn() {
 /* ---------- правила и таблица лидеров ---------- */
 function pkRules() {
   const [lo, hi] = pkRw();
-  modal(`<div><header class="ga-mh" style="--gl:#84d9fd"><small>Пикем · PGL Major Singapore 2026</small><h3>Как это работает</h3></header>
+  const m = modal(`<div><header class="ga-mh" style="--gl:#84d9fd"><small>Пикем · PGL Major Singapore 2026</small><h3>Как это работает</h3></header>
     <ol class="ga-ol">
       <li><i>1</i><span>Купите пропуск за ${moneyN(pkPrice())} ₽ или выбейте его в кейсе MAJOR — он действует на весь Major (24 ноября — 13 декабря).</span></li>
       <li><i>2</i><span>«Сетка»: перетащите команды этапа в «3:0», «3:1 3:2 прошли» и «0:3 выбыли» (10 команд) и нажмите «Поставить PICK’EM». Менять можно до первого матча этапа.</span></li>
@@ -501,7 +501,8 @@ function pkRules() {
       <li><i>5</i><span>Очки: по 1 за каждый верный прогноз. У кого больше всех очков к концу Major, тот получает главный приз. При равенстве выше тот, у кого больше верных победителей, затем — кто раньше сделал свои прогнозы.</span></li>
       <li><i>6</i><span>Следующий этап открывается, когда становятся известны его пары. Медаль пропуска лежит в инвентаре: показ у аватарки включается там же.</span></li>
     </ol>
-    <footer class="ga-mf"><button class="c2-btn c2-green" type="button" onclick="closeModal()">Понятно</button></footer></div>`, 'm-ga m-pk');
+    <footer class="ga-mf"><button class="c2-btn c2-green pk-ok" type="button">Понятно</button></footer></div>`, 'm-ga m-pk');
+  $('.pk-ok', m).onclick = closeModal; // без onclick в разметке — его запрещает защита CSP (index.html)
 }
 function pkTopWin() {
   const top = (PK.s && PK.s.top) || [], me = PK.s && PK.s.me;
@@ -1953,6 +1954,7 @@ try {
   st = Object.assign(DEF(), raw || {});
   st.stats = Object.assign(freshProfile().stats, st.stats || {});
 } catch (e) { st = DEF(); }
+if (st.user) st.user.admin = false; // право админа — только из ответа сервера (sbLoadProfile), отметке из браузера не верим
 /* ---------- база Supabase: аккаунты, профиль, общие ставки ---------- */
 const SB_URL = 'https://gkeexoyrxnsarosymdyp.supabase.co', SB_KEY = 'sb_publishable_oczOEZFsdpzmwq8FB4Of_Q_A_JSZ3zt'; // публичный ключ — ему место в коде
 const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
@@ -2489,8 +2491,8 @@ const caseThumb = c => {
 function caseArt(c, cls = '', badge = '') {
   // в витрине (без cls) — лёгкая копия картинки 440 px, на странице кейса — полная
   const src = c.img && !cls ? caseThumb(c) : caseFull(c);
-  if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${src}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay](c, src) : ''}</div></div>`;
-  if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${src}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
+  if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${src}" alt="Кейс «${esc(c.name)}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay](c, src) : ''}</div></div>`;
+  if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${src}" alt="Кейс «${esc(c.name)}»" decoding="async" draggable="false"></div>`;
   const [m, a, b] = c.show.map(n => SK[n]);
   const sparks = [[14, 20, 0], [84, 16, .9], [90, 60, 1.7], [8, 64, 2.4], [52, 6, 1.2]]
     .map(([x, y, d]) => `<i class="ca-spark" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('');
@@ -2508,7 +2510,7 @@ const ava = (u, cls = '') => {
   // медаль пикема (раздел ПИКЕМ в начале app.js): значок сверху справа, выходит за рамку; data-u — чтобы дорисовать, когда загрузится список
   const id = u.id || u.uid || '', pid = u.pid || '', md = typeof pkHasMedal === 'function' && pkHasMedal(u);
   const du = id || pid ? ` data-u="${esc(id)}|${esc(pid)}"` : '', mc = md ? ' has-md' : '', mi = md ? pkMedalHtml() : '';
-  if (u.ava) return `<span class="ava ${cls}${mc}"${du}><img src="${u.ava}" alt="">${mi}</span>`;
+  if (u.ava) return `<span class="ava ${cls}${mc}"${du}><img src="${esc(u.ava)}" alt="">${mi}</span>`;
   const h = [...u.name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 120 + 60;
   return `<span class="ava ${cls}${mc}" style="--h:${h}"${du}>${esc(u.name[0].toUpperCase())}${mi}</span>`;
 };
@@ -2697,7 +2699,7 @@ function renderUser() {
         <div class="um-h">${ava(st.user, 'xs')}<b>${esc(st.user.name)}${st.user.pid ? `<small>ID <span class="priv">${st.user.pid}</span></small>` : ''}</b></div>
         <a href="#/profile">${ic.user}Профиль и инвентарь</a>
         <a href="#/bonus">${ic.gift}Бонусы</a>
-        ${st.user.admin ? `<a href="#/admin" class="um-admin">${ic.shield}Админ-панель</a><a href="#/admin" class="um-sup" data-act="admsup">${ic.chat}Поддержка<i class="sup-pulse" id="umSupN"></i></a>` : ''}
+        ${admIn() ? `<a href="#/admin" class="um-admin">${ic.shield}Админ-панель</a><a href="#/admin" class="um-sup" data-act="admsup">${ic.chat}Поддержка<i class="sup-pulse" id="umSupN"></i></a>` : ''}
         <button data-act="streamer" class="um-stream${st.streamer ? ' on' : ''}">${st.streamer ? ic.eyeOff : ic.eye}Режим стримера: ${st.streamer ? 'вкл' : 'выкл'}</button>
         <button id="umSound">${st.sound ? ic.sound : ic.mute}Звук: ${st.sound ? 'вкл' : 'выкл'}</button>
         <button data-act="logout">${ic.logout}Выйти</button>
@@ -2808,7 +2810,7 @@ const liveHtml = d => {
   const href = d.uid ? `#/u/${d.uid}` : d.t === 'crash' ? '#/crash' : d.t === 'tower' ? '#/tower' : d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
   const src = d.t === 'crash' ? `Краш x${(+d.x).toFixed(2)}` : d.t === 'tower' ? `Башня ×${(+d.x).toFixed(2)}` : d.t === 'upg' ? `Апгрейд ×${d.x.toFixed(d.x < 10 ? 1 : 0)}` : d.t === 'con' ? `Контракт ×${d.x.toFixed(1)}` : c ? 'Кейс «' + c.name + '»' : d.c;
   const tag = d.t === 'crash' ? `<span class="ld-t crash">${ic.bomb}</span>` : d.t === 'tower' ? `<span class="ld-t tower">${ic.tower}</span>` : d.t === 'upg' ? `<span class="ld-t upg">${ic.up}</span>` : d.t === 'con' ? `<span class="ld-t con">${LD_DOC}</span>` : '';
-  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${href}" title="${esc(s.name)}"${d.uid && !d.mine ? ` data-uid="${esc(d.uid)}"` : ''}>${tag}<img src="${imgUrl(s, 'xs')}" alt="" loading="lazy" decoding="async"><span class="ld-f"><span class="ld-fs">${esc(s.f)}</span><span class="ld-fl">${esc(fFull)}</span></span><span class="ld-w">${esc(s.w)}</span><span class="ld-u">${ava({ name: d.u || '?', ava: d.mine && st.user ? st.user.ava : null }, 'xs')}<small>${esc(src)}</small><b>${esc(d.u)}</b></span></a>`;
+  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${esc(href)}" title="${esc(s.name)}"${d.uid && !d.mine ? ` data-uid="${esc(d.uid)}"` : ''}>${tag}<img src="${imgUrl(s, 'xs')}" alt="" loading="lazy" decoding="async"><span class="ld-f"><span class="ld-fs">${esc(s.f)}</span><span class="ld-fl">${esc(fFull)}</span></span><span class="ld-w">${esc(s.w)}</span><span class="ld-u">${ava({ name: d.u || '?', ava: d.mine && st.user ? st.user.ava : null }, 'xs')}<small>${esc(src)}</small><b>${esc(d.u)}</b></span></a>`;
 };
 const liveOk = d => liveFilter === 'all' || SK[d.n].p >= 1000;
 const LIVE_HOVER = matchMedia('(hover: hover)').matches;
@@ -3051,7 +3053,7 @@ const caseBlock = (b, grp) => {
 const caseCard = c => `<a class="case-card${c.disabled ? ' cc-closed' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
   <div class="cc-art">${caseArt(c, '', (isNewCase(c) && !c.disabled ? '<span class="cc-new">Новое</span>' : '') + (isHitCase(c) && !c.disabled ? '<span class="cc-hit">Хит</span>' : '') + (c.disabled ? '<span class="cc-lock">Закончился</span>' : ''))}</div>
   <div class="cc-body">
-    <div class="cc-name">${c.name}</div>
+    <div class="cc-name">${esc(c.name)}</div>
     <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}${c.rc ? ' cc-price-rc' : ''}">${casePrice(c, c.price)}</span></div>
   </div>
 </a>`;
@@ -4392,7 +4394,7 @@ function pageCase(id) {
   const fr = c.frame || (caseBlockId(c) === 'babushka' ? { src: 'assets/frame-babushka.webp', cls: 'f-babushka', nofx: true } : null);
   return `<section class="container case-page" style="--ca:${c.th.a}">
     <div class="cp-head"><a href="${c.build ? '#/build' : '#/cases'}" class="back">${ic.left}${c.build ? 'Собрать новый' : 'Все кейсы'}</a>
-      <div class="cp-title"><i class="cp-line l"></i><h1>${c.name}</h1><i class="cp-line r"></i></div>
+      <div class="cp-title"><i class="cp-line l"></i><h1>${esc(c.name)}</h1><i class="cp-line r"></i></div>
       <i></i></div>
     <div class="rl-framed ${fr ? fr.cls : ''}"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
       <svg class="rl-frame" id="rlFrame" aria-hidden="true"><polygon class="f-glow"/><polygon class="f-line"/></svg>
@@ -6902,7 +6904,7 @@ window.addEventListener('resize', () => { if ($('#invGrid')) invFill(); });
 document.addEventListener('click', e => { const dd = $('#pfDd'); if (dd && !dd.contains(e.target)) { const l = $('.pf2-dd-l', dd); if (l) l.hidden = true; dd.classList.remove('open'); } });
 const dstr = ts => new Date(ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const pfEmpty = (t, sub) => `<div class="pf2-card pf2-empty">${PF_IC.case}<b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
-const pfRow = o => `<div class="pf2-row${o.r ? ' r-' + o.r : ''}${o.cls2 ? ' ' + o.cls2 : ''}"><span class="pf2-row-pic">${o.img ? `<img src="${o.img}" alt="" loading="lazy">` : o.ic || ''}</span><span class="pf2-row-n"><b>${o.n}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</span>${o.extra || ''}<span class="pf2-row-d">${o.d}</span><span class="pf2-st ${o.cls || ''}">${o.st}</span><span class="pf2-row-p">${o.p}</span></div>`;
+const pfRow = o => `<div class="pf2-row${o.r ? ' r-' + o.r : ''}${o.cls2 ? ' ' + o.cls2 : ''}"><span class="pf2-row-pic">${o.img ? `<img src="${esc(o.img)}" alt="" loading="lazy">` : o.ic || ''}</span><span class="pf2-row-n"><b>${o.n}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</span>${o.extra || ''}<span class="pf2-row-d">${o.d}</span><span class="pf2-st ${o.cls || ''}">${o.st}</span><span class="pf2-row-p">${o.p}</span></div>`;
 /* ---------- «История» и «Апгрейды» — по 10 записей, внизу страницы (владелец 12.11: «прикинь сколько листать») ---------- */
 const PF_PER = 10;
 let pfPage = { hist: 0, upg: 0 };
@@ -7036,7 +7038,7 @@ async function pfEvOpen(f) {
   const draw = k => {
     p.dataset.f = k; $$('nav button', p).forEach(b => b.classList.toggle('on', b.dataset.f === k));
     const l = list.filter(e => k === 'all' || e.k === k);
-    $('.pf2-ev-l', p).innerHTML = l.length ? l.map(e => `<div class="pf2-evi ${e.c || ''}"><span class="pf2-evi-pic">${e.img ? `<img src="${e.img}" alt="" loading="lazy">` : PF_IC.bell}</span><span class="pf2-evi-t"><b>${e.t}</b><small>${e.s}</small></span><span class="pf2-evi-v"><em>${e.v}</em><small>${dstr(e.ts)}</small></span></div>`).join('')
+    $('.pf2-ev-l', p).innerHTML = l.length ? l.map(e => `<div class="pf2-evi ${e.c || ''}"><span class="pf2-evi-pic">${e.img ? `<img src="${esc(e.img)}" alt="" loading="lazy">` : PF_IC.bell}</span><span class="pf2-evi-t"><b>${e.t}</b><small>${e.s}</small></span><span class="pf2-evi-v"><em>${e.v}</em><small>${dstr(e.ts)}</small></span></div>`).join('')
       : '<div class="pf2-ev-0">Пока пусто — здесь появятся пополнения, выводы, продажи и крупные дропы</div>';
   };
   $$('nav button', p).forEach(b => b.onclick = e => { e.stopPropagation(); draw(b.dataset.f); });
@@ -7304,7 +7306,9 @@ async function ckShow(force) {
 const ageOk = () => { try { return localStorage.getItem('rc.age18') === '1'; } catch (e) { return false; } };
 const ageSave = () => { try { localStorage.setItem('rc.age18', '1'); } catch (e) { /* */ } };
 
-const page404 = () => `<section class="container"><div class="empty-big">${ic.alert}<h2>Страница не найдена</h2><p>Такой страницы нет — но кейсы всё ещё ждут.</p><a class="btn btn-primary btn-lg" href="#/">На главную</a></div></section>`;
+/* 404 — одна на все случаи (нет страницы, чужая дверь #/admin и #/staff): по виду не отличить, есть ли за дверью что-то. Новый стиль CS2 (.dr4 в css) */
+const page404 = () => `<section class="container dr4"><div class="dr4-card"><b class="dr4-code" aria-hidden="true">404</b><h1>Похоже, вы хотите зайти не в ту дверь</h1><p>Такой страницы нет. Кейсы ждут на главной.</p><a class="bw-go dr4-go" href="#/">На главную</a></div></section>`;
+const pageDoorWait = () => '<section class="container dr4"><span class="spinner"></span></section>';
 
 /* =========================================================
    AUTH
@@ -7348,6 +7352,34 @@ function openAuth(tab = 'login') {
    Ссылок на страницу в меню и подвале нет. Пускает только аккаунты с доступом в админку (profiles.is_admin = владелец или сотрудник),
    из остальных сразу выходим. Права всё равно проверяет сервер (is_admin(), staff — supabase/roles.sql); новый стиль CS2 (.stf в css) ---------- */
 let stfBusy = false; // идёт вход на #/staff — общий обработчик SIGNED_IN не должен сам загружать профиль до проверки доступа
+/* двери команды (владелец 25.11): #/admin — только админу, и только когда право подтвердил сервер при загрузке профиля;
+   #/staff — по тайному адресу #/staff/<слово> или на устройстве, где слово уже вводили. Остальным — обычная 404 (page404).
+   В коде — только отпечаток SHA-256 строки 'rc-door:<слово>'; само слово записано у владельца (локальный файл, не в git) */
+const DOOR_H = '7e9d4bb226fdf14471d1e297002c40dcec003515fc6e1f4e27fca58d540413e2';
+let authWait = !!sb, doorOk = false, doorTried = null; // authWait — ещё ждём ответа сервера о входе (на дверях — крутилка, не 404)
+const doorHash = async w => { try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('rc-door:' + w)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); } catch (e) { return ''; } };
+async function doorCheck(w) {
+  if (w && await doorHash(w) === DOOR_H) { doorOk = true; try { localStorage.setItem('rc.door', w); } catch (e) { /* */ } }
+  if (!doorOk) { let s = null; try { s = localStorage.getItem('rc.door'); } catch (e) { /* */ } doorOk = !!s && await doorHash(s) === DOOR_H; }
+  return doorOk;
+}
+const admIn = () => !!(st.user && st.user.sb && st.user.admin);
+// 'open' — пускаем, 'wait' — ещё проверяем, 'no' — 404
+function doorGate(key, arg) {
+  if (key === 'admin') return admIn() ? 'open' : authWait ? 'wait' : 'no';
+  if (admIn() || doorOk) return 'open';
+  let w = arg || ''; try { w = decodeURIComponent(w); } catch (e) { /* */ }
+  if (doorTried === w) return authWait ? 'wait' : 'no';
+  doorTried = w;
+  doorCheck(w).then(ok => {
+    if (!/^#\/staff(\/|$)/.test(location.hash)) return;
+    if (ok && w) history.replaceState(null, '', location.pathname + location.search + '#/staff'); // слово не остаётся в адресной строке
+    route();
+  });
+  return 'wait';
+}
+function authDone() { if (!authWait) return; authWait = false; if (/^#\/(admin|staff)(\/|$)/.test(location.hash)) route(); }
+setTimeout(authDone, 8000); // сервер молчит — двери не крутятся вечно
 const STF_NO = 'Вход по почте — только для команды сайта. Игроки входят через Steam';
 const stfField = (id, label, type, ac) => `<label class="stf-fl"><span>${label}</span><div class="stf-in"><input id="${id}" type="${type}" autocomplete="${ac}" spellcheck="false">${type === 'password' ? `<button type="button" class="stf-eye" tabindex="-1" aria-label="Показать пароль">${ic.eye}</button>` : ''}</div></label>`;
 const stfEyes = root => $$('.stf-eye', root).forEach(b => b.onclick = () => { const i = b.previousElementSibling, show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? AU_IC.eyeOff : ic.eye; b.classList.toggle('on', show); i.focus(); });
@@ -7414,7 +7446,7 @@ async function sbLoadProfile(session) {
   st.user.tut = p.tut || []; // пройденные обучения (supabase/tutorial.sql)
   if (p.is_admin) try { localStorage.setItem('rc.adm', '1'); } catch (e) { /* */ }
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
-  renderUser(); route();
+  authWait = false; renderUser(); route();
   tutSync(); jpClaim(false); jpResolveMine(); claimGrants(); ntcCheck(); gaWinCheck(); refHello(); supInit(); supAdmInit();
   return true;
 }
@@ -7595,8 +7627,8 @@ function sbInit() {
   if (stTok) { sb.auth.verifyOtp({ token_hash: stTok, type: 'magiclink' }).then(({ data, error }) => { if (error || !data.session) return toast('Не удалось войти через Steam: ' + (error ? error.message : 'нет сессии'), 'err'); sbLoadProfile(data.session).then(ok => ok && afterLogin(false)); }); }
   loadCaseCfg().then(loadCustomCases).then(loadCaseSettings);
   sb.auth.getSession().then(({ data }) => {
-    if (data.session) sbLoadProfile(data.session);
-    else { if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); } if (!stTok) refWelcome(); } // гость по реферальной ссылке — «Вас пригласил…»
+    if (data.session) sbLoadProfile(data.session).then(ok => { if (!ok) authDone(); });
+    else { if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); } if (!stTok) refWelcome(); authDone(); } // гость по реферальной ссылке — «Вас пригласил…»
   });
   sb.auth.onAuthStateChange((ev, session) => {
     // ссылка «новый пароль» из письма — только для команды (#/staff); игрока по почте не впускаем
@@ -8088,7 +8120,7 @@ async function supAdmOpen(id) {
 let admTab = (() => { try { return localStorage.getItem('rc.admTab') || 'dash'; } catch (e) { return 'dash'; } })();
 const pctS = v => (v * 100).toFixed(v < .1 ? 2 : 1).replace('.', ',') + '%';
 function pageAdmin() {
-  if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
+  if (!admIn()) return page404(); // запасной замок (основной — doorGate в route)
   // слева — все вкладки по разделам, в центре — открытая вкладка, справа — лента «Сейчас на сайте» (только владельцу)
   return `<section class="container cases-wide ax" id="adm"><div class="ax-lay">
     <nav class="ax-nav" id="admTabs"></nav>
@@ -11909,8 +11941,12 @@ function route() {
   // рулетка: адрес #/roulette (владелец 22.11). Старые ссылки #/krot/… (приглашения, новости) — тот же экран, адрес в строке меняется сам
   if (/^#\/krot(\/|$)/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search + location.hash.replace(/^#\/krot/, '#/roulette'));
   const parts = location.hash.replace(/^#\/?/, '').split('/');
-  const key = parts[0] === 'roulette' ? 'krot' : (parts[0] || '');   // внутри режим по-прежнему «krot» (страница, стили, js/krot.js)
-  const [page, mount] = Object.prototype.hasOwnProperty.call(ROUTES, key) ? ROUTES[key] : [page404, null];
+  const key0 = parts[0] === 'roulette' ? 'krot' : (parts[0] || '');   // внутри режим по-прежнему «krot» (страница, стили, js/krot.js)
+  // двери команды (#/admin, #/staff): чужим — та же 404, что у несуществующей страницы (и тот же фон, и тот же заголовок вкладки)
+  const gate = key0 === 'admin' || key0 === 'staff' ? doorGate(key0, parts[1]) : 'open';
+  const lost = gate !== 'open' || !Object.prototype.hasOwnProperty.call(ROUTES, key0);
+  const key = lost ? '404' : key0;
+  const [page, mount] = !lost ? ROUTES[key] : gate === 'wait' ? [pageDoorWait, null] : [page404, null];
   const app = $('#app');
   app.innerHTML = page(parts[1]);
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
@@ -11944,7 +11980,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ pickem: 'Пикем PGL Major Singapore 2026', krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ pickem: 'Пикем PGL Major Singapore 2026', krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', '404': 'Страница не найдена', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 

@@ -6,9 +6,8 @@
 
 -- ---------- права администратора ----------
 alter table public.profiles add column if not exists is_admin boolean not null default false;
--- игрок может менять в своём профиле только игровые данные — не is_admin, не имя
+-- профиль (баланс, предметы, права) меняют только серверные функции — у игрока прав на запись нет (см. server.sql, hardening.sql)
 revoke update on public.profiles from authenticated;
-grant update (data, updated_at) on public.profiles to authenticated;
 
 create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path = public as $$

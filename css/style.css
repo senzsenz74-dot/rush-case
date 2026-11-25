@@ -6570,6 +6570,14 @@ body.pg-upgrade::after{background:radial-gradient(130% 95% at 50% 30%,rgba(6,8,1
 @keyframes tOut2{to{opacity:0;transform:translateX(24px)}}
 @media (min-width:1025px){#toasts{bottom:96px}} /* выше кнопки чата поддержки — не наезжают на неё */
 /* ===== вход для команды #/staff (pageStaff) и окно «Новый пароль» — новый стиль CS2: тёмное стекло, углы 2–3 px, Oswald, зелёная кнопка (владелец 15.11) ===== */
+/* ---------- 404 «не та дверь» (25.11): одна на все случаи — нет страницы, чужие #/admin и #/staff. Новый стиль CS2: тёмное стекло, Oswald ---------- */
+.dr4{display:grid;place-items:center;min-height:calc(100vh - 280px);padding:48px 16px}
+.dr4-card{width:min(520px,100%);padding:34px 34px 30px;text-align:center;border-radius:3px;background:linear-gradient(180deg,rgba(38,42,51,.88),rgba(18,20,25,.92) 140px);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.dr4-code{display:block;font:500 92px/1 'Oswald',var(--ff);letter-spacing:.06em;color:#84d9fd;text-shadow:0 0 34px rgba(132,217,253,.35)}
+.dr4-card h1{margin:16px 0 10px;font:500 24px/1.25 'Oswald',var(--ff);text-transform:uppercase;letter-spacing:.04em;color:#fff}
+.dr4-card p{margin:0;color:#8a92a1;font-size:15px}
+.dr4-go{display:inline-grid;place-items:center;min-width:200px;text-decoration:none}
+html.gfx-low .dr4-card{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(22,24,30,.96)}
 .stf{display:grid;place-items:center;min-height:calc(100vh - 280px);padding:48px 16px}
 .stf-card{--gl:#84d9fd;width:min(440px,100%);border-radius:3px;overflow:hidden;background:linear-gradient(180deg,rgba(38,42,51,.92),rgba(18,20,25,.94) 120px);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 80px rgba(0,0,0,.5)}
 .stf-card .ga-mh{padding-right:26px}
