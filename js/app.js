@@ -4813,6 +4813,7 @@ const c2Lib = () => C2D.lib || (C2D.lib = Promise.all([
 /* НОВОГОДНИЙ ИВЕНТ (до 19.01.2027, только при NY_ON): сугроб под 3D-кейсом. Кейс падает в него — сугроб сплющивается
    в снег вокруг кейса, комья разлетаются и остаются на земле (+ пыль удара белая, см. dust). Момент удара — кадр, где низ
    кейса опускается ниже верха сугроба (считается по анимации кейса, у каждой модели свой). Снег — assets/ny/snow.webp (Poly Haven snow_02, CC0). */
+const C2NY_HIT = 'assets/ny/snow-hit.wav?v=1'; // удар о сугроб: хруст и шорох снега (tools/snow-hit-sound.js)
 function c2NySnow(THREE, S, { scene, at, floorY, caseRoot, setFrame, mats }) {
   const H = .28, RX = .8, RZ = .65, FLAT = .18, WIDE = 1.35;
   const tex = new THREE.TextureLoader().load('assets/ny/snow.webp?v=1', () => { S.nyDirty = true; });
@@ -4847,7 +4848,10 @@ function c2NySnow(THREE, S, { scene, at, floorY, caseRoot, setFrame, mats }) {
     });
   };
   reset();
-  S.nyF = f => { if (f < hitF) { if (t0) reset(); } else if (!t0) burst(performance.now()); };
+  Snd.preloadSet({ ny: C2NY_HIT });
+  S.nyF = f => { // звук снега (поверх обычного падения) — только когда кейс долетел сам, а не при прыжке на кадр покоя
+    if (f < hitF) { if (t0) reset(); } else if (!t0) { burst(performance.now()); if (f < hitF + 2) Snd.playCtl(C2NY_HIT, C2S.vol * 1.1); }
+  };
   S.nyT = now => {
     let busy = S.nyDirty; S.nyDirty = false;
     if (!t0) return busy;
