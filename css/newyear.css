@@ -3,11 +3,11 @@
    Все правила — под html.ny-on, чтобы ничего не задеть после выключения.
    (мигание гирлянд на фоне убрано по просьбе владельца 25.11 — было в коммитах 2f2a04b…57447bf) */
 
-/* ---------- лёд на карточках страницы «Кейсы» (владелец 25.11: ледяной слой, тает там, где ведёшь мышкой) ----------
+/* ---------- лёд на карточках страницы «Кейсы» (владелец 25.11: ледяной слой, при наведении тает) ----------
    .ix-ice — последний слой карточки (js/app.js, ixTile): стекло под инеем — лёгкое размытие того, что под ним, холодный оттенок,
    морозный узор assets/ny/frost.webp (tools/ny-frost.mjs: перья инея от краёв, к центру реже), светлая кромка.
    Маска ниже — исходный лёд (центр чуть прозрачнее, низ с названием и ценой светлее). Когда мышь водят по карточке,
-   js/newyear.js рисует поверх льда холст .ix-melt: там, где протаяло, — сам кейс чётко; капли — холст .ix-drip. */
+   При наведении тает целиком (ниже). */
 html.ny-on .ix-ice{position:absolute;inset:0;z-index:6;display:block;pointer-events:none;border-radius:inherit;
   background:url("../assets/ny/frost.webp?v=2") center/cover no-repeat,
     radial-gradient(120% 95% at 50% 40%,rgba(205,232,255,.05),rgba(196,226,252,.16) 62%,rgba(222,240,255,.34));
@@ -16,8 +16,12 @@ html.ny-on .ix-ice{position:absolute;inset:0;z-index:6;display:block;pointer-eve
   -webkit-mask-image:radial-gradient(135% 120% at 50% 42%,transparent 0,#000 16%),linear-gradient(180deg,#000 70%,rgba(0,0,0,.42) 79%);
   mask-image:radial-gradient(135% 120% at 50% 42%,transparent 0,#000 16%),linear-gradient(180deg,#000 70%,rgba(0,0,0,.42) 79%);
   -webkit-mask-composite:source-in;mask-composite:intersect}
-/* протаявшее (кейс чётко, поверх льда) и капли — холсты внутри .ix-img, рисует js/newyear.js */
-html.ny-on .ix-melt,html.ny-on .ix-drip{position:absolute;inset:0;z-index:7;width:100%;height:100%;pointer-events:none}
+/* наведение — лёд быстро тает от центра к краям и уходит (владелец 25.11: просто, без следа мыши и капель); увёл — намерзает обратно */
+@property --ny-melt { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+html.ny-on .ix .ix-ice{--ny-melt:0%;transition:--ny-melt .9s cubic-bezier(.45,0,.25,1) .1s,opacity .9s ease .1s;
+  -webkit-mask-image:radial-gradient(135% 120% at 50% 42%,transparent var(--ny-melt),#000 calc(var(--ny-melt) + 16%)),linear-gradient(180deg,#000 70%,rgba(0,0,0,.42) 79%);
+  mask-image:radial-gradient(135% 120% at 50% 42%,transparent var(--ny-melt),#000 calc(var(--ny-melt) + 16%)),linear-gradient(180deg,#000 70%,rgba(0,0,0,.42) 79%)}
+html.ny-on .ix:hover .ix-ice,html.ny-on .ix:focus-visible .ix-ice{--ny-melt:118%;opacity:0;transition:--ny-melt .5s cubic-bezier(.3,.55,.25,1),opacity .35s ease .2s}
 /* экономная графика — без живого размытия, оттенок чуть плотнее */
 html.ny-on.gfx-low .ix-ice{-webkit-backdrop-filter:none;backdrop-filter:none;
   background:url("../assets/ny/frost.webp?v=2") center/cover no-repeat,radial-gradient(120% 95% at 50% 40%,rgba(205,232,255,.12),rgba(196,226,252,.24) 62%,rgba(222,240,255,.4))}
@@ -25,3 +29,5 @@ html.ny-on.gfx-low .ix-ice{-webkit-backdrop-filter:none;backdrop-filter:none;
 html.ny-on .ix .ix-tag,html.ny-on .ix .ix-risk{z-index:8}
 /* блик наведения (.ix-fx) подо льдом выглядит как второй слой льда, ползущий по стеклу (владелец 25.11) — на время ивента без него */
 html.ny-on .ix .ix-fx{display:none}
+/* название и цена — над льдом (владелец 25.11: «цену же не видно»): лёд морозит только фон полосы, текст всегда чёткий */
+html.ny-on .ix .ix-name,html.ny-on .ix .ix-price{position:relative;z-index:8}
