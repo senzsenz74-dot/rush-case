@@ -5742,7 +5742,7 @@ function arcPath(span) {
 }
 const chanceColor = ch => `hsl(${Math.round(clamp(ch / UPG_MAX, 0, 1) * 120)} 85% 60%)`;
 /* кнопки множителей: стандартные или свои (6 штук, x1.2–x20) — свои хранятся в профиле (save_umults) */
-const UPG_DEF_MULTS = [1.5, 2, 2.5, 3, 5, 10];
+const UPG_DEF_MULTS = [2, 2.5, 3, 5, 7, 10]; // x1.5 убран (владелец 25.11), вместо него x7 — кнопок по-прежнему 6 (свои наборы на сервере — ровно 6)
 const upgMults = () => Array.isArray(st.umults) && st.umults.length === 6 ? st.umults.map(Number) : UPG_DEF_MULTS;
 const multTxt = m => 'x' + String(+(+m).toFixed(1)).replace('.', ',');
 const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c; };
