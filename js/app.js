@@ -3142,7 +3142,11 @@ const NEWS_DEF = [
   { id: 'feed', kind: 'feed', tag: 'Новое и популярное', more: 'Показать все…' },
 ];
 let NEWS = null; try { NEWS = JSON.parse(localStorage.getItem('rc.news') || 'null'); } catch (e) { /* */ }
-const newsList = () => { const L = Array.isArray(NEWS) ? NEWS : []; return NEWS_DEF.map(d => ({ ...d, ...(L.find(x => x && x.id === d.id) || {}) })); };
+// НОВЫЙ ГОД (владелец 26.11, только при NY_ON): верхняя — «Новогодние гаранты» (Яблоко → BLAST → MAJOR → Элита падают в снег, tools/ny-drop.mjs + ny-drop-encode.cjs),
+// в промокодах первым — NEW2027 +50% (promo-banners: node src/render.js site-ny); после ивента — обычные. Сам код NEW2027 заводит владелец в админке → Промокоды
+const NY_NEWS = x => x.id === 'drop' ? { ...x, title: 'Новогодние гаранты', sub: 'уже ждут тебя', img: 'assets/ny/news-drop-ny.webp?v=1', video: 'assets/ny/news-drop-ny.webm?v=1', video2: 'assets/ny/news-drop-ny.mp4?v=1' }
+  : x.id === 'promos' ? { ...x, slides: [{ code: 'NEW2027', video: 'assets/ny/news-new2027.webm?v=1', img: 'assets/ny/news-new2027.webp?v=1', dur: 9, link: '#/profile' }, ...(x.slides || []).filter(s => s.code !== 'NEW2027')] } : x;
+const newsList = raw => { const L = Array.isArray(NEWS) ? NEWS : [], R = NEWS_DEF.map(d => ({ ...d, ...(L.find(x => x && x.id === d.id) || {}) })); return window.NY_ON && !raw ? R.map(NY_NEWS) : R; }; // raw — для админки: новогоднее в сохранённые новости не попадает
 const vType = u => /\.mp4(\?|$)/i.test(u || '') ? 'video/mp4' : 'video/webm';
 // фон карточки: видео (с картинкой-заставкой, пока грузится) или картинка
 function newsMedia(x, cls = 'nw-bg') {
@@ -3177,7 +3181,7 @@ const NW_IO = 'IntersectionObserver' in window ? new IntersectionObserver(es => 
 function nwVids() { if (NW_IO) $$('#nwCol video[autoplay]').forEach(v => NW_IO.observe(v)); }
 // верхняя новость «падение кейсов» (владелец 21.11): в момент удара кейса о пол текст вздрагивает, золотая строка вспыхивает.
 // Удары в видео assets/news-drop.* — кадр 13 каждого падения: 0,43 / 3,53 / 6,63 с (склейка — tools/news-drop-encode.cjs)
-const NW_HITS = [0.43, 3.53, 6.63];
+const NW_HITS = window.NY_ON ? [0.43, 3.53, 6.63, 9.73] : [0.43, 3.53, 6.63]; // НОВЫЙ ГОД: 4 падения (assets/ny/news-drop-ny.*)
 function nwDropSync() {
   const card = $('.nw-drop'), v = card && $('video', card); if (!v) return;
   let last = -1;
@@ -9619,7 +9623,7 @@ async function newsImgPack(file) {
 }
 function admNews(el) {
   if (!el) return;
-  let L = newsList().map(x => ({ ...x })), changed = false;
+  let L = newsList(true).map(x => ({ ...x })), changed = false;
   const draw = () => {
     el.innerHTML = `<div class="adm-panel nwa"><div class="adm-ph"><h3>Новости на главном экране</h3><span class="adm-ph-acts">
         <button class="ax-btn ax-sm" id="nwReset">Вернуть как было</button>

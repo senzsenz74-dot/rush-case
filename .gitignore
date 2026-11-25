@@ -24,3 +24,7 @@ assets/ny/_src/
 blender/ny/*.blend
 blender/ny/*.blend1
 blender/ny/renders/
+
+# promo-banners (копия из ветки claude/adoring-galileo-b6f497 для новогоднего слайда): кадры и сырые ролики — не в git
+promo-banners/output/
+promo-banners/.frames/

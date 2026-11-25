@@ -1,0 +1,137 @@
+/* RUSH CASE — анимированные баннеры (стрим / TikTok / квадрат). Новый стиль CS2: тёмное стекло, Oswald, #84d9fd, зелёное действие */
+@font-face{font-family:'Oswald';src:url(fonts/oswald-cyrillic.woff2) format('woff2');font-weight:200 700;unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Oswald';src:url(fonts/oswald-latin.woff2) format('woff2');font-weight:200 700;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:transparent;overflow:hidden}
+body.opaque{background:#06080b}
+body.check{background:#3a3f47 repeating-conic-gradient(#2c3037 0 25%,#3a3f47 0 50%) 0 0/24px 24px}
+#root{position:relative;overflow:hidden;font-family:'Oswald',sans-serif;color:#eef2f6;-webkit-font-smoothing:antialiased}
+.ab{position:absolute;left:0;top:0}
+
+/* ---------- фон (только непрозрачные форматы) ---------- */
+.bg{overflow:hidden;background:#05070a}
+.bg img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;filter:blur(6px) brightness(.34) saturate(.75)}
+.bg .bgglow{position:absolute;inset:0;background:radial-gradient(70% 38% at 50% 46%,rgba(132,217,253,.13),transparent 72%)}
+.bg .bggold{position:absolute;inset:0;background:radial-gradient(55% 30% at 50% 47%,rgba(255,186,64,.30),transparent 75%);opacity:0}
+.bg .vig{position:absolute;inset:0;background:radial-gradient(ellipse 85% 70% at 50% 46%,transparent 40%,rgba(0,0,0,.82) 100%)}
+.bg .grid{position:absolute;inset:0;opacity:.07;background:linear-gradient(rgba(132,217,253,.6) 1px,transparent 1px) 0 0/100% 64px,linear-gradient(90deg,rgba(132,217,253,.6) 1px,transparent 1px) 0 0/64px 100%;-webkit-mask-image:radial-gradient(ellipse 70% 55% at 50% 50%,#000,transparent 80%);mask-image:radial-gradient(ellipse 70% 55% at 50% 50%,#000,transparent 80%)}
+
+/* ---------- стеклянная плашка ---------- */
+.glass{border-radius:4px;overflow:hidden;background:linear-gradient(180deg,rgba(32,37,46,.93),rgba(12,14,19,.95));border:1px solid rgba(255,255,255,.13);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 14px 38px rgba(0,0,0,.55)}
+.glass::before{content:'';position:absolute;inset:0;background:radial-gradient(90% 160% at 0% 0%,rgba(132,217,253,.08),transparent 55%),radial-gradient(70% 140% at 100% 100%,rgba(79,179,94,.06),transparent 60%)}
+.glass .run{position:absolute;left:0;top:0;height:1px;width:260px;background:linear-gradient(90deg,transparent,rgba(132,217,253,.95),transparent)}
+.glass .run.b{top:auto;bottom:0}
+.glass .cn{position:absolute;width:12px;height:12px;border:0 solid #84d9fd;opacity:.85}
+.glass .cn.tl{left:7px;top:7px;border-width:2px 0 0 2px}
+.glass .cn.tr{right:7px;top:7px;border-width:2px 2px 0 0}
+.glass .cn.bl{left:7px;bottom:7px;border-width:0 0 2px 2px}
+.glass .cn.br{right:7px;bottom:7px;border-width:0 2px 2px 0}
+.vdiv{width:1px;background:linear-gradient(180deg,transparent,rgba(255,255,255,.14),transparent)}
+
+/* ---------- логотип / блик ---------- */
+.logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.logo .lglow{position:absolute;left:10%;right:10%;top:20%;bottom:10%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,120,60,.30),transparent);filter:blur(10px)}
+.shine{position:absolute;inset:0;opacity:0;background:linear-gradient(105deg,transparent 44%,rgba(255,255,255,.5) 50%,transparent 56%);background-size:300% 100%;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center}
+.sweep{position:absolute;inset:0;opacity:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.42) 50%,transparent 60%);background-size:300% 100%}
+
+/* ---------- кейсы ---------- */
+.case{transform-origin:50% 45%}
+.case img{position:absolute;left:0;top:0}
+.case .shine{inset:auto;left:0;top:0}
+.case .csh{position:absolute;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.7),transparent)}
+.case .cname{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:#e9edf2;text-shadow:0 2px 8px rgba(0,0,0,.8);line-height:1}
+
+/* ---------- рулетка-лупа (как .c2-lens на сайте; размеры — сайта, весь блок масштабируется) ---------- */
+.lr{overflow:visible}
+.lr-band{position:absolute;left:0;overflow:hidden}
+.lr-out{-webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent)}
+.lr-strip{position:absolute;left:0;top:0;will-change:transform}
+.lr-lens,.lr-in{position:absolute;inset:0}
+.lt{position:absolute;top:0;display:grid;place-items:center;border-radius:5px;overflow:hidden;background:radial-gradient(ellipse at 50% 42%,color-mix(in srgb,var(--rc) 58%,#000) 0%,color-mix(in srgb,var(--rc) 32%,#000) 55%,color-mix(in srgb,var(--rc) 16%,#000) 100%);box-shadow:inset 0 -5px 0 var(--rc),inset 0 -34px 28px -20px color-mix(in srgb,var(--rc) 70%,transparent),inset 0 2px 0 rgba(255,255,255,.38),inset 0 3px 6px rgba(255,255,255,.12),inset 2px 0 0 rgba(255,255,255,.12),inset -2px 0 0 rgba(0,0,0,.4),inset 0 -12px 18px -10px rgba(0,0,0,.55),inset 0 0 60px rgba(0,0,0,.55)}
+.lt::before{content:"";position:absolute;inset:0;z-index:0;background:linear-gradient(160deg,rgba(255,255,255,.26) 0%,rgba(255,255,255,.08) 32%,rgba(255,255,255,0) 34%),radial-gradient(ellipse 75% 45% at 50% 0%,rgba(255,255,255,.16),transparent 70%),linear-gradient(0deg,rgba(0,0,0,.28),transparent 40%)}
+.lt img{position:relative;z-index:1;width:86%;height:82%;object-fit:contain;filter:drop-shadow(0 6px 8px rgba(0,0,0,.45));margin-bottom:6px}
+.lt.gold{background:radial-gradient(ellipse at 50% 42%,#8a6a2c 0%,#4f3b17 55%,#2a1f0c 100%)}
+.lt .wr{position:absolute;inset:0;z-index:2;border-radius:5px;opacity:var(--dn,0);box-shadow:inset 0 0 0 3px #f7d774,inset 0 0 46px rgba(228,174,57,.6)}
+.lr.dn .lr-lens .lt:not(.win){filter:brightness(calc(1 - .55 * var(--dn))) grayscale(calc(.5 * var(--dn)))}
+.lr-ring{position:absolute;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,transparent 68%,rgba(255,255,255,.03) 86%,rgba(255,255,255,.1) 100%);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.32),inset 0 0 0 7px rgba(255,255,255,.035),inset 0 0 28px 5px rgba(255,255,255,.09),inset 5px 0 14px -5px rgba(255,95,95,.26),inset -5px 0 14px -5px rgba(95,175,255,.26),0 0 0 1px rgba(255,255,255,.07),0 0 34px rgba(255,255,255,.05)}
+.lr-ring::before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse 40% 24% at 33% 19%,rgba(255,255,255,.2),rgba(255,255,255,.05) 55%,transparent 72%),radial-gradient(ellipse 22% 9% at 68% 86%,rgba(255,255,255,.07),transparent 70%)}
+.lr-ring::after{content:"";position:absolute;inset:6px;border-radius:50%;border:2px solid transparent;border-top-color:rgba(255,255,255,.5);border-left-color:rgba(255,255,255,.18);transform:rotate(-14deg);filter:blur(.6px)}
+.lr-mark{position:absolute;width:3px;height:268px;transform:translate(-50%,-50%);background:linear-gradient(180deg,#f7d774,#e3a923);border-radius:2px}
+
+/* ---------- замок открылся / смена сцен ---------- */
+.uflash{border-radius:50%;background:radial-gradient(closest-side,#fff 0%,rgba(225,245,255,.9) 25%,rgba(132,217,253,.35) 55%,transparent 78%)}
+.uring{border-radius:50%;border:3px solid rgba(215,242,255,.95);box-shadow:0 0 18px rgba(132,217,253,.8),inset 0 0 18px rgba(132,217,253,.6)}
+.wclip{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.wipe{position:absolute;left:0;background:linear-gradient(90deg,transparent,rgba(132,217,253,.07) 28%,rgba(200,236,255,.3) 44%,rgba(250,253,255,.7) 50%,rgba(200,236,255,.3) 56%,rgba(132,217,253,.07) 72%,transparent);filter:blur(5px)}
+
+/* ---------- корона: свечение и искра ---------- */
+.logo .cg{position:absolute;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(255,176,90,.6),rgba(255,110,60,.2) 50%,transparent)}
+.logo .tw{position:absolute;opacity:0;background:radial-gradient(closest-side,#fff,rgba(255,240,200,.7) 18%,transparent 55%)}
+.logo .tw::before,.logo .tw::after{content:"";position:absolute;left:50%;top:50%;width:100%;height:7%;transform:translate(-50%,-50%);border-radius:50%;background:linear-gradient(90deg,transparent,#fff 50%,transparent)}
+.logo .tw::after{transform:translate(-50%,-50%) rotate(90deg)}
+
+/* ---------- выпадение ---------- */
+.rays{border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,206,96,0) 0deg,rgba(255,206,96,.55) 4deg,rgba(255,206,96,0) 9deg,rgba(255,206,96,0) 15deg);-webkit-mask-image:radial-gradient(closest-side,#000 12%,rgba(0,0,0,.55) 42%,transparent 100%);mask-image:radial-gradient(closest-side,#000 12%,rgba(0,0,0,.55) 42%,transparent 100%)}
+.rays.r2{background:repeating-conic-gradient(from 0deg,rgba(255,236,170,0) 0deg,rgba(255,236,170,.5) 2deg,rgba(255,236,170,0) 5deg,rgba(255,236,170,0) 23deg)}
+.gglow{border-radius:50%;background:radial-gradient(closest-side,rgba(255,200,90,.78),rgba(255,160,40,.24) 55%,transparent)}
+.flash{border-radius:50%;background:radial-gradient(closest-side,#fff 0%,rgba(255,240,190,.95) 22%,rgba(255,190,70,.4) 52%,transparent 76%)}
+.hknife{object-fit:contain;filter:drop-shadow(0 0 16px rgba(255,190,80,.6)) drop-shadow(0 14px 16px rgba(0,0,0,.6))}
+.wlbl{display:flex;align-items:center;gap:.5em;white-space:nowrap;font-weight:500;text-transform:uppercase;letter-spacing:.04em;line-height:1}
+.wlbl .tg{font-size:.58em;color:#84d9fd;border:1px solid rgba(132,217,253,.5);background:rgba(132,217,253,.1);padding:.32em .6em .28em;border-radius:2px;letter-spacing:.14em}
+.wlbl .nm{color:#ffd36b;text-shadow:0 0 18px rgba(255,190,70,.55),0 2px 6px rgba(0,0,0,.7)}
+.wlbl.pill{background:rgba(10,12,16,.86);border:1px solid rgba(242,182,50,.38);padding:.3em .75em;border-radius:3px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+
+/* ---------- промокод ---------- */
+.promo{display:flex;align-items:center;justify-content:center;text-transform:uppercase;line-height:1;white-space:nowrap}
+.promo.col{flex-direction:column}
+.promo.row{flex-direction:row}
+.promo .pcol{display:flex;flex-direction:column;align-items:center}
+.promo .pl{color:#84d9fd;letter-spacing:.24em;font-weight:500;padding-left:.24em}
+.promo .pc{position:relative;overflow:hidden;border:2px solid transparent;background:linear-gradient(180deg,rgba(132,217,253,.12),rgba(132,217,253,.03));border-radius:3px;color:#fff;font-weight:600;letter-spacing:.07em;text-shadow:0 0 24px rgba(132,217,253,.5)}
+.promo .pb{position:relative;overflow:hidden;display:flex;align-items:center;gap:.4em;background:linear-gradient(180deg,#4fb35e,#2f8a3f);color:#fff;font-weight:500;letter-spacing:.05em;border-radius:3px;box-shadow:0 8px 22px rgba(79,179,94,.32),inset 0 1px 0 rgba(255,255,255,.28);text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.promo .pb b{font-weight:600}
+.promo .pb small{font-size:.5em;letter-spacing:.08em;font-weight:500;line-height:1.15;opacity:.95}
+.promo.boxed{background:linear-gradient(180deg,rgba(32,37,46,.9),rgba(12,14,19,.92));border:1px solid rgba(255,255,255,.13);border-radius:4px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 20px 50px rgba(0,0,0,.6)}
+
+.promo .pc .ch{display:inline-block;text-align:center}
+.promo .pc .ants{position:absolute;left:-2px;top:-2px;width:calc(100% + 4px);height:calc(100% + 4px);overflow:visible;pointer-events:none}
+.promo .pc .ants rect{x:1px;y:1px;width:calc(100% - 2px);height:calc(100% - 2px);rx:3px;fill:none;stroke:rgba(132,217,253,.72);stroke-width:2;stroke-dasharray:9 6}
+
+canvas.fx{pointer-events:none}
+
+/* ---------- WELCOME (слайд новостей сайта, владелец 22.11): золотой купон и значок баланса сайта вместо ₽ ---------- */
+.bal{display:inline-block;width:.9em;height:.9em;margin-left:.12em;vertical-align:-.08em;background:currentColor;-webkit-mask:url(../../assets/icon-balance.svg) center/contain no-repeat;mask:url(../../assets/icon-balance.svg) center/contain no-repeat}
+.cpn{container-type:inline-size;display:flex;align-items:stretch;overflow:hidden;border-radius:2.4cqw;color:#3b2504;
+  background:linear-gradient(112deg,#7a4a0b 0%,#c98f2a 12%,#ffe7a0 27%,#f2c45c 38%,#b47a1d 52%,#f7d888 68%,#d39b34 82%,#7c4c0e 100%);
+  box-shadow:inset 0 0 0 .55cqw rgba(255,244,200,.55),inset 0 0 0 1.4cqw rgba(120,72,10,.35);
+  filter:drop-shadow(0 0 4cqw rgba(255,196,80,.55)) drop-shadow(0 4cqw 4cqw rgba(0,0,0,.55));
+  -webkit-mask:radial-gradient(circle 4.2cqw at 0 50%,#0000 97%,#000) 0 0/51% 100% no-repeat,radial-gradient(circle 4.2cqw at 100% 50%,#0000 97%,#000) 100% 0/51% 100% no-repeat;
+  mask:radial-gradient(circle 4.2cqw at 0 50%,#0000 97%,#000) 0 0/51% 100% no-repeat,radial-gradient(circle 4.2cqw at 100% 50%,#0000 97%,#000) 100% 0/51% 100% no-repeat}
+.cpn-tx{position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.07) 0 1cqw,transparent 1cqw 2.6cqw);mix-blend-mode:overlay}
+.cpn-l{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;padding-left:9.5cqw;gap:1.2cqw}
+.cpn-k{font:500 4.6cqw/1 Oswald,sans-serif;font-style:normal;letter-spacing:.42em;text-transform:uppercase;color:rgba(70,42,4,.75)}
+.cpn-c{font:600 14cqw/.95 Oswald,sans-serif;letter-spacing:.03em;color:#3a2303;text-shadow:0 .35cqw 0 rgba(255,246,214,.75),0 -.25cqw 0 rgba(90,52,4,.45)}
+.cpn-r{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2cqw;padding:0 8.5cqw 0 5cqw;border-left:.55cqw dashed rgba(90,54,6,.55)}
+.cpn-r b{font:600 9cqw/1 Oswald,sans-serif;color:#3a2303;white-space:nowrap;text-shadow:0 .3cqw 0 rgba(255,246,214,.7)}
+.cpn-r i{font:500 3.8cqw/1 Oswald,sans-serif;font-style:normal;letter-spacing:.16em;text-transform:uppercase;color:rgba(70,42,4,.8)}
+.cpn .shine{position:absolute;inset:0;pointer-events:none}
+
+/* ---------- НОВЫЙ ГОД (владелец 26.11): билет NEW2027 — красный бархат с золотой каймой, снежная шапка; снег на плашке промокода ---------- */
+.cpn.ny{color:#fff;background:radial-gradient(120% 150% at 28% 0%,#ef3147 0%,#b9122b 46%,#6a0615 100%);
+  box-shadow:inset 0 0 0 .55cqw rgba(255,214,120,.95),inset 0 0 0 1.3cqw rgba(110,8,22,.55),inset 0 0 0 1.75cqw rgba(255,206,96,.6);
+  filter:drop-shadow(0 0 4cqw rgba(255,96,96,.45)) drop-shadow(0 4cqw 4cqw rgba(0,0,0,.55))}
+.cpn.ny .cpn-tx{background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 1cqw,transparent 1cqw 2.6cqw)}
+.cpn.ny .cpn-k{color:#ffd88a}
+.cpn.ny .cpn-c{color:#fff;text-shadow:0 .35cqw 0 rgba(70,0,10,.65),0 0 3cqw rgba(255,226,170,.5)}
+.cpn.ny .cpn-r{border-left-color:rgba(255,214,120,.75)}
+.cpn.ny .cpn-r b{color:#ffe08a;text-shadow:0 .3cqw 0 rgba(70,0,10,.65)}
+.cpn.ny .cpn-r{padding:0 8.6cqw 0 3.4cqw}
+.cpn.ny .cpn-r b{font-size:8.4cqw}
+.cpn.ny .cpn-r i{color:rgba(255,238,206,.92);text-align:center;line-height:1.15;font-size:3.1cqw;letter-spacing:.05em}
+.ny-cap{position:absolute;left:0;right:0;top:0;height:7cqw;pointer-events:none;
+  background:radial-gradient(3.4cqw 2.8cqw at 50% 0,#fff 96%,#0000) 0 1.6cqw/6.6cqw 100% repeat-x,linear-gradient(#fff,#eef6ff) 0 0/100% 1.8cqw no-repeat;
+  filter:drop-shadow(0 .35cqw .3cqw rgba(40,60,90,.35))}
+.promo .pc .ny-cap,.promo .pb .ny-cap{height:.36em;background:radial-gradient(.2em .16em at 50% 0,#fff 96%,#0000) 0 .1em/.38em 100% repeat-x,linear-gradient(#fff,#eef6ff) 0 0/100% .11em no-repeat;filter:drop-shadow(0 .03em .03em rgba(40,60,90,.35))}
+body.ny .promo .pc{background:linear-gradient(180deg,rgba(190,235,255,.2),rgba(132,217,253,.05));text-shadow:0 0 24px rgba(200,240,255,.65)}
+body.ny .wlbl .nm{color:#ffd88a;text-shadow:0 0 12px rgba(255,200,90,.45),0 1px 2px rgba(60,20,0,.95),0 2px 8px rgba(0,0,0,.85)}
