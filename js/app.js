@@ -4810,6 +4810,63 @@ let c2s = null; // текущая 3D-сцена страницы
 const c2Lib = () => C2D.lib || (C2D.lib = Promise.all([
   import('three'), import('three/addons/loaders/GLTFLoader.js'), import('three/addons/loaders/RGBELoader.js'),
 ]).catch(e => { C2D.lib = null; throw e; }));
+/* НОВОГОДНИЙ ИВЕНТ (до 19.01.2027, только при NY_ON): сугроб под 3D-кейсом. Кейс падает в него — сугроб сплющивается
+   в снег вокруг кейса, комья разлетаются и остаются на земле (+ пыль удара белая, см. dust). Момент удара — кадр, где низ
+   кейса опускается ниже верха сугроба (считается по анимации кейса, у каждой модели свой). Снег — assets/ny/snow.webp (Poly Haven snow_02, CC0). */
+function c2NySnow(THREE, S, { scene, at, floorY, caseRoot, setFrame, mats }) {
+  const H = .28, RX = .8, RZ = .65, FLAT = .18, WIDE = 1.35;
+  const tex = new THREE.TextureLoader().load('assets/ny/snow.webp?v=1', () => { S.nyDirty = true; });
+  tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1.6, 1.6);
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: .85 }); mats.add(mat); // как кейс: во 2-м проходе только тень
+  const geo = new THREE.SphereGeometry(1, 56, 14, 0, Math.PI * 2, 0, Math.PI / 2), p = geo.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) { // бугристый край и верх
+    v.fromBufferAttribute(p, i); const a = Math.atan2(v.z, v.x), n = 1 + .07 * Math.sin(a * 3 + 1) + .05 * Math.sin(a * 7 + v.y * 5) + .03 * Math.sin(a * 13);
+    p.setXYZ(i, v.x * n, v.y * (.8 + .3 * n - .3), v.z * n);
+  }
+  geo.computeVertexNormals();
+  const mound = new THREE.Mesh(geo, mat); mound.position.copy(at); mound.castShadow = mound.receiveShadow = true; scene.add(mound);
+  const cg = new THREE.IcosahedronGeometry(1, 1), cp = cg.attributes.position;
+  for (let i = 0; i < cp.count; i++) { v.fromBufferAttribute(cp, i); v.multiplyScalar(.75 + Math.abs(Math.sin(i * 12.9898)) * .45); cp.setXYZ(i, v.x, v.y, v.z); } // комья неровные
+  cg.computeVertexNormals();
+  const chunks = Array.from({ length: 38 }, () => { const m = new THREE.Mesh(cg, mat); m.visible = false; m.castShadow = true; scene.add(m); return { m, r: .02 + Math.random() * .04, v: new THREE.Vector3(), w: new THREE.Vector3(), live: false }; });
+  // кадр удара: низ кейса ниже верха сугроба
+  const box = new THREE.Box3(), bottom = () => { box.makeEmpty(); caseRoot.traverse(o => { if (o.isMesh && o.name !== 'KEY' && !/^SN_/.test(o.name)) box.expandByObject(o); }); return box.min.y; };
+  let hitF = 15, prev = null;
+  for (let f = 1; f <= 45; f += .5) { setFrame(f); caseRoot.updateMatrixWorld(true); const b = bottom(); if (prev !== null && b <= floorY + H * .9) { hitF = f; break; } prev = b; }
+  setFrame(1);
+  let t0 = 0, last = 0;
+  const reset = () => { t0 = 0; mound.scale.set(RX, H, RZ); chunks.forEach(c => { c.m.visible = c.live = false; }); };
+  const burst = now => {
+    t0 = last = now;
+    chunks.forEach(c => {
+      const a = Math.random() * Math.PI * 2, t = .45 + Math.random() * .55, d = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+      c.m.position.set(at.x + d.x * RX * t, floorY + H * Math.sqrt(1 - t * t) * .9 + c.r, at.z + d.z * RZ * t);
+      c.v.copy(d).multiplyScalar(1 + Math.random() * 2.2).setY(1.2 + Math.random() * 2.4);
+      c.w.set(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(14);
+      c.m.scale.set(c.r, c.r * (.7 + Math.random() * .3), c.r); c.m.visible = c.live = true;
+    });
+  };
+  reset();
+  S.nyF = f => { if (f < hitF) { if (t0) reset(); } else if (!t0) burst(performance.now()); };
+  S.nyT = now => {
+    let busy = S.nyDirty; S.nyDirty = false;
+    if (!t0) return busy;
+    const e = Math.min(1, (now - t0) / 280), k = 1 - (1 - e) ** 3; // сугроб сплющивается за ~0,3 с
+    mound.scale.set(RX * (1 + (WIDE - 1) * k), H * (1 - (1 - FLAT) * k), RZ * (1 + (WIDE - 1) * k)); busy = busy || e < 1;
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    chunks.forEach(c => {
+      if (!c.live) return; busy = true;
+      c.v.y -= 9.8 * dt; c.m.position.addScaledVector(c.v, dt);
+      c.m.rotation.x += c.w.x * dt; c.m.rotation.y += c.w.y * dt; c.m.rotation.z += c.w.z * dt;
+      const g = floorY + c.r * .55;
+      if (c.m.position.y <= g) {
+        c.m.position.y = g;
+        if (c.v.y < -1.2) { c.v.y *= -.22; c.v.x *= .45; c.v.z *= .45; c.w.multiplyScalar(.4); } else c.live = false; // лёг на землю
+      }
+    });
+    return busy;
+  };
+}
 function c2Mount(c) {
   const root = $('.c2p'), host = $('#c2Stage'); if (!root || !host) return;
   if (c2s) c2s.kill();
@@ -4879,7 +4936,7 @@ function c2Mount(c) {
       g.putImageData(img, 0, 0); return new THREE.CanvasTexture(c);
     })();
     fetch(url('dust.json')).then(r => r.json()).then(j => j.puffs.forEach(p => {
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: dustTex, color: new THREE.Color().setRGB(.95 * .75, .72 * .75, .48 * .75, THREE.LinearSRGBColorSpace), depthWrite: false, transparent: true }));
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: dustTex, color: window.NY_ON ? new THREE.Color().setRGB(.88, .92, 1, THREE.LinearSRGBColorSpace) : new THREE.Color().setRGB(.95 * .75, .72 * .75, .48 * .75, THREE.LinearSRGBColorSpace), depthWrite: false, transparent: true })); // NY_ON: снежная пыль вместо песка
       s.visible = false; scene.add(s); dust.push({ s, k: p.k });
     })).catch(() => {});
     const dustFrame = f => dust.forEach(d => {
@@ -4898,7 +4955,7 @@ function c2Mount(c) {
     const camNode = gl.scene.getObjectByName('CAM_MAIN');
     const mixer = new THREE.AnimationMixer(gl.scene), action = mixer.clipAction(gl.animations[0]);
     action.play(); action.paused = true;
-    const setFrame = f => { action.time = f / C2D.FPS; mixer.update(0); dustFrame(f); dirty = true; };
+    const setFrame = f => { action.time = f / C2D.FPS; mixer.update(0); dustFrame(f); if (S.nyF) S.nyF(f); dirty = true; };
     setFrame(1);
     // где низ кейса в полном кадре 16:9 (0 — верх, 1 — низ): кейс в покое (кадр 75) через камеру CAM_MAIN
     const caseBot = (() => {
@@ -4944,6 +5001,7 @@ function c2Mount(c) {
         const f = Math.min(seg.b, seg.a + (now - seg.t0) / 1000 * C2D.FPS * seg.speed);
         setFrame(f); if (f >= seg.b) { const r = seg.res; seg = null; r(); }
       }
+      if (S.nyT && S.nyT(now)) dirty = true; // новогодний сугроб: комья летят
       if (dirty && now - lastD >= (GFX.low ? 31 : 14)) { dirty = false; lastD = now; draw(); } // два прохода на кадр — не чаще ~60 (экономная 30) раз в секунду
       requestAnimationFrame(tick);
     };
@@ -4954,6 +5012,7 @@ function c2Mount(c) {
       try { video.pause(); video.removeAttribute('src'); video.load(); } catch (e) { /* */ }
       renderer.dispose(); renderer.forceContextLoss();
     };
+    if (window.NY_ON) c2NySnow(THREE, S, { scene, at: CASE_POS, floorY: FLOOR_Y, caseRoot: gl.scene.getObjectByName('CASE_ROOT'), setFrame, mats: caseMats });
     await vReady;
     if (!S.alive) return;
     clearTimeout(timer);
