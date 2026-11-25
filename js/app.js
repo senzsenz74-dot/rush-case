@@ -6886,7 +6886,7 @@ function pfInv(body) {
   const card = x => {
     const s = SK[x.n], pend = x.st === 'pend' || x.st === 'ga';
     return `<div class="pf2-it r-${s.r}${pend ? ' pend' : ''}">
-      <div class="pf2-it-pic"><img src="${imgUrl(s, 'm')}" alt="" loading="lazy">${pend ? `<span class="pf2-it-st">${x.st === 'ga' ? 'В розыгрыше' : 'Выводится'}</span>` : `<span class="pf2-it-acts">${x.n === PK_TICKET ? `<button type="button" class="pf2-it-sell pk-act" data-pkact="${x.id}">Активировать</button>` : ''}<button type="button" class="pf2-it-sell" data-sell="${x.id}">Продать</button>${s.c === 'pass' ? '' : `<button type="button" class="pf2-it-wd" data-wd="${x.id}" title="Вывести в Steam" aria-label="Вывести в Steam">${ic.send}</button>`}</span>`}</div>
+      <div class="pf2-it-pic"><img src="${imgUrl(s, 'm')}" alt="" loading="lazy">${pend ? `<span class="pf2-it-st">${x.st === 'ga' ? 'В розыгрыше' : 'Выводится'}</span>` : `<span class="pf2-it-acts">${x.n === PK_TICKET ? `<button type="button" class="pf2-it-sell pk-act" data-pkact="${x.id}">Активировать</button>` : ''}<button type="button" class="pf2-it-sell" data-sell="${x.id}">Продать</button>${s.c === 'pass' ? '' : `<button type="button" class="pf2-it-wd" data-wd="${x.id}" title="Вывести в Steam" aria-label="Вывести в Steam">${STEAM_LOGO}</button>`}</span>`}</div>
       <div class="pf2-it-tx"><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>
     </div>`;
   };

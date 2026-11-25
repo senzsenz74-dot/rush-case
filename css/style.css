@@ -6001,6 +6001,7 @@ body.pg-profile::after{background:linear-gradient(180deg,rgba(6,8,12,.22),rgba(6
 .pf2-it-wd{flex:none;display:grid;place-items:center;width:34px;height:34px;padding:0;border:0;border-radius:2px;background:rgba(16,18,22,.78);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#fff;cursor:pointer;transition:background .15s,box-shadow .15s}
 .pf2-it-wd:hover{background:rgba(132,217,253,.25);box-shadow:inset 0 0 0 1px #84d9fd}
 .pf2-it-wd svg{width:16px;height:16px}
+.pf2-it-wd .steam-logo{width:18px;height:18px;fill:currentColor;stroke:none} /* кнопка вывода на предмете — логотип Steam вместо самолётика (владелец 26.11) */
 .pf2-it.pend .pf2-it-pic img{opacity:.55}
 .pf2-it-st{position:absolute;left:8px;top:8px;padding:5px 7px;border-radius:2px;background:rgba(240,200,100,.16);box-shadow:inset 0 0 0 1px rgba(240,200,100,.5);color:#f0d488;font:500 12px/1 'Oswald',var(--ff);text-transform:uppercase}
 .pf2-it-empty{aspect-ratio:188/218;background:rgba(54,58,64,.2);box-shadow:inset 0 0 0 1px rgba(255,255,255,.04),0 10px 24px rgba(0,0,0,.16);-webkit-backdrop-filter:none;backdrop-filter:none}
