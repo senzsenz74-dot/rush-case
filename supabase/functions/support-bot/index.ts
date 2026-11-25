@@ -11,6 +11,10 @@
 //   POST ?action=shop_upd (админ)    {id} — решение принято на сайте → обновить сообщение в чате владельцев
 //   POST ?action=ticket   (база)     {ticket} — новое обращение → в группу поддержки (триггер supabase/staff_perms.sql, шлёт один раз)
 //   POST ?action=shift    (база)     {id} — отчёт смены сотрудника → в чат владельцев (supabase/shift_report.sql, шлёт один раз)
+//   POST ?action=wd       (база)     {id} — событие вывода скина → в тему выводов (триггер supabase/wd_tg.sql, шлёт один раз)
+//   POST ?action=wd_test  (владелец) проверочное сообщение с кнопками в тему выводов
+//   В теме выводов: «/link@бот КОД» (код — вкладка «Сотрудники», «Telegram — выводы скинов»). Кнопки «Подтвердить» / «Вернуть игроку»
+//   работают только у владельцев, которые привязали свой Telegram: боту в личные сообщения «/owner КОД» (код — там же).
 //   В группе поддержки: «/link@бот КОД» (код — вкладка «Сотрудники», «Telegram — группа поддержки») привязывает её.
 //   В группе владельцев: «/link@бот КОД» (код — в админке, вкладка «Сотрудники») привязывает чат.
 //
@@ -52,6 +56,43 @@ function srText(r: Record<string, any>, sync = false) {
 const srKeys = (id: number) => ({ inline_keyboard: [[{ text: '✅ Одобрить', callback_data: `sr:${id}:1` }, { text: '❌ Отклонить', callback_data: `sr:${id}:0` }]] });
 const ownerChat = async () => { const { data } = await db.from('bot_cfg').select('v').eq('k', 'owner_chat').maybeSingle(); return data?.v ? Number(data.v) : null; };
 
+// выводы скинов: сообщения в тему выводов (supabase/wd_tg.sql). В группе есть сотрудники — цену покупки не пишем.
+const rub = (v: unknown) => (+(v as number) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + ' ₽';
+const msk = (d = new Date()) => d.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const WD_HEAD: Record<string, string> = { wait: '🟡 Вывод ждёт решения', auto: '🔵 Автовывод', done: '✅ Вывод выполнен', fail: '❌ Вывод не удался' };
+function wdText(t: Record<string, any>) {
+  const L = [`${WD_HEAD[t.ev] || 'Вывод'} · заявка №${t.wid}`, `Игрок: #${t.pid} ${t.name || 'Без ника'}`, `Предмет: ${t.n}`, `Сумма: ${rub(t.price)}`];
+  if (t.ev === 'wait') L.push('Почему ждёт: ' + (t.err || (!t.auto ? 'автовывод выключен' : `дороже порога автовывода (${rub(t.auto_max)})`)));
+  if (t.ev === 'auto') L.push('Подтверждать не нужно — выводится автоматически.');
+  if (t.ev === 'done') L.push(t.err === 'отправлено вручную' ? 'Отмечено на сайте: отправлено вручную.' : 'Предмет у игрока в Steam.');
+  if (t.ev === 'fail') L.push('Причина: ' + (t.err || 'вывод отменён'), 'Предмет вернулся в инвентарь игрока.');
+  L.push(`Профиль: https://rush-case.online/#/u/${t.pid}`);
+  return L.join('\n');
+}
+const wdKeys = (id: number) => ({ inline_keyboard: [[{ text: '✅ Подтвердить', callback_data: `wd:${id}:a` }, { text: '↩️ Вернуть игроку', callback_data: `wd:${id}:b` }]] });
+// решение по заявке: строка, которую дописываем к сообщению с кнопками (кнопки при этом убираются)
+const WD_RES: Record<string, string> = { new: '✅ Подтверждено', fail: '↩️ Возвращено игроку', done: '✋ Отмечено «отправлено вручную»' };
+const wdDone = (txt: string, line: string) => `${txt}\n\n${line}, ${msk()}`.slice(0, 4096);
+async function wdSend(b: Record<string, any>) {
+  const { data: t } = await db.rpc('bot_wd_take', { p_id: Number(b.id) || 0 });
+  if (!t || !t.chat || !t.wid) return;
+  if (t.ev === 'res') { // решили на сайте — у сообщений с кнопками пишем кто, кнопки убираем
+    for (const m of t.open || []) {
+      await tg('editMessageText', { chat_id: m.chat, message_id: m.msg, text: wdDone(m.txt || '', `${WD_RES[t.st] || 'Решено'} на сайте: ${t.by || 'администратор'}`), disable_web_page_preview: true });
+      await db.from('wd_tg').update({ closed: true }).eq('id', m.id);
+    }
+    return;
+  }
+  let text = wdText(t);
+  const keys = t.ev === 'wait' && t.status === 'wait'; // успели решить до отправки — без кнопок
+  if (t.ev === 'wait' && !keys) text += '\n\nУже решено на сайте.';
+  const s = await tg('sendMessage', { chat_id: Number(t.chat), ...(t.topic ? { message_thread_id: Number(t.topic) } : {}),
+    ...(t.reply ? { reply_parameters: { message_id: Number(t.reply), allow_sending_without_reply: true } } : {}),
+    text, disable_web_page_preview: true, ...(keys ? { reply_markup: wdKeys(t.wid) } : {}) });
+  if (!s.ok) { console.error('support-bot wd', s.description); return; }
+  if (t.ev === 'wait' || t.ev === 'auto') await db.from('wd_tg').update({ chat: Number(t.chat), msg: s.result.message_id, txt: text, ...(keys ? {} : { closed: true }) }).eq('id', t.id);
+}
+
 const STARS = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
 const ASK = 'Спасибо за честную оценку. Напишите, пожалуйста, коротко — что можно было сделать лучше?';
 const WELCOME = 'Здравствуйте! Это поддержка RUSH CASE 👋\nНапишите вопрос одним сообщением — ответим здесь же. Отвечаем ежедневно, обычно за 15 минут.\nЕсли вопрос по аккаунту — укажите ваш ID на сайте (он в профиле).';
@@ -77,6 +118,11 @@ ${String(t.text || '').slice(0, 3500)}
       return json({ ok: true });
     }
 
+    if (action === 'wd') { // событие вывода скина → тема выводов; база отдаёт его только один раз (bot_wd_take)
+      await wdSend(await req.json().catch(() => ({})));
+      return json({ ok: true });
+    }
+
     if (action === 'shift') { // отчёт смены → чат владельцев; база отдаёт его только один раз (bot_shift_take)
       const b = await req.json().catch(() => ({}));
       const { data: t } = await db.rpc('bot_shift_take', { p_id: Number(b.id) || 0 });
@@ -90,6 +136,31 @@ ${String(t.text || '').slice(0, 3500)}
       const u = await req.json().catch(() => ({}));
       const cq = u.callback_query;
       if (cq) {
+        // вывод скина «ждёт решения»: решает только привязанный владелец и только в теме выводов (проверяет wd_decide_tg)
+        const wm = /^wd:(\d+):([ab])$/.exec(cq.data || '');
+        if (wm && cq.message?.chat?.id) {
+          const act = wm[2] === 'a' ? 'approve' : 'back';
+          const { data: d, error } = await db.rpc('wd_decide_tg', { p_id: +wm[1], p_act: act, p_tg: cq.from?.id || 0, p_chat: cq.message.chat.id });
+          if (error) {
+            const msg = /not owner/.test(error.message) ? 'Решать выводы могут только владельцы. Владелец: привяжите свой Telegram в админке («Сотрудники» → «Telegram — выводы скинов»).'
+              : /not wd chat/.test(error.message) ? 'Решать можно только в теме выводов' : 'Ошибка: ' + error.message;
+            await tg('answerCallbackQuery', { callback_query_id: cq.id, text: msg.slice(0, 200), show_alert: true });
+            return json({ ok: true });
+          }
+          if (d?.test) { await tg('answerCallbackQuery', { callback_query_id: cq.id, text: `Кнопки работают ✅ Вы — владелец ${d.by}. Это проверка, ничего не изменилось.`.slice(0, 200), show_alert: true }); return json({ ok: true }); }
+          if (!d?.ok) {
+            await tg('answerCallbackQuery', { callback_query_id: cq.id, text: 'Эта заявка уже решена', show_alert: true });
+            await tg('editMessageReplyMarkup', { chat_id: cq.message.chat.id, message_id: cq.message.message_id, reply_markup: { inline_keyboard: [] } });
+            return json({ ok: true });
+          }
+          const line = `${act === 'approve' ? '✅ Подтвердил' : '↩️ Вернул игроку'}: ${d.by}`;
+          const L: Record<string, any>[] = d.msgs || [];
+          if (!L.some(m => Number(m.msg) === cq.message.message_id)) L.push({ chat: cq.message.chat.id, msg: cq.message.message_id, txt: cq.message.text || '' });
+          for (const m of L) await tg('editMessageText', { chat_id: m.chat, message_id: m.msg, text: wdDone(m.txt || '', line), disable_web_page_preview: true });
+          await tg('answerCallbackQuery', { callback_query_id: cq.id, text: act === 'approve' ? 'Подтверждено — выводим' : 'Предмет возвращён игроку' });
+          if (act === 'approve') await fetch(`${env('SUPABASE_URL')}/functions/v1/market?action=tick`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => null); // сразу на покупку, не ждать минуту
+          return json({ ok: true });
+        }
         // заявка на витрину: решает только привязанный чат владельцев (проверяет shop_decide_tg)
         const sr = /^sr:(\d+):([01])$/.exec(cq.data || '');
         if (sr && cq.message?.chat?.id) {
@@ -125,8 +196,19 @@ ${String(t.text || '').slice(0, 3500)}
         const topic = m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {}; // группа с темами — отвечаем в ту же тему
         const { data: sup } = await db.rpc('bot_link_sup', { p_code: lk[1], p_chat: m.chat.id, p_title: title, p_topic: topic.message_thread_id || null });
         if (sup) { await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: 'Группа поддержки привязана ✅ Сюда будут приходить новые обращения игроков.' }); return json({ ok: true }); }
+        const { data: wd } = await db.rpc('bot_link_wd', { p_code: lk[1], p_chat: m.chat.id, p_title: title, p_topic: topic.message_thread_id || null });
+        if (wd) { await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: 'Тема выводов привязана ✅ Сюда будут приходить все выводы скинов, а заявки, которые ждут решения, — с кнопками «Подтвердить» и «Вернуть игроку».' }); return json({ ok: true }); }
         const { data: ok } = await db.rpc('bot_link_chat', { p_code: lk[1], p_chat: m.chat.id, p_title: title, p_topic: topic.message_thread_id || null });
         await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: ok ? 'Чат владельцев привязан ✅ Сюда будут приходить отчёты смен сотрудников.' : 'Код неверный или устарел — возьмите новый в админке (вкладка «Сотрудники»).' });
+        return json({ ok: true });
+      }
+      // Telegram владельца для кнопок выводов: «/owner КОД» (код — админка, «Сотрудники»; лучше в личные сообщения боту)
+      const ow = /^\/owner(?:@\w+)?\s+([A-Za-z0-9]{4,12})\s*$/.exec(m?.text || '');
+      if (ow && m.chat && m.from?.id) {
+        const topic = m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {};
+        const nm = [m.from.first_name, m.from.last_name].filter(Boolean).join(' ') + (m.from.username ? ' @' + m.from.username : '');
+        const { data: o } = await db.rpc('bot_link_owner', { p_code: ow[1], p_tg: m.from.id, p_tg_name: nm });
+        await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: o ? `Готово ✅ Это Telegram владельца ${o.name || ''} (#${o.pid}). Теперь у выводов кнопки «Подтвердить» и «Вернуть игроку» работают для вас.` : 'Код неверный или устарел — возьмите новый в админке («Сотрудники» → «Telegram — выводы скинов»).' });
         return json({ ok: true });
       }
       if (!m || !m.chat || m.chat.type !== 'private') return json({ ok: true });
@@ -200,6 +282,17 @@ ${String(t.text || '').slice(0, 3500)}
         return json({ ok: true, tg: true });
       }
       if (r.tg_msg && r.status !== 'pending') await tg('editMessageText', { chat_id: chat, message_id: r.tg_msg, text: srText(r, !!b.sync) });
+      return json({ ok: true });
+    }
+    if (action === 'wd_test') { // проверка темы выводов: сообщение с кнопками (заявка №0 — ничего не меняет)
+      const { data: st } = await db.from('staff').select('role').eq('uid', admin.id).maybeSingle();
+      if (st?.role !== 'owner') return json({ error: 'forbidden' }, 403);
+      const { data: c } = await db.from('bot_cfg').select('k, v').in('k', ['wd_chat', 'wd_topic']);
+      const cf = Object.fromEntries((c || []).map(x => [x.k, x.v]));
+      if (!cf.wd_chat) return json({ error: 'тема выводов не привязана' }, 400);
+      const s = await tg('sendMessage', { chat_id: Number(cf.wd_chat), ...(cf.wd_topic ? { message_thread_id: Number(cf.wd_topic) } : {}),
+        text: `🧪 Проверка уведомлений о выводах\nТак придёт заявка, которая ждёт решения: ID игрока, ник, предмет и сумма — и две кнопки.\nНажмите любую: владельцу бот ответит «Кнопки работают», остальным — что решать могут только владельцы. Ничего не изменится.\n\nОтправил: ${admin.name}, ${msk()}`, reply_markup: wdKeys(0) });
+      if (!s.ok) return json({ error: s.description || 'telegram error' }, 502);
       return json({ ok: true });
     }
     return json({ error: 'bad action' }, 400);

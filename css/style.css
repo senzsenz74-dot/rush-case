@@ -7502,6 +7502,7 @@ label.ax-btn,label.ax-ok{position:relative}
 .sf-acts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.sf-note{flex:1;min-width:160px}
 .sf-own{display:flex;flex-wrap:wrap;gap:12px 28px}
 .sf-tg-steps{margin:8px 0 0;padding-left:20px;line-height:1.8;font-size:13px}.sf-tg-steps .ax-btn{margin-top:4px}
+.sf-me{margin-top:14px;padding-top:12px;border-top:1px solid var(--ax-line)}.sf-me:empty{display:none}.sf-me-h{display:block;margin-bottom:6px;font:500 12px/1.3 var(--ax-oz);letter-spacing:.06em;text-transform:uppercase;color:#84d9fd}.sf-me-acts{display:flex;flex-wrap:wrap;gap:8px}
 /* краш: режим (ползунок), «Собери сам» и «Башня» — настройки */
 .ax-crmode{max-width:620px}
 .cr-adm{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:2px;background:var(--ax-in);box-shadow:inset 0 0 0 1px var(--ax-line2)}

@@ -8792,19 +8792,40 @@ const SF_LINK = {
   sup: { rpc: 'admin_sup_chat', on: 'сюда приходит каждое новое обращение', off: 'Группа не привязана — новые обращения видны только во вкладке «Поддержка».',
     who: 'Создайте группу в Telegram и добавьте туда сотрудников поддержки.', ok: 'Группа поддержки привязана ✅' },
   own: { rpc: 'admin_owner_chat', on: 'сюда приходят отчёты смен сотрудников', off: 'Чат не привязан — отчёты смен не приходят в Telegram.',
-    who: 'Создайте группу только для владельцев — сотрудников не добавляйте.', ok: 'Чат владельцев привязан ✅' }
+    who: 'Создайте группу только для владельцев — сотрудников не добавляйте.', ok: 'Чат владельцев привязан ✅' },
+  wd: { rpc: 'admin_wd_chat', file: 'wd_tg', on: 'сюда приходят все выводы скинов, а заявки, которые ждут решения, — с кнопками «Подтвердить» и «Вернуть игроку»', off: 'Тема не привязана — выводы видны только во вкладке «Выводы Steam».',
+    who: 'Откройте группу с темами и тему для выводов (бот должен быть в группе).', ok: 'Тема выводов привязана ✅' }
 };
 async function sfLink(el, kind, code) {
   if (!el) return;
   const K = SF_LINK[kind];
   const [{ data, error }] = await Promise.all([sb.rpc(K.rpc, { p_new_code: !!code }), supBotLoad()]);
   if (!el.isConnected) return;
-  if (error) return (el.innerHTML = `<p class="ax-foot">Выполните supabase/${kind === 'own' ? 'shift_report' : 'staff_perms'}.sql в Supabase.</p>`);
+  if (error) return (el.innerHTML = `<p class="ax-foot">Выполните supabase/${K.file || (kind === 'own' ? 'shift_report' : 'staff_perms')}.sql в Supabase.</p>`);
   const bot = esc(supBot || 'бот'), cmd = `/link@${bot} ${data.code}`;
   el.innerHTML = `${data.chat ? `<p>Привязан чат <b>${esc(data.title || data.chat)}</b>${data.linked_at ? ` <small class="ax-mute">с ${new Date(data.linked_at).toLocaleDateString('ru-RU')}</small>` : ''} — ${K.on}.</p>` : `<p class="neg">${K.off}</p>`}
     ${data.code ? `<ol class="sf-tg-steps"><li>${K.who}</li><li>Добавьте в неё @${bot}.</li><li>Отправьте в группе (в нужной теме, если они есть) сообщение — код действует 30 минут:<br><button class="ax-btn ax-sm" data-act="copy" data-copy="${cmd}"><b>${cmd}</b> — копировать</button></li><li>Бот ответит «${K.ok}». Потом обновите эту страницу.</li></ol>`
       : `<button class="ax-btn" data-link>${data.chat ? 'Привязать другой чат' : 'Привязать чат'}</button>`}`;
   const btn = $('[data-link]', el); if (btn) btn.onclick = () => sfLink(el, kind, true);
+}
+// Telegram владельца для кнопок выводов: каждый владелец привязывает себя сам кодом (supabase/wd_tg.sql); тут же — проверка темы
+async function sfMe(el, code) {
+  if (!el) return;
+  const [{ data, error }] = await Promise.all([sb.rpc('admin_my_tg', { p_new_code: !!code }), supBotLoad()]);
+  if (!el.isConnected || error) return (el.innerHTML = '');
+  const bot = esc(supBot || 'бот'), cmd = `/owner ${data.code}`;
+  el.innerHTML = `<b class="sf-me-h">Мой Telegram для кнопок</b>
+    ${data.linked ? `<p>Привязан <b>${esc(data.tg_name || 'Telegram')}</b>${data.linked_at ? ` <small class="ax-mute">с ${new Date(data.linked_at).toLocaleDateString('ru-RU')}</small>` : ''} — у вас кнопки «Подтвердить» и «Вернуть игроку» работают.</p>` : '<p class="neg">Ваш Telegram не привязан — кнопки у выводов для вас не сработают.</p>'}
+    ${data.code ? `<ol class="sf-tg-steps"><li>Откройте в Telegram личные сообщения с @${bot} — со своего аккаунта.</li><li>Отправьте боту (код действует 30 минут):<br><button class="ax-btn ax-sm" data-act="copy" data-copy="${cmd}"><b>${cmd}</b> — копировать</button></li><li>Бот ответит «Готово ✅». Второй владелец делает то же самое под своим аккаунтом. Потом обновите эту страницу.</li></ol>`
+      : `<span class="sf-me-acts"><button class="ax-btn" data-me>${data.linked ? 'Привязать другой Telegram' : 'Привязать мой Telegram'}</button><button class="ax-btn" data-test>Прислать проверку в тему</button></span>`}`;
+  const b = $('[data-me]', el); if (b) b.onclick = () => sfMe(el, true);
+  const tb = $('[data-test]', el); if (tb) tb.onclick = async () => {
+    tb.disabled = true;
+    const { data: ses } = await sb.auth.getSession();
+    const r = await fetch(`${SB_URL}/functions/v1/support-bot?action=wd_test`, { method: 'POST', headers: { apikey: SB_KEY, authorization: 'Bearer ' + (ses.session ? ses.session.access_token : ''), 'content-type': 'application/json' }, body: '{}' }).then(x => x.json()).catch(() => ({ error: 'нет связи' }));
+    tb.disabled = false;
+    toast(r.ok ? 'Проверка отправлена в тему выводов — нажмите там кнопку' : 'Не отправлено: ' + esc(r.error || 'ошибка'), r.ok ? '' : 'err');
+  };
 }
 async function admStaff(box) {
   box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем сотрудников…</div>';
@@ -8826,8 +8847,9 @@ async function admStaff(box) {
     ${axCard('Владельцы', `<div class="sf-own">${owners.map(who).join('')}</div>
       <p class="ax-foot">Каждая галочка открывает окно целиком — как у владельца: смотреть и менять. Начисления баланса и удачу игрокам и кейсам даёт только галочка «Начисления и удача». Окно «Сотрудники» — только владельцам. График смен нужен для отчётов.</p>`)}
     ${axCard('Telegram — группа поддержки', '<div id="sfSup"><span class="ax-mute">Загружаем…</span></div>')}
-    ${axCard('Telegram — чат владельцев (отчёты смен)', '<div id="sfOwn"><span class="ax-mute">Загружаем…</span></div>')}`;
-  sfLink($('#sfSup', box), 'sup'); sfLink($('#sfOwn', box), 'own'); // чат владельцев — для отчётов смен (supabase/shift_report.sql)
+    ${axCard('Telegram — чат владельцев (отчёты смен)', '<div id="sfOwn"><span class="ax-mute">Загружаем…</span></div>')}
+    ${axCard('Telegram — выводы скинов', '<div id="sfWd"><span class="ax-mute">Загружаем…</span></div><div id="sfMe" class="sf-me"></div>')}`;
+  sfLink($('#sfSup', box), 'sup'); sfLink($('#sfOwn', box), 'own'); sfLink($('#sfWd', box), 'wd'); sfMe($('#sfMe', box)); // чат владельцев — для отчётов смен (supabase/shift_report.sql)
   const err = e => STAFF_ERR[e.message] || 'Ошибка: ' + e.message;
   $('#sfAdd', box).onclick = async () => {
     const pid = +$('#sfPid', box).value;
