@@ -5747,6 +5747,11 @@ const upgMults = () => Array.isArray(st.umults) && st.umults.length === 6 ? st.u
 const multTxt = m => 'x' + String(+(+m).toFixed(1)).replace('.', ',');
 const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c; };
 /* апгрейд — новый стиль CS2 (12.11): деления колеса — короткие каждые 5°, длинные каждые 30° */
+// новогодний ивент (владелец 25.11): ледяное кольцо под дугой шанса — морозный узор assets/ny/frost.webp узором SVG + холодный оттенок и светлые кромки;
+// лежит ниже голубой дуги, дуга остаётся яркой. Стрелка-сосулька и снег на кнопке — css/newyear.css
+const UGW_ICE = `<defs><pattern id="nyFrostP" patternUnits="userSpaceOnUse" width="320" height="320"><image href="assets/ny/frost.webp?v=2" width="320" height="320" preserveAspectRatio="xMidYMid slice"/></pattern></defs>
+            <g class="ugw-ice"><circle cx="160" cy="160" r="138" fill="none" stroke="rgba(196,228,255,.16)" stroke-width="26"/><circle cx="160" cy="160" r="138" fill="none" stroke="url(#nyFrostP)" stroke-width="26" opacity=".85"/>
+            <circle cx="160" cy="160" r="125.6" fill="none" stroke="rgba(236,248,255,.45)" stroke-width="1.2"/><circle cx="160" cy="160" r="150.4" fill="none" stroke="rgba(236,248,255,.4)" stroke-width="1.2"/></g>`;
 const ugTicks = long => Array.from({ length: 72 }, (_, i) => i).filter(i => (i % 6 === 0) === long).map(i => {
   const a = i * 5 * Math.PI / 180, r1 = long ? 152 : 154, r2 = 159, p = r => `${(160 + r * Math.sin(a)).toFixed(2)} ${(160 - r * Math.cos(a)).toFixed(2)}`;
   return `M${p(r1)}L${p(r2)}`;
@@ -5778,6 +5783,7 @@ function pageUpgrade() {
             <circle cx="160" cy="160" r="${ARC_R}" class="ugw-track"/>
             <circle cx="160" cy="160" r="${ARC_R + 13}" class="ugw-edge"/>
             <circle cx="160" cy="160" r="${ARC_R - 13}" class="ugw-edge"/>
+${window.NY_ON ? UGW_ICE : ''}
             <path class="ugw-glow" id="wArcGloss" d="M0 0" filter="url(#ugGlow)"/>
             <path class="ugw-arc" id="wArc" d="M0 0"/>
             <circle cx="160" cy="160" r="118" class="ugw-disc"/>
