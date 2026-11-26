@@ -4074,6 +4074,20 @@ document.addEventListener('click', e => {
   krotLoad().then(() => { window.KROT.mmInit(krotDeps()); window.KROT.mmPlay(); })
     .catch(() => toast('Не удалось загрузить режим «КРОТ». Обновите страницу.', 'err'));
 });
+// ссылка «сразу в поиск» rush-case.online/#/play (владелец 27.11): главная и поиск игры в рулетку — как кнопка «Играть».
+// Ждём ответа сервера о входе; гость — окно входа, после входа (и через Steam, с возвратом на сайт) поиск стартует сам (метка rc.play, 10 мин).
+let playWant = false;
+const playMark = on => { try { if (on) sessionStorage.setItem('rc.play', String(Date.now())); else sessionStorage.removeItem('rc.play'); } catch (e) { /* приватный режим */ } };
+const playMarked = () => { try { return Date.now() - (+sessionStorage.getItem('rc.play') || 0) < 600000; } catch (e) { return false; } };
+function playGo() {
+  if (!playWant && st.user && st.user.sb && playMarked()) playWant = true;   // вошёл после перехода по ссылке
+  if (!playWant || authWait || !krotOpen()) return;
+  playWant = false;
+  if (!st.user || !st.user.sb) { playMark(true); openAuth('login'); return; }
+  playMark(false);
+  krotLoad().then(() => { window.KROT.mmInit(krotDeps()); window.KROT.mmPlay(); })
+    .catch(() => toast('Не удалось загрузить режим. Обновите страницу.', 'err'));
+}
 function mountKrot(arg) {
   const el = $('#kr'); if (!el || !krotOpen()) return;
   krotLoad().then(() => { if (el.isConnected && window.KROT) { window.KROT.mmInit(krotDeps()); window.KROT.mount(el, arg, krotDeps()); } })
@@ -7508,7 +7522,7 @@ function doorGate(key, arg) {
   });
   return 'wait';
 }
-function authDone() { if (!authWait) return; authWait = false; if (/^#\/(admin|staff)(\/|$)/.test(location.hash)) route(); }
+function authDone() { if (!authWait) return; authWait = false; if (/^#\/(admin|staff)(\/|$)/.test(location.hash)) route(); playGo(); }
 setTimeout(authDone, 8000); // сервер молчит — двери не крутятся вечно
 const STF_NO = 'Вход по почте — только для команды сайта. Игроки входят через Steam';
 const stfField = (id, label, type, ac) => `<label class="stf-fl"><span>${label}</span><div class="stf-in"><input id="${id}" type="${type}" autocomplete="${ac}" spellcheck="false">${type === 'password' ? `<button type="button" class="stf-eye" tabindex="-1" aria-label="Показать пароль">${ic.eye}</button>` : ''}</div></label>`;
@@ -12101,6 +12115,7 @@ function route() {
   $$('.cr-shock').forEach(x => x.classList.remove('cr-shock')); // тряска от взрыва не должна оставаться на шапке
   // рулетка: адрес #/roulette (владелец 22.11). Старые ссылки #/krot/… (приглашения, новости) — тот же экран, адрес в строке меняется сам
   if (/^#\/krot(\/|$)/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search + location.hash.replace(/^#\/krot/, '#/roulette'));
+  if (/^#\/play\/?$/.test(location.hash)) { playWant = true; history.replaceState(null, '', location.pathname + location.search + '#/'); }   // #/play — главная + поиск игры (playGo)
   const parts = location.hash.replace(/^#\/?/, '').split('/');
   const key0 = parts[0] === 'roulette' ? 'krot' : (parts[0] || '');   // внутри режим по-прежнему «krot» (страница, стили, js/krot.js)
   // двери команды (#/admin, #/staff): чужим — та же 404, что у несуществующей страницы (и тот же фон, и тот же заголовок вкладки)
@@ -12113,6 +12128,7 @@ function route() {
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   if (mount) mount(parts[1]);
   ioScan();
+  playGo(); // ссылка #/play — поиск игры в рулетку
   wkAuto(key); // еженедельный набор: раз в неделю сам появляется на главной
   tutAuto(key); // обучение новичков (кнопка «?» и первый заход)
   document.body.classList.toggle('pg-crash', key === 'crash');
