@@ -1395,71 +1395,64 @@ const CASES = [
   },
   {
     id: 'mirage', name: 'MIRAGE', price: 149, tag: 'Карта', tagIc: 'globe', rtp: 0.8,
-    sub: 'Карта Mirage: 30 скиновов коллекций Mirage, Mirage 2021 и восточной Arabesque — от 26 ₽ до 104 тыс., ~20% открытий окупаются. Джекпоты — AWP | Desert Hydra, AK-47 | Consequence of the Jinn, AWP | Sovereign Flame',
+    sub: 'Карта Mirage: 33 скина коллекций Mirage и пустынной арабески — от 73 ₽, каждое ~7-е открытие дороже кейса. Glock-18 Mirror Mosaic, FAMAS Djinn, AK-47 Consequence of the Jinn. Джекпоты — Desert Eagle Fennec Fox, Karambit Safari Mesh, AWP Desert Hydra, AK-47 Золотая арабеска',
     th: { a: '#d97706' }, img: 'assets/case-mirage.webp',
-    // добавлено 12 скинов коллекций Mirage 139–1 185 ₽ (окупаемость 80% и «дороже кейса» 20.3% — с удачей кейса из админки)
+    // 27.11 (владелец): пересобран — 33 скина от ~половины цены кейса, окупаемость 80% (удача кейса ×1)
     exact: [
-      ['P250 | Drought', 'FN', 0.282], ['MAG-7 | Navy Sheen', 'MW', 0.1722], ['SSG 08 | Prey', 'FN', 0.08669],
-      ['PP-Bizon | Death Rattle', 'WW', 0.08193], ['CZ75-Auto | Полуночная пальма', 'FN', 0.05141], ['StatTrak™ Dual Berettas | Shred', 'FN', 0.04821],
-      ['StatTrak™ M249 | Deep Relief', 'FT', 0.02737], ['AUG | Aristocrat', 'MW', 0.02561], ['Glock-18 | Кролик в тени', 'FN', 0.02521],
-      ['FAMAS | Faulty Wiring', 'BS', 0.02374], ['StatTrak™ MP9 | Nexus', 'FN', 0.02372], ['Souvenir P90 | Scorched', 'WW', 0.02028],
-      ['SG 553 | Desert Blossom', 'FT', 0.02005], ['StatTrak™ SG 553 | Heavy Metal', 'FN', 0.01866], ['MP9 | Music Box', 'WW', 0.01752],
-      ['Souvenir M249 | Humidor', 'MW', 0.01402], ['M249 | Humidor', 'WW', 0.0139], ['USP-S | Пиксельный камуфляж «Фиолетовый»', 'FT', 0.01315],
-      ['StatTrak™ SG 553 | Pulse', 'FT', 0.008633], ['USP-S | Blueprint', 'FT', 0.006869], ['AUG | Torque', 'MW', 0.00509],
-      ['StatTrak™ MAG-7 | BI83 Spectrum', 'FN', 0.003115], ['Desert Eagle | Trigger Discipline', 'FN', 0.002349], ['XM1014 | Heaven Guard', 'FN', 0.001728],
-      ['StatTrak™ Desert Eagle | Firebreathing', 'FN', 0.001683], ['Souvenir AUG | Random Access', 'WW', 0.001624], ['StatTrak™ Glock-18 | Weasel', 'FN', 0.001552],
-      ['Souvenir MP5-SD | Oxide Oasis', 'FT', 0.0008155], ['Souvenir Desert Eagle | Fennec Fox', 'BS', 0.0007879], ['Souvenir AWP | Desert Hydra', 'MW', 0.00007192],
+      ['StatTrak™ MAG-7 | Heaven Guard', 'FT', 1], ['M249 | Midnight Palm', 'FT', 1], ['Desert Eagle | Firebreathing', 'FT', 1], ['CZ75-Auto | Полуночная пальма', 'FN', 1],
+      ['MAC-10 | Arabesque Mosaic', 'MW', 0.5], ['Nova | Sand Dune', 'FN', 0.5], ['AUG | Aristocrat', 'BS', 0.4], ['MAG-7 | Sand Dune', 'FT', 0.4],
+      ['StatTrak™ Glock-18 | Weasel', 'WW', 0.4], ['Souvenir P90 | Scorched', 'FT', 0.4], ['FAMAS | Faulty Wiring', 'WW', 0.2], ['Souvenir SG 553 | Desert Blossom', 'FT', 0.2],
+      ['Souvenir USP-S | Purple DDPAT', 'BS', 0.2], ['MP9 | Music Box', 'FT', 0.08], ['M249 | Humidor', 'FT', 0.08], ['USP-S | Пиксельный камуфляж «Фиолетовый»', 'FT', 0.08],
+      ['P90 | ScaraB Rush', 'BS', 0.08], ['Glock-18 | Mirror Mosaic', 'BS', 0.08], ['XM1014 | Heaven Guard', 'FT', 0.04], ['MP9 | Hydra', 'BS', 0.015],
+      ['Glock-18 | Sand Dune', 'BS', 0.015], ['MAG-7 | Bulldozer', 'BS', 0.015], ['FAMAS | Djinn', 'BS', 0.015], ['Souvenir Glock-18 | Pink DDPAT', 'BS', 0.003],
+      ['XM1014 | Elegant Vines', 'FT', 0.003], ['Souvenir AWP | Pink DDPAT', 'FT', 0.003], ['AK-47 | Consequence of the Jinn', 'BS', 0.001], ['Souvenir Desert Eagle | Fennec Fox', 'BS', 0.0003],
+      ['MP5-SD | Oxide Oasis', 'WW', 0.0003], ['★ Talon Knife | Safari Mesh', 'BS', 0.00015], ['★ Karambit | Safari Mesh', 'FT', 0.0001], ['Souvenir AWP | Desert Hydra', 'WW', 0.00005],
+      ['AK-47 | Золотая арабеска', 'BS', 0.0000375],
     ],
   },
   {
     // «CS2 CASE» — заготовка под кейс с 3D-сценой открытия (модель и видео-фон из Blender подключим позже); пока виден только админу (adm)
-    id: 'cs2', name: 'CS2 CASE', price: 219, tag: 'Новый', tagIc: 'star', rtp: 0.8, ui: 'cs2', // BLAST (имя из админки) — открыт для всех игроков 19.11 (было adm: true — только админ); // ui: 'cs2' — открытие как в CS2 (только на ПК)
+    id: 'cs2', name: 'CS2 CASE', price: 219, tag: 'Новый', tagIc: 'star', rtp: 0.8335, ui: 'cs2', // BLAST (имя из админки) — открыт для всех игроков 19.11 (было adm: true — только админ); // ui: 'cs2' — открытие как в CS2 (только на ПК)
     pity: true, // гарант 75/150 (PITY, supabase/cs2_pity.sql); шансы подобраны так, чтобы с гарантом окупаемость осталась rtp
-    sub: 'Тестовый кейс: простое наполнение для примера',
+    sub: 'Кейс с гарантом: 40 скинов от 110 ₽ — AK-47, AWP, M4 и Desert Eagle, каждое ~10-е открытие дороже кейса. 75-е открытие подряд — шанс на «Засекреченное», 150-е — точно «Засекреченное» или нож. Джекпоты — AK-47 Азимов, AWP Скоростной зверь, USP-S Printstream, ножи Marble Fade и Tiger Tooth, Karambit',
     th: { a: '#f3c14f' }, img: 'assets/case-cs2.webp', // рендер 3D-модели (assets/cs2case/case.glb)
     exact: [
-      // обычные (08.11, владелец): кейс 219 ₽, самый дешёвый дроп от 120 ₽ — 3 синих, 3 фиолетовых, 2 розовых
-      ['AK-47 | Wintergreen', 'MW', 0.25], ['Souvenir USP-S | Check Engine', 'FT', 0.2], ['AWP | Гадюка', 'BS', 0.18],
-      ['StatTrak™ Desert Eagle | Corinthian', 'MW', 0.14], ['Glock-18 | Grinder', 'MW', 0.1], ['StatTrak™ M4A4 | Zubastick', 'FN', 0.07],
-      ['AK-47 | Ледяной уголь', 'BS', 0.04], ['M4A1-S | Nightmare', 'WW', 0.015],
-      ['StatTrak™ AK-47 | Head Shot', 'BS', 0.004],
-      ['Desert Eagle | Conspiracy', 'FT', 0.004], ['USP-S | Overgrowth', 'MW', 0.004], // красные за «ЗАСЕКРЕЧЕНО» — каждый ~1 из 250
-      ['★ Navaja Knife | Marble Fade', 'FN', 0.0003],
-      ['★ Gut Knife | Tiger Tooth', 'FN', 0.0003], ['★ Shadow Daggers | Marble Fade', 'FN', 0.0003], // ножи за золотым «?» — каждый ~1 из 3 300
+      ['Glock-18 | Weasel', 'WW', 1], ['M4A1-S | Glitched Paint', 'BS', 1], ['Desert Eagle | Sputnik', 'FT', 1], ['AWP | Гадюка', 'BS', 1],
+      ['AK-47 | Элитное снаряжение', 'BS', 1], ['StatTrak™ Desert Eagle | Corinthian', 'FT', 1], ['StatTrak™ USP-S | Torque', 'FT', 0.5], ['AK-47 | Breakthrough', 'BS', 0.5],
+      ['AK-47 | Crossfade', 'FT', 0.5], ['Glock-18 | Grinder', 'MW', 0.4], ['StatTrak™ M4A4 | Zubastick', 'FN', 0.4], ['AWP | Phobos', 'FT', 0.4],
+      ['AWP | Exothermic', 'FT', 0.4], ['AK-47 | Midnight Laminate', 'FT', 0.4], ['USP-S | Guardian', 'FT', 0.2], ['AK-47 | Safety Net', 'FT', 0.2],
+      ['AWP | Duality', 'WW', 0.2], ['AK-47 | Slate', 'WW', 0.08], ['AK-47 | Ледяной уголь', 'FT', 0.08], ['AK-47 | Searing Rage', 'WW', 0.08],
+      ['AK-47 | Phantom Disruptor', 'BS', 0.015], ['M4A1-S | Nightmare', 'WW', 0.015], ['StatTrak™ AWP | Atheris', 'BS', 0.015], ['M4A1-S | Decimator', 'BS', 0.004],
+      ['AK-47 | Point Disarray', 'FT', 0.004], ['AWP | Fever Dream', 'FT', 0.004], ['AK-47 | Frontside Misty', 'BS', 0.002], ['AK-47 | Красная линия', 'FT', 0.002],
+      ['Desert Eagle | Conspiracy', 'FT', 0.002], ['AK-47 | Aphrodite', 'BS', 0.002], ['StatTrak™ AK-47 | Head Shot', 'BS', 0.00025], ['M4A4 | Neo-Noir', 'BS', 0.00025],
+      ['USP-S | Printstream', 'BS', 0.0002], ['AWP | Скоростной зверь', 'WW', 0.000133], ['AK-47 | Азимов', 'BS', 0.000133], ['★ Shadow Daggers | Marble Fade', 'FN', 0.0002],
+      ['★ Navaja Knife | Marble Fade', 'FN', 0.0002], ['★ Gut Knife | Tiger Tooth', 'FN', 0.0002], ['★ Bayonet | Night', 'BS', 0.0000333], ['★ Karambit | Safari Mesh', 'FT', 0.000008],
     ],
   },
   {
     // «MAJOR» (13.11.2026, владелец): 3D-кейс из Blender (ветка blender: blender/scenes/case-major.blend → assets/cs2case/case-major.glb,
     // выгрузка blender/scripts/case_export_glb_major.py) — открывается в той же 3D-сцене, что CS2 CASE (ui: 'cs2', только на ПК)
-    id: 'major', name: 'MAJOR', price: 499, tag: 'Новый', tagIc: 'star', rtp: 0.8, ui: 'cs2',
+    id: 'major', name: 'MAJOR', price: 499, tag: 'Новый', tagIc: 'star', rtp: 0.8394, ui: 'cs2',
     pity: true, // ивентовый кейс — гарант 75/150, как у CS2 CASE (владелец 13.11); шансы пересчитаны с гарантом (pityEv) — окупаемость 80%
     c2glb: 'case-major2.glb', // своя 3D-модель в assets/cs2case/ (у CS2 CASE — case.glb); 15.11 — новый вид, новое имя файла, чтобы не взялся старый из кэша
     c2p: { sun: 8.4, env: .58, exposure: 1.01, contrast: 1.12, saturate: 1.6, shadow: 1, fill: 2, dust: 6 }, // свет сцены — подобран владельцем в пробе 13.11
-    sub: 'Ивентовый кейс с гарантом: легенды мейджоров, 42 позиции от 100 ₽. 75-е открытие подряд — шанс на «Засекреченное», 150-е — точно «Засекреченное» или нож/перчатки. Классика — AWP Азимов, AK-47 Красная линия и Вулкан, M4A4 Император. Джекпоты — M4A4 Вой, AWP Медуза и Dragon Lore, ножи и перчатки',
+    sub: 'Ивентовый кейс с гарантом: легенды мейджоров, 54 позиции от 280 ₽, каждое ~8-е открытие — скин дороже кейса, каждое 20-е — билет PIKEM. 75-е открытие подряд — шанс на «Засекреченное», 150-е — точно «Засекреченное» или нож/перчатки. Классика — AK-47 Красная линия, AWP Fever Dream, M4A4 Desolate Space, AK-47 Head Shot, M4A4 Neo-Noir. Джекпоты — AK-47 Вулкан и Огненный змей, AWP Медуза, M4A4 Вой, Dragon Lore, Karambit Doppler, Butterfly Fade',
     th: { a: '#e3b04b' }, img: 'assets/case-major3.webp', // рендер 3D-модели (15.11 вечер — холст, ширина и поля как у CS2 CASE, чтобы в витрине кейсы были одного размера; гладкий синий корпус, плоский золотой знак — кубок с лаврами, MAJOR; зашёлки — полированное золото)
     exact: [
-      [PK_TICKET, '', 0.05], // билет пикема Major — 5% (владелец 23.11), шанс не наклоняется; остальное подстраивается под окупаемость 80%
-      // дешёвые, до цены кейса (от 100 ₽)
-      ['Desert Eagle | Meteorite', 'FN', 0.06], ['Glock-18 | Moonrise', 'WW', 0.06], ['AK-47 | Элитное снаряжение', 'WW', 0.06],
-      ['Souvenir USP-S | Check Engine', 'FT', 0.06], ['AWP | Гадюка', 'BS', 0.06], ['StatTrak™ M4A4 | Zubastick', 'FN', 0.06],
-      ['USP-S | Jawbreaker', 'WW', 0.06], ['AK-47 | Изумрудные завитки', 'MW', 0.06], ['AK-47 | Midnight Laminate', 'WW', 0.06],
-      ['Souvenir Desert Eagle | Mudder', 'FT', 0.06],
-      // около цены кейса
-      ['USP-S | Jawbreaker', 'MW', 0.035], ['M4A1-S | Nightmare', 'WW', 0.035], ['M4A1-S | Stratosphere', 'MW', 0.035],
-      ['StatTrak™ P250 | Asiimov', 'BS', 0.035], ['StatTrak™ AWP | Ice Coaled', 'BS', 0.035], ['StatTrak™ AK-47 | Ice Coaled', 'WW', 0.035],
-      ['M4A4 | Hellish', 'BS', 0.035],
-      // классика мейджоров
-      ['StatTrak™ Glock-18 | Snack Attack', 'BS', 0.008], ['USP-S | Jawbreaker', 'FN', 0.008], ['StatTrak™ AWP | Fever Dream', 'BS', 0.008],
-      ['AK-47 | Красная линия', 'BS', 0.008], ['AWP | Красная линия', 'FT', 0.008], ['AWP | Chrome Cannon', 'FT', 0.008],
-      ['M4A4 | Neo-Noir', 'BS', 0.008], ['StatTrak™ Desert Eagle | Mecha Industries', 'FN', 0.008],
-      // дорогие легенды
-      ['AK-47 | Азимов', 'BS', 0.002], ['StatTrak™ AK-47 | Legion of Anubis', 'BS', 0.002], ['M4A4 | Император', 'FT', 0.002],
-      ['M4A1-S | Golden Coil', 'BS', 0.002], ['StatTrak™ USP-S | Printstream', 'FT', 0.002], ['AWP | Азимов', 'WW', 0.002],
-      ['StatTrak™ AK-47 | Asiimov', 'WW', 0.002], ['AK-47 | Вулкан', 'FT', 0.002], ['M4A4 | Азимов', 'WW', 0.002],
-      // джекпоты — ножи, перчатки, легенды (Огненный змей, Медуза, Вой, Dragon Lore)
-      ['★ Sport Gloves | Vice', 'FT', 0.0002], ['AK-47 | Огненный змей', 'BS', 0.0002], ['★ M9 Bayonet | Doppler', 'FN', 0.0002],
-      ['★ Karambit | Doppler', 'FN', 0.0002], ['★ StatTrak™ Butterfly Knife | Fade', 'FN', 0.0002], ['AWP | Медуза', 'WW', 0.0002],
-      ['M4A4 | Вой', 'FT', 0.0002], ['AWP | История о драконе', 'BS', 0.0002],
+      [PK_TICKET, '', 0.05], ['AWP | Duality', 'BS', 1], ['USP-S | Cyrex', 'FT', 1], ['USP-S | Cortex', 'BS', 1],
+      ['Glock-18 | Vogue', 'FT', 1], ['M4A1-S | Black Lotus', 'FT', 1], ['AK-47 | Slate', 'FT', 1], ['AK-47 | Searing Rage', 'BS', 0.5],
+      ['AK-47 | Ледяной уголь', 'BS', 0.5], ['AK-47 | Nouveau Rouge', 'BS', 0.4], ['AK-47 | The Outsiders', 'BS', 0.4], ['AK-47 | Phantom Disruptor', 'BS', 0.4],
+      ['USP-S | Stainless', 'BS', 0.4], ['M4A1-S | Nightmare', 'WW', 0.4], ['M4A1-S | Basilisk', 'FT', 0.2], ['AK-47 | Crane Flight', 'BS', 0.2],
+      ['M4A1-S | Stratosphere', 'MW', 0.2], ['M4A4 | Hellish', 'BS', 0.08], ['M4A4 | Desolate Space', 'FT', 0.08], ['M4A1-S | Decimator', 'FT', 0.08],
+      ['AK-47 | Point Disarray', 'FT', 0.08], ['AWP | Fever Dream', 'FT', 0.08], ['AK-47 | Frontside Misty', 'FT', 0.015], ['USP-S | Monster Mashup', 'FT', 0.015],
+      ['M4A4 | Cyber Security', 'FT', 0.015], ['AK-47 | Красная линия', 'FT', 0.015], ['AWP | Красная линия', 'FT', 0.004], ['M4A4 | Hellfire', 'WW', 0.002],
+      ['AK-47 | Head Shot', 'BS', 0.002], ['M4A4 | Neo-Noir', 'BS', 0.002], ['AWP | Chrome Cannon', 'FT', 0.002], ['USP-S | Printstream', 'BS', 0.002],
+      ['AK-47 | Legion of Anubis', 'FT', 0.001], ['Desert Eagle | Printstream', 'FT', 0.001], ['AK-47 | Азимов', 'BS', 0.000667], ['AWP | Неонуар', 'FT', 0.000667],
+      ['M4A1-S | Golden Coil', 'BS', 0.0005], ['M4A4 | Император', 'FT', 0.0005], ['AWP | Азимов', 'WW', 0.000333], ['AK-47 | Вулкан', 'FT', 0.0002],
+      ['M4A4 | Азимов', 'WW', 0.0002], ['AK-47 | Огненный змей', 'BS', 0.00002], ['AWP | Медуза', 'WW', 0.000004], ['M4A4 | Вой', 'FT', 0.00000133],
+      ['AWP | История о драконе', 'BS', 0.00000133], ['★ Sport Gloves | Bronze Morph', 'BS', 0.0002], ['★ Specialist Gloves | Mogul', 'WW', 0.0002], ['★ Bayonet | Night', 'BS', 0.0002],
+      ['★ Skeleton Knife | Night Stripe', 'BS', 0.0002], ['★ Bayonet | Damascus Steel', 'FT', 0.0001], ['★ Sport Gloves | Vice', 'FT', 0.0000333], ['★ M9 Bayonet | Doppler', 'FN', 0.00001],
+      ['★ Karambit | Doppler', 'FN', 0.00000667], ['★ StatTrak™ Butterfly Knife | Fade', 'FN', 0.00000333],
     ],
   },
   {
@@ -1718,6 +1711,11 @@ function pityEv(ch, ps, rs) {
   }
   return ev / len;
 }
+/* 27.11 (владелец): дроп «В гостях у бабушки» и «Кейсы карт» пересобран — интересные скины, разное число позиций,
+   самый дешёвый скин ≈ половина цены кейса, окупаемость та же, что была (rtp у каждого набора; удача этих кейсов
+   в case_settings = 1 — supabase/drop_1127.sql). Формат exact — codeSetApply ниже; кейсы карт — pity: false (без гаранта).
+   В «Попрошайке» нет ножей (владелец 27.11): при цене 44 ₽ гарант с ножом съел бы всю окупаемость — гарант даёт красный AK.
+   Ниже — старый формат (lose/win/cov/rare), остался у rolling и game. */
 /* кейсы из админки с гарантом, как у BLAST (владелец 11.11: гарант — у раздела CS2 CASE, особых и ивентовых кейсов).
    Со старым составом гарант 75/150 разорил бы сайт (нож в сотни раз дороже кейса — окупаемость 117–420%), поэтому состав
    пересобран по образцу BLAST, и кейс «окупает часто, но немного» (владелец 11.11): примерно каждое 3-е открытие (PS_WIN) —
@@ -1729,25 +1727,119 @@ function pityEv(ch, ps, rs) {
    Цены скинов меняются: если «win» станет дешевле кейса (или цену кейса поменяют), его надо заменить. */
 const PS_WIN = 1 / 3, PS_C = .002, PS_K = .0002; // доля открытий «чуть дороже кейса»; базовые шансы особых (почти всё — по гаранту)
 const PITY_SETS = {
-  poproshayka: { lose: ['MP5-SD | Gold Leaf (Battle-Scarred)', 'StatTrak™ P2000 | Lifted Spirits (Field-Tested)', 'Souvenir Sawed-Off | Sage Spray (Battle-Scarred)', 'StatTrak™ Tec-9 | Fubar (Well-Worn)', 'StatTrak™ R8 Revolver | Crimson Web (Battle-Scarred)'],
-    win: ['P250 | Inferno (Well-Worn)', 'Desert Eagle | Trigger Discipline (Battle-Scarred)', 'UMP-45 | Labyrinth (Well-Worn)'],
-    cov: ['AK-47 | Aphrodite (Well-Worn)'], rare: ['★ Hydra Gloves | Mangrove (Battle-Scarred)', '★ Shadow Daggers | Rust Coat (Battle-Scarred)'] },
-  zhaba: { lose: ['StatTrak™ P250 | Cassette (Field-Tested)', 'XM1014 | Hieroglyph (Minimal Wear)', 'MAC-10 | Palm (Minimal Wear)', 'SCAR-20 | Sirocco Script (Minimal Wear)', 'MP9 | Capillary (Battle-Scarred)'],
-    win: ['Galil AR | Galigator (Well-Worn)', 'AWP | Капилляры (После полевых испытаний)', 'MAC-10 | Lapis Gator (Well-Worn)'],
-    cov: ['AK-47 | Aphrodite (Well-Worn)', 'StatTrak™ AK-47 | Head Shot (Battle-Scarred)'], rare: ['★ Hydra Gloves | Mangrove (Battle-Scarred)', '★ Driver Gloves | Racing Green (Well-Worn)'] },
-  1133444: { lose: ['MP5-SD | Neon Squeezer (Field-Tested)', 'MP9 | Featherweight (Minimal Wear)', 'Glock-18 | Teal Graf (Battle-Scarred)', 'R8 Revolver | Monarch (Battle-Scarred)', 'USP-S | Silent Shot (Minimal Wear)'],
-    win: ['SG 553 | Heavy Metal (Factory New)', 'AUG | Spalted Wood (Well-Worn)', 'StatTrak™ Nova | Wood Fired (Factory New)'],
-    cov: ['AK-47 | Nouveau Rouge (Field-Tested)', 'StatTrak™ AK-47 | Head Shot (Battle-Scarred)'], rare: ['★ Hand Wraps | Arboreal (Battle-Scarred)', '★ Driver Gloves | Racing Green (Well-Worn)'] },
-  bababorya: { lose: ['MAG-7 | Metallic DDPAT (Factory New)', 'StatTrak™ Tec-9 | Fubar (Well-Worn)', 'Dual Berettas | Cobalt Quartz (Field-Tested)', 'MAC-10 | Саккаку (Поношенное)', 'MP9 | Urban Sovereign (Field-Tested)'],
-    win: ['StatTrak™ SG 553 | Phantom (Battle-Scarred)', 'CZ75-Auto | Red Astor (Battle-Scarred)', 'StatTrak™ SCAR-20 | Torn (Field-Tested)'],
-    cov: ['AK-47 | Nouveau Rouge (Field-Tested)', 'StatTrak™ M4A4 | In Living Color (Battle-Scarred)'], rare: ['★ Hydra Gloves | Mangrove (Battle-Scarred)', '★ Driver Gloves | Racing Green (Well-Worn)'] },
-  tnir: { lose: ['P90 | Teardown (Field-Tested)', 'StatTrak™ MAG-7 | MAGnitude (Well-Worn)', 'StatTrak™ P250 | Iron Clad (Field-Tested)', 'StatTrak™ Galil AR | Akoben (Well-Worn)', 'StatTrak™ M4A1-S | Night Terror (Field-Tested)'],
-    win: ['M4A1-S | Glitched Paint (Well-Worn)', 'Galil AR | Sandstorm (Field-Tested)', 'MP7 | Amberline (Minimal Wear)'],
-    cov: ['M4A4 | Global Offensive (Minimal Wear)', 'Glock-18 | Неонуар (Закалённое в боях)', 'USP-S | Printstream (Battle-Scarred)'],
-    rare: ['★ Shadow Daggers | Bright Water (Minimal Wear)', '★ Тычковые ножи | Пиксельный камуфляж «Лес» (После полевых испытаний)'] },
-  dedaded: { lose: ['Souvenir MAG-7 | Rust Coat (Well-Worn)', 'Sawed-Off | Spirit Board (Minimal Wear)', 'MP7 | Amberline (Battle-Scarred)', 'MAG-7 | Copper Coated (Battle-Scarred)', 'StatTrak™ AUG | Plague (Field-Tested)'],
-    win: ['PP-Bizon | Fuel Rod (Field-Tested)', 'Desert Eagle | Sputnik (Field-Tested)', 'StatTrak™ Desert Eagle | Corinthian (Minimal Wear)'],
-    cov: ['AK-47 | Азимов (Закалённое в боях)', 'M4A4 | Desolate Space (Minimal Wear)'], rare: ['★ Navaja Knife | Rust Coat (Battle-Scarred)', '★ Shadow Daggers | Rust Coat (Battle-Scarred)'] },
+  poproshayka: { rtp: 0.8493, exact: [ // Попрошайка, 44 ₽
+    ['StatTrak™ USP-S | PC-GRN', 'FT', 1], ['USP-S | 27', 'WW', 1], ['USP-S | Silent Shot', 'BS', 1], ['M4A4 | Магний', 'BS', 1],
+    ['StatTrak™ Glock-18 | Oxide Blaze', 'BS', 1], ['StatTrak™ M4A4 | Zubastick', 'FT', 1], ['Desert Eagle | Синяя фанера', 'BS', 1], ['M4A4 | Etch Lord', 'WW', 1],
+    ['Glock-18 | Кролик в тени', 'BS', 0.4], ['Glock-18 | Block-18', 'FT', 0.4], ['M4A1-S | Nitro', 'FT', 0.4], ['USP-S | Royal Guard', 'BS', 0.4],
+    ['StatTrak™ Glock-18 | Umbral Rabbit', 'FT', 0.08], ['USP-S | Ticket to Hell', 'FT', 0.08], ['AK-47 | Uncharted', 'FT', 0.08], ['AWP | Капилляры', 'FT', 0.08],
+    ['Desert Eagle | Heat Treated', 'FT', 0.04], ['AK-47 | Элитное снаряжение', 'WW', 0.04], ['AWP | Worm God', 'FT', 0.015], ['AK-47 | Slate', 'WW', 0.015],
+    ['AK-47 | Ледяной уголь', 'BS', 0.0075], ['AK-47 | Aphrodite', 'BS', 0.002], ['AK-47 | Aphrodite', 'WW', 0.001], ['AK-47 | Head Shot', 'BS', 0.0000667],
+  ] },
+  zhaba: { rtp: 0.8505, exact: [ // ЖАБ ЖАБЫЧ, 57 ₽
+    ['StatTrak™ USP-S | PC-GRN', 'WW', 1], ['StatTrak™ PP-Bizon | Jungle Slipstream', 'FT', 1], ['SCAR-20 | Green Marine', 'WW', 1], ['SCAR-20 | Jungle Slipstream', 'BS', 1],
+    ['PP-Bizon | Jungle Slipstream', 'WW', 1], ['Desert Eagle | Mint Fan', 'MW', 0.5], ['FAMAS | Snake Song', 'FT', 0.5], ['M4A1-S | Emphorosaur-S', 'BS', 0.5],
+    ['AK-47 | Wintergreen', 'BS', 0.5], ['StatTrak™ P250 | Bullfrog', 'MW', 0.5], ['P2000 | Acid Etched', 'BS', 0.4], ['Galil AR | Galigator', 'BS', 0.4],
+    ['P250 | Bullfrog', 'FN', 0.4], ['StatTrak™ Desert Eagle | Serpent Strike', 'FT', 0.4], ['MAC-10 | Lapis Gator', 'FT', 0.4], ['Glock-18 | Bunsen Burner', 'FT', 0.4],
+    ['AWP | Гадюка', 'FT', 0.08], ['StatTrak™ M4A1-S | Emphorosaur-S', 'FT', 0.08], ['StatTrak™ Galil AR | Galigator', 'WW', 0.08], ['AK-47 | Изумрудные завитки', 'FT', 0.015],
+    ['Glock-18 | Ядерный сад', 'BS', 0.015], ['AWP | Green Energy', 'BS', 0.015], ['AWP | Древесная гадюка', 'BS', 0.015], ['StatTrak™ AWP | Atheris', 'BS', 0.004],
+    ['M4A1-S | Basilisk', 'FT', 0.004], ['M4A1-S | Moss Quartz', 'FT', 0.002], ['AK-47 | Aphrodite', 'BS', 0.002], ['AK-47 | Аквамариновая месть', 'BS', 0.0000333],
+    ['AWP | Скоростной зверь', 'WW', 0.0000167], ['★ Driver Gloves | Racing Green', 'FT', 0.0002], ['★ Hydra Gloves | Emerald', 'FT', 0.0002], ['★ Bloodhound Gloves | Snakebite', 'BS', 0.00000667],
+  ] },
+  1133444: { rtp: 0.8496, exact: [ // ГРЯДКА, 75 ₽
+    ['Glock-18 | Coral Bloom', 'MW', 1], ['Dual Berettas | Flora Carnivora', 'FT', 1], ['StatTrak™ PP-Bizon | Harvester', 'MW', 1], ['Nova | Wood Fired', 'FN', 1],
+    ['M4A1-S | Rose Hex', 'FN', 1], ['Souvenir PP-Bizon | Candy Apple', 'FT', 1], ['Tec-9 | Bamboozle', 'BS', 0.4], ['SCAR-20 | Wild Berry', 'FT', 0.4],
+    ['USP-S | Black Lotus', 'BS', 0.4], ['Desert Eagle | Mulberry', 'BS', 0.4], ['AUG | Spalted Wood', 'FT', 0.4], ['Five-SeveN | Withered Vine', 'FT', 0.4],
+    ['Glock-18 | Candy Apple', 'FT', 0.4], ['MP7 | Tall Grass', 'BS', 0.08], ['SG 553 | Desert Blossom', 'FT', 0.08], ['Glock-18 | Ядерный сад', 'FT', 0.08],
+    ['P250 | Lotus Imprint', 'BS', 0.08], ['M4A1-S | Black Lotus', 'FT', 0.015], ['Dual Berettas | Melondrama', 'WW', 0.015], ['M4A4 | Spider Lily', 'BS', 0.015],
+    ['StatTrak™ M4A4 | Spider Lily', 'WW', 0.004], ['Nova | Bloomstick', 'BS', 0.004], ['MAC-10 | Ядерный сад', 'WW', 0.004], ['XM1014 | Elegant Vines', 'FT', 0.002],
+    ['AWP | Пиксельный камуфляж «Розовый»', 'WW', 0.002], ['AK-47 | Aphrodite', 'BS', 0.002], ['M4A4 | В живом цвете', 'BS', 0.0001], ['★ Hand Wraps | Arboreal', 'FT', 0.0002],
+    ['★ Hydra Gloves | Mangrove', 'FT', 0.0002], ['★ Navaja Knife | Boreal Forest', 'FT', 0.0002], ['★ Skeleton Knife | Forest DDPAT', 'FT', 0.00002],
+  ] },
+  bababorya: { rtp: 0.8118, exact: [ // Баба Боря, 89 ₽
+    ['MAC-10 | Cat Fight', 'BS', 1], ['USP-S | Flashback', 'FT', 1], ['StatTrak™ Glock-18 | Umbral Rabbit', 'BS', 1], ['Glock-18 | Glockingbird', 'BS', 1],
+    ['Nova | Toy Soldier', 'WW', 1], ['Glock-18 | Кролик в тени', 'MW', 1], ['UMP-45 | Warm Blooded', 'FN', 0.4], ['AUG | Tom Cat', 'FN', 0.4],
+    ['Desert Eagle | Mulberry', 'FT', 0.2], ['USP-S | Sleeping Potion', 'BS', 0.4], ['SSG 08 | Fever Dream', 'FT', 0.4], ['CZ75-Auto | Tacticat', 'BS', 0.4],
+    ['Glock-18 | Candy Apple', 'MW', 0.4], ['M4A1-S | Fizzy POP', 'FT', 0.08], ['Dual Berettas | Sweet Little Angels', 'BS', 0.08], ['AWP | ЛАПКИ', 'FT', 0.08],
+    ['AK-47 | Baroque Purple', 'WW', 0.015], ['StatTrak™ FAMAS | Doomkitty', 'FT', 0.015], ['StatTrak™ AWP | PAW', 'FT', 0.015], ['AWP | Fever Dream', 'FT', 0.004],
+    ['MAC-10 | Toybox', 'FT', 0.004], ['Five-SeveN | Fowl Play', 'BS', 0.004], ['Glock-18 | Пиксельный камуфляж «Розовый»', 'FT', 0.002], ['AK-47 | Aphrodite', 'WW', 0.002],
+    ['Glock-18 | Королева пуль', 'BS', 0.00008], ['★ Hydra Gloves | Mangrove', 'BS', 0.0002], ['★ Moto Gloves | Transport', 'FT', 0.0002], ['★ Driver Gloves | Queen Jaguar', 'BS', 0.0000667],
+    ['★ Specialist Gloves | Chocolate Chesterfield', 'BS', 0.00002],
+  ] },
+  tnir: { rtp: 0.8495, exact: [ // ВНУКА ВНУК, 118 ₽
+    ['M4A1-S | Night Terror', 'WW', 1], ['USP-S | Ticket to Hell', 'WW', 1], ['StatTrak™ USP-S | Ticket to Hell', 'FT', 1], ['Glock-18 | Moonrise', 'FT', 0.5],
+    ['StatTrak™ M4A1-S | Emphorosaur-S', 'BS', 0.5], ['StatTrak™ Glock-18 | Block-18', 'FT', 0.333], ['Desert Eagle | Light Rail', 'WW', 0.2], ['M4A1-S | Nitro', 'MW', 0.2],
+    ['StatTrak™ M4A1-S | Night Terror', 'FT', 0.2], ['StatTrak™ Desert Eagle | Calligraffiti', 'MW', 0.2], ['M4A1-S | Glitched Paint', 'BS', 0.2], ['StatTrak™ Glock-18 | Moonrise', 'FT', 0.4],
+    ['StatTrak™ USP-S | Flashback', 'FT', 0.4], ['StatTrak™ M4A1-S | Night Terror', 'MW', 0.2], ['StatTrak™ USP-S | Ticket to Hell', 'MW', 0.2], ['StatTrak™ Glock-18 | Block-18', 'MW', 0.133],
+    ['M4A1-S | Glitched Paint', 'MW', 0.133], ['AWP | Duality', 'WW', 0.08], ['USP-S | Cyrex', 'BS', 0.08], ['USP-S | Cortex', 'WW', 0.08],
+    ['Glock-18 | Vogue', 'BS', 0.08], ['StatTrak™ AWP | Duality', 'FT', 0.015], ['StatTrak™ Glock-18 | Vogue', 'FT', 0.015], ['StatTrak™ USP-S | Cortex', 'BS', 0.015],
+    ['M4A1-S | Decimator', 'BS', 0.004], ['StatTrak™ Desert Eagle | Mecha Industries', 'FT', 0.004], ['USP-S | Monster Mashup', 'BS', 0.004], ['M4A4 | Cyber Security', 'WW', 0.002],
+    ['M4A1-S | Fatal Glitch', 'BS', 0.002], ['AWP | Электрический улей', 'FT', 0.002], ['AK-47 | Aphrodite', 'BS', 0.002], ['Glock-18 | Неонуар', 'BS', 0.0002],
+    ['USP-S | Printstream', 'BS', 0.0002], ['AWP | Неонуар', 'FT', 0.0001], ['AK-47 | Неоновый гонщик', 'BS', 0.0001], ['M4A1-S | Player Two', 'BS', 0.0000667],
+    ['★ Gut Knife | Ultraviolet', 'WW', 0.0002], ['★ Navaja Knife | Ultraviolet', 'FT', 0.0002], ['★ Shadow Daggers | Autotronic', 'BS', 0.0002], ['★ Moto Gloves | POW!', 'BS', 0.0002],
+    ['★ Skeleton Knife | Ultraviolet', 'BS', 0.00002],
+  ] },
+  dedaded: { rtp: 0.8499, exact: [ // Деда Дед, 122 ₽
+    ['Desert Eagle | Trigger Discipline', 'FT', 1], ['AK-47 | Uncharted', 'FT', 1], ['FAMAS | CaliCamo', 'MW', 1], ['Desert Eagle | Bronze Deco', 'BS', 1],
+    ['Desert Eagle | Firebreathing', 'BS', 0.5], ['StatTrak™ Desert Eagle | Bronze Deco', 'MW', 0.5], ['Desert Eagle | Meteorite', 'FT', 0.333], ['Desert Eagle | Heat Treated', 'FT', 0.4],
+    ['Desert Eagle | Directive', 'BS', 0.4], ['FAMAS | Yeti Camo', 'FN', 0.4], ['StatTrak™ Glock-18 | Warhawk', 'WW', 0.4], ['Desert Eagle | Urban DDPAT', 'BS', 0.4],
+    ['AK-47 | Элитное снаряжение', 'BS', 0.4], ['Galil AR | Hunting Blind', 'FT', 0.2], ['AK-47 | Steel Delta', 'FT', 0.2], ['FAMAS | Sergeant', 'WW', 0.2],
+    ['USP-S | Guardian', 'FT', 0.08], ['AK-47 | Safety Net', 'FT', 0.08], ['AK-47 | Slate', 'BS', 0.08], ['USP-S | Blueprint', 'BS', 0.08],
+    ['M4A4 | Jungle Tiger', 'FT', 0.08], ['StatTrak™ AK-47 | Elite Build', 'WW', 0.015], ['Desert Eagle | Механо-пушка', 'BS', 0.015], ['Desert Eagle | Heirloom', 'FT', 0.015],
+    ['USP-S | Stainless', 'BS', 0.015], ['AK-47 | Crane Flight', 'BS', 0.004], ['AWP | Elite Build', 'WW', 0.004], ['M4A4 | Desert Storm', 'FT', 0.004],
+    ['Desert Eagle | Crimson Web', 'FT', 0.004], ['AK-47 | Хищник', 'FT', 0.002], ['Desert Eagle | Eastern Enigma', 'BS', 0.002], ['AK-47 | Aphrodite', 'BS', 0.002],
+    ['M4A4 | Desert-Strike', 'FT', 0.0004], ['AK-47 | Inheritance', 'BS', 0.0004], ['FAMAS | Commemoration', 'MW', 0.0004], ['★ Navaja Knife | Rust Coat', 'BS', 0.0002],
+    ['★ Shadow Daggers | Rust Coat', 'BS', 0.0002], ['★ Moto Gloves | 3rd Commando Company', 'BS', 0.0002], ['★ Bayonet | Rust Coat', 'BS', 0.00002],
+  ] },
+  111111: { rtp: 0.78, pity: false, exact: [ // NUKE, 149 ₽
+    ['Galil AR | Vandal', 'FT', 1], ['StatTrak™ Galil AR | Vandal', 'FT', 1], ['MAG-7 | Core Breach', 'BS', 1], ['StatTrak™ P2000 | Urban Hazard', 'FN', 1],
+    ['StatTrak™ MP7 | Urban Hazard', 'FN', 0.5], ['AUG | Random Access', 'FT', 0.5], ['SG 553 | Fallout Warning', 'FT', 0.4], ['P250 | Exchanger', 'FN', 0.4],
+    ['AUG | Radiation Hazard', 'FT', 0.4], ['Tec-9 | Remote Control', 'WW', 0.2], ['MAG-7 | Irradiated Alert', 'BS', 0.2], ['Sawed-Off | Irradiated Alert', 'BS', 0.08],
+    ['PP-Bizon | Irradiated Alert', 'BS', 0.08], ['Glock-18 | Ядерный сад', 'FT', 0.08], ['M4A1-S | Control Panel', 'BS', 0.08], ['UMP-45 | Fallout Warning', 'FT', 0.015],
+    ['XM1014 | Fallout Warning', 'BS', 0.015], ['P90 | Fallout Warning', 'FT', 0.015], ['M4A1-S | Decimator', 'BS', 0.015], ['Tec-9 | Decimator', 'FT', 0.0075],
+    ['M4A1-S | Atomic Alloy', 'BS', 0.003], ['M4A4 | Radiation Hazard', 'FT', 0.003], ['P250 | Ядерная угроза', 'FT', 0.003], ['AWP | Containment Breach', 'BS', 0.003],
+    ['Tec-9 | Ядерная угроза', 'BS', 0.0015], ['M4A4 | X-Ray', 'FT', 0.0003], ['Glock-18 | Wasteland Rebel', 'FT', 0.0003], ['StatTrak™ AK-47 | Wasteland Rebel', 'BS', 0.00015],
+    ['★ Skeleton Knife | Ultraviolet', 'BS', 0.00015], ['★ Butterfly Knife | Urban Masked', 'BS', 0.00005],
+  ] },
+  113322: { rtp: 0.78, pity: false, exact: [ // TRAIN, 149 ₽
+    ['StatTrak™ MAC-10 | Pipe Down', 'FT', 1], ['StatTrak™ Glock-18 | Ironwork', 'FT', 1], ['StatTrak™ SSG 08 | Abyss', 'FT', 1], ['M4A4 | Turbine', 'BS', 1],
+    ['FAMAS | Colony', 'FN', 0.5], ['USP-S | Check Engine', 'FN', 0.5], ['Tec-9 | Whiteout', 'BS', 0.4], ['Nova | Wurst Hölle', 'FN', 0.4],
+    ['MAC-10 | Derailment', 'BS', 0.4], ['Desert Eagle | The Bronze', 'MW', 0.2], ['AK-47 | Steel Delta', 'WW', 0.2], ['CZ75-Auto | Hexane', 'FT', 0.2],
+    ['M4A4 | Griffin', 'FT', 0.08], ['P250 | Ржавая сталь', 'MW', 0.08], ['StatTrak™ Desert Eagle | Light Rail', 'FT', 0.08], ['Nova | Rust Coat', 'FT', 0.08],
+    ['CZ75-Auto | Slalom', 'BS', 0.04], ['MAC-10 | Disco Tech', 'BS', 0.04], ['Nova | Red Quartz', 'FT', 0.04], ['MP9 | Latte Rush', 'BS', 0.015],
+    ['CZ75-Auto | Tread Plate', 'FT', 0.015], ['SSG 08 | Big Iron', 'FT', 0.015], ['Glock-18 | Steel Disruption', 'FT', 0.015], ['Five-SeveN | Медная галактика', 'FT', 0.0075],
+    ['AWP | Chrome Cannon', 'BS', 0.003], ['USP-S | Whiteout', 'BS', 0.003], ['AWP | LongDog', 'BS', 0.003], ['Glock-18 | Gamma Doppler', 'FT', 0.0015],
+    ['M4A4 | Hellfire', 'WW', 0.001], ['M4A4 | The Coalition', 'BS', 0.0003], ['★ Classic Knife | Slaughter', 'MW', 0.00015], ['★ Butterfly Knife | Blue Steel', 'WW', 0.0000375],
+  ] },
+  antient: { rtp: 0.78, pity: false, exact: [ // ANCIENT, 149 ₽
+    ['StatTrak™ M249 | Aztec', 'FT', 1], ['FAMAS | Neural Net', 'FT', 1], ['StatTrak™ Galil AR | Rocket Pop', 'BS', 1], ['Tec-9 | Sultan', 'FT', 1],
+    ['R8 Revolver | Memento', 'BS', 1], ['SG 553 | Tiger Moth', 'BS', 0.5], ['MP9 | Army Sheen', 'FT', 0.5], ['Galil AR | Rocket Pop', 'FT', 0.4],
+    ['MP7 | Gunsmoke', 'FT', 0.4], ['P2000 | Grassland', 'FT', 0.4], ['StatTrak™ R8 Revolver | Memento', 'FT', 0.2], ['StatTrak™ MP7 | Just Smile', 'MW', 0.2],
+    ['SSG 08 | Lichen Dashed', 'BS', 0.2], ['G3SG1 | Ancient Ritual', 'FT', 0.2], ['MP7 | Just Smile', 'FN', 0.08], ['USP-S | Blood Tiger', 'FT', 0.08],
+    ['Tec-9 | Blast From the Past', 'FT', 0.08], ['Souvenir AUG | Carved Jade', 'FT', 0.08], ['M4A4 | Jungle Tiger', 'FT', 0.04], ['M4A1-S | Blood Tiger', 'FT', 0.04],
+    ['AUG | Bengal Tiger', 'BS', 0.015], ['MAC-10 | Curse', 'FT', 0.015], ['P90 | Tiger Pit', 'FT', 0.015], ['Souvenir XM1014 | Ancient Lore', 'FT', 0.0075],
+    ['Souvenir USP-S | Ancient Visions', 'FT', 0.0075], ['USP-S | Ancient Visions', 'WW', 0.003], ['AK-47 | Ягуар', 'BS', 0.0015], ['Souvenir AK-47 | Panthera onca', 'BS', 0.001],
+    ['★ Flip Knife | Lore', 'FT', 0.0003], ['M4A1-S | Добро пожаловать в джунгли', 'BS', 0.000075], ['★ Нож-бабочка | Зуб тигра', 'FN', 0.0000375],
+  ] },
+  cache: { rtp: 0.78, pity: false, exact: [ // CACHE, 299 ₽
+    ['AUG | Amber Fade', 'MW', 1], ['PP-Bizon | Chemical Green', 'FT', 1], ['StatTrak™ PP-Bizon | Fuel Rod', 'BS', 1], ['Five-SeveN | Hot Shot', 'WW', 1],
+    ['PP-Bizon | Breaker Box', 'MW', 0.5], ['StatTrak™ R8 Revolver | Reboot', 'BS', 0.4], ['StatTrak™ Negev | Power Loader', 'BS', 0.4], ['StatTrak™ Five-SeveN | Urban Hazard', 'FT', 0.4],
+    ['Negev | Nuclear Waste', 'MW', 0.4], ['P250 | Dark Filigree', 'FT', 0.2], ['Negev | Nuclear Waste', 'FN', 0.2], ['Souvenir Negev | Nuclear Waste', 'FN', 0.2],
+    ['StatTrak™ Five-SeveN | Urban Hazard', 'FN', 0.133], ['Souvenir XM1014 | VariCamo Blue', 'BS', 0.133], ['Glock-18 | Sacrifice', 'FN', 0.08], ['Tec-9 | Токсичность', 'BS', 0.08],
+    ['StatTrak™ Sawed-Off | Wasteland Princess', 'FT', 0.08], ['Souvenir MAC-10 | Nuclear Garden', 'BS', 0.08], ['FAMAS | Styx', 'FT', 0.08], ['Glock-18 | Реактор', 'BS', 0.04],
+    ['MAC-10 | Ядерный сад', 'WW', 0.015], ['Souvenir FAMAS | Styx', 'FT', 0.015], ['Sawed-Off | Wasteland Princess', 'BS', 0.015], ['Galil AR | Cerberus', 'BS', 0.0075],
+    ['Souvenir Galil AR | Cerberus', 'BS', 0.003], ['AK-47 | Fuel Injector', 'BS', 0.0015], ['FAMAS | Styx', 'FN', 0.00075], ['★ M9 Bayonet | Bright Water', 'BS', 0.0003],
+    ['★ Karambit | Autotronic', 'BS', 0.0001], ['AK-47 | Hydroponic', 'FT', 0.000075],
+  ] },
+  cobblestone: { rtp: 0.78, pity: false, exact: [ // Cobblestone, 369 ₽
+    ['Galil AR | Stone Cold', 'FT', 1], ['SSG 08 | Ghost Crusader', 'MW', 1], ['Desert Eagle | Naga', 'FT', 1], ['CZ75-Auto | Indigo', 'FT', 1],
+    ['Glock-18 | Royal Legion', 'FT', 1], ['USP-S | Royal Guard', 'MW', 0.5], ['CZ75-Auto | Silver', 'MW', 0.5], ['MP9 | Storm', 'MW', 0.4],
+    ['StatTrak™ Galil AR | Stone Cold', 'WW', 0.4], ['P250 | Dark Filigree', 'MW', 0.4], ['StatTrak™ Desert Eagle | Naga', 'FT', 0.2], ['Desert Eagle | Механо-пушка', 'FT', 0.2],
+    ['Desert Eagle | Heirloom', 'BS', 0.08], ['StatTrak™ Glock-18 | Royal Legion', 'FT', 0.08], ['Nova | Green Apple', 'MW', 0.08], ['USP-S | Royal Blue', 'FT', 0.08],
+    ['StatTrak™ P2000 | Imperial Dragon', 'FT', 0.04], ['M4A4 | 龍王 (Dragon King)', 'FT', 0.04], ['Desert Eagle | Kumicho Dragon', 'FT', 0.015], ['M4A1-S | Guardian', 'FT', 0.015],
+    ['AWP | Queen\'s Gambit', 'BS', 0.0075], ['Souvenir MP9 | Dark Age', 'FT', 0.0075], ['P2000 | Chainmail', 'MW', 0.003], ['M4A4 | Royal Paladin', 'FT', 0.003],
+    ['Souvenir CZ75-Auto | Chalice', 'FN', 0.00075], ['★ M9 Bayonet | Black Laminate', 'BS', 0.0003], ['★ Butterfly Knife | Lore', 'WW', 0.0001], ['M4A1-S | Knight', 'FN', 0.00001],
+    ['AWP | История о драконе', 'BS', 0.000006],
+  ] },
   rolling: { lose: ['Charm | Pocket AWP', 'M249 | Spectrogram (Field-Tested)', 'StatTrak™ SG 553 | Ol\' Rusty (Well-Worn)', 'Tec-9 | Sandstorm (Battle-Scarred)', 'G3SG1 | Digital Mesh (Well-Worn)'],
     win: ['Galil AR | Sandstorm (Battle-Scarred)', 'StatTrak™ G3SG1 | Keeping Tabs (Battle-Scarred)', 'Negev | Power Loader (Field-Tested)'],
     cov: ['AK-47 | Aphrodite (Well-Worn)'], rare: ['★ Navaja Knife | Safari Mesh (Field-Tested)', ['★ Karambit | Safari Mesh (Field-Tested)', .03]] },
@@ -1755,7 +1847,30 @@ const PITY_SETS = {
     win: ['Desert Eagle | Urban DDPAT (Well-Worn)', 'Desert Eagle | Directive (Field-Tested)', 'Galil AR | Sandstorm (Battle-Scarred)'],
     cov: ['AK-47 | Aphrodite (Battle-Scarred)'], rare: ['★ Kukri Knife | Safari Mesh (Field-Tested)', ['★ Karambit | Safari Mesh (Field-Tested)', .03]] },
 };
+/* новый формат (27.11, пересборка дропа «В гостях у бабушки» и «Кейсы карт»): exact — [скин, износ, вес], как у встроенных кейсов;
+   веса наклоняются (вес × цена^t) так, чтобы окупаемость была S.rtp (у кейса с гарантом — вместе с гарантом);
+   pity: false — без гаранта (кейсы карт). Нет скина в каталоге — позиция пропускается (предупреждение в консоли), сайт не падает. */
+function codeSetApply(c, S) {
+  const w0 = {}, miss = [];
+  S.exact.forEach(([b, q, w]) => {
+    const v = (VARIANTS[b] || []).map(n => SK[n]), it = v.find(x => x.q === q) || v.sort((x, y) => x.p - y.p)[0] || SK[b];
+    if (!it) { miss.push(b); return; }
+    w0[it.name] = (w0[it.name] || 0) + w;
+  });
+  if (miss.length) console.warn('PITY_SETS ' + c.id + ': нет в каталоге —', miss.join('; '));
+  const names = Object.keys(w0); if (names.length < 2) return;
+  c.rtp = S.rtp; c.pity = S.pity !== false; c.srvSync = true; // srvSync — admSync отправит кейс в cases_srv
+  const ps = names.map(n => SK[n].p), base = names.map(n => w0[n]), rs = names.map(n => SK[n].r);
+  const tilt = t => { const w = base.map((b, i) => b * ps[i] ** t), s = w.reduce((a, b) => a + b, 0); return w.map(x => x / s); };
+  const ev = c.pity ? t => pityEv(tilt(t), ps, rs) : t => tilt(t).reduce((a, w, i) => a + w * ps[i], 0);
+  let a = -3, b = 3; for (let i = 0; i < 60; i++) { const m = (a + b) / 2; if (ev(m) < c.price * c.rtp) a = m; else b = m; }
+  const ch = tilt((a + b) / 2), fwRaw = ch.map(x => Math.sqrt(x)), fs = fwRaw.reduce((x, y) => x + y, 0);
+  c.items = names.map((n, i) => ({ ...SK[n], ch: ch[i], fw: fwRaw[i] / fs })).sort((x, y) => y.p - x.p);
+  c.rareChance = c.items.filter(s => s.r === 'rare').reduce((x, s) => x + s.ch, 0);
+  c.show = c.items.slice(0, 3).map(s => s.name);
+}
 function pitySetApply(c, S) {
+  if (S.exact) return codeSetApply(c, S);
   const nm = x => Array.isArray(x) ? x[0] : x, kk = x => Array.isArray(x) ? x[1] : 1, ok = x => !!SK[nm(x)];
   const miss = [...S.lose, ...S.win, ...S.cov, ...S.rare].filter(x => !ok(x)).map(nm);
   if (miss.length) console.warn('PITY_SETS ' + c.id + ': нет в каталоге —', miss.join('; '));
@@ -9638,7 +9753,7 @@ function admCaseEditor(row, done, base) {
   let itemsDirty = false;
   const blocks = CASE_BLOCKS.filter(b => !!b.rc === !!(base && base.rc));
   const m = modal(`<div class="ced">
-    <h2>${edit ? `Изменить кейс «${esc(E.name)}»` : 'Новый кейс'}</h2>${row && PITY_SETS[row.id] ? '<p class="ced-note">Состав этого кейса задан в коде сайта (гарант 75/150, как у BLAST, — PITY_SETS в js/app.js): предметы и шансы ниже на открытие не влияют. Название, цена, картинка и раздел работают как обычно.</p>' : ''}
+    <h2>${edit ? `Изменить кейс «${esc(E.name)}»` : 'Новый кейс'}</h2>${row && PITY_SETS[row.id] ? `<p class="ced-note">Состав этого кейса задан в коде сайта (PITY_SETS в js/app.js${PITY_SETS[row.id].pity === false ? '' : ', гарант 75/150, как у BLAST'}): предметы и шансы ниже на открытие не влияют, шансы сами подстраиваются под цену кейса. Название, цена, картинка и раздел работают как обычно.</p>` : ''}
     <div class="ced-grid">
       <div class="ced-left">
         <label class="ced-img" id="cedImgBox">${E.img ? `<img src="${esc(E.img)}" alt="">` : `<span>${ic.plus}Загрузить картинку<small>PNG/WebP с прозрачным фоном</small></span>`}<input type="file" id="cedFile" accept="image/png,image/webp,image/jpeg" hidden></label>
