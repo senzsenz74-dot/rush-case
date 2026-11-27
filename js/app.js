@@ -1488,6 +1488,47 @@ const CASES = [
     ],
   },
   {
+    // «ПОДАРОК» (27.11.2026, владелец): самый дорогой новогодний 3D-кейс, раздел «НОВЫЙ 2027». Blender (ветка blender):
+    // blender/scenes/case-gift.blend → assets/cs2case/case-gift.glb (выгрузка blender/scripts/case_export_glb_gift.py):
+    // красный низ, белые крышка и ремни, золотые атласные ленты крест-накрест, живой бант (трепещет в падении, подпрыгивает
+    // на ударах, колышется на ветру; хвосты — morph target), еловые ветки с рубинами в 4 углах рамки, без снега.
+    // Картинка витрины — blender/scripts/case_card.py (кадр 75). c2idle: пока кейс стоит, сцена крутит кадры 75→100 по кругу (бант).
+    // Состав (владелец): 759 ₽, окупаемость 90% с гарантом 75/150 и подарком (+2 открытия, 1 из 20; giftP = 2 × 759 × 0,9),
+    // самый дешёвый не меньше 500 ₽ (сейчас 533 ₽), «только самый привлекательный дроп и тот, который крайне редко у нас на сайте»:
+    // 50 позиций — ни одной нет в других кейсах сайта (сверено с cases_srv и custom_cases 27.11) и в «Прянике»/«Снежинке»:
+    // StatTrak™ знаковых скинов, ножи Lore / Tiger Tooth / Doppler / Marble Fade / Slaughter. Красное ~1 из 283, нож/перчатки ~1 из 4 000;
+    // в ленте красные ×7,9 и золотые ×9 (fwR) — красная карточка ~1 из 4, золотая ~1 из 12 (шанс выпадения не меняется).
+    id: 'gift', name: 'ПОДАРОК', price: 759, tag: 'Новый год', tagIc: 'gift', rtp: 0.9, ui: 'cs2',
+    pity: true, // гарант 75/150; шансы считаются вместе с гарантом (pityEv) и подарком — окупаемость 90%
+    giftP: 1366, // подарок «+2 открытия» = 2 × 759 × 0,9
+    fwR: { covert: 7.9, rare: 9 }, // лента прокрутки: красные и ножи/перчатки пролетают чаще (только вид ленты)
+    c2idle: [75, 100], // петля покоя: бант колышется, пока кейс стоит (у кейсов со снегом SN_* так нельзя — сугроб растёт на 72–100)
+    c2glb: 'case-gift.glb', c2p: { sun: 7, env: .18, exposure: .84, contrast: 1.01, saturate: 1.3, shadow: .79, fill: .1, dust: 4 }, // свет как у яблока
+    sub: 'Самый дорогой новогодний кейс с гарантом и подарками: 50 позиций от 533 ₽, которых больше нет ни в одном кейсе сайта, и подарок — ещё 2 открытия бесплатно (1 из 20). StatTrak™ AK-47 Redline, The Empress, Aquamarine Revenge, AWP Redline, Man-o\'-war, Queen\'s Gambit, M4A1-S Golden Coil, Vaporwave. Джекпоты — Bayonet Doppler / Gamma Doppler / Tiger Tooth / Lore, M9 Bayonet Lore, Talon Tiger Tooth, Skeleton Marble Fade, перчатки Moto Spearmint.',
+    th: { a: '#ffcf5c' }, img: 'assets/case-gift.webp', // рендер 3D-модели (холст, ширина и поля как у CS2 CASE)
+    exact: [
+      ['StatTrak™ P250 | Kintsugi', 'WW', 3], ['StatTrak™ AUG | Stymphalian', 'MW', 3], ['StatTrak™ Glock-18 | Grinder', 'MW', 3],
+      ['StatTrak™ M4A1-S | Liquidation', 'FT', 3], ['StatTrak™ MAC-10 | Malachite', 'MW', 3], ['StatTrak™ MAC-10 | Disco Tech', 'WW', 3],
+      ['StatTrak™ UMP-45 | Plastique', 'FN', 3], ['StatTrak™ FAMAS | Valence', 'FT', 3], ['StatTrak™ FAMAS | Neural Net', 'FN', 3],
+      ['StatTrak™ AWP | Worm God', 'MW', 3], ['SCAR-20 | Bloodsport', 'WW', 1], ['Five-SeveN | Case Hardened', 'WW', 1],
+      ['StatTrak™ AK-47 | Phantom Disruptor', 'FT', 1], ['MP9 | Hypnotic', 'FN', 1], ['StatTrak™ Desert Eagle | Conspiracy', 'FT', 1],
+      ['StatTrak™ Glock-18 | Water Elemental', 'FT', 1], ['XM1014 | Ancient Lore', 'FT', 1], ['USP-S | Caiman', 'FT', 1],
+      ['StatTrak™ M4A4 | Cyber Security', 'BS', 1], ['StatTrak™ M4A4 | Desolate Space', 'BS', 1], ['StatTrak™ AK-47 | Point Disarray', 'BS', 4],
+      ['StatTrak™ Glock-18 | Fully Tuned', 'BS', 4], ['StatTrak™ AK-47 | Redline', 'BS', 4], ['StatTrak™ AWP | Queen\'s Gambit', 'BS', 4],
+      ['StatTrak™ Glock-18 | Bullet Queen', 'WW', 4], ['StatTrak™ AWP | Electric Hive', 'FT', 4], ['StatTrak™ Desert Eagle | Code Red', 'BS', 4],
+      ['StatTrak™ AK-47 | Aquamarine Revenge', 'WW', 4], ['StatTrak™ M4A1-S | Vaporwave', 'WW', 3], ['StatTrak™ AK-47 | The Empress', 'BS', 3],
+      ['StatTrak™ AWP | Redline', 'WW', 3], ['StatTrak™ M4A1-S | Golden Coil', 'BS', 3], ['StatTrak™ USP-S | Orion', 'MW', 3],
+      ['StatTrak™ AWP | Man-o\'-war', 'MW', 3], ['Glock-18 | Dragon Tattoo', 'MW', 3], ['M4A1-S | Chantico\'s Fire', 'BS', 3],
+      ['★ Bowie Knife | Lore', 'MW', 2], ['★ Survival Knife | Tiger Tooth', 'FN', 2], ['★ Navaja Knife | Doppler', 'FN', 2],
+      ['★ Gut Knife | Marble Fade', 'FN', 2], ['★ Kukri Knife | Slaughter', 'MW', 2], ['★ Hand Wraps | Cobalt Skulls', 'BS', 2],
+      ['★ Bayonet | Lore', 'BS', 2], ['★ Bayonet | Tiger Tooth', 'FN', 2], ['★ Skeleton Knife | Marble Fade', 'FN', 2],
+      ['★ Moto Gloves | Spearmint', 'BS', 2], ['★ Bayonet | Doppler', 'FN', 2], ['★ M9 Bayonet | Lore', 'BS', 2],
+      ['★ Talon Knife | Tiger Tooth', 'FN', 2], ['★ Bayonet | Gamma Doppler', 'FN', 2],
+      // подарок: +2 бесплатных открытия — 1 из 20, как у остальных новогодних
+      [GIFT_N, '', 0.05],
+    ],
+  },
+  {
     // «СНЕЖИНКА» (27.11.2026, владелец; сначала был «СНЕГОВИК», id snowman — переименован до заливки на сервер): новогодний 3D-кейс, раздел «НОВЫЙ 2027». Blender (ветка blender):
     // blender/scenes/case-snowman.blend → assets/cs2case/case-snowman.glb (выгрузка blender/scripts/case_export_glb_snowman.py):
     // белый корпус почти весь в снегу и ледяной корке, сосульки, обледенелые ремни, золотая снежинка со снегом; снегопад и сугроб (SN_*).
@@ -2667,7 +2708,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-snowman.webp':1.3018,'assets/case-ginger.webp':1.3018,'assets/case-apple.webp':1.3018,'assets/case-elite2.webp':1.3018,'assets/case-major3.webp':1.3018,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
+const CASE_AR = {'assets/case-gift.webp':1.3018,'assets/case-snowman.webp':1.3018,'assets/case-ginger.webp':1.3018,'assets/case-apple.webp':1.3018,'assets/case-elite2.webp':1.3018,'assets/case-major3.webp':1.3018,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
 // картинки из админки (хранилище Supabase) весят 2–3 МБ: для уже загруженных — лёгкие копии в assets/cc (900 px и 440 px для витрины);
 // новые загрузки админка сама сжимает в *.opt.webp + *.opt-s.webp (admImgPack). Неизвестная картинка — как есть.
@@ -3146,7 +3187,7 @@ const casePrice = (c, v) => c.rc ? `<span class="prc prc-rc">${rc(v)}<i class="p
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
-  { id: 'ny2027', wm: '2027', t: 'НОВЫЙ 2027', sub: 'Новогодние кейсы', ic: 'gift', a: '#e23a3a', ids: ['apple', 'ginger', 'snowflake'], fresh: true }, // новогодний раздел (владелец 20.11); fresh — встаёт первым, даже если в админке сохранён старый список разделов
+  { id: 'ny2027', wm: '2027', t: 'НОВЫЙ 2027', sub: 'Новогодние кейсы', ic: 'gift', a: '#e23a3a', ids: ['apple', 'ginger', 'snowflake', 'gift'], fresh: true }, // новогодний раздел (владелец 20.11); fresh — встаёт первым, даже если в админке сохранён старый список разделов
   { id: 'bmw5dfjvu', wm: 'NEW', t: 'CS2 CASE', sub: '', ic: 'star', a: '#f3c14f', ids: ['cs2', 'major', 'elite'] },
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
@@ -3162,7 +3203,7 @@ const CASE_BLOCKS = [
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['snowflake', 'ginger', 'apple', 'elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
+const NEW_CASES = ['gift', 'snowflake', 'ginger', 'apple', 'elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
 /* раздел, порядок и метки кейса: по умолчанию — из кода (CASE_BLOCKS, NEW_CASES, HOME_POP); админ-панель может поменять (site_cfg) */
 const DEF_BLOCK = {}, DEF_ORD = {};
 CASE_BLOCKS.forEach(b => b.ids.forEach((id, i) => { DEF_BLOCK[id] = b.id; DEF_ORD[id] = i; }));
@@ -5087,8 +5128,10 @@ function c2Mount(c) {
     };
     const ro = new ResizeObserver(resize); ro.observe(host); resize();
     let seg = null;
-    S.play = ([a, b], speed = 1) => new Promise(res => { if (seg) seg.res(); seg = { a, b, t0: performance.now(), speed, res }; });
-    S.rest = () => { if (seg) { seg.res(); seg = null; } setFrame(C2D.REST); };
+    const C2I = c && c.c2idle; // [75, 100] — петля покоя («ПОДАРОК» 27.11: бант колышется, пока кейс стоит); у кейсов со снегом её нет
+    S.idle = 0;
+    S.play = ([a, b], speed = 1) => new Promise(res => { S.idle = 0; if (seg) seg.res(); seg = { a, b, t0: performance.now(), speed, res }; });
+    S.rest = () => { S.idle = 0; if (seg) { seg.res(); seg = null; } setFrame(C2D.REST); };
     const draw = () => {
       camNode.updateWorldMatrix(true, false); camNode.getWorldPosition(cam.position); camNode.getWorldQuaternion(cam.quaternion); cam.updateMatrixWorld();
       // 1) кейс с тенями от стен и от себя; 2) пол-ловец — только тень кейса
@@ -5104,8 +5147,8 @@ function c2Mount(c) {
       if (!S.alive || !host.isConnected) return S.kill();
       if (seg) {
         const f = Math.min(seg.b, seg.a + (now - seg.t0) / 1000 * C2D.FPS * seg.speed);
-        setFrame(f); if (f >= seg.b) { const r = seg.res; seg = null; r(); }
-      }
+        setFrame(f); if (f >= seg.b) { const r = seg.res, drop = seg.b === C2D.DROP[1]; seg = null; r(); if (drop && C2I) S.idle = now; }
+      } else if (C2I && S.idle) setFrame(C2I[0] + ((now - S.idle) / 1000 * C2D.FPS * 0.5) % (C2I[1] - C2I[0])); // кейс стоит — кадры петли покоя по кругу (вдвое медленнее)
       if (dirty && now - lastD >= (GFX.low ? 31 : 14)) { dirty = false; lastD = now; draw(); } // два прохода на кадр — не чаще ~60 (экономная 30) раз в секунду
       requestAnimationFrame(tick);
     };
