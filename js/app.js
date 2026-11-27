@@ -1493,33 +1493,34 @@ const CASES = [
     // белый корпус почти весь в снегу и ледяной корке, сосульки, обледенелые ремни, золотая снежинка со снегом; снегопад и сугроб (SN_*).
     // Картинка витрины — blender/scripts/case_card.py (кадр 75). Состав (владелец): 310 ₽, окупаемость 90% вместе с гарантом 75/150
     // и подарком (+2 открытия, 1 из 20; ценность giftP = 2 × 310 × 0,9), самый дешёвый скин не меньше 200 ₽ (сейчас 209 ₽),
-    // «чтобы много редкого и тайного пролетало»: 63 позиции; красное выпадает ~1 из 154, нож/перчатки ~1 из 17 800;
-    // в ленте прокрутки красные ×8,5 и золотые ×24 (fwR) — красная карточка ~1 из 5, золотая ~1 из 15 (шанс выпадения не меняется).
+    // «чтобы много редкого и тайного пролетало». 27.11 пересобран (владелец: «дроп 1в1 что в Имбирном — сделай вообще другой»): 61 позиция,
+    // ни одного скина из «Имбирного пряника»; дешёвые (209–308 ₽) с весом 4; красное выпадает ~1 из 288, нож/перчатки ~1 из 8 000;
+    // в ленте прокрутки красные ×6,7 и золотые ×13,4 (fwR) — красная карточка ~1 из 5, золотая ~1 из 15 (шанс выпадения не меняется).
     id: 'snowflake', name: 'СНЕЖИНКА', price: 310, tag: 'Новый год', tagIc: 'gift', rtp: 0.9, ui: 'cs2',
     pity: true, // гарант 75/150; шансы считаются вместе с гарантом (pityEv) и подарком — окупаемость 90%
     giftP: 558, // подарок «+2 открытия» = 2 × 310 × 0,9
-    fwR: { covert: 8.5, rare: 24 }, // лента прокрутки: красные и ножи/перчатки пролетают чаще (только вид ленты)
+    fwR: { covert: 6.7, rare: 13.4 }, // лента прокрутки: красные и ножи/перчатки пролетают чаще (только вид ленты)
     c2glb: 'case-snowman.glb', c2p: { sun: 7, env: .18, exposure: .84, contrast: 1.01, saturate: 1.2, shadow: .79, fill: .1, dust: 4 }, // свет как у яблока
-    sub: 'Новогодний кейс с гарантом и подарками: 63 позиции от 209 ₽ и подарок — ещё 2 открытия бесплатно (1 из 20); красные и ножи пролетают часто. Arctic Wolf, Whiteout, Stone Cold, Ледяной уголь; за «Засекречено» — Aphrodite, Head Shot, Temukau, Printstream, Wildfire, Nightwish, Kill Confirmed, Hyper Beast. Джекпоты — ножи Kukri, Navaja, Bowie, Huntsman, Falchion, Paracord, Survival и перчатки.',
+    sub: 'Новогодний кейс с гарантом и подарками: 61 позиция от 209 ₽ и подарок — ещё 2 открытия бесплатно (1 из 20); красные и ножи пролетают часто. Arctic Wolf, Whiteout, Stone Cold, Black Lotus, Ледяной уголь, Fade; за «Засекречено» — Азимов, Printstream, Neo-Noir, Ocean Drive, Neon Revolution, Mecha Industries. Джекпоты — ножи Bowie, Huntsman, Stiletto | Boreal Forest, Flip, Gut, Paracord, Shadow Daggers и перчатки Sport | Frosty.',
     th: { a: '#8fd3ff' }, img: 'assets/case-snowman.webp', // рендер 3D-модели (холст, ширина и поля как у CS2 CASE)
     exact: [
-      ['Tec-9 | Whiteout', 'FT', 1], ['AUG | Arctic Wolf', 'WW', 1], ['USP-S | Black Lotus', 'MW', 1], ['Glock-18 | Royal Legion', 'FT', 1],
-      ['AWP | Phobos', 'MW', 1], ['M4A1-S | Electrum', 'MW', 1], ['Five-SeveN | Triumvirate', 'MW', 1], ['USP-S | Royal Guard', 'MW', 1],
-      ['MAC-10 | Saibā Oni', 'MW', 1], ['USP-S | Bleeding Edge', 'MW', 1], ['AWP | Exothermic', 'FT', 1], ['AK-47 | Breakthrough', 'WW', 1],
-      ['AK-47 | Midnight Laminate', 'FT', 1], ['Galil AR | Stone Cold', 'FT', 1], ['P250 | Franklin', 'MW', 1], ['R8 Revolver | Amber Fade', 'FN', 1],
-      ['Zeus x27 | Olympus', 'FT', 1], ['AWP | Duality', 'WW', 1], ['M4A4 | Evil Daimyo', 'FT', 1], ['USP-S | Jawbreaker', 'WW', 1],
-      ['USP-S | Cortex', 'WW', 1], ['MP9 | Food Chain', 'FT', 1], ['Sawed-Off | Kiss♥Love', 'FT', 1], ['Galil AR | Chromatic Aberration', 'FT', 1],
-      ['M4A4 | Tooth Fairy', 'FT', 1], ['Glock-18 | Vogue', 'FT', 1], ['SG 553 | Candy Apple', 'FT', 1], ['AK-47 | Slate', 'FT', 1],
-      ['AK-47 | Ледяной уголь', 'FT', 1], ['Dual Berettas | Melondrama', 'FT', 1], ['M4A4 | Spider Lily', 'WW', 1],
-      ['FAMAS | Rapid Eye Movement', 'FT', 1], ['MAG-7 | Justice', 'FT', 1], ['M4A1-S | Nightmare', 'BS', 1], ['AK-47 | Ледяной уголь', 'MW', 1],
-      ['Nova | Hyper Beast', 'FT', 1], ['AWP | Elite Build', 'FT', 1], ['M4A1-S | Leaded Glass', 'FT', 1], ['AWP | Fever Dream', 'FT', 1],
-      ['Glock-18 | Snack Attack', 'FT', 1], ['AK-47 | Aphrodite', 'BS', 8], ['AK-47 | Aphrodite', 'FT', 8], ['AK-47 | Head Shot', 'BS', 8],
-      ['M4A4 | Temukau', 'FT', 8], ['MP7 | Bloodsport', 'FT', 8], ['USP-S | Printstream', 'BS', 8], ['Desert Eagle | Printstream', 'FT', 8],
-      ['MAC-10 | Stalker', 'FT', 8], ['AWP | Wildfire', 'FT', 8], ['AK-47 | Nightwish', 'FT', 8], ['MP9 | Starlight Protector', 'FT', 8],
-      ['USP-S | Kill Confirmed', 'FT', 8], ['M4A1-S | Hyper Beast', 'FT', 8], ['Five-SeveN | Hyper Beast', 'FT', 8],
-      ['★ Kukri Knife | Crimson Web', 'BS', 3], ['★ Navaja Knife | Tiger Tooth', 'FN', 3], ['★ Moto Gloves | Finish Line', 'FT', 3],
-      ['★ Bowie Knife | Boreal Forest', 'MW', 3], ['★ Huntsman Knife | Bright Water', 'FN', 3], ['★ Hand Wraps | Overprint', 'BS', 3],
-      ['★ Falchion Knife | Boreal Forest', 'BS', 3], ['★ Paracord Knife | Damascus Steel', 'WW', 3], ['★ Survival Knife | Urban Masked', 'MW', 3],
+      ['Tec-9 | Whiteout', 'FT', 4], ['AUG | Arctic Wolf', 'WW', 4], ['AWP | Чёрный Нил', 'FT', 4], ['Glock-18 | Royal Legion', 'FT', 4],
+      ['AWP | Phobos', 'MW', 4], ['M4A1-S | Electrum', 'MW', 4], ['Five-SeveN | Triumvirate', 'MW', 4], ['USP-S | Royal Guard', 'MW', 4],
+      ['MAC-10 | Saibā Oni', 'MW', 4], ['USP-S | Bleeding Edge', 'MW', 4], ['AWP | Exothermic', 'FT', 4], ['AK-47 | Breakthrough', 'WW', 4],
+      ['AK-47 | Midnight Laminate', 'FT', 4], ['Galil AR | Stone Cold', 'FT', 4], ['USP-S | Cyrex', 'FT', 4], ['PP-Bizon | Blue Streak', 'BS', 4],
+      ['M4A1-S | Black Lotus', 'FT', 1], ['P250 | Epicenter', 'FT', 1], ['AWP | Ледяной уголь', 'BS', 1], ['SG 553 | Cyrex', 'BS', 1],
+      ['AWP | Exoskeleton', 'BS', 1], ['Desert Eagle | Firebreathing', 'FN', 1], ['MP9 | Arctic Tri-Tone', 'FN', 1],
+      ['MP7 | Abyssal Apparition', 'BS', 1], ['MP7 | Fade', 'FT', 1], ['Zeus x27 | Dragon Snore', 'BS', 1], ['MP7 | Neon Ply', 'MW', 1],
+      ['P250 | Asiimov', 'BS', 1], ['P2000 | Imperial Dragon', 'WW', 1], ['M4A4 | 龍王 (Dragon King)', 'BS', 1],
+      ['Desert Eagle | Kumicho Dragon', 'FT', 1], ['AWP | Corticera', 'FT', 1], ['SCAR-20 | Cyrex', 'FT', 1], ['FAMAS | Mecha Industries', 'WW', 1],
+      ['M4A4 | Full Throttle', 'BS', 10], ['AWP | Chrome Cannon', 'BS', 10], ['AK-47 | The Oligarch', 'BS', 10], ['M4A4 | The Battlestar', 'FT', 10],
+      ['M4A4 | Neo-Noir', 'BS', 10], ['Glock-18 | Золотой зубок', 'FT', 10], ['FAMAS | Commemoration', 'FT', 10], ['AWP | Printstream', 'BS', 10],
+      ['AK-47 | Азимов', 'BS', 10], ['AWP | Containment Breach', 'BS', 10], ['Five-SeveN | Angry Mob', 'FT', 10],
+      ['Desert Eagle | Ocean Drive', 'FT', 10], ['R8 Revolver | Fade', 'FT', 10], ['AWP | Азимов', 'BS', 10], ['M4A4 | Bullet Rain', 'FT', 10],
+      ['M4A1-S | Mecha Industries', 'BS', 10], ['AK-47 | Neon Revolution', 'FT', 10], ['★ Bowie Knife | Boreal Forest', 'MW', 4],
+      ['★ Huntsman Knife | Bright Water', 'FN', 4], ['★ Shadow Daggers | Blue Steel', 'BS', 4], ['★ Paracord Knife | Urban Masked', 'MW', 4],
+      ['★ Gut Knife | Freehand', 'BS', 4], ['★ Classic Knife | Forest DDPAT', 'MW', 4], ['★ Flip Knife | Safari Mesh', 'BS', 4],
+      ['★ Specialist Gloves | Forest DDPAT', 'BS', 4], ['★ Stiletto Knife | Boreal Forest', 'FT', 4], ['★ Sport Gloves | Frosty', 'BS', 4],
       // подарок: +2 бесплатных открытия — 1 из 20, как у «Карамельного яблока» и «Имбирного пряника»
       [GIFT_N, '', 0.05],
     ],
