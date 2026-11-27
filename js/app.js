@@ -7864,7 +7864,8 @@ async function payStatus() {
   try {
     const r = await fetch(SB_URL + '/functions/v1/payment?action=status', { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: '{}' });
     const j = await r.json().catch(() => ({}));
-    payStat = { live: !!(r.ok && j.live), methods: Array.isArray(j.methods) && j.methods.length ? j.methods : PAY_METHODS.map(x => x.k), skins: !!(r.ok && j.skins), skinslink: !!(r.ok && j.skinslink), skinsRate: +j.skinsRate || 0, min: +j.min || 500, max: +j.max || 1000000 };
+    payStat = { live: !!(r.ok && j.live), methods: Array.isArray(j.methods) && j.methods.length ? j.methods : PAY_METHODS.map(x => x.k), skins: !!(r.ok && j.skins), skinslink: !!(r.ok && j.skinslink), skinsRate: +j.skinsRate || 0, min: +j.min || 500, max: +j.max || 1000000,
+      crypto: r.ok && j.crypto && Array.isArray(j.crypto.coins) && j.crypto.coins.length ? j.crypto : null }; // крипта через Coinso — свои лимиты и монеты
   } catch (e) { payStat = { live: false, methods: PAY_METHODS.map(x => x.k), skins: false, skinslink: false, skinsRate: 0, min: 500, max: 1000000 }; }
   payStatT = Date.now(); return payStat;
 }
@@ -7941,7 +7942,8 @@ async function openDeposit(need = 0, promo = null) {
   const draw = (note = '') => {
     if (isSk(method) && skOn(method)) return drawSkins(note);
     $('.dpn-form', m).classList.remove('sk');
-    const lo = S.min || 500, hi = S.max || 1000000, ok = amount >= lo && amount <= hi, b = bonusPct(); // лимиты кассы — из ?action=status
+    const L = method === 'crypto' && S.crypto ? S.crypto : S; // у крипты (Coinso) свои лимиты
+    const lo = L.min || 500, hi = L.max || 1000000, ok = amount >= lo && amount <= hi, b = bonusPct(); // лимиты кассы — из ?action=status
     $('#depMin', m).textContent = `Мин. ${fmt(lo)} ₽`;
     $$('.dpn-chips button', m).forEach(e => e.classList.toggle('on', +e.dataset.a === amount));
     $('#depTotal', m).innerHTML = ok ? prc(Math.round(amount * (1 + b / 100))) : '—';
@@ -7986,6 +7988,7 @@ async function openDeposit(need = 0, promo = null) {
       if (trade !== st.trade) { const r = await srv('save_trade', { p_trade: trade }); if (!r) return; st.trade = trade; save(); }
       return paySkins(code, btn, method, trade);
     }
+    if (method === 'crypto' && S.crypto) return openCrypto(amount, code); // крипта — своё окно: монета → адрес и точная сумма
     if (!S.live || (xm && soon(xm))) { const x = xm; return draw(`<b>${esc(x ? x.t : 'Онлайн-оплата')}</b> — подключаем, совсем скоро. Узнать о запуске первым — в нашем <a href="${TG_NEWS}" target="_blank" rel="noopener">Telegram</a>.`); }
     payStart(amount, method, code, e.currentTarget);
   };
@@ -7995,6 +7998,132 @@ async function openDeposit(need = 0, promo = null) {
   S = await payStatus(); if (!$('#dpnM', m)) return;
   if (need > 0 && amount < S.min) { amount = Math.min(S.max, Math.ceil(S.min / 50) * 50); $('#depAmt', m).value = amount; } // меньше минимума кассы — поднимаем
   drawMethods(); draw();
+}
+
+/* пополнение криптой через Coinso (сервер — раздел «Coinso» в supabase/functions/payment/index.ts). Своё окно (владелец 27.11):
+   шаг 1 — монета, шаг 2 — адрес, точная сумма в монете (копейки в ней — метка платежа), QR и таймер. Окно каждые 6 с спрашивает
+   ?action=coinso_check — сервер сам перепроверяет у Coinso и зачисляет. Закрыть окно можно: оплата зачислится и по уведомлению Coinso.
+   Тестовый режим Coinso баланс не пополняет — окно пишет «тестовая оплата дошла». QR — библиотека qrcode-generator с jsdelivr (с проверкой SRI). */
+const QR_LIB = { src: 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js', sri: 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k' };
+let qrLoad = null;
+const qrLib = () => qrLoad || (qrLoad = new Promise((ok, no) => {
+  const s = document.createElement('script'); s.src = QR_LIB.src; s.integrity = QR_LIB.sri; s.crossOrigin = 'anonymous';
+  s.onload = () => window.qrcode ? ok(window.qrcode) : no(new Error('qr')); s.onerror = () => { qrLoad = null; no(new Error('qr')); };
+  document.head.appendChild(s);
+}));
+async function qrSvg(text, ec = 'M') {
+  const qr = (await qrLib())(0, ec); qr.addData(text); qr.make();
+  const n = qr.getModuleCount(); let d = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+  return `<svg viewBox="-2 -2 ${n + 4} ${n + 4}" shape-rendering="crispEdges" role="img" aria-label="QR-код адреса"><rect x="-2" y="-2" width="${n + 4}" height="${n + 4}" fill="#fff"/><path d="${d}" fill="#0d0f13"/></svg>`;
+}
+async function cpApi(action, body) {
+  const { data } = await sb.auth.getSession(); if (!data.session) { openAuth('login'); throw new Error('auth'); }
+  const r = await fetch(SB_URL + '/functions/v1/payment?action=' + action, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + data.session.access_token, apikey: SB_KEY }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'ошибка'); return j;
+}
+// свечение окна — в цвет выбранной монеты (владелец 27.11); до выбора — голубой сайта
+const CPY_COL = { usdt: '#26c19a', usdc: '#3b8ff0', btc: '#f7931a', eth: '#8a93ff', ton: '#1ea0f1', trx: '#ff4d5a', ltc: '#b4c3da', bnb: '#f3ba2f', sol: '#a46bff' };
+const cpyCol = c => CPY_COL[String(c.group || c.symbol || '').toLowerCase()] || CPY_COL[String(c.code || '').split('_')[0]] || '#84d9fd';
+const cpyAddr = a => a.length > 14 ? `<em>${esc(a.slice(0, 5))}</em>${esc(a.slice(5, -5))}<em>${esc(a.slice(-5))}</em>` : esc(a);
+const cpyTitle = (m, t) => { const h = $('#cpyH', m); if (!h) return; h.textContent = t; h.classList.remove('sw'); void h.offsetWidth; h.classList.add('sw'); };
+async function cpySwap(m, html) { const b = $('.cpy-b', m); b.classList.add('out'); await new Promise(r => setTimeout(r, 240)); b.innerHTML = html; b.classList.remove('out'); }
+async function cpyCopy(btn, text) {
+  try { await navigator.clipboard.writeText(text); } catch (e) { return copyText(text); }
+  btn.classList.remove('ok'); void btn.offsetWidth; btn.classList.add('ok');
+  clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove('ok'), 1700);
+}
+async function openCrypto(amount, promo) {
+  const C = (await payStatus()).crypto;
+  if (!C) return toast('Оплата криптой сейчас недоступна — попробуйте позже', 'err');
+  const m = modal(`<div class="cpy" data-step="1">
+    <div class="cpy-aur" aria-hidden="true"><i></i><i></i><i></i></div>
+    <header class="cpy-h"><div><small>Пополнение криптой</small><h3 id="cpyH">Выберите монету</h3></div>
+      <div class="cpy-amt"><span>К оплате</span><b>${money(amount)}</b></div></header>
+    <ol class="cpy-steps"><li><i>1</i>Монета</li><li><i>2</i>Перевод</li><li><i>3</i>Зачисление</li></ol>
+    <div class="cpy-b">
+      <div class="cpy-coins">${C.coins.map((c, k) => `<button class="cpy-c" type="button" data-c="${esc(c.code)}" style="--i:${k};--c:${cpyCol(c)}">
+        <span class="cpy-ci">${c.icon ? `<img src="${esc(c.icon)}" alt="" loading="lazy">` : ic.coin}</span>
+        <span class="cpy-cn"><b>${esc(c.symbol || c.name)}</b><small>${esc(c.network || c.name)}</small></span>
+        <span class="cpy-ca">${ic.right}</span></button>`).join('')}</div>
+      <p class="cpy-note">${ic.shield}<span>Адрес кошелька и точную сумму в монете покажем на следующем шаге — по курсу на момент создания счёта.</span></p>
+    </div>
+    <footer class="cpy-f"><button class="cpy-back" type="button">${ic.left}Назад</button></footer></div>`, 'm-ga m-cpy');
+  const root = $('.cpy', m);
+  $('.cpy-back', m).onclick = () => openDeposit(0, promo);
+  $$('.cpy-c', m).forEach(b => {
+    // свет под курсором внутри карточки
+    b.onpointermove = e => { const r = b.getBoundingClientRect(); b.style.setProperty('--mx', `${e.clientX - r.left}px`); b.style.setProperty('--my', `${e.clientY - r.top}px`); };
+    b.onclick = async () => {
+      if (root.dataset.busy) return; root.dataset.busy = '1'; b.classList.add('wait');
+      m.style.setProperty('--cpc', b.style.getPropertyValue('--c')); // окно перекрашивается в цвет монеты
+      try { await cryptoInvoice(m, await cpApi('coinso_create', { amount, currency: b.dataset.c, promo }), amount, promo); }
+      catch (e) {
+        delete root.dataset.busy; b.classList.remove('wait'); m.style.removeProperty('--cpc');
+        if (e.message !== 'auth') toast(e.message === 'limits' ? 'Эту сумму сейчас нельзя оплатить криптой — попробуйте другую' : 'Не удалось создать счёт — попробуйте позже или другую монету', 'err');
+      }
+    };
+  });
+}
+async function cryptoInvoice(m, inv, amount, promo) {
+  const c = inv.coin || {}, sym = c.symbol || String(inv.currency || '').toUpperCase(), net = c.network || '', root = $('.cpy', m);
+  const total = inv.expires_in, end = Date.now() + total * 1000, R = 2 * Math.PI * 21;
+  root.dataset.step = '2'; delete root.dataset.busy; cpyTitle(m, 'Переведите ровно');
+  await cpySwap(m, `<div class="cpy-inv">
+      <div class="cpy-qrw"><div class="cpy-qr" id="cpyQr"><span class="spinner"></span></div>${c.icon ? `<span class="cpy-qrc"><img src="${esc(c.icon)}" alt=""></span>` : ''}<i class="cpy-scan"></i></div>
+      <div class="cpy-d">
+        <div class="cpy-fl"><label>Сумма к переводу</label>
+          <button class="cpy-v cpy-sum" type="button" data-cp="${esc(inv.amount)}" title="Скопировать сумму"><b>${esc(inv.amount)}</b><em>${esc(sym)}</em><span class="cpy-okt">Скопировано</span><span class="cpy-cp">${ic.copy}${ic.check}</span></button>
+          <p class="cpy-rub">Счёт на ${money(amount)}${net ? ` · сеть <b>${esc(net)}</b>` : ''}</p></div>
+        <div class="cpy-fl"><label>Адрес кошелька</label>
+          <button class="cpy-v cpy-addr" type="button" data-cp="${esc(inv.wallet)}" title="Скопировать адрес"><code>${cpyAddr(inv.wallet)}</code><span class="cpy-okt">Скопировано</span><span class="cpy-cp">${ic.copy}${ic.check}</span></button></div>
+      </div></div>
+    <p class="cpy-warn">${ic.alert}<span>Отправьте <b>ровно ${esc(inv.amount)} ${esc(sym)}</b> одним переводом${net ? ` в сети <b>${esc(net)}</b>` : ''}. По этой сумме мы находим ваш платёж: другая сумма или другая сеть автоматически не зачислится. Комиссию сети платите сверху.</span></p>
+    ${inv.test ? `<p class="cpy-test">Тестовый режим Coinso — настоящий перевод не нужен: ${inv.test_url ? `откройте <a href="${esc(inv.test_url)}" target="_blank" rel="noopener">страницу симуляции</a> и нажмите «Simulate success»` : 'нажмите «Simulate success» в кабинете Coinso'}. Баланс в тесте не пополняется.</p>` : ''}
+    <div class="cpy-st" id="cpySt">
+      <span class="cpy-ring"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21"/><circle class="fg" cx="24" cy="24" r="21" stroke-dasharray="${R.toFixed(2)}" stroke-dashoffset="0"/></svg><b id="cpyT"></b></span>
+      <span class="cpy-stt"><b>Ждём перевод</b><small>Сеть проверяем сами — ничего нажимать не нужно</small></span>
+      <span class="cpy-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>`);
+  $('.cpy-f', m).innerHTML = `<span class="cpy-fn">Окно можно закрыть — баланс пополнится сам, как только сеть подтвердит перевод.</span><button class="bw-go cpy-ok" type="button">Закрыть</button>`;
+  $('.cpy-ok', m).onclick = closeModal;
+  $$('[data-cp]', m).forEach(b => b.onclick = () => cpyCopy(b, b.dataset.cp));
+  qrSvg(inv.wallet, c.icon ? 'H' : 'M').then(s => { const q = $('#cpyQr', m); if (q) q.innerHTML = s; }, () => { const q = $('.cpy-qrw', m); if (q) q.remove(); });
+  let done = false;
+  const tick = () => {
+    if (!m.isConnected || done) return clearInterval(tt);
+    const left = Math.max(0, Math.round((end - Date.now()) / 1000)), t = $('#cpyT', m), fg = $('.cpy-ring .fg', m);
+    if (t) t.textContent = left ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '0:00';
+    if (fg) { fg.style.strokeDashoffset = (R * (1 - left / total)).toFixed(2); fg.parentNode.parentNode.classList.toggle('low', left < 120); }
+  };
+  const tt = setInterval(tick, 1000); tick();
+  const finish = (kind, title, sub, extra = '') => {
+    done = true; clearInterval(tt);
+    if (kind !== 'bad') root.dataset.step = '3';
+    root.dataset.st = kind;
+    if (kind === 'ok') m.style.setProperty('--cpc', '#1bbd67');
+    const s = $('#cpySt', m); if (!s) return;
+    const mark = kind === 'bad' ? '<path d="M18 18l16 16M34 18L18 34"/>' : '<path d="M15 27l7.5 7.5L38 19"/>';
+    s.className = 'cpy-st ' + kind;
+    s.innerHTML = `<span class="cpy-mark"><svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/>${mark}</svg>${kind !== 'bad' ? `<i class="cpy-burst">${Array.from({ length: 12 }, (_, k) => `<i style="--r:${k * 30}deg"></i>`).join('')}</i>` : ''}</span>
+      <span class="cpy-stt"><b>${title}</b><small>${sub}</small></span>${extra}`;
+  };
+  const poll = async () => {
+    if (done || !m.isConnected) return;
+    let s = 'pending'; try { s = (await cpApi('coinso_check', { id: inv.id })).status; } catch (e) { /* сеть — спросим ещё раз */ }
+    if (done || !m.isConnected) return;
+    if (s === 'paid') {
+      finish('ok', 'Баланс пополнен', `Счёт на ${money(amount)} оплачен — деньги уже на балансе`); toast('Баланс пополнен');
+      return sb.auth.getSession().then(({ data }) => { if (data.session) sbLoadProfile(data.session); });
+    }
+    if (s === 'test') return finish('test', 'Тестовая оплата дошла', 'Сервер её проверил. Баланс не пополняется — это тестовый режим Coinso.');
+    if (s === 'expired' || s === 'failed' || Date.now() > end + 900000) {
+      finish('bad', s === 'failed' ? 'Платёж не прошёл' : 'Время на оплату вышло', 'Если перевод уже отправлен — напишите в поддержку.', '<button class="cpy-new" type="button">Новый счёт</button>');
+      const n = $('.cpy-new', m); if (n) n.onclick = () => openCrypto(amount, promo);
+      return;
+    }
+    setTimeout(poll, 6000);
+  };
+  setTimeout(poll, 6000);
 }
 
 /* ---------- «Ставки» (джекпот) — страница удалена (владелец 21.11). Осталось только при входе: забрать выигрыши,
