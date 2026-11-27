@@ -1488,14 +1488,14 @@ const CASES = [
     ],
   },
   {
-    // «СНЕГОВИК» (27.11.2026, владелец): новогодний 3D-кейс, раздел «НОВЫЙ 2027». Blender (ветка blender):
+    // «СНЕЖИНКА» (27.11.2026, владелец; сначала был «СНЕГОВИК», id snowman — переименован до заливки на сервер): новогодний 3D-кейс, раздел «НОВЫЙ 2027». Blender (ветка blender):
     // blender/scenes/case-snowman.blend → assets/cs2case/case-snowman.glb (выгрузка blender/scripts/case_export_glb_snowman.py):
     // белый корпус почти весь в снегу и ледяной корке, сосульки, обледенелые ремни, золотая снежинка со снегом; снегопад и сугроб (SN_*).
     // Картинка витрины — blender/scripts/case_card.py (кадр 75). Состав (владелец): 310 ₽, окупаемость 90% вместе с гарантом 75/150
     // и подарком (+2 открытия, 1 из 20; ценность giftP = 2 × 310 × 0,9), самый дешёвый скин не меньше 200 ₽ (сейчас 209 ₽),
     // «чтобы много редкого и тайного пролетало»: 63 позиции; красное выпадает ~1 из 154, нож/перчатки ~1 из 17 800;
     // в ленте прокрутки красные ×8,5 и золотые ×24 (fwR) — красная карточка ~1 из 5, золотая ~1 из 15 (шанс выпадения не меняется).
-    id: 'snowman', name: 'СНЕГОВИК', price: 310, tag: 'Новый год', tagIc: 'gift', rtp: 0.9, ui: 'cs2',
+    id: 'snowflake', name: 'СНЕЖИНКА', price: 310, tag: 'Новый год', tagIc: 'gift', rtp: 0.9, ui: 'cs2',
     pity: true, // гарант 75/150; шансы считаются вместе с гарантом (pityEv) и подарком — окупаемость 90%
     giftP: 558, // подарок «+2 открытия» = 2 × 310 × 0,9
     fwR: { covert: 8.5, rare: 24 }, // лента прокрутки: красные и ножи/перчатки пролетают чаще (только вид ленты)
@@ -3145,7 +3145,7 @@ const casePrice = (c, v) => c.rc ? `<span class="prc prc-rc">${rc(v)}<i class="p
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
-  { id: 'ny2027', wm: '2027', t: 'НОВЫЙ 2027', sub: 'Новогодние кейсы', ic: 'gift', a: '#e23a3a', ids: ['apple', 'ginger', 'snowman'], fresh: true }, // новогодний раздел (владелец 20.11); fresh — встаёт первым, даже если в админке сохранён старый список разделов
+  { id: 'ny2027', wm: '2027', t: 'НОВЫЙ 2027', sub: 'Новогодние кейсы', ic: 'gift', a: '#e23a3a', ids: ['apple', 'ginger', 'snowflake'], fresh: true }, // новогодний раздел (владелец 20.11); fresh — встаёт первым, даже если в админке сохранён старый список разделов
   { id: 'bmw5dfjvu', wm: 'NEW', t: 'CS2 CASE', sub: '', ic: 'star', a: '#f3c14f', ids: ['cs2', 'major', 'elite'] },
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
@@ -3161,7 +3161,7 @@ const CASE_BLOCKS = [
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['snowman', 'ginger', 'apple', 'elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
+const NEW_CASES = ['snowflake', 'ginger', 'apple', 'elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
 /* раздел, порядок и метки кейса: по умолчанию — из кода (CASE_BLOCKS, NEW_CASES, HOME_POP); админ-панель может поменять (site_cfg) */
 const DEF_BLOCK = {}, DEF_ORD = {};
 CASE_BLOCKS.forEach(b => b.ids.forEach((id, i) => { DEF_BLOCK[id] = b.id; DEF_ORD[id] = i; }));
