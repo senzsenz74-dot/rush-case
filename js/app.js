@@ -8512,6 +8512,9 @@ async function admSync(force) {
   const str = JSON.stringify(cases) + cat.length + cat.reduce((a, x) => a + x[1], 0).toFixed(2);
   let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
   const ver = (h >>> 0).toString(36);
+  // названия кейсов — для ночного отчёта в Telegram (supabase/fin_tg.sql): встроенные кейсы есть только здесь, в коде
+  const cn = Object.fromEntries(CASES.filter(c => c.id && c.name).map(c => [c.id, String(c.name).slice(0, 60)])), cnS = JSON.stringify(cn);
+  if (localStorage.getItem('rc_case_names') !== cnS) sb.rpc('admin_case_names', { p: cn }).then(({ error }) => { if (!error) localStorage.setItem('rc_case_names', cnS); }, () => {});
   const { data: m } = await sb.from('srv_meta').select('v').eq('k', 'version').maybeSingle();
   if (!force && m && m.v === ver) return;
   const t = toast('Загружаем на сервер каталог цен и кейсы…', 'info');
@@ -9134,8 +9137,23 @@ const SF_LINK = {
   own: { rpc: 'admin_owner_chat', on: 'сюда приходят отчёты смен сотрудников', off: 'Чат не привязан — отчёты смен не приходят в Telegram.',
     who: 'Создайте группу только для владельцев — сотрудников не добавляйте.', ok: 'Чат владельцев привязан ✅' },
   wd: { rpc: 'admin_wd_chat', file: 'wd_tg', on: 'сюда приходят все выводы скинов, а заявки, которые ждут решения, — с кнопками «Подтвердить» и «Вернуть игроку»', off: 'Тема не привязана — выводы видны только во вкладке «Выводы Steam».',
-    who: 'Откройте группу с темами и тему для выводов (бот должен быть в группе).', ok: 'Тема выводов привязана ✅' }
+    who: 'Откройте группу с темами и тему для выводов (бот должен быть в группе).', ok: 'Тема выводов привязана ✅' },
+  fin: { rpc: 'admin_fin_chat', file: 'fin_tg', on: 'сюда приходят пополнения, отчёт за день в 00:00 по Москве и сигнал, когда на маркете меньше 700 ₽', off: 'Тема не привязана — пополнения и отчёт в Telegram не приходят.',
+    who: 'Откройте группу с темами и создайте тему для финансов (бот должен быть в группе). Её увидят все участники группы.', ok: 'Тема финансов привязана ✅' }
 };
+// тема финансов: проверка — отчёт за сегодня на текущий момент (supabase/fin_tg.sql, support-bot ?action=fin_test)
+function sfFinTest(el) {
+  if (!el) return;
+  el.innerHTML = '<button class="ax-btn" data-fin-test>Прислать отчёт за сегодня</button><small class="ax-mute">Сам отчёт приходит каждый день в 00:00 по Москве — за прошедший день.</small>';
+  const b = $('[data-fin-test]', el);
+  b.onclick = async () => {
+    b.disabled = true;
+    const { data: ses } = await sb.auth.getSession();
+    const r = await fetch(`${SB_URL}/functions/v1/support-bot?action=fin_test`, { method: 'POST', headers: { apikey: SB_KEY, authorization: 'Bearer ' + (ses.session ? ses.session.access_token : ''), 'content-type': 'application/json' }, body: '{}' }).then(x => x.json()).catch(() => ({ error: 'нет связи' }));
+    b.disabled = false;
+    toast(r.ok ? 'Отчёт за сегодня отправлен в тему финансов' : 'Не отправлено: ' + esc(r.error || 'ошибка'), r.ok ? '' : 'err');
+  };
+}
 async function sfLink(el, kind, code) {
   if (!el) return;
   const K = SF_LINK[kind];
@@ -9188,8 +9206,9 @@ async function admStaff(box) {
       <p class="ax-foot">Каждая галочка открывает окно целиком — как у владельца: смотреть и менять. Начисления баланса и удачу игрокам и кейсам даёт только галочка «Начисления и удача». Окно «Сотрудники» — только владельцам. График смен нужен для отчётов.</p>`)}
     ${axCard('Telegram — группа поддержки', '<div id="sfSup"><span class="ax-mute">Загружаем…</span></div>')}
     ${axCard('Telegram — чат владельцев (отчёты смен)', '<div id="sfOwn"><span class="ax-mute">Загружаем…</span></div>')}
-    ${axCard('Telegram — выводы скинов', '<div id="sfWd"><span class="ax-mute">Загружаем…</span></div><div id="sfMe" class="sf-me"></div>')}`;
-  sfLink($('#sfSup', box), 'sup'); sfLink($('#sfOwn', box), 'own'); sfLink($('#sfWd', box), 'wd'); sfMe($('#sfMe', box)); // чат владельцев — для отчётов смен (supabase/shift_report.sql)
+    ${axCard('Telegram — выводы скинов', '<div id="sfWd"><span class="ax-mute">Загружаем…</span></div><div id="sfMe" class="sf-me"></div>')}
+    ${axCard('Telegram — финансы (пополнения, отчёт за день, маркет)', '<div id="sfFin"><span class="ax-mute">Загружаем…</span></div><div id="sfFinT" class="sf-me"></div>')}`;
+  sfLink($('#sfSup', box), 'sup'); sfLink($('#sfOwn', box), 'own'); sfLink($('#sfWd', box), 'wd'); sfMe($('#sfMe', box)); sfLink($('#sfFin', box), 'fin'); sfFinTest($('#sfFinT', box)); // чат владельцев — для отчётов смен (supabase/shift_report.sql)
   const err = e => STAFF_ERR[e.message] || 'Ошибка: ' + e.message;
   $('#sfAdd', box).onclick = async () => {
     const pid = +$('#sfPid', box).value;

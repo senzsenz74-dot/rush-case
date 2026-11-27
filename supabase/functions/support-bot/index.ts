@@ -13,6 +13,10 @@
 //   POST ?action=shift    (база)     {id} — отчёт смены сотрудника → в чат владельцев (supabase/shift_report.sql, шлёт один раз)
 //   POST ?action=wd       (база)     {id} — событие вывода скина → в тему выводов (триггер supabase/wd_tg.sql, шлёт один раз)
 //   POST ?action=wd_test  (владелец) проверочное сообщение с кнопками в тему выводов
+//   POST ?action=fin      (база)     {id} — тема финансов: пополнение, скины в ожидании, отчёт за день в 00:00 МСК (pg_cron),
+//                                    баланс маркета меньше 700 ₽ / пополнен (supabase/fin_tg.sql, шлёт один раз)
+//   POST ?action=fin_test (владелец) отчёт за сегодня (на текущий момент) в тему финансов — проверка
+//   В теме финансов: «/link@бот КОД» (код — вкладка «Сотрудники», «Telegram — финансы»).
 //   В теме выводов: «/link@бот КОД» (код — вкладка «Сотрудники», «Telegram — выводы скинов»). Кнопки «Подтвердить» / «Вернуть игроку»
 //   работают только у владельцев, которые привязали свой Telegram: боту в личные сообщения «/owner КОД» (код — там же).
 //   В группе поддержки: «/link@бот КОД» (код — вкладка «Сотрудники», «Telegram — группа поддержки») привязывает её.
@@ -93,6 +97,74 @@ async function wdSend(b: Record<string, any>) {
   if (t.ev === 'wait' || t.ev === 'auto') await db.from('wd_tg').update({ chat: Number(t.chat), msg: s.result.message_id, txt: text, ...(keys ? {} : { closed: true }) }).eq('id', t.id);
 }
 
+// финансы: тема «Финансы» (supabase/fin_tg.sql). Админские аккаунты в отчёте не считаются — как в статистике админки.
+const pl = (n: number, a: string, b: string, c: string) => { const m = Math.abs(n) % 100, k = m % 10; return m > 10 && m < 20 ? c : k === 1 ? a : k >= 2 && k <= 4 ? b : c; };
+const sgn = (v: number) => (v > 0 ? '+' : v < 0 ? '−' : '') + rub(Math.abs(v));
+const PAY_HOW: Record<string, string> = { sbp: 'СБП', card: 'карта', intl: 'зарубежная карта', crypto: 'крипта', skins: 'скины' };
+const PAY_PROV: Record<string, string> = { '1plat': '1plata', freekassa: 'FreeKassa', prime: 'Prime', brpay: 'Black Rabbit', enot: 'Enot', coinso: 'Coinso',
+  skinsmoney: 'SkinsMoney', skinslink: 'Skinslink', test: 'тест', generic: 'касса' };
+const isSkins = (p: Record<string, any>) => p.provider === 'skinsmoney' || p.provider === 'skinslink';
+const at = (v: unknown) => msk(new Date(v as string));
+function depText(t: Record<string, any>) {
+  const p = t.pay, prov = PAY_PROV[p.provider] || p.provider || 'касса', who = `Игрок: #${t.pid} ${t.name || 'Без ника'}`, L: string[] = [];
+  if (t.ev === 'hold') L.push(`📦 Скины приняты · ${rub(p.amount)} · ${prov}`, who, p.hold_until ? `Зачислятся ${at(p.hold_until)} — 7 дней защиты от отката обмена.` : 'Зачислятся после проверки.');
+  else {
+    const late = isSkins(p) && p.hold_until;
+    L.push(late ? `✅ Зачислены скины · ${rub(p.amount)} · ${prov}` : `💰 Пополнение · ${rub(p.amount)} · ${isSkins(p) ? 'скины' : PAY_HOW[p.method] || p.method} (${prov})`, who);
+    if (late) L.push(`7 дней ожидания прошли (платёж от ${at(p.created_at)}).`);
+    if (+p.credited > +p.amount) L.push(`Зачислено с бонусом: ${rub(p.credited)} (+${Math.round((p.credited / p.amount - 1) * 100)}%${p.promo ? ', промокод ' + p.promo : ''})`);
+    L.push(t.first ? '🎉 Первое пополнение игрока' : `Всего пополнил: ${rub(t.all?.sum)} (${t.all?.n} ${pl(+t.all?.n || 0, 'раз', 'раза', 'раз')})`);
+    if (!t.admin) L.push(`За сегодня на сайте: ${rub(t.today?.sum)} (${t.today?.n} шт.)`);
+  }
+  if (t.admin) L.push('⚠️ Аккаунт администратора — в отчёт не попадает.');
+  L.push(`Профиль: https://rush-case.online/#/u/${t.pid}`);
+  return L.join('\n');
+}
+const WDAY = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+function reportText(r: Record<string, any>, test = false) {
+  const day = String(r.day), dd = day.split('-').reverse().join('.'), n = (v: unknown) => +(v as number) || 0;
+  const L: string[] = [test ? `🧪 Проверка — отчёт за сегодня, ${dd}, на ${msk().slice(-5)}` : `📊 Отчёт за ${dd} (${WDAY[new Date(day + 'T12:00:00Z').getUTCDay()]})`, ''];
+  L.push(`💰 Пополнения: ${rub(r.dep)} — ${n(r.depN)} ${pl(n(r.depN), 'пополнение', 'пополнения', 'пополнений')}, ${n(r.depP)} ${pl(n(r.depP), 'игрок', 'игрока', 'игроков')}`);
+  const by = Object.entries(r.depBy || {}).sort((a, b) => n(b[1]) - n(a[1])).map(([k, v]) => `${PAY_HOW[k] || k} ${rub(v)}`).join(' · ');
+  if (by) L.push(`   ${by}`);
+  if (n(r.depFirst)) L.push(`   первых пополнений: ${n(r.depFirst)}`);
+  if (n(r.holdN)) L.push(`   скины в ожидании 7 дней (всего сейчас): ${n(r.holdN)} на ${rub(r.hold)}`);
+  L.push(`📤 Выводы: ${n(r.outN)} — оплачено маркету ${rub(r.out)}`);
+  L.push(`🧾 Расходы (Бухгалтерия): ${rub(r.exp)}`);
+  L.push(`📈 Чистая прибыль: ${sgn(n(r.net))}`, '   пополнения − расходы − выводы', '');
+  L.push(`👥 Новых игроков: ${n(r.reg)}`);
+  L.push(`🟢 Онлайн за день: ${n(r.visitors)} ${pl(n(r.visitors), 'посетитель', 'посетителя', 'посетителей')} · пик ${n(r.peak)} одновременно · вошли в аккаунт ${n(r.players)}`);
+  const t = r.top;
+  L.push(t ? `🏆 Самый дорогой дроп: ${t.n} — ${rub(t.p)}\n   #${t.pid} ${t.name || 'Без ника'} · ${t.t === 'upg' ? 'апгрейд' : t.t === 'con' ? 'контракт' : t.case ? `кейс «${t.case}»` : 'кейс'}` : '🏆 Самый дорогой дроп: дропов не было');
+  const w = r.worst;
+  L.push(w ? `📉 Самый убыточный кейс: «${w.name}» ${sgn(-n(w.loss))}\n   открыто ${n(w.n)}, потрачено ${rub(w.spent)}, выдано ${rub(w.won)}` : '📉 Убыточных кейсов нет ✅');
+  L.push(`💬 Обращений в поддержку: ${n(r.tickets)}${n(r.tickets) ? ` (закрыто ${n(r.ticketsClosed)})` : ''}`);
+  L.push(`🏪 Баланс маркета: ${r.mbal == null ? 'неизвестен' : rub(r.mbal) + (r.mbal_at ? ` (на ${at(r.mbal_at)})` : '')}${r.mbal != null && n(r.mbal) < 700 ? ' ⚠️ пополните' : ''}`);
+  return L.join('\n');
+}
+function mktText(t: Record<string, any>) {
+  const x = t.x || {};
+  if (t.ev === 'mok') return `✅ Баланс маркета пополнен: ${rub(x.bal)}`;
+  const L = [x.repeat ? `⏰ Напоминание: на балансе маркета всё ещё ${rub(x.bal)} — меньше ${rub(x.min)} с ${msk(new Date(+x.since * 1000))}` : `⚠️ На балансе маркета ${rub(x.bal)} — меньше ${rub(x.min)}`,
+    'Пополните маркет — иначе выводы скинов встанут в «ждёт решения».'];
+  if (+t.wait?.n) L.push(`Сейчас ждут вывода: ${t.wait.n} ${pl(+t.wait.n, 'заявка', 'заявки', 'заявок')} на ${rub(t.wait.sum)}`);
+  L.push('Напомню через 3 часа, если баланс не пополнят.');
+  return L.join('\n');
+}
+async function finSend(b: Record<string, any>) {
+  const { data: t } = await db.rpc('bot_fin_take', { p_id: Number(b.id) || 0 });
+  if (!t || !t.chat) return;
+  let text = '';
+  if (t.ev === 'dep' || t.ev === 'hold') { if (!t.pay) return; text = depText(t); }
+  else if (t.ev === 'report') {
+    const { data: r, error } = await db.rpc('bot_fin_day', { p_day: t.day });
+    text = r && !error ? reportText(r) : `📊 Отчёт за ${String(t.day).split('-').reverse().join('.')} не собрался: ${error?.message || 'нет данных'}`;
+  } else if (t.ev === 'mlow' || t.ev === 'mok') text = mktText(t);
+  if (!text) return;
+  const s = await tg('sendMessage', { chat_id: Number(t.chat), ...(t.topic ? { message_thread_id: Number(t.topic) } : {}), text: text.slice(0, 4096), disable_web_page_preview: true });
+  if (!s.ok) console.error('support-bot fin', s.description);
+}
+
 const STARS = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
 const ASK = 'Спасибо за честную оценку. Напишите, пожалуйста, коротко — что можно было сделать лучше?';
 const WELCOME = 'Здравствуйте! Это поддержка RUSH CASE 👋\nНапишите вопрос одним сообщением — ответим здесь же. Отвечаем ежедневно, обычно за 15 минут.\nЕсли вопрос по аккаунту — укажите ваш ID на сайте (он в профиле).';
@@ -120,6 +192,11 @@ ${String(t.text || '').slice(0, 3500)}
 
     if (action === 'wd') { // событие вывода скина → тема выводов; база отдаёт его только один раз (bot_wd_take)
       await wdSend(await req.json().catch(() => ({})));
+      return json({ ok: true });
+    }
+
+    if (action === 'fin') { // тема финансов: пополнение / отчёт за день / баланс маркета; база отдаёт событие только один раз (bot_fin_take)
+      await finSend(await req.json().catch(() => ({})));
       return json({ ok: true });
     }
 
@@ -198,6 +275,8 @@ ${String(t.text || '').slice(0, 3500)}
         if (sup) { await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: 'Группа поддержки привязана ✅ Сюда будут приходить новые обращения игроков.' }); return json({ ok: true }); }
         const { data: wd } = await db.rpc('bot_link_wd', { p_code: lk[1], p_chat: m.chat.id, p_title: title, p_topic: topic.message_thread_id || null });
         if (wd) { await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: 'Тема выводов привязана ✅ Сюда будут приходить все выводы скинов, а заявки, которые ждут решения, — с кнопками «Подтвердить» и «Вернуть игроку».' }); return json({ ok: true }); }
+        const { data: fin } = await db.rpc('bot_link_fin', { p_code: lk[1], p_chat: m.chat.id, p_title: title, p_topic: topic.message_thread_id || null });
+        if (fin) { await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: 'Тема финансов привязана ✅ Сюда будут приходить пополнения, отчёт за день в 00:00 по Москве и сигнал, когда на маркете меньше 700 ₽.' }); return json({ ok: true }); }
         const { data: ok } = await db.rpc('bot_link_chat', { p_code: lk[1], p_chat: m.chat.id, p_title: title, p_topic: topic.message_thread_id || null });
         await tg('sendMessage', { chat_id: m.chat.id, ...topic, text: ok ? 'Чат владельцев привязан ✅ Сюда будут приходить отчёты смен сотрудников.' : 'Код неверный или устарел — возьмите новый в админке (вкладка «Сотрудники»).' });
         return json({ ok: true });
@@ -282,6 +361,18 @@ ${String(t.text || '').slice(0, 3500)}
         return json({ ok: true, tg: true });
       }
       if (r.tg_msg && r.status !== 'pending') await tg('editMessageText', { chat_id: chat, message_id: r.tg_msg, text: srText(r, !!b.sync) });
+      return json({ ok: true });
+    }
+    if (action === 'fin_test') { // проверка темы финансов: отчёт за сегодня на текущий момент (только владелец — в отчёте деньги сайта)
+      const { data: st } = await db.from('staff').select('role').eq('uid', admin.id).maybeSingle();
+      if (st?.role !== 'owner') return json({ error: 'forbidden' }, 403);
+      const { data: c } = await db.from('bot_cfg').select('k, v').in('k', ['fin_chat', 'fin_topic']);
+      const cf = Object.fromEntries((c || []).map(x => [x.k, x.v]));
+      if (!cf.fin_chat) return json({ error: 'тема финансов не привязана' }, 400);
+      const { data: r, error } = await db.rpc('bot_fin_day', { p_day: new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' }) });
+      if (error || !r) return json({ error: error?.message || 'нет данных — выполните supabase/fin_tg.sql' }, 500);
+      const s = await tg('sendMessage', { chat_id: Number(cf.fin_chat), ...(cf.fin_topic ? { message_thread_id: Number(cf.fin_topic) } : {}), text: reportText(r, true).slice(0, 4096), disable_web_page_preview: true });
+      if (!s.ok) return json({ error: s.description || 'telegram error' }, 502);
       return json({ ok: true });
     }
     if (action === 'wd_test') { // проверка темы выводов: сообщение с кнопками (заявка №0 — ничего не меняет)
