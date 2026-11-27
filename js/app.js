@@ -5101,7 +5101,16 @@ function c2Mount(c) {
     const camNode = gl.scene.getObjectByName('CAM_MAIN');
     const mixer = new THREE.AnimationMixer(gl.scene), action = mixer.clipAction(gl.animations[0]);
     action.play(); action.paused = true;
-    const setFrame = f => { action.time = f / C2D.FPS; mixer.update(0); dustFrame(f); dirty = true; };
+    // крышка (владелец 27.11: «как будто два раза открывается»): в анимации из Blender она распахивается до 108°, откидывается
+    // назад до 94° и снова поднимается — выглядело как второе открытие. Начиная с кадра 134 крышку ведём сами: одно плавное
+    // движение от закрытой (кадр 134) до открытой (кадр 168) за ~8 кадров, без отскока. Общая для всех 3D-кейсов (узел PV_LID).
+    const lidN = gl.scene.getObjectByName('PV_LID'), LID0 = 134; let lidA = null, lidB = null;
+    const setFrame = f => {
+      action.time = f / C2D.FPS; mixer.update(0);
+      if (lidA && f > LID0) { const t = Math.min(1, (f - LID0) / 8); lidN.quaternion.slerpQuaternions(lidA, lidB, 1 - (1 - t) ** 3); }
+      dustFrame(f); dirty = true;
+    };
+    if (lidN) { setFrame(LID0); const a = lidN.quaternion.clone(); setFrame(C2D.OPEN[1]); lidB = lidN.quaternion.clone(); lidA = a; }
     setFrame(1);
     // где низ кейса в полном кадре 16:9 (0 — верх, 1 — низ): кейс в покое (кадр 75) через камеру CAM_MAIN
     const caseBot = (() => {
@@ -5149,7 +5158,7 @@ function c2Mount(c) {
         const f = Math.min(seg.b, seg.a + (now - seg.t0) / 1000 * C2D.FPS * seg.speed);
         setFrame(f); if (f >= seg.b) { const r = seg.res, drop = seg.b === C2D.DROP[1]; seg = null; r(); if (drop && C2I) S.idle = now; }
       } else if (C2I && S.idle) setFrame(C2I[0] + ((now - S.idle) / 1000 * C2D.FPS * 0.5) % (C2I[1] - C2I[0])); // кейс стоит — кадры петли покоя по кругу (вдвое медленнее)
-      if (dirty && now - lastD >= (GFX.low ? 31 : 14)) { dirty = false; lastD = now; draw(); } // два прохода на кадр — не чаще ~60 (экономная 30) раз в секунду
+      if (dirty && now - lastD >= (GFX.low || (!seg && S.idle) ? 31 : 14)) { dirty = false; lastD = now; draw(); } // кейс просто стоит (петля покоя) — хватает ~30 к/с; два прохода на кадр — не чаще ~60 (экономная 30) раз в секунду
       requestAnimationFrame(tick);
     };
     let lastD = 0;
