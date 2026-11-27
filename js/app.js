@@ -1488,6 +1488,40 @@ const CASES = [
     ],
   },
   {
+    // «ИМБИРНЫЙ ПРЯНИК» (27.11.2026, владелец): новогодний 3D-кейс, раздел «НОВЫЙ 2027». Blender (ветка blender):
+    // blender/scenes/case-ginger.blend → assets/cs2case/case-ginger.glb (выгрузка blender/scripts/case_export_glb_ginger.py):
+    // корпус — бутылочный изумруд, золото, пряник с тростью-леденцом, еловые ветки с ягодами и снегом, внутри красный бархат;
+    // снегопад и сугроб на крышке (SN_*), как у «Карамельного яблока». Картинка витрины — blender/scripts/case_card.py (кадр 75).
+    // Состав (владелец): 299 ₽, окупаемость 90% вместе с гарантом, самый дешёвый скин не меньше 120 ₽ (сейчас 141 ₽), «часто пролетает красное»:
+    // 53 позиции + подарок (+2 бесплатных открытия, 1 из 20); 14 красных с весом ×4 — выпадают ~1 из 63; в ленте красные ×4,5 (fwR) — ~1 карточка из 4.
+    id: 'ginger', name: 'ИМБИРНЫЙ ПРЯНИК', price: 299, tag: 'Новый год', tagIc: 'gift', rtp: 0.9, ui: 'cs2',
+    pity: true, // гарант 75/150; шансы считаются вместе с гарантом (pityEv) — окупаемость 90%
+    giftP: 538, // подарок «+2 открытия» = 2 × 299 × 0,9 (у яблока своя цена в SK[GIFT_N])
+    fwR: { covert: 4.5 }, // лента прокрутки: красные пролетают в 4,5 раза чаще (только вид ленты, шанс выпадения не меняется)
+    c2glb: 'case-ginger.glb', c2p: { sun: 7, env: .18, exposure: .84, contrast: 1.01, saturate: 1.3, shadow: .79, fill: .1, dust: 4 }, // свет как у яблока, насыщенность ниже (изумруд)
+    sub: 'Новогодний кейс с гарантом и подарками: 53 позиции от 141 ₽ и подарок — ещё 2 открытия бесплатно (1 из 20), красные пролетают часто. Ледяной уголь, Candy Apple, Spider Lily, Nightmare; за «Засекречено» — Aphrodite, Head Shot, Temukau, Printstream, Wildfire, Nightwish, Kill Confirmed. Джекпоты — M4A1-S и Five-SeveN | Hyper Beast, ножи Kukri | Crimson Web и Navaja | Tiger Tooth, перчатки Moto | Finish Line.',
+    th: { a: '#2fb37a' }, img: 'assets/case-ginger.webp', // рендер 3D-модели (холст, ширина и поля как у CS2 CASE)
+    exact: [
+      ['M4A1-S | Solitude', 'FT', 1], ['P250 | Franklin', 'FT', 1], ['CZ75-Auto | Red Astor', 'MW', 1], ['Glock-18 | Candy Apple', 'FN', 1],
+      ['Desert Eagle | Trigger Discipline', 'MW', 1], ['USP-S | Ticket to Hell', 'FN', 1], ['M4A1-S | Emphorosaur-S', 'FN', 1],
+      ['Tec-9 | Remote Control', 'WW', 1], ['Dual Berettas | Twin Turbo', 'BS', 1], ['Desert Eagle | Heat Treated', 'MW', 1],
+      ['USP-S | Black Lotus', 'MW', 1], ['Zeus x27 | Olympus', 'FT', 1], ['AWP | Duality', 'FT', 1], ['M4A4 | Evil Daimyo', 'FT', 1],
+      ['USP-S | Jawbreaker', 'FT', 1], ['P250 | Visions', 'FT', 1], ['MP9 | Food Chain', 'FT', 1], ['Sawed-Off | Kiss♥Love', 'FT', 1],
+      ['Galil AR | Chromatic Aberration', 'FT', 1], ['USP-S | Cortex', 'FT', 1], ['M4A4 | Tooth Fairy', 'FT', 1], ['Glock-18 | Vogue', 'FT', 1],
+      ['SG 553 | Candy Apple', 'FT', 1], ['AK-47 | Slate', 'FT', 1], ['AK-47 | Ледяной уголь', 'FT', 1], ['Dual Berettas | Melondrama', 'FT', 1],
+      ['M4A4 | Spider Lily', 'WW', 1], ['FAMAS | Rapid Eye Movement', 'FT', 1], ['MAG-7 | Justice', 'FT', 1], ['M4A1-S | Nightmare', 'BS', 1],
+      ['AK-47 | Ледяной уголь', 'MW', 1], ['Nova | Hyper Beast', 'FT', 1], ['AWP | Elite Build', 'FT', 1], ['M4A1-S | Leaded Glass', 'FT', 1],
+      ['AWP | Fever Dream', 'FT', 1], ['Glock-18 | Snack Attack', 'FT', 1], ['AK-47 | Aphrodite', 'BS', 4], ['AK-47 | Aphrodite', 'FT', 4],
+      ['AK-47 | Head Shot', 'BS', 4], ['M4A4 | Temukau', 'FT', 4], ['MP7 | Bloodsport', 'FT', 4], ['USP-S | Printstream', 'BS', 4],
+      ['Desert Eagle | Printstream', 'FT', 4], ['MAC-10 | Stalker', 'FT', 4], ['AWP | Wildfire', 'FT', 4], ['AK-47 | Nightwish', 'FT', 4],
+      ['MP9 | Starlight Protector', 'FT', 4], ['USP-S | Kill Confirmed', 'FT', 4], ['M4A1-S | Hyper Beast', 'FT', 4],
+      ['Five-SeveN | Hyper Beast', 'FT', 4], ['★ Kukri Knife | Crimson Web', 'BS', 0.3], ['★ Navaja Knife | Tiger Tooth', 'FN', 0.3],
+      ['★ Moto Gloves | Finish Line', 'FT', 0.3],
+      // подарок: +2 бесплатных открытия — 1 из 20, как у «Карамельного яблока» (владелец 27.11); ценность для окупаемости — giftP
+      [GIFT_N, '', 0.05],
+    ],
+  },
+  {
     // «КАРАМЕЛЬНОЕ ЯБЛОКО» (20.11.2026, владелец): новогодний ивентовый 3D-кейс, раздел «НОВЫЙ 2027». Blender (ветка blender):
     // blender/scenes/case-newyear.blend → assets/cs2case/case-apple.glb (выгрузка blender/scripts/case_export_glb_newyear.py):
     // корпус «карамельное яблоко» под лаком, ремни — зелёная крокодиловая кожа, золотой лавровый венок с рубинами, снежный налёт;
@@ -1966,7 +2000,7 @@ function pitySetApply(c, S) {
       });
       c.items = [...new Set(c.items)];
       // цены меняются (синхронизация с Lis-Skins) — таблицу наклоняем (шанс × p^t), чтобы окупаемость осталась c.rtp
-      const ps = c.items.map(n => SK[n].p), base = c.items.map(n => c.exactCh[n]);
+      const ps = c.items.map(n => SK[n].c === 'gift' && c.giftP ? c.giftP : SK[n].p), base = c.items.map(n => c.exactCh[n]); // giftP — ценность подарка у своего кейса (2 × цена × rtp)
       const fx = c.items.map(n => SK[n].c === 'gift' || !!SK[n].fx), fm = base.reduce((a, b, i) => a + (fx[i] ? b : 0), 0); // подарок — шанс как задан
       const tilt = t => { const w = base.map((b, i) => fx[i] ? 0 : b * ps[i] ** t), s = w.reduce((a, b) => a + b, 0); return w.map((x, i) => fx[i] ? base[i] : x / s * (1 - fm)); };
       // у кейса с гарантом считаем окупаемость вместе с гарантом — иначе он поднял бы её с 80% до ~97%
@@ -2016,12 +2050,21 @@ function pitySetApply(c, S) {
     (c.ultra || []).filter(n => SK[n]).forEach(n => { c.items.push(n); c.fix[n] = c.ultraCh || Math.min(.00001, c.price * .01 / SK[n].p); });
   });
 }
+// лента прокрутки (владелец 27.11, «ИМБИРНЫЙ ПРЯНИК»): у кейса fwR = { редкость: множитель } — такие карточки пролетают в ленте чаще.
+// Считается отдельный вес ленты sw; шанс выпадения ch и fw (живая лента и прочее) не меняются.
+function fwBoost(c) {
+  if (!c.fwR) return;
+  c.items.forEach(s => { s.sw = s.fw * (c.fwR[s.r] || 1); });
+  const t = c.items.reduce((a, s) => a + s.sw, 0); c.items.forEach(s => { s.sw /= t; });
+}
+const stripKey = c => c && c.fwR ? 'sw' : 'fw';
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
 CASES.forEach(c => {
   const items = c.items.map(n => { if (!SK[n]) throw new Error('Нет скина: ' + n); return SK[n]; });
   const ch = c.exact ? items.map(s => c.exactCh[s.name]) : c.bonusSet ? solveBonus(items, c.price * c.rtp, c.fix) : c.kh ? solveWinKh(items, c.price * c.rtp, c.price, c.win, c.kh, c.fix) : c.win ? solveWin(items, c.price * c.rtp, c.price, c.win, c.fix) : solveChances(items, c.price * c.rtp);
   const fwRaw = ch.map(x => Math.sqrt(x)), fs = fwRaw.reduce((a, b) => a + b, 0);
   c.items = items.map((s, i) => ({ ...s, ...(c.exactR && c.exactR[s.name] ? { r: c.exactR[s.name] } : {}), ch: ch[i], fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p);
+  fwBoost(c);
   c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
   c.show = c.items.slice(0, 3).map(s => s.name);
 });
@@ -2586,7 +2629,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-apple.webp':1.3018,'assets/case-elite2.webp':1.3018,'assets/case-major3.webp':1.3018,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
+const CASE_AR = {'assets/case-ginger.webp':1.3018,'assets/case-apple.webp':1.3018,'assets/case-elite2.webp':1.3018,'assets/case-major3.webp':1.3018,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
 // картинки из админки (хранилище Supabase) весят 2–3 МБ: для уже загруженных — лёгкие копии в assets/cc (900 px и 440 px для витрины);
 // новые загрузки админка сама сжимает в *.opt.webp + *.opt-s.webp (admImgPack). Неизвестная картинка — как есть.
@@ -3065,7 +3108,7 @@ const casePrice = (c, v) => c.rc ? `<span class="prc prc-rc">${rc(v)}<i class="p
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
-  { id: 'ny2027', wm: '2027', t: 'НОВЫЙ 2027', sub: 'Новогодние кейсы', ic: 'gift', a: '#e23a3a', ids: ['apple'], fresh: true }, // новогодний раздел (владелец 20.11); fresh — встаёт первым, даже если в админке сохранён старый список разделов
+  { id: 'ny2027', wm: '2027', t: 'НОВЫЙ 2027', sub: 'Новогодние кейсы', ic: 'gift', a: '#e23a3a', ids: ['apple', 'ginger'], fresh: true }, // новогодний раздел (владелец 20.11); fresh — встаёт первым, даже если в админке сохранён старый список разделов
   { id: 'bmw5dfjvu', wm: 'NEW', t: 'CS2 CASE', sub: '', ic: 'star', a: '#f3c14f', ids: ['cs2', 'major', 'elite'] },
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
@@ -3081,7 +3124,7 @@ const CASE_BLOCKS = [
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['apple', 'elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
+const NEW_CASES = ['ginger', 'apple', 'elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
 /* раздел, порядок и метки кейса: по умолчанию — из кода (CASE_BLOCKS, NEW_CASES, HOME_POP); админ-панель может поменять (site_cfg) */
 const DEF_BLOCK = {}, DEF_ORD = {};
 CASE_BLOCKS.forEach(b => b.ids.forEach((id, i) => { DEF_BLOCK[id] = b.id; DEF_ORD[id] = i; }));
@@ -3110,6 +3153,7 @@ function caseSetItems(c, list) { // [{ n, ch }] → предметы кейса,
   if (its.length < 2) return false;
   const tot = its.reduce((a, x) => a + x.ch, 0), fwRaw = its.map(x => Math.sqrt(x.ch / tot)), fs = fwRaw.reduce((a, b) => a + b, 0);
   c.items = its.map((x, i) => ({ ...x.s, ...(c.exactR && c.exactR[x.s.name] ? { r: c.exactR[x.s.name] } : {}), ch: x.ch / tot, fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p);
+  fwBoost(c);
   c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
   c.show = c.items.slice(0, 3).map(s => s.name);
   return true;
@@ -4528,7 +4572,7 @@ function pageCase(id) {
   if (/^b-/.test(id || '') && !caseById(id)) { setTimeout(() => { location.hash = st.user ? '#/profile' : '#/build'; }); return ''; }
   const c = caseById(id); if (!c || !caseSeen(c)) return page404();
   if (c2Like(c) && window.innerWidth >= 900) return pageCaseCs2(c); // вид как в CS2 (BLAST) — у всех кейсов, кроме «старых»; только на компьютере
-  const ghost = Array.from({ length: 12 }, () => { const s = roll(c.items, 'fw'); return `<div class="gcard r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><div class="gc-w">${esc(s.w)}</div><div class="gc-f">${esc(s.f)}</div></div>`; }).join('');
+  const ghost = Array.from({ length: 12 }, () => { const s = roll(c.items, stripKey(c)); return `<div class="gcard r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><div class="gc-w">${esc(s.w)}</div><div class="gc-f">${esc(s.f)}</div></div>`; }).join('');
   const embers = Array.from({ length: 44 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 7)}s;--x:${rand(-60, 60)}px;--s:${rand(.5, 1.3)}"></i>`).join('');
   // своя рамка рулетки: у кейса (c.frame) или у всего раздела «В гостях у бабушки»
   const fr = c.frame || (caseBlockId(c) === 'babushka' ? { src: 'assets/frame-babushka.webp', cls: 'f-babushka', nofx: true } : null);
@@ -4720,7 +4764,7 @@ async function openCase(c, demo, ok, gift, free) { // ok — подтвержд�
   rl.dataset.n = n;
   rl.classList.toggle('vert', n > 5);
   const vert = n > 5; // много кейсов — вертикальные барабаны в ряд
-  box.innerHTML = wins.map(w => `<div class="strip${vert ? ' v' : ''}"><div class="track">${Array.from({ length: STRIP_LEN }, (_, i) => rcard(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT)).join('')}</div></div>`).join('');
+  box.innerHTML = wins.map(w => `<div class="strip${vert ? ' v' : ''}"><div class="track">${Array.from({ length: STRIP_LEN }, (_, i) => rcard(i === WIN_AT ? w : roll(c.items, stripKey(c)), i === WIN_AT)).join('')}</div></div>`).join('');
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   // 1) отщёлкивание замка — картинка кейса трясётся, лента ещё не крутится
   rl.classList.add('unlocking'); if (c.snd) Snd.play(c.snd.go, .2); else Snd.lock(); // звуки «БАБА ЧАЙ» — потише
@@ -5650,7 +5694,7 @@ async function cs2Spin(c, wins, given, demo) {
   $('.c2p').classList.add('c2-go'); // ряд предметов плавно убирается, лупа — по центру экрана
   // 22.11 (оптимизация): картинки ленты грузятся сразу, а не «лениво» на лету (въезжали в кадр недокачанными — рывки);
   // c2-near — карточки рядом с выигрышем: только их затемняет конец прокрутки (в лупе видно 2–3, раньше фильтр включался у всех 154)
-  const cards = Array.from({ length: STRIP_LEN }, (_, i) => c2Tile(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT ? 'is-win' : Math.abs(i - WIN_AT) <= 4 ? 'c2-near' : '')).join('').replace(/ loading="lazy"/g, ' decoding="async"');
+  const cards = Array.from({ length: STRIP_LEN }, (_, i) => c2Tile(i === WIN_AT ? w : roll(c.items, stripKey(c)), i === WIN_AT ? 'is-win' : Math.abs(i - WIN_AT) <= 4 ? 'c2-near' : '')).join('').replace(/ loading="lazy"/g, ' decoding="async"');
   // туман вокруг лупы → лента снаружи (размыта) → лупа (крупно) → край лупы (ещё крупнее — преломление) → стекло и черта
   box.innerHTML = `<i class="c2-fog" aria-hidden="true"></i><div class="c2-band c2-out"><div class="track">${cards}</div></div>
     <div class="c2-lens"><div class="c2-lens-in"><div class="c2-band"><div class="track">${cards}</div></div></div></div>
