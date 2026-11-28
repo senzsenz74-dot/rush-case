@@ -2,7 +2,7 @@
    1) качает цены market.csgo (₽: минимальная цена лота и число лотов — prices/RUB.json) и русские названия (class_instance, кэш tools/.cache)
    2) цена на сайте = цена маркета × MUL (1.1: вывод покупается на маркете дешевле, чем стоит на сайте — владелец 18.11.2026).
       Нет на маркете или цена подозрительная (меньше 3 лотов и скачок больше чем в 2,5 раза) — остаётся старая цена (у игроков в инвентаре должна продаваться)
-   3) кейсы: позиция, у которой цена сдвинулась больше чем на SWAP (10%) или которой нет на маркете, меняется на предмет с новой ценой ≈ её старой цене
+   3) кейсы: позиция, у которой цена сдвинулась больше чем на SWAP (10%) или которой нет на маркете, или у которой меньше MIN_LOTS (10) лотов, меняется на предмет с новой ценой ≈ её старой цене
       (по порядку: тот же скин в другом износе → тот же скин StatTrak/обычный/сувенир → то же оружие той же редкости → то же оружие → та же категория и редкость;
       в кейсе одного оружия (AWP, AK-47…) — только то же оружие). Шанс позиции не меняется. Не нашлось замены — позиция остаётся, шансы подправит сайт (наклон в js/app.js)
       — встроенные кейсы (exact) и PITY_SETS — правятся прямо в js/app.js
@@ -12,7 +12,7 @@
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..'), JS = path.join(ROOT, 'js'), CACHE = process.env.RC_CACHE || path.join(__dirname, '.cache');
 const DRY = process.argv.includes('--dry');
-const MUL = 1.1, SWAP = 0.10, MIN_LOTS = 3;
+const MUL = 1.1, SWAP = 0.10, MIN_LOTS = 10; // MIN_LOTS: в кейсах только предметы, которых на маркете от 10 лотов (владелец 28.11: редкие сувениры по 1–6 лотов давали завышенную цену)
 
 const SRC = {
   mkt: 'https://market.csgo.com/api/v2/prices/RUB.json',
@@ -113,10 +113,10 @@ const q1 = s => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`; // стр�
     for (const r of rows) {
       const x = CAT.get(r.name); tot.pos++;
       const k = x.np / x.p - 1;
-      if (x.ok && Math.abs(k) <= SWAP) continue;
+      if (x.ok && Math.abs(k) <= SWAP && x.vol >= MIN_LOTS) continue; // меньше MIN_LOTS лотов — тоже меняем
       tot.need++;
       const fc = face(x), y = pick(x, used, usedEn, lockW && wk(x) === lockW, fc);
-      const was = `${x.name}  ${x.p} → ${x.ok ? x.np : 'нет на маркете'}${x.ok ? ` (${k > 0 ? '+' : ''}${(k * 100).toFixed(0)}%)` : ''}`;
+      const was = `${x.name}  ${x.p} → ${x.ok ? x.np : 'нет на маркете'}${x.ok ? ` (${k > 0 ? '+' : ''}${(k * 100).toFixed(0)}%, лотов ${x.vol})` : ''}`;
       if (!y) { tot.keep++; out.push(`  оставлен${fc ? ' (джекпот/витрина)' : ''}  ${was}`); continue; }
       tot.swap++; used.add(y.name); if (y.en) usedEn.add(y.en); r.put(y); r.name = y.name;
       out.push(`  ${was}\n      ⇒ ${y.name}  ${y.np} ₽`);
