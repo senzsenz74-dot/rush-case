@@ -5464,7 +5464,7 @@ body.pg-cases::after{background:radial-gradient(120% 85% at 50% 0%,rgba(6,8,12,.
 .ix .case-art.has-img .ca-img{position:absolute;left:50%;top:50%;width:auto;height:100%;max-width:100%;object-fit:contain;transform:translate(-50%,-50%);animation:none;
   filter:drop-shadow(0 8px 10px rgba(0,0,0,.45));transition:transform .5s cubic-bezier(.2,.8,.2,1),filter .3s}
 .ix .ca-imgbox .cc-new,.ix .ca-imgbox .cc-hit,.ix .ca-imgbox .cc-lock{display:none}
-.ix-info{position:relative;display:flex;flex-direction:column;gap:7px;padding:12px 14px 13px;background:rgba(60,60,60,.8)}
+.ix-info{position:relative;display:flex;flex-direction:column;gap:7px;padding:12px 14px 13px;background:rgba(36,36,38,.85)}
 .ix-name{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:500 15px/1.2 'Rubik',var(--ff);color:#fff}
 .ix-price{display:block;font:500 15px/1.2 'Rubik',var(--ff);font-variant-numeric:tabular-nums;color:#fff}
 .ix-fx{position:absolute;inset:0;z-index:3;overflow:hidden;pointer-events:none;background:radial-gradient(70% 60% at var(--mx,50%) var(--my,30%),rgba(255,255,255,.24),rgba(255,255,255,0) 70%);opacity:0;transition:opacity .35s}
