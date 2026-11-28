@@ -4422,25 +4422,7 @@ function mountCases() {
     const d = $('#ixPrice'); if (!d || e.target.closest('#ixPrice')) return;
     d.classList.remove('open'); const m = $('.ix-ddm', d); if (m) m.hidden = true; const b = $('.ix-ddb', d); if (b) b.setAttribute('aria-expanded', 'false');
   });
-  // плитка наклоняется за мышью, блик там, где курсор (только мышь, без «меньше движения»)
-  if (!calm && matchMedia('(hover:hover) and (pointer:fine)').matches) {
-    let raf = 0, tgt = null, ev = null;
-    const clear = t => ['--rx', '--ry', '--px', '--py'].forEach(p => t.style.removeProperty(p));
-    const paint = () => {
-      raf = 0; if (!tgt || !ev) return;
-      const r = tgt.getBoundingClientRect(), x = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), y = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
-      const s = tgt.style;
-      s.setProperty('--mx', (x * 100).toFixed(1) + '%'); s.setProperty('--my', (y * 100).toFixed(1) + '%');
-      s.setProperty('--ry', ((x - .5) * 12).toFixed(2) + 'deg'); s.setProperty('--rx', ((.5 - y) * 8).toFixed(2) + 'deg');
-      s.setProperty('--px', ((x - .5) * 8).toFixed(1) + 'px'); s.setProperty('--py', ((y - .5) * 6).toFixed(1) + 'px');
-    };
-    root.addEventListener('pointermove', e => {
-      const t = e.target.closest('.ix-c');
-      if (t !== tgt) { if (tgt) clear(tgt); tgt = t; }
-      ev = e; if (tgt && !raf) raf = requestAnimationFrame(paint);
-    });
-    root.addEventListener('pointerleave', () => { if (tgt) clear(tgt); tgt = null; });
-  }
+  // наклон плитки за мышью и сдвиг кейса убраны (28.11, владелец: «убери вообще 3д эффект кейсов»)
   // видео-фон особых кейсов играет, только когда блок на экране; при «меньше движения» — неподвижный первый кадр
   const spv = $('.ix-spv', root);
   if (spv && !calm && 'IntersectionObserver' in window) {
