@@ -2,9 +2,9 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<!-- защита CSP (25.11): скрипты только свои и с cdn.jsdelivr.net / cdnjs, связь — только своя база Supabase. Встроенные <script> и onclick="…" запрещены
+<!-- защита CSP (25.11): скрипты только свои и с cdn.jsdelivr.net / cdnjs, связь — только своя база Supabase; + Яндекс Метрика (mc.yandex.ru / .com, yastatic.net, кадры blob: для Вебвизора — 28.11). Встроенные <script> и onclick="…" запрещены
      (кроме importmap — его отпечаток sha256 ниже: поменяли importmap → пересчитать: node tools/csp-hash.js). Новый внешний сервис — дописать сюда -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'wasm-unsafe-eval' 'sha256-UBv+PPJv6fMSYrBr9qlyODnQMZKK1FIUUEOSBh0tVdE='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https://gkeexoyrxnsarosymdyp.supabase.co wss://gkeexoyrxnsarosymdyp.supabase.co https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mc.yandex.ru https://yastatic.net 'wasm-unsafe-eval' 'sha256-UBv+PPJv6fMSYrBr9qlyODnQMZKK1FIUUEOSBh0tVdE='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https://gkeexoyrxnsarosymdyp.supabase.co wss://gkeexoyrxnsarosymdyp.supabase.co https://cdn.jsdelivr.net https://mc.yandex.ru https://mc.yandex.com wss://mc.yandex.ru wss://mc.yandex.com; worker-src 'self' blob:; frame-src blob: https://mc.yandex.ru https://mc.yandex.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="1plat" content="2678"><!-- подтверждение сайта для платёжки 1plata -->
   <meta name="enot" content="59e42050"><!-- подтверждение сайта для платёжки Enot -->
@@ -12,7 +12,8 @@
   <!-- подтверждение сайта для платёжки Prime Payments -->
   <!--prime:f8f8e8e5-->
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="js/boot.js?v=202611281037"></script>
+<script src="js/boot.js?v=202611281102"></script>
+<script src="js/metrika.js?v=202611281102"></script><!-- Яндекс Метрика 114744833 (28.11) -->
 <title>RUSH CASE — открытие кейсов CS2</title>
 <meta name="description" content="RUSH CASE — открывай кейсы CS2, апгрейди скины, подписывай контракты и забирай дроп в Steam.">
 <meta name="google-site-verification" content="PogfRQ8K29AhdV5098ncUv9rnkWciQpdrLpvy4grGEA"><!-- подтверждение сайта: Google Search Console (28.11) -->
@@ -29,13 +30,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800;900&family=Barlow+Semi+Condensed:wght@500;600&family=Ubuntu+Condensed&family=Sofia+Sans+Extra+Condensed:wght@500;700;800&family=Oswald:wght@400;500&family=Rubik:wght@400;500&family=Sofia+Sans+Semi+Condensed:ital,wght@0,500;0,600;0,700;1,800&family=PT+Mono&family=Caveat:wght@500;600;700&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/logo.webp">
 <link rel="preload" as="image" href="assets/rcoin.webp">
-<link rel="stylesheet" href="css/style.css?v=202611281037">
-<link rel="stylesheet" href="css/pickem.css?v=202611281037">
+<link rel="stylesheet" href="css/style.css?v=202611281102">
+<link rel="stylesheet" href="css/pickem.css?v=202611281102">
 </head>
 <body>
 <div id="rot" role="alert"><div class="rot-in"><img src="assets/logo.webp" alt="RUSH CASE"><i class="rot-ph" aria-hidden="true"><i></i></i><b>Поверните телефон</b><span>RUSH CASE работает в горизонтальном режиме</span></div></div>
 <div id="intro" aria-hidden="true"><canvas></canvas></div>
-<script src="js/intro-boot.js?v=202611281037"></script>
+<script src="js/intro-boot.js?v=202611281102"></script>
 
 <div class="live" id="live">
   <div id="liveUser"></div>
@@ -57,9 +58,10 @@
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
-<script src="js/skins.js?v=202611281037"></script>
-<script src="js/wears.js?v=202611281037"></script>
-<script src="js/extra.js?v=202611281037"></script>
-<script src="js/app.js?v=202611281037"></script>
+<script src="js/skins.js?v=202611281102"></script>
+<script src="js/wears.js?v=202611281102"></script>
+<script src="js/extra.js?v=202611281102"></script>
+<script src="js/app.js?v=202611281102"></script>
+<noscript><div><img src="https://mc.yandex.ru/watch/114744833" style="position:absolute; left:-9999px;" alt=""></div></noscript><!-- Яндекс Метрика без JS -->
 </body>
 </html>
