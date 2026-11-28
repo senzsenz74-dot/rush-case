@@ -5376,7 +5376,7 @@ body:has(.sw-panel.in) .sw-fab{color:#84d9fd;background-image:linear-gradient(18
 
 /* ===== страница «Кейсы» (владелец 11.11, по его примерам): блоки «Новые», «Авторские», «Особые» (видео-фон), дальше разделы ===== */
 body.pg-cases::before{background-image:url("../assets/bg-cases.webp")}
-body.pg-cases::after{background:radial-gradient(120% 85% at 50% 0%,rgba(6,8,12,.12),rgba(6,8,12,.5) 75%),linear-gradient(180deg,rgba(6,8,12,.22),rgba(6,8,12,.5))}
+body.pg-cases::after{background:radial-gradient(130% 90% at 50% 30%,rgba(10,14,24,.3),rgba(4,6,10,.88) 82%),linear-gradient(180deg,rgba(12,18,32,.58),rgba(4,6,10,.78))} /* 28.11 владелец: «сильно светло» — карта та же, но заметно темнее, холодный синий оттенок и тёмные края, чтобы кейсы были ярче фона */
 .ixp{--ixg:clamp(16px,2.2vw,36px);padding:0 var(--ixg) 10px}
 
 /* строка вкладок: стекло под шапкой, не уезжает при прокрутке; не влезли — края растворяются, по бокам стрелки */
