@@ -492,7 +492,7 @@ function pkPassOn() {
 /* ---------- правила и таблица лидеров ---------- */
 function pkRules() {
   const [lo, hi] = pkRw();
-  modal(`<div><header class="ga-mh" style="--gl:#84d9fd"><small>Пикем · PGL Major Singapore 2026</small><h3>Как это работает</h3></header>
+  const m = modal(`<div><header class="ga-mh" style="--gl:#84d9fd"><small>Пикем · PGL Major Singapore 2026</small><h3>Как это работает</h3></header>
     <ol class="ga-ol">
       <li><i>1</i><span>Купите пропуск за ${moneyN(pkPrice())} ₽ или выбейте его в кейсе MAJOR — он действует на весь Major (24 ноября — 13 декабря).</span></li>
       <li><i>2</i><span>«Сетка»: перетащите команды этапа в «3:0», «3:1 3:2 прошли» и «0:3 выбыли» (10 команд) и нажмите «Поставить PICK’EM». Менять можно до первого матча этапа.</span></li>
@@ -501,7 +501,8 @@ function pkRules() {
       <li><i>5</i><span>Очки: по 1 за каждый верный прогноз. У кого больше всех очков к концу Major, тот получает главный приз. При равенстве выше тот, у кого больше верных победителей, затем — кто раньше сделал свои прогнозы.</span></li>
       <li><i>6</i><span>Следующий этап открывается, когда становятся известны его пары. Медаль пропуска лежит в инвентаре: показ у аватарки включается там же.</span></li>
     </ol>
-    <footer class="ga-mf"><button class="c2-btn c2-green" type="button" onclick="closeModal()">Понятно</button></footer></div>`, 'm-ga m-pk');
+    <footer class="ga-mf"><button class="c2-btn c2-green pk-ok" type="button">Понятно</button></footer></div>`, 'm-ga m-pk');
+  $('.pk-ok', m).onclick = closeModal; // без onclick в разметке — его запрещает защита CSP (index.html)
 }
 function pkTopWin() {
   const top = (PK.s && PK.s.top) || [], me = PK.s && PK.s.me;
@@ -760,6 +761,8 @@ const RAR = {
 const WEAR = { FN: ['Прямо с завода', 'Factory New'], MW: ['Немного поношенное', 'Minimal Wear'], FT: ['После полевых испытаний', 'Field-Tested'], WW: ['Поношенное', 'Well-Worn'], BS: ['Закалённое в боях', 'Battle-Scarred'] };
 const WEAR_MAIN = ['FT', 'MW', 'WW', 'FN', 'BS']; // какой износ стоит за названием без износа (старые предметы в инвентаре, списки кейсов)
 const SK = {}, ITEMS = [], VARIANTS = {};
+// предметы, которых на market.csgo меньше 10 лотов: кейсы, что набирают состав сами (buildSet), их не берут; список ведёт ночной робот цен (js/wears.js, tools/market-bot.js)
+const LOWLOT = new Set(window.LOWLOT || []);
 const addItem = s => { SK[s.name] = s; ITEMS.push(s); };
 function addWears(base, wears, en) {
   const qs = Object.keys(WEAR).filter(q => wears[q]);
@@ -869,28 +872,28 @@ const CASES = [
     th: { a: '#ff6fb5' }, img: 'assets/case-cotton.webp',
     // пересборка 02.11.2026: 67 позиций от 500 ₽ (розовые, неоновые, радужные); ×4,5+ цены — джекпоты (ножи Fade/Мраморный градиент, перчатки Порок) (окупаемость 79.2% и «дороже кейса» 17.3% — с удачей кейса из админки)
     exact: [
-      ['AWP | Поп-AWP', 'FT', 0.06779], ['Sawed-Off | Devourer', 'WW', 0.0637], ['FAMAS | Macabre', 'MW', 0.05684],
-      ['P250 | Contamination', 'FN', 0.05587], ['Souvenir AWP | Black Nile', 'MW', 0.05573], ['MP7 | Abyssal Apparition', 'MW', 0.04957],
-      ['StatTrak™ MAC-10 | Carnivore', 'FN', 0.04832], ['USP-S | Cortex', 'MW', 0.043], ['CZ75-Auto | Hydraulics', 'FN', 0.04101],
-      ['AK-47 | The Outsiders', 'FT', 0.03898], ['StatTrak™ Tec-9 | Jambiya', 'FN', 0.03512], ['StatTrak™ PP-Bizon | Blue Streak', 'MW', 0.03146],
-      ['Glock-18 | Catacombs', 'FN', 0.03002], ['Galil AR | Shattered', 'WW', 0.02911], ['MP9 | Rose Iron', 'FN', 0.02675],
-      ['StatTrak™ SSG 08 | Ghost Crusader', 'MW', 0.02558], ['Dual Berettas | Black Limba', 'MW', 0.02339], ['USP-S | Stainless', 'FT', 0.02142],
-      ['StatTrak™ CZ75-Auto | Tread Plate', 'MW', 0.01978], ['P2000 | Space Race', 'BS', 0.01829], ['AUG | Random Access', 'FN', 0.01822],
-      ['MAC-10 | Aloha', 'WW', 0.01602], ['Dual Berettas | Balance', 'FN', 0.0158], ['StatTrak™ AWP | Mortis', 'BS', 0.01455],
-      ['StatTrak™ Galil AR | Shattered', 'BS', 0.01324], ['StatTrak™ AK-47 | Slate', 'BS', 0.01287], ['StatTrak™ UMP-45 | Momentum', 'MW', 0.01207],
-      ['StatTrak™ UMP-45 | Momentum', 'BS', 0.01123], ['StatTrak™ AUG | Death by Puppy', 'MW', 0.01033], ['Souvenir SG 553 | Damascus Steel', 'BS', 0.009574],
-      ['StatTrak™ M4A4 | Evil Daimyo', 'FT', 0.008664], ['StatTrak™ CZ75-Auto | Tigris', 'FN', 0.008452], ['MAC-10 | Commuter', 'MW', 0.00822],
-      ['AK-47 | Nouveau Rouge', 'FT', 0.007304], ['P90 | Nostalgia', 'FN', 0.00684], ['StatTrak™ Dual Berettas | Black Limba', 'MW', 0.006226],
-      ['AWP | Fever Dream', 'BS', 0.005936], ['StatTrak™ SG 553 | Wave Spray', 'MW', 0.005774], ['StatTrak™ P250 | Epicenter', 'FT', 0.005152],
-      ['P250 | Kintsugi', 'MW', 0.005066], ['SSG 08 | Parallax', 'MW', 0.004981], ['StatTrak™ MAC-10 | Toybox', 'BS', 0.003893],
-      ['StatTrak™ AUG | Bengal Tiger', 'BS', 0.002349], ['StatTrak™ P90 | Shapewood', 'MW', 0.001772], ['Glock-18 | Snack Attack', 'FT', 0.001075],
-      ['Souvenir AWP | Pink DDPAT', 'FT', 0.0008007], ['StatTrak™ AWP | Fever Dream', 'FT', 0.0005544], ['P250 | Modern Hunter', 'FT', 0.0003579],
-      ['StatTrak™ P250 | Epicenter', 'MW', 0.0002414], ['Souvenir USP-S | Alpine Camo', 'BS', 0.0001632], ['StatTrak™ MP9 | Hydra', 'MW', 0.0001108],
-      ['AWP | Пиксельный камуфляж «Розовый»', 'BS', 0.0000784], ['MP9 | Latte Rush', 'FN', 0.00006141], ['MP9 | Starlight Protector', 'BS', 0.000052],
-      ['P90 | Cold Blooded', 'MW', 0.00004339], ['AK-47 | AUTOEXEC', 'BS', 0.00003708], ['AK-47 | AUTOEXEC', 'WW', 0.00003152],
-      ['AWP | Пиксельный камуфляж «Розовый»', 'FN', 0.00002754], ['StatTrak™ AK-47 | Nightwish', 'FN', 0.00002181], ['★ Specialist Gloves | Fade', 'WW', 0.00002049],
-      ['M4A1-S | Градиент', 'FN', 0.00001937], ['AWP | Градиент', 'FN', 0.000005433], ['★ Штык-нож M9 | Мраморный градиент', 'FN', 0.000004548],
-      ['★ Talon Knife | Fade', 'FN', 0.000004284], ['★ Спортивные перчатки | Порок', 'MW', 0.000002835], ['★ Нож-бабочка | Мраморный градиент', 'FN', 0.00000246],
+      ['StatTrak™ AWP | Worm God', 'WW', 0.06779], ['Sawed-Off | Devourer', 'MW', 0.0637], ['FAMAS | Macabre', 'MW', 0.05684],
+      ['P250 | Contamination', 'FN', 0.05587], ['AWP | Капилляры', 'FN', 0.05573], ['StatTrak™ MP7 | Abyssal Apparition', 'MW', 0.04957],
+      ['MAC-10 | Ультрафиолет', 'MW', 0.04832], ['StatTrak™ USP-S | Cortex', 'BS', 0.043], ['CZ75-Auto | Slalom', 'FN', 0.04101],
+      ['AK-47 | The Outsiders', 'FT', 0.03898], ['StatTrak™ Tec-9 | Jambiya', 'FN', 0.03512], ['StatTrak™ PP-Bizon | Lumen', 'FN', 0.03146],
+      ['Glock-18 | Catacombs', 'FN', 0.03002], ['StatTrak™ Galil AR | Shattered', 'FT', 0.02911], ['MP9 | Rose Iron', 'FN', 0.02675],
+      ['StatTrak™ SSG 08 | Ghost Crusader', 'MW', 0.02558], ['Dual Berettas | Black Limba', 'MW', 0.02339], ['USP-S | Stainless', 'WW', 0.02142],
+      ['StatTrak™ CZ75-Auto | Tread Plate', 'FN', 0.01978], ['StatTrak™ P2000 | Acid Etched', 'FN', 0.01829], ['AUG | Random Access', 'FN', 0.01822],
+      ['MAC-10 | Aloha', 'FN', 0.01602], ['StatTrak™ Dual Berettas | Angel Eyes', 'FN', 0.0158], ['StatTrak™ AWP | Mortis', 'WW', 0.01455],
+      ['StatTrak™ Galil AR | Shattered', 'BS', 0.01324], ['StatTrak™ AK-47 | Slate', 'FT', 0.01287], ['StatTrak™ UMP-45 | Momentum', 'MW', 0.01207],
+      ['StatTrak™ UMP-45 | Neo-Noir', 'WW', 0.01123], ['StatTrak™ AUG | Death by Puppy', 'MW', 0.01033], ['StatTrak™ SG 553 | Cyrex', 'WW', 0.009574],
+      ['StatTrak™ M4A4 | Evil Daimyo', 'WW', 0.008664], ['StatTrak™ CZ75-Auto | Tigris', 'FN', 0.008452], ['StatTrak™ MAC-10 | Tatter', 'FN', 0.00822],
+      ['AK-47 | Crane Flight', 'BS', 0.007304], ['P90 | Nostalgia', 'FN', 0.00684], ['Dual Berettas | Black Limba', 'WW', 0.006226],
+      ['AWP | Fever Dream', 'BS', 0.005936], ['StatTrak™ SG 553 | Tiger Moth', 'FN', 0.005774], ['P250 | Cartel', 'FT', 0.005152],
+      ['P250 | Cartel', 'BS', 0.005066], ['StatTrak™ SSG 08 | Parallax', 'MW', 0.004981], ['StatTrak™ MAC-10 | Toybox', 'BS', 0.003893],
+      ['StatTrak™ AUG | Bengal Tiger', 'BS', 0.002349], ['StatTrak™ P90 | Shapewood', 'MW', 0.001772], ['StatTrak™ Glock-18 | Snack Attack', 'FT', 0.001075],
+      ['Souvenir AWP | Pink DDPAT', 'FT', 0.0008007], ['StatTrak™ AWP | Fever Dream', 'FT', 0.0005544], ['P250 | Crimson Kimono', 'FN', 0.0003579],
+      ['P250 | Undertow', 'FT', 0.0002414], ['StatTrak™ USP-S | Black Lotus', 'FN', 0.0001632], ['StatTrak™ MP9 | Hydra', 'MW', 0.0001108],
+      ['AWP | Пиксельный камуфляж «Розовый»', 'BS', 0.0000784], ['MP9 | Latte Rush', 'FN', 0.00006141], ['MP9 | Starlight Protector', 'MW', 0.000052],
+      ['Desert Eagle | Механо-пушка', 'FN', 0.00004339], ['AK-47 | AUTOEXEC', 'BS', 0.00003708], ['AK-47 | AUTOEXEC', 'WW', 0.00003152],
+      ['AWP | Пламя суверена', 'FT', 0.00002754], ['StatTrak™ AK-47 | Nightwish', 'FN', 0.00002181], ['★ Specialist Gloves | Fade', 'FT', 0.00002049],
+      ['M4A1-S | Градиент', 'MW', 0.00001937], ['AWP | Градиент', 'FN', 0.000005433], ['★ Штык-нож M9 | Мраморный градиент', 'FN', 0.000004548],
+      ['★ Talon Knife | Fade', 'MW', 0.000004284], ['★ Спортивные перчатки | Порок', 'MW', 0.000002835], ['★ Нож-бабочка | Мраморный градиент', 'FN', 0.00000246],
       ['★ Karambit | Fade', 'FN', 0.000001958],
     ],
   },
@@ -946,22 +949,22 @@ const CASES = [
     // добавлено 6 скинов на уровне цены кейса (150–190 ₽); окупаемость +2% (окупаемость 87.1% и «дороже кейса» 30.4% — с удачей кейса из админки)
     exact: [
       ['Desert Eagle | Light Rail', 'FT', 0.1218], ['R8 Revolver | Junk Yard', 'FN', 0.1051], ['Desert Eagle | Urban DDPAT', 'WW', 0.08066],
-      ['Glock-18 | Weasel', 'FT', 0.07624], ['P2000 | Pulse', 'BS', 0.05969], ['MP7 | Special Delivery', 'WW', 0.05882],
-      ['Tec-9 | Safety Net', 'MW', 0.05874], ['P2000 | Urban Hazard', 'FN', 0.04514], ['StatTrak™ USP-S | Flashback', 'FT', 0.04514],
-      ['StatTrak™ P250 | X-Ray', 'FT', 0.03905], ['Souvenir AUG | Contractor', 'FT', 0.03476], ['StatTrak™ SG 553 | Triarch', 'MW', 0.03176],
-      ['AWP | Гадюка', 'BS', 0.03103], ['StatTrak™ AWP | Capillary', 'WW', 0.02805], ['StatTrak™ PP-Bizon | Cobalt Halftone', 'WW', 0.02606],
-      ['CZ75-Auto | Pole Position', 'MW', 0.02606], ['PP-Bizon | Embargo', 'WW', 0.02345], ['StatTrak™ CZ75-Auto | Eco', 'FT', 0.02074],
-      ['SSG 08 | Fever Dream', 'MW', 0.01953], ['Tec-9 | Jambiya', 'MW', 0.01804], ['StatTrak™ MP7 | Just Smile', 'MW', 0.01771],
-      ['UMP-45 | Crimson Foil', 'WW', 0.0107], ['StatTrak™ M4A4 | Zubastick', 'FN', 0.006631], ['UMP-45 | Full Stop', 'FN', 0.001055],
-      ['XM1014 | Watchdog', 'MW', 0.001029], ['StatTrak™ Five-SeveN | Buddy', 'MW', 0.001007], ['StatTrak™ CZ75-Auto | Crimson Web', 'FT', 0.000982],
-      ['Souvenir USP-S | Purple DDPAT', 'WW', 0.0009493], ['Tec-9 | Whiteout', 'FT', 0.0009131], ['CZ75-Auto | Hexane', 'FN', 0.0007787],
-      ['MP5-SD | Condition Zero', 'FN', 0.0007444], ['G3SG1 | Demeter', 'BS', 0.0007121], ['Glock-18 | Ядерный сад', 'MW', 0.0006804],
-      ['StatTrak™ SCAR-20 | Crimson Web', 'FT', 0.0006804], ['StatTrak™ FAMAS | Sergeant', 'WW', 0.0006602], ['MP7 | Smoking Kills', 'WW', 0.0006559],
-      ['Nova | Interlock', 'FT', 0.0006505], ['P90 | Nostalgia', 'WW', 0.0006362], ['AWP | Exoskeleton', 'WW', 0.0006292],
-      ['USP-S | Jawbreaker', 'MW', 0.0005951], ['StatTrak™ USP-S | Guardian', 'MW', 0.0005574], ['Dual Berettas | Black Limba', 'MW', 0.0005214],
-      ['MP9 | Mount Fuji', 'FN', 0.0001252], ['Lt. Commander Ricksaw | NSWC SEAL', null, 0.0001251], ['Jungle Rebel | Elite Crew', null, 0.0001099],
-      ['Souvenir Glock-18 | Pink DDPAT', 'WW', 0.00008045], ['Souvenir AWP | Pink DDPAT', 'FT', 0.00007484], ['M4A4 | В живом цвете', 'BS', 0.00003727],
-      ['M4A1-S | Вейпорвейв', 'BS', 0.00002717], ['AK-47 | Nightwish', 'WW', 0.00001661], ['StatTrak™ MP9 | Starlight Protector', 'MW', 0.00001002],
+      ['Glock-18 | Weasel', 'FT', 0.07624], ['P2000 | Pulse', 'WW', 0.05969], ['MP7 | Neon Ply', 'WW', 0.05882],
+      ['Tec-9 | Safety Net', 'MW', 0.05874], ['StatTrak™ P2000 | Oceanic', 'FN', 0.04514], ['Souvenir USP-S | Check Engine', 'FT', 0.04514],
+      ['StatTrak™ P250 | X-Ray', 'FT', 0.03905], ['Souvenir AUG | Colony', 'BS', 0.03476], ['StatTrak™ SG 553 | Triarch', 'MW', 0.03176],
+      ['StatTrak™ AWP | Capillary', 'BS', 0.03103], ['StatTrak™ AWP | Capillary', 'WW', 0.02805], ['PP-Bizon | Brass', 'FN', 0.02606],
+      ['StatTrak™ CZ75-Auto | Red Astor', 'MW', 0.02606], ['PP-Bizon | Embargo', 'FT', 0.02345], ['StatTrak™ CZ75-Auto | Eco', 'FT', 0.02074],
+      ['SSG 08 | Fever Dream', 'MW', 0.01953], ['Tec-9 | Mummy\'s Rot', 'MW', 0.01804], ['StatTrak™ MP7 | Just Smile', 'MW', 0.01771],
+      ['UMP-45 | Crimson Foil', 'WW', 0.0107], ['StatTrak™ M4A4 | Zubastick', 'FN', 0.006631], ['StatTrak™ UMP-45 | Corporal', 'FN', 0.001055],
+      ['StatTrak™ XM1014 | Watchdog', 'FT', 0.001029], ['StatTrak™ Five-SeveN | Buddy', 'MW', 0.001007], ['StatTrak™ CZ75-Auto | Crimson Web', 'FT', 0.000982],
+      ['Souvenir USP-S | Purple DDPAT', 'WW', 0.0009493], ['StatTrak™ Tec-9 | Re-Entry', 'MW', 0.0009131], ['CZ75-Auto | Hexane', 'FN', 0.0007787],
+      ['MP5-SD | Condition Zero', 'FN', 0.0007444], ['G3SG1 | Demeter', 'FT', 0.0007121], ['Glock-18 | Royal Legion', 'MW', 0.0006804],
+      ['StatTrak™ SCAR-20 | Crimson Web', 'BS', 0.0006804], ['StatTrak™ FAMAS | Sergeant', 'WW', 0.0006602], ['MP7 | Smoking Kills', 'WW', 0.0006559],
+      ['Nova | Interlock', 'MW', 0.0006505], ['P90 | Nostalgia', 'WW', 0.0006362], ['StatTrak™ AWP | Worm God', 'FT', 0.0006292],
+      ['USP-S | Cortex', 'MW', 0.0005951], ['StatTrak™ USP-S | Guardian', 'MW', 0.0005574], ['Dual Berettas | Black Limba', 'MW', 0.0005214],
+      ['MP9 | Mount Fuji', 'FN', 0.0001252], ['Cmdr. Mae \'Dead Cold\' Jamison | SWAT', null, 0.0001251], ['Trapper Aggressor | Guerrilla Warfare', null, 0.0001099],
+      ['Souvenir Glock-18 | Pink DDPAT', 'WW', 0.00008045], ['Souvenir AWP | Pink DDPAT', 'FT', 0.00007484], ['StatTrak™ M4A4 | Neo-Noir', 'FT', 0.00003727],
+      ['M4A1-S | Вейпорвейв', 'BS', 0.00002717], ['AK-47 | Nightwish', 'MW', 0.00001661], ['StatTrak™ MP9 | Starlight Protector', 'WW', 0.00001002],
     ],
   },
   {
@@ -993,20 +996,20 @@ const CASES = [
     fx: { x: 66, y: 0, w: 23, h: 40, ar: 1228 / 1131 }, // сияние статуэтки на картинке кейса (% от картинки), ar — пропорции картинки
     // добавлено 9 красно-чёрных скинов около цены кейса (270–390 ₽); джекпоты прежние (окупаемость 85.5% и «дороже кейса» 24.1% — с удачей кейса из админки)
     exact: [
-      ['StatTrak™ Glock-18 | Moonrise', 'MW', 0.07456], ['USP-S | Jawbreaker', 'WW', 0.07425], ['P2000 | Red FragCam', 'BS', 0.07341],
-      ['Souvenir MAC-10 | Derailment', 'FT', 0.0704], ['CZ75-Auto | Crimson Web', 'FT', 0.07007], ['StatTrak™ M4A4 | Turbine', 'BS', 0.06524],
+      ['StatTrak™ Glock-18 | Moonrise', 'MW', 0.07456], ['USP-S | Jawbreaker', 'WW', 0.07425], ['StatTrak™ P2000 | Pulse', 'FN', 0.07341],
+      ['MAC-10 | Last Dive', 'FN', 0.0704], ['CZ75-Auto | Crimson Web', 'FT', 0.07007], ['StatTrak™ M4A4 | Turbine', 'BS', 0.06524],
       ['StatTrak™ MAC-10 | Pipe Down', 'MW', 0.06154], ['Souvenir Glock-18 | Red Tire', 'MW', 0.05717], ['StatTrak™ Galil AR | Firefight', 'FT', 0.05405],
-      ['Zeus x27 | Olympus', 'WW', 0.05307], ['StatTrak™ Galil AR | Connexion', 'MW', 0.0504], ['CZ75-Auto | Red Astor', 'BS', 0.04662],
-      ['MP9 | Ruby Poison Dart', 'FT', 0.04451], ['SG 553 | Wave Spray', 'MW', 0.03596], ['StatTrak™ MP9 | Goo', 'FN', 0.02505],
-      ['StatTrak™ Galil AR | Crimson Tsunami', 'BS', 0.01944], ['XM1014 | Целую-обнимаю', 'MW', 0.01907], ['XM1014 | Entombed', 'MW', 0.01828],
+      ['Zeus x27 | Olympus', 'WW', 0.05307], ['StatTrak™ Galil AR | Connexion', 'MW', 0.0504], ['StatTrak™ CZ75-Auto | Red Astor', 'FT', 0.04662],
+      ['MP9 | Ruby Poison Dart', 'FT', 0.04451], ['SG 553 | Wave Spray', 'MW', 0.03596], ['MP9 | Goo', 'FN', 0.02505],
+      ['StatTrak™ Galil AR | Crimson Tsunami', 'BS', 0.01944], ['XM1014 | Целую-обнимаю', 'MW', 0.01907], ['XM1014 | Entombed', 'FN', 0.01828],
       ['StatTrak™ MAC-10 | Heat', 'BS', 0.01627], ['M4A1-S | Briefing', 'BS', 0.01477], ['StatTrak™ Sawed-Off | Kiss♥Love', 'BS', 0.01443],
-      ['M4A4 | Etch Lord', 'FN', 0.01234], ['StatTrak™ P2000 | Turf', 'FN', 0.01214], ['Sawed-Off | Kiss♥Love', 'FT', 0.01195],
-      ['StatTrak™ Desert Eagle | Directive', 'MW', 0.0006274], ['Souvenir Nova | Green Apple', 'FT', 0.0005583], ['SCAR-20 | Cardiac', 'WW', 0.000512],
-      ['StatTrak™ AK-47 | Crane Flight', 'BS', 0.0004645], ['StatTrak™ USP-S | Blood Tiger', 'FT', 0.0004345], ['StatTrak™ AK-47 | Ice Coaled', 'WW', 0.0003601],
-      ['StatTrak™ MP7 | Bloodsport', 'BS', 0.0003381], ['StatTrak™ USP-S | Stainless', 'BS', 0.0003335], ['StatTrak™ AWP | Chromatic Aberration', 'BS', 0.0003103],
-      ['StatTrak™ AWP | Fever Dream', 'MW', 0.000267], ['Desert Eagle | Mulberry', 'FN', 0.0002657], ['StatTrak™ Glock-18 | Mirror Mosaic', 'FT', 0.0001847],
-      ['M4A1-S | Вейпорвейв', 'FT', 0.0001288], ['UMP-45 | Crime Scene', 'FN', 0.00007115], ['StatTrak™ M4A1-S | Player Two', 'WW', 0.00003869],
-      ['AK-47 | Кровавый спорт', 'FN', 0.00002542], ['StatTrak™ M4A4 | X-Ray', 'FN', 0.00001], ['★ Skeleton Knife | Blue Steel', 'WW', 0.00001],
+      ['M4A4 | Evil Daimyo', 'MW', 0.01234], ['StatTrak™ P2000 | Turf', 'FN', 0.01214], ['Sawed-Off | Serenity', 'FN', 0.01195],
+      ['StatTrak™ Desert Eagle | Directive', 'MW', 0.0006274], ['Nova | Green Apple', 'FN', 0.0005583], ['SCAR-20 | Cardiac', 'MW', 0.000512],
+      ['StatTrak™ AK-47 | Crane Flight', 'BS', 0.0004645], ['StatTrak™ USP-S | Blueprint', 'FT', 0.0004345], ['StatTrak™ AK-47 | Ice Coaled', 'WW', 0.0003601],
+      ['StatTrak™ MP7 | Bloodsport', 'BS', 0.0003381], ['USP-S | Black Lotus', 'FN', 0.0003335], ['StatTrak™ AWP | Chromatic Aberration', 'BS', 0.0003103],
+      ['StatTrak™ AWP | Fever Dream', 'MW', 0.000267], ['StatTrak™ Desert Eagle | Firebreathing', 'FN', 0.0002657], ['Glock-18 | Snack Attack', 'BS', 0.0001847],
+      ['M4A1-S | Вейпорвейв', 'WW', 0.0001288], ['UMP-45 | Crime Scene', 'FN', 0.00007115], ['StatTrak™ M4A1-S | Player Two', 'MW', 0.00003869],
+      ['AK-47 | Кровавый спорт', 'FN', 0.00002542], ['StatTrak™ M4A4 | X-Ray', 'FN', 0.00001], ['★ Skeleton Knife | Blue Steel', 'FT', 0.00001],
       ['★ Flip Knife | Fade', 'FN', 0.00001], ['M4A1-S | Hot Rod', 'FN', 0.00001], ['★ Specialist Gloves | Marble Fade', 'FN', 0.00001],
       ['StatTrak™ AK-47 | Fire Serpent', 'BS', 0.00001], ['StatTrak™ Glock-18 | Vogue', 'FT', 0.000004896], ['★ Sport Gloves | Pandora\'s Box', 'FN', 0.000001771],
     ],
@@ -1103,19 +1106,19 @@ const CASES = [
     th: { a: '#f5c518' }, img: 'assets/case-chick.webp',
     // дешевле 20 ₽ — убраны; добавлено 13 скинов 25–45 ₽ разной изношенности (окупаемость 79.8% и «дороже кейса» 13.4% — с удачей кейса из админки)
     exact: [
-      ['Desert Eagle | Urban Rubble', 'WW', 0.1213], ['R8 Revolver | Banana Cannon', 'WW', 0.1213], ['Glock-18 | Off World', 'BS', 0.1074],
-      ['USP-S | Torque', 'WW', 0.099], ['Glock-18 | Ocean Topo', 'FN', 0.09454], ['Glock-18 | Block-18', 'WW', 0.06662],
+      ['Desert Eagle | Urban Rubble', 'BS', 0.1213], ['R8 Revolver | Banana Cannon', 'WW', 0.1213], ['Glock-18 | Off World', 'FT', 0.1074],
+      ['USP-S | Torque', 'WW', 0.099], ['StatTrak™ Glock-18 | Oxide Blaze', 'BS', 0.09454], ['Glock-18 | Block-18', 'WW', 0.06662],
       ['Souvenir Five-SeveN | Forest Night', 'FT', 0.06662], ['Desert Eagle | Синяя фанера', 'WW', 0.06351], ['Desert Eagle | Bronze Deco', 'FT', 0.04703],
-      ['StatTrak™ UMP-45 | Riot', 'BS', 0.03444], ['Five-SeveN | Violent Daimyo', 'FN', 0.021, 'restricted'], ['M249 | Downtown', 'BS', 0.01928],
-      ['M4A1-S | Mud-Spec', 'WW', 0.01455], ['USP-S | Royal Guard', 'WW', 0.01195], ['P2000 | Royal Baroque', 'MW', 0.008495],
-      ['MP5-SD | Agent', 'BS', 0.00841], ['USP-S | Royal Guard', 'BS', 0.008052], ['M4A1-S | Emphorosaur-S', 'BS', 0.007366],
-      ['Souvenir CZ75-Auto | Copper Fiber', 'FN', 0.006711], ['Five-SeveN | Hybrid', 'FT', 0.006711], ['StatTrak™ R8 Revolver | Bone Forged', 'FN', 0.006585],
-      ['Dual Berettas | Ventilators', 'FN', 0.005678], ['SSG 08 | Jungle Dashed', 'BS', 0.005678], ['SSG 08 | Jungle Dashed', 'MW', 0.005423],
-      ['Nova | Wild Six', 'BS', 0.005156], ['G3SG1 | Чёрный песок', 'FT', 0.00501], ['MP7 | Amberline', 'BS', 0.004949],
-      ['Negev | Loudmouth', 'FT', 0.004802], ['StatTrak™ MP7 | Abyssal Apparition', 'WW', 0.004742, 'classified'], ['XM1014 | Halftone Shift', 'WW', 0.004297],
+      ['StatTrak™ UMP-45 | Riot', 'BS', 0.03444], ['Five-SeveN | Urban Hazard', 'FT', 0.021, 'restricted'], ['M249 | Downtown', 'FT', 0.01928],
+      ['M4A1-S | Mud-Spec', 'WW', 0.01455], ['USP-S | Royal Guard', 'WW', 0.01195], ['StatTrak™ P2000 | Ivory', 'WW', 0.008495],
+      ['MP5-SD | Agent', 'WW', 0.00841], ['USP-S | Royal Guard', 'BS', 0.008052], ['M4A1-S | Emphorosaur-S', 'BS', 0.007366],
+      ['CZ75-Auto | Полуночная пальма', 'WW', 0.006711], ['Five-SeveN | Hybrid', 'FT', 0.006711], ['StatTrak™ R8 Revolver | Bone Forged', 'FN', 0.006585],
+      ['Dual Berettas | Ventilators', 'FT', 0.005678], ['SSG 08 | Hand Brake', 'WW', 0.005678], ['SSG 08 | Jungle Dashed', 'MW', 0.005423],
+      ['Nova | Ocular', 'WW', 0.005156], ['StatTrak™ G3SG1 | Black Sand', 'FT', 0.00501], ['MP7 | Amberline', 'BS', 0.004949],
+      ['Negev | Loudmouth', 'WW', 0.004802], ['StatTrak™ MP7 | Abyssal Apparition', 'WW', 0.004742, 'classified'], ['XM1014 | Blue Tire', 'BS', 0.004297],
       ['Tec-9 | Ice Cap', 'MW', 0.004243], ['Souvenir FAMAS | 2A2F', 'FT', 0.003084], ['Desert Eagle | Firebreathing', 'FT', 0.002719],
-      ['StatTrak™ P250 | Inferno', 'FT', 0.001258], ['M4A1-S | Golden Coil', 'BS', 0.0009628, 'covert'], ['MP9 | Bulldozer', 'WW', 0.0004922, 'rare'],
-      ['AWP | Гадюка', 'BS', 0.0004406], ['AK-47 | Fuel Injector', 'BS', 0.0001967, 'rare'], ['AWP | Duality', 'WW', 0.0001073],
+      ['StatTrak™ P250 | Inferno', 'FT', 0.001258], ['M4A1-S | Golden Coil', 'BS', 0.0009628, 'covert'], ['MP9 | Bulldozer', 'FT', 0.0004922, 'rare'],
+      ['StatTrak™ AWP | Capillary', 'BS', 0.0004406], ['AK-47 | Fuel Injector', 'WW', 0.0001967, 'rare'], ['AWP | Duality', 'WW', 0.0001073],
       ['StatTrak™ CZ75-Auto | Hexane', 'MW', 0.00004702], ['MAC-10 | Case Hardened', 'MW', 0.000001366],
     ],
   },
@@ -1154,29 +1157,29 @@ const CASES = [
     th: { a: '#a259ff' }, img: 'assets/case-drip.webp',
     // все брелоки от 20 ₽ + яркие скины от цены кейса (брелоков дороже кейса больше нет); дешевле 20 ₽ — убраны (окупаемость 85.3% и «дороже кейса» 21.8% — с удачей кейса из админки)
     exact: [
-      ['Charm | Lil\' Tusk', null, 0.05155], ['Charm | Dead Weight', null, 0.04988], ['Charm | Lil\' No. 2', null, 0.04976],
+      ['Charm | Lil\' SAS', null, 0.05155], ['Charm | Hang Loose', null, 0.04988], ['Charm | Lil\' Squatch', null, 0.04976],
       ['Charm | Disco MAC', null, 0.04706], ['Charm | Lil\' Zen', null, 0.04706], ['Charm | Big Kev', null, 0.04623],
-      ['Charm | Hot Hands', null, 0.04597], ['Charm | Big Brain', null, 0.04513], ['Charm | Lil\' Sandy', null, 0.04409],
+      ['Charm | Hot Hands', null, 0.04597], ['Charm | Lil\' Facelift', null, 0.04513], ['Charm | Lil\' Sandy', null, 0.04409],
       ['Charm | Lil\' Dumplin\'', null, 0.04336], ['Charm | Bomb Tag', null, 0.0433], ['Charm | Dr. Brian', null, 0.04252],
       ['Charm | Chicken Lil\'', null, 0.04127], ['Charm | POP Art', null, 0.04127], ['Charm | That\'s Bananas', null, 0.04112],
       ['Charm | Lil\' Buns', null, 0.04099], ['Charm | Glamour Shot', null, 0.03949], ['Charm | Pocket Pop', null, 0.03777],
-      ['G3SG1 | Jungle Dashed', 'FN', 0.01603], ['Charm | Lil\' Bloody', null, 0.01589], ['Charm | Lil\' Whiskers', null, 0.01473],
-      ['StatTrak™ R8 Revolver | Crazy 8', 'WW', 0.01402], ['Charm | Lil\' Teacup', null, 0.01369], ['StatTrak™ MP5-SD | Gauss', 'FT', 0.0123],
-      ['StatTrak™ UMP-45 | Moonrise', 'MW', 0.0103], ['M4A1-S | Electrum', 'WW', 0.008467], ['PP-Bizon | Space Cat', 'WW', 0.007319],
-      ['Charm | Lil\' Prick', null, 0.007207], ['Charm | Lil\' Squirt', null, 0.006278], ['StatTrak™ MP5-SD | Agent', 'BS', 0.005929],
-      ['Charm | Diner Dog', null, 0.005533], ['StatTrak™ Galil AR | Rocket Pop', 'WW', 0.005096], ['Charm | Lil\' Moments', null, 0.005014],
+      ['G3SG1 | Digital Mesh', 'FT', 0.01603], ['Charm | Lil\' Bloody', null, 0.01589], ['Charm | Lil\' Whiskers', null, 0.01473],
+      ['StatTrak™ R8 Revolver | Junk Yard', 'MW', 0.01402], ['Charm | Lil\' Teacup', null, 0.01369], ['StatTrak™ MP5-SD | Gauss', 'FT', 0.0123],
+      ['StatTrak™ UMP-45 | Moonrise', 'MW', 0.0103], ['M4A1-S | Glitched Paint', 'BS', 0.008467], ['PP-Bizon | Fuel Rod', 'BS', 0.007319],
+      ['Charm | Lil\' Prick', null, 0.007207], ['Charm | Lil\' Squirt', null, 0.006278], ['StatTrak™ MP5-SD | Agent', 'WW', 0.005929],
+      ['Charm | Diner Dog', null, 0.005533], ['Galil AR | Sky Mandala', 'FN', 0.005096], ['Charm | Lil\' Moments', null, 0.005014],
       ['XM1014 | Seasons', 'WW', 0.003968], ['Charm | Magmatude', null, 0.003872], ['Charm | Lil\' Goop', null, 0.003657],
-      ['StatTrak™ FAMAS | Meow 36', 'FN', 0.003615], ['M4A1-S | Fizzy POP', 'WW', 0.003241], ['StatTrak™ UMP-45 | Exposure', 'BS', 0.002527],
+      ['StatTrak™ FAMAS | Meow 36', 'FN', 0.003615], ['M4A1-S | Night Terror', 'FN', 0.003241], ['UMP-45 | Exposure', 'FN', 0.002527],
       ['Charm | Die-cast AK', null, 0.002267], ['Charm | Flash Bomb', null, 0.002213], ['Glock-18 | Grinder', 'MW', 0.002205],
       ['Charm | Eye of Ball', null, 0.002199], ['Charm | Lil\' Eco', null, 0.002092], ['Charm | Lil\' Chirp', null, 0.002069],
       ['Charm | Lil\' Monster', null, 0.002025], ['Charm | Hungry Eyes', null, 0.001966], ['AWP | Worm God', 'FT', 0.001803],
       ['Charm | Titeenium AWP', null, 0.001753], ['Souvenir MAC-10 | Pipsqueak', 'MW', 0.001494], ['Charm | Piñatita', null, 0.00137],
-      ['Glock-18 | Ядерный сад', 'FT', 0.001323], ['Galil AR | Tuxedo', 'FN', 0.001116], ['G3SG1 | High Seas', 'MW', 0.0009563],
-      ['Charm | Lil\' Yeti', null, 0.0009472], ['Charm | Lil\' Hero', null, 0.0008175], ['Sawed-Off | Kiss♥Love', 'BS', 0.0006872],
-      ['Charm | Diamond Dog', null, 0.0005728], ['StatTrak™ Dual Berettas | Panther', 'BS', 0.0005386], ['StatTrak™ FAMAS | Sergeant', 'WW', 0.000452],
-      ['StatTrak™ M4A1-S | Night Terror', 'FN', 0.0003884], ['Charm | Lil\' Happy', null, 0.0003592], ['Glock-18 | Royal Legion', 'MW', 0.0003386],
-      ['USP-S | Jawbreaker', 'MW', 0.0002763], ['StatTrak™ FAMAS | Sergeant', 'FT', 0.0002279], ['Charm | Hot Wurst', null, 0.0001916],
-      ['MAC-10 | Ультрафиолет', 'MW', 0.0001854], ['Charm | Baby Karat CT', null, 0.0001685], ['Charm | Semi-Precious', null, 0.0001282],
+      ['Glock-18 | Royal Legion', 'FT', 0.001323], ['StatTrak™ Galil AR | Kami', 'MW', 0.001116], ['G3SG1 | High Seas', 'MW', 0.0009563],
+      ['Charm | Lil\' Yeti', null, 0.0009472], ['Charm | Lil\' Hero', null, 0.0008175], ['Sawed-Off | Serenity', 'FN', 0.0006872],
+      ['Charm | Diamond Dog', null, 0.0005728], ['StatTrak™ Dual Berettas | Panther', 'FT', 0.0005386], ['StatTrak™ FAMAS | Sergeant', 'WW', 0.000452],
+      ['M4A1-S | Glitched Paint', 'FN', 0.0003884], ['Charm | Lil\' Happy', null, 0.0003592], ['Glock-18 | Royal Legion', 'MW', 0.0003386],
+      ['USP-S | Cortex', 'MW', 0.0002763], ['StatTrak™ FAMAS | Sergeant', 'FT', 0.0002279], ['Charm | Hot Wurst', null, 0.0001916],
+      ['MAC-10 | Tornado', 'MW', 0.0001854], ['Charm | Baby Karat CT', null, 0.0001685], ['Charm | Semi-Precious', null, 0.0001282],
       ['Charm | Lil\' Serpent', null, 0.0001014], ['Charm | Baby Karat T', null, 0.00007679], ['Charm | Glitter Bomb', null, 0.00007254],
       ['Charm | Lil\' Ferno', null, 0.00006589], ['Charm | Hot Howl', null, 0.00002772], ['Charm | Quick Silver', null, 0.00001608],
       ['Charm | Lil\' Eldritch', null, 0.00001146], ['Charm | 8 Ball IGL', null, 0.000009685], ['Charm | Lil\' Boo', null, 0.000001278],
@@ -1189,24 +1192,24 @@ const CASES = [
     th: { a: '#ff8a1f' }, img: 'assets/case-rush.webp',
     // яркие скины: дешевле кейса — часто, дороже кейса в 4+ раза — заметно реже; 4 ножа/перчатки ~5 тыс. — вместе 1 из 1 500; 4 ультра (89–159 тыс.) — по 1 из 500 000
     exact: [
-      ['MAG-7 | Storm', 'WW', 0.05145], ['P90 | Off World', 'BS', 0.05145], ['StatTrak™ SG 553 | Aloha', 'FT', 0.05],
+      ['MAG-7 | Storm', 'WW', 0.05145], ['P90 | Off World', 'BS', 0.05145], ['StatTrak™ SG 553 | Aloha', 'MW', 0.05],
       ['StatTrak™ P250 | Iron Clad', 'FT', 0.04932], ['P90 | Neoqueen', 'FT', 0.04867], ['MAC-10 | Саккаку', 'WW', 0.0448],
-      ['P250 | X-Ray', 'MW', 0.04259], ['StatTrak™ P2000 | Red Wing', 'FT', 0.0418], ['Souvenir M4A4 | Mainframe', 'FT', 0.0407],
-      ['SSG 08 | Dezastre', 'FN', 0.04001], ['StatTrak™ Galil AR | Akoben', 'WW', 0.0371], ['StatTrak™ Glock-18 | Off World', 'BS', 0.03684],
+      ['P250 | X-Ray', 'MW', 0.04259], ['P2000 | Turf', 'WW', 0.0418], ['M4A4 | Магний', 'FT', 0.0407],
+      ['SSG 08 | Dezastre', 'FN', 0.04001], ['Galil AR | Tuxedo', 'BS', 0.0371], ['Glock-18 | Ironwork', 'FT', 0.03684],
       ['Souvenir FAMAS | 2A2F', 'FT', 0.03635], ['MP5-SD | Acid Wash', 'FT', 0.03255], ['R8 Revolver | Crazy 8', 'MW', 0.0313],
       ['StatTrak™ M4A1-S | Emphorosaur-S', 'BS', 0.03073], ['Glock-18 | Catacombs', 'WW', 0.03046], ['StatTrak™ M4A1-S | Night Terror', 'FT', 0.02781],
       ['StatTrak™ AUG | Plague', 'FT', 0.02706], ['AK-47 | Элитное снаряжение', 'BS', 0.02427], ['AWP | Worm God', 'MW', 0.01962],
-      ['Souvenir USP-S | Purple DDPAT', 'WW', 0.01935], ['Galil AR | Signal', 'FN', 0.01825], ['UMP-45 | Дикое дитя', 'FT', 0.01743],
-      ['StatTrak™ MP7 | Neon Ply', 'BS', 0.01632], ['AWP | Mortis', 'WW', 0.0155], ['AK-47 | Ледяной уголь', 'BS', 0.0152],
-      ['StatTrak™ FAMAS | Sergeant', 'WW', 0.01472], ['StatTrak™ Galil AR | Chromatic Aberration', 'WW', 0.01379], ['USP-S | Jawbreaker', 'MW', 0.01368],
-      ['StatTrak™ AWP | Mortis', 'BS', 0.01219], ['StatTrak™ AWP | Ice Coaled', 'BS', 0.009731], ['Nova | Green Apple', 'FN', 0.009179],
-      ['StatTrak™ SCAR-20 | Bloodsport', 'FT', 0.007785], ['StatTrak™ MP9 | Rose Iron', 'MW', 0.006025], ['M4A4 | Hellish', 'FT', 0.004015],
+      ['Souvenir USP-S | Purple DDPAT', 'WW', 0.01935], ['Galil AR | Crimson Tsunami', 'MW', 0.01825], ['StatTrak™ UMP-45 | Wild Child', 'FT', 0.01743],
+      ['StatTrak™ MP7 | Neon Ply', 'BS', 0.01632], ['AWP | Mortis', 'WW', 0.0155], ['AK-47 | Ледяной уголь', 'WW', 0.0152],
+      ['StatTrak™ FAMAS | Sergeant', 'WW', 0.01472], ['StatTrak™ Galil AR | Chromatic Aberration', 'WW', 0.01379], ['USP-S | Cortex', 'MW', 0.01368],
+      ['StatTrak™ AWP | Mortis', 'WW', 0.01219], ['StatTrak™ AWP | Ice Coaled', 'BS', 0.009731], ['Nova | Green Apple', 'FN', 0.009179],
+      ['SCAR-20 | Bloodsport', 'FT', 0.007785], ['MP9 | Hypnotic', 'FN', 0.006025], ['M4A4 | Hellish', 'FT', 0.004015],
       ['M4A4 | Falak', 'WW', 0.003171], ['StatTrak™ UMP-45 | Neo-Noir', 'MW', 0.002209], ['StatTrak™ AK-47 | Head Shot', 'BS', 0.001579],
-      ['StatTrak™ M4A4 | Temukau', 'BS', 0.001185], ['USP-S | Overgrowth', 'MW', 0.001147], ['StatTrak™ AWP | Chromatic Aberration', 'WW', 0.0008834],
+      ['StatTrak™ M4A4 | Temukau', 'BS', 0.001185], ['USP-S | Overgrowth', 'MW', 0.001147], ['StatTrak™ AWP | Chromatic Aberration', 'MW', 0.0008834],
       ['Desert Eagle | Printstream', 'FT', 0.0007046], ['AWP | Printstream', 'BS', 0.000433], ['★ Moto Gloves | POW!', 'WW', 0.0001958],
-      ['★ Shadow Daggers | Crimson Web', 'FT', 0.0001723], ['★ Bowie Knife | Boreal Forest', 'FT', 0.0001526], ['★ StatTrak™ Navaja Knife | Urban Masked', 'BS', 0.000146],
+      ['★ Shadow Daggers | Crimson Web', 'FT', 0.0001723], ['★ Bowie Knife | Boreal Forest', 'BS', 0.0001526], ['★ Navaja Knife | Case Hardened', 'BS', 0.000146],
       ['★ Sport Gloves | Vice', 'MW', 0.000002], ['★ Specialist Gloves | Fade', 'FN', 0.000002], ['★ Karambit | Fade', 'FN', 0.000002],
-      ['★ StatTrak™ Butterfly Knife | Fade', 'FN', 0.000002],
+      ['★ Нож-бабочка | Градиент', 'FN', 0.000002],
     ],
   },
   {
@@ -1216,19 +1219,19 @@ const CASES = [
     farm: { maxN: 100, sellBelow: 100 }, // фарм: 20 / 30 / 50 / 100 кейсов за раз, ширп дешевле 100 ₽ сразу продаётся на баланс
     // ширп 3–15 ₽ (чем дороже — тем чаще, возврат 80%) + AWP | Азимов и Kukri | Crimson Web — вместе 1 из 150 000
     exact: [
-      ['UMP-45 | Mudder', 'WW', 0.001008], ['M249 | Spectrogram', 'FT', 0.001163], ['MAC-10 | Video Cam', 'FT', 0.00218],
-      ['Negev | Wall Bang', 'WW', 0.00218], ['MP7 | Forest DDPAT', 'MW', 0.00218], ['Souvenir AUG | Snake Pit', 'MW', 0.003622],
-      ['Galil AR | Acid Dart', 'WW', 0.004149], ['P90 | Wash me', 'MW', 0.005592], ['Tec-9 | Rebel', 'MW', 0.005592],
-      ['Tec-9 | Tiger Stencil', 'BS', 0.008109], ['Souvenir PP-Bizon | Anolis', 'FN', 0.008109], ['Dual Berettas | Stained', 'FT', 0.0113],
-      ['MAC-10 | Ensnared', 'MW', 0.0113], ['MP5-SD | Focus', 'WW', 0.0113], ['PP-Bizon | Brass', 'FT', 0.01515],
-      ['PP-Bizon | Traitor', 'MW', 0.01515], ['AUG | Snake Pit', 'BS', 0.01982], ['PP-Bizon | RMX', 'FT', 0.01982],
-      ['P90 | Teardown', 'FT', 0.02526], ['AUG | Creep', 'BS', 0.02526], ['PP-Bizon | Brass', 'BS', 0.02526],
-      ['FAMAS | Мяу 36', 'MW', 0.03165], ['Dual Berettas | Mystic Conjunction', 'MW', 0.03165], ['AUG | Sweeper', 'WW', 0.039],
+      ['UMP-45 | Mudder', 'BS', 0.001008], ['M249 | Spectrogram', 'FT', 0.001163], ['MAC-10 | Poplar Thicket', 'WW', 0.00218],
+      ['Negev | Wall Bang', 'WW', 0.00218], ['MP7 | Forest DDPAT', 'WW', 0.00218], ['Souvenir AUG | Snake Pit', 'MW', 0.003622],
+      ['Galil AR | Green Apple', 'FT', 0.004149], ['P90 | Wash me', 'FT', 0.005592], ['Tec-9 | VariCamo', 'WW', 0.005592],
+      ['Tec-9 | Tiger Stencil', 'BS', 0.008109], ['Souvenir PP-Bizon | Anolis', 'FN', 0.008109], ['Dual Berettas | Stained', 'BS', 0.0113],
+      ['MAC-10 | Ensnared', 'MW', 0.0113], ['MP5-SD | Focus', 'FT', 0.0113], ['PP-Bizon | Brass', 'WW', 0.01515],
+      ['PP-Bizon | Night Ops', 'WW', 0.01515], ['Souvenir MAG-7 | Rust Coat', 'WW', 0.01982], ['PP-Bizon | Candy Apple', 'FN', 0.01982],
+      ['Souvenir P90 | Desert DDPAT', 'MW', 0.02526], ['AUG | Creep', 'BS', 0.02526], ['PP-Bizon | Brass', 'BS', 0.02526],
+      ['FAMAS | Мяу 36', 'MW', 0.03165], ['Dual Berettas | Polished Malachite', 'MW', 0.03165], ['Souvenir AUG | Snake Pit', 'FT', 0.039],
       ['Glock-18 | Ocean Topo', 'MW', 0.039], ['Souvenir P250 | Constructivist', 'FT', 0.04725], ['Souvenir SG 553 | Bleached', 'BS', 0.04725],
-      ['AWP | Safari Mesh', 'WW', 0.05668], ['PP-Bizon | Anolis', 'FT', 0.05668], ['Desert Eagle | Mudder', 'FT', 0.05668],
-      ['FAMAS | Teardown', 'BS', 0.06709], ['G3SG1 | Green Apple', 'FN', 0.06709], ['Tec-9 | Порыв синевы', 'FT', 0.07882],
-      ['StatTrak™ AUG | Trigger Discipline', 'BS', 0.07882], ['P250 | Drought', 'FT', 0.07882], ['★ Kukri Knife | Crimson Web', 'BS', 0.000003333],
-      ['AWP | Азимов', 'WW', 0.000003333],
+      ['AWP | Safari Mesh', 'WW', 0.05668], ['PP-Bizon | Anolis', 'FT', 0.05668], ['UMP-45 | Gunsmoke', 'FT', 0.05668],
+      ['FAMAS | 2A2F', 'BS', 0.06709], ['StatTrak™ G3SG1 | Hunter', 'BS', 0.06709], ['Tec-9 | Порыв синевы', 'WW', 0.07882],
+      ['StatTrak™ AUG | Trigger Discipline', 'BS', 0.07882], ['Souvenir P250 | Drought', 'FN', 0.07882], ['★ Kukri Knife | Crimson Web', 'BS', 0.000003333],
+      ['AWP | Азимов', 'FT', 0.000003333],
     ],
   },
   {
@@ -1237,17 +1240,17 @@ const CASES = [
     th: { a: '#22d3ee' }, img: 'assets/case-m4a1s.webp',
     // добавлено 14 M4A1-S разной изношенности (30–800 ₽) (окупаемость 85% и «дороже кейса» 18% — с удачей кейса из админки)
     exact: [
-      ['M4A1-S | Boreal Forest', 'FT', 0.08523], ['Souvenir M4A1-S | Wash me plz', 'FT', 0.06825], ['M4A1-S | Смешанный камуфляж', 'WW', 0.06791],
-      ['M4A1-S | Смешанный камуфляж', 'MW', 0.06491], ['M4A1-S | Emphorosaur-S', 'WW', 0.06301], ['M4A1-S | Mud-Spec', 'MW', 0.0611],
-      ['M4A1-S | Night Terror', 'WW', 0.05743], ['StatTrak™ M4A1-S | Emphorosaur-S', 'FT', 0.05393], ['StatTrak™ M4A1-S | Night Terror', 'FT', 0.05016],
-      ['M4A1-S | Glitched Paint', 'WW', 0.04741], ['M4A1-S | Emphorosaur-S', 'FN', 0.04418], ['M4A1-S | Glitched Paint', 'MW', 0.04092],
-      ['M4A1-S | Stratosphere', 'FT', 0.03926], ['M4A1-S | Stratosphere', 'BS', 0.03906], ['M4A1-S | Flashback', 'WW', 0.03724],
-      ['StatTrak™ M4A1-S | Black Lotus', 'MW', 0.02053], ['StatTrak™ M4A1-S | Flashback', 'FT', 0.01869], ['StatTrak™ M4A1-S | Electrum', 'FT', 0.01762],
-      ['M4A1-S | Briefing', 'BS', 0.01757], ['M4A1-S | Control Panel', 'WW', 0.01668], ['StatTrak™ M4A1-S | Electrum', 'FN', 0.01656],
-      ['M4A1-S | Nightmare', 'WW', 0.0155], ['M4A1-S | Party Animal', 'WW', 0.0149], ['StatTrak™ M4A1-S | Briefing', 'FT', 0.0148],
-      ['M4A1-S | Stratosphere', 'MW', 0.01459], ['M4A1-S | Party Animal', 'MW', 0.01227], ['StatTrak™ M4A1-S | Chantico\'s Fire', 'MW', 0.0000531],
-      ['StatTrak™ M4A1-S | Atomic Alloy', 'FN', 0.00005034], ['M4A1-S | Master Piece', 'MW', 0.00004717], ['M4A1-S | Градиент', 'MW', 0.00003407],
-      ['M4A1-S | Golden Coil', 'FN', 0.00002586], ['M4A1-S | Поток информации', 'FN', 0.00001702], ['StatTrak™ M4A1-S | Chantico\'s Fire', 'FN', 0.00001334],
+      ['M4A1-S | Boreal Forest', 'FT', 0.08523], ['Souvenir M4A1-S | Wash me plz', 'FT', 0.06825], ['M4A1-S | Mud-Spec', 'FT', 0.06791],
+      ['M4A1-S | Смешанный камуфляж', 'MW', 0.06491], ['M4A1-S | Emphorosaur-S', 'WW', 0.06301], ['Souvenir M4A1-S | Mud-Spec', 'FT', 0.0611],
+      ['M4A1-S | Night Terror', 'MW', 0.05743], ['StatTrak™ M4A1-S | Emphorosaur-S', 'FT', 0.05393], ['StatTrak™ M4A1-S | Night Terror', 'FT', 0.05016],
+      ['StatTrak™ M4A1-S | Night Terror', 'MW', 0.04741], ['M4A1-S | Emphorosaur-S', 'FN', 0.04418], ['M4A1-S | Glitched Paint', 'MW', 0.04092],
+      ['M4A1-S | Stratosphere', 'FT', 0.03926], ['M4A1-S | Solitude', 'MW', 0.03906], ['StatTrak™ M4A1-S | Flashback', 'WW', 0.03724],
+      ['StatTrak™ M4A1-S | Black Lotus', 'MW', 0.02053], ['M4A1-S | Flashback', 'FT', 0.01869], ['StatTrak™ M4A1-S | Electrum', 'FT', 0.01762],
+      ['M4A1-S | Briefing', 'BS', 0.01757], ['M4A1-S | Black Lotus', 'MW', 0.01668], ['StatTrak™ M4A1-S | Basilisk', 'WW', 0.01656],
+      ['M4A1-S | Nightmare', 'WW', 0.0155], ['M4A1-S | Solitude', 'FN', 0.0149], ['M4A1-S | Black Lotus', 'FN', 0.0148],
+      ['M4A1-S | Leaded Glass', 'MW', 0.01459], ['StatTrak™ M4A1-S | Leaded Glass', 'FT', 0.01227], ['StatTrak™ M4A1-S | Chantico\'s Fire', 'MW', 0.0000531],
+      ['StatTrak™ M4A1-S | Atomic Alloy', 'FN', 0.00005034], ['M4A1-S | Сайрекс', 'MW', 0.00004717], ['M4A1-S | Player Two', 'FN', 0.00003407],
+      ['StatTrak™ M4A1-S | Player Two', 'FN', 0.00002586], ['M4A1-S | Поток информации', 'FN', 0.00001702], ['StatTrak™ M4A1-S | Chantico\'s Fire', 'FN', 0.00001334],
       ['M4A1-S | Падение Икара', 'FN', 0.00001132], ['Souvenir M4A1-S | Imminent Danger', 'BS', 0.000005744], ['M4A1-S | Добро пожаловать в джунгли', 'FT', 0.000003957],
       ['M4A1-S | Hot Rod', 'FN', 0.000003216], ['M4A1-S | Неотвратимая угроза', 'MW', 0.000002883], ['M4A1-S | Добро пожаловать в джунгли', 'MW', 0.000002664],
       ['M4A1-S | Hot Rod', 'MW', 0.000002586], ['M4A1-S | Knight', 'FN', 0.000001488],
@@ -1259,17 +1262,17 @@ const CASES = [
     th: { a: '#f0b429' }, img: 'assets/case-deagle.webp',
     // добавлено 8 Desert Eagle чуть дешевле цены кейса (230–296 ₽) (окупаемость 80% и «дороже кейса» 17.1% — с удачей кейса из админки)
     exact: [
-      ['Desert Eagle | Mudder', 'FT', 0.182], ['Desert Eagle | Mint Fan', 'BS', 0.1697], ['Desert Eagle | Urban Rubble', 'WW', 0.09019],
-      ['Desert Eagle | Синяя фанера', 'FT', 0.07929], ['Souvenir Desert Eagle | Mudder', 'FT', 0.0634], ['StatTrak™ Desert Eagle | Firebreathing', 'MW', 0.0533],
-      ['Desert Eagle | Trigger Discipline', 'FT', 0.04995], ['Desert Eagle | Синяя фанера', 'MW', 0.04212], ['Desert Eagle | Firebreathing', 'FT', 0.03897],
-      ['Desert Eagle | Directive', 'BS', 0.03392], ['Desert Eagle | Printstream', 'BS', 0.03083], ['StatTrak™ Desert Eagle | Directive', 'BS', 0.02412],
+      ['Desert Eagle | Tilted', 'BS', 0.182], ['Desert Eagle | Mint Fan', 'BS', 0.1697], ['Desert Eagle | Urban Rubble', 'BS', 0.09019],
+      ['Desert Eagle | Синяя фанера', 'FT', 0.07929], ['Souvenir Desert Eagle | Mudder', 'FT', 0.0634], ['Desert Eagle | Механо-пушка', 'WW', 0.0533],
+      ['Desert Eagle | Trigger Discipline', 'FT', 0.04995], ['StatTrak™ Desert Eagle | Blue Ply', 'FT', 0.04212], ['Desert Eagle | Firebreathing', 'FT', 0.03897],
+      ['Desert Eagle | Directive', 'BS', 0.03392], ['Desert Eagle | Printstream', 'WW', 0.03083], ['StatTrak™ Desert Eagle | Directive', 'BS', 0.02412],
       ['StatTrak™ Desert Eagle | Mecha Industries', 'FT', 0.0231], ['StatTrak™ Desert Eagle | Corinthian', 'WW', 0.01669], ['StatTrak™ Desert Eagle | Firebreathing', 'FT', 0.01578],
       ['StatTrak™ Desert Eagle | Bronze Deco', 'BS', 0.01504], ['StatTrak™ Desert Eagle | Light Rail', 'WW', 0.01468], ['StatTrak™ Desert Eagle | Light Rail', 'FT', 0.01447],
       ['StatTrak™ Desert Eagle | Naga', 'BS', 0.01437], ['StatTrak™ Desert Eagle | Naga', 'WW', 0.01393], ['StatTrak™ Desert Eagle | Serpent Strike', 'FN', 0.01371],
       ['Desert Eagle | Ржавый кобальт', 'FT', 0.00007649], ['Desert Eagle | Pilot', 'WW', 0.00007356], ['Desert Eagle | Heirloom', 'FN', 0.00004085],
-      ['Souvenir Desert Eagle | Fennec Fox', 'BS', 0.00003563], ['Souvenir Desert Eagle | Fennec Fox', 'FT', 0.00002896], ['StatTrak™ Desert Eagle | Ocean Drive', 'MW', 0.0000259],
-      ['StatTrak™ Desert Eagle | Printstream', 'FN', 0.00002394], ['Desert Eagle | Золотой карп', 'MW', 0.00002002], ['StatTrak™ Desert Eagle | Hypnotic', 'MW', 0.00001038],
-      ['Desert Eagle | Изумрудный Ёрмунганд', 'FN', 0.000009634], ['Souvenir Desert Eagle | Hand Cannon', 'FT', 0.000009418], ['Desert Eagle | Sunset Storm 壱', 'FT', 0.000008303],
+      ['Souvenir Desert Eagle | Fennec Fox', 'BS', 0.00003563], ['Desert Eagle | Fennec Fox', 'FT', 0.00002896], ['Desert Eagle | Код красный', 'FN', 0.0000259],
+      ['StatTrak™ Desert Eagle | Printstream', 'FN', 0.00002394], ['Desert Eagle | Золотой карп', 'MW', 0.00002002], ['Desert Eagle | Fennec Fox', 'FN', 0.00001038],
+      ['Desert Eagle | Изумрудный Ёрмунганд', 'FN', 0.000009634], ['Souvenir Desert Eagle | Hand Cannon', 'FT', 0.000009418], ['Desert Eagle | Sunset Storm 壱', 'FN', 0.000008303],
       ['Desert Eagle | Пламя', 'FN', 0.000006564], ['Desert Eagle | Пламя', 'MW', 0.000005093],
     ],
   },
@@ -1280,18 +1283,18 @@ const CASES = [
     // добавлено 14 USP-S разной изношенности (40–620 ₽) (окупаемость 85% и «дороже кейса» 24% — с удачей кейса из админки)
     exact: [
       ['USP-S | 27', 'MW', 0.05965], ['StatTrak™ USP-S | 27', 'WW', 0.05959], ['USP-S | Alpine Camo', 'MW', 0.05768],
-      ['USP-S | Тропический бриз', 'MW', 0.05539], ['USP-S | Ticket to Hell', 'FT', 0.0551], ['USP-S | Ticket to Hell', 'WW', 0.05347],
+      ['USP-S | Тропический бриз', 'MW', 0.05539], ['StatTrak™ USP-S | Ticket to Hell', 'BS', 0.0551], ['USP-S | Ticket to Hell', 'MW', 0.05347],
       ['USP-S | Black Lotus', 'WW', 0.05252], ['StatTrak™ USP-S | Ticket to Hell', 'WW', 0.05127], ['StatTrak™ USP-S | 27', 'MW', 0.04932],
-      ['StatTrak™ USP-S | Flashback', 'FT', 0.04714], ['Souvenir USP-S | Check Engine', 'FT', 0.04601], ['StatTrak™ USP-S | Lead Conduit', 'BS', 0.04364],
-      ['USP-S | Royal Guard', 'MW', 0.04342], ['USP-S | Black Lotus', 'MW', 0.043], ['USP-S | Guardian', 'MW', 0.04279],
+      ['StatTrak™ USP-S | Silent Shot', 'FT', 0.04714], ['USP-S | Torque', 'FN', 0.04601], ['StatTrak™ USP-S | Lead Conduit', 'BS', 0.04364],
+      ['USP-S | Bleeding Edge', 'MW', 0.04342], ['StatTrak™ USP-S | Black Lotus', 'BS', 0.043], ['USP-S | Sleeping Potion', 'MW', 0.04279],
       ['Souvenir USP-S | Road Rash', 'BS', 0.0373], ['USP-S | Jawbreaker', 'WW', 0.02464], ['StatTrak™ USP-S | Black Lotus', 'FT', 0.02378],
-      ['USP-S | Пиксельный камуфляж «Фиолетовый»', 'FT', 0.02373], ['Souvenir USP-S | Purple DDPAT', 'MW', 0.02284], ['StatTrak™ USP-S | Guardian', 'FT', 0.02201],
-      ['Souvenir USP-S | Forest Leaves', 'FT', 0.02185], ['StatTrak™ USP-S | 27', 'FN', 0.02162], ['Souvenir USP-S | Check Engine', 'MW', 0.02102],
-      ['USP-S | Cortex', 'MW', 0.02067], ['USP-S | Cortex', 'FN', 0.0001085], ['StatTrak™ USP-S | Monster Mashup', 'MW', 0.00006463],
-      ['USP-S | Road Rash', 'MW', 0.0000633], ['USP-S | Orion', 'MW', 0.00005394], ['USP-S | Serum', 'MW', 0.00004722],
-      ['USP-S | Orion', 'WW', 0.00004148], ['StatTrak™ USP-S | Printstream', 'WW', 0.00003747], ['USP-S | Kill Confirmed', 'FT', 0.00003727],
-      ['USP-S | Business Class', 'FN', 0.00002895], ['USP-S | Неонуар', 'MW', 0.00001959], ['StatTrak™ USP-S | Neo-Noir', 'WW', 0.0000161],
-      ['StatTrak™ USP-S | Kill Confirmed', 'FT', 0.000009131], ['StatTrak™ USP-S | Printstream', 'FN', 0.000007735], ['USP-S | Target Acquired', 'FT', 0.000006093],
+      ['USP-S | Blood Tiger', 'FT', 0.02373], ['StatTrak™ USP-S | Torque', 'FN', 0.02284], ['USP-S | Flashback', 'FN', 0.02201],
+      ['USP-S | Forest Leaves', 'FN', 0.02185], ['StatTrak™ USP-S | 27', 'FN', 0.02162], ['Souvenir USP-S | Purple DDPAT', 'FN', 0.02102],
+      ['StatTrak™ USP-S | Cortex', 'BS', 0.02067], ['USP-S | Cortex', 'FN', 0.0001085], ['StatTrak™ USP-S | Monster Mashup', 'MW', 0.00006463],
+      ['USP-S | Road Rash', 'MW', 0.0000633], ['USP-S | Orion', 'MW', 0.00005394], ['StatTrak™ USP-S | Serum', 'MW', 0.00004722],
+      ['USP-S | Monster Mashup', 'FN', 0.00004148], ['StatTrak™ USP-S | Printstream', 'WW', 0.00003747], ['USP-S | Kill Confirmed', 'BS', 0.00003727],
+      ['USP-S | Business Class', 'FN', 0.00002895], ['StatTrak™ USP-S | Neo-Noir', 'MW', 0.00001959], ['StatTrak™ USP-S | Dark Water', 'MW', 0.0000161],
+      ['StatTrak™ USP-S | Kill Confirmed', 'FT', 0.000009131], ['StatTrak™ USP-S | Printstream', 'FN', 0.000007735], ['USP-S | Target Acquired', 'MW', 0.000006093],
       ['USP-S | Whiteout', 'FN', 0.000003934], ['StatTrak™ USP-S | Kill Confirmed', 'FN', 0.000002304],
     ],
   },
@@ -1301,22 +1304,22 @@ const CASES = [
     th: { a: '#3b82f6' }, img: 'assets/case-awp.webp',
     // добавлено 15 AWP разной изношенности, в основном дешевле кейса (47–1 500 ₽) (окупаемость 85% и «дороже кейса» 14% — с удачей кейса из админки)
     exact: [
-      ['StatTrak™ AWP | PAW', 'BS', 0.05926], ['AWP | Phobos', 'WW', 0.05509], ['AWP | Duality', 'FT', 0.0508],
-      ['AWP | Duality', 'WW', 0.04779], ['AWP | Black Nile', 'WW', 0.0473], ['AWP | ЛАПКИ', 'BS', 0.04348],
+      ['StatTrak™ AWP | PAW', 'WW', 0.05926], ['AWP | Black Box', 'FT', 0.05509], ['AWP | Green Energy', 'BS', 0.0508],
+      ['AWP | Duality', 'WW', 0.04779], ['AWP | Black Nile', 'WW', 0.0473], ['AWP | Worm God', 'WW', 0.04348],
       ['StatTrak™ AWP | Capillary', 'WW', 0.03985], ['AWP | Worm God', 'FT', 0.03955], ['AWP | Acheron', 'MW', 0.0395],
-      ['AWP | ЛАПКИ', 'FT', 0.03866], ['AWP | Гадюка', 'WW', 0.03805], ['StatTrak™ AWP | Capillary', 'BS', 0.03566],
-      ['AWP | Капилляры', 'WW', 0.0349], ['AWP | Acheron', 'FT', 0.03417], ['AWP | Acheron', 'BS', 0.03086],
-      ['AWP | Капилляры', 'MW', 0.03044], ['AWP | Гадюка', 'BS', 0.02971], ['AWP | Гадюка', 'FT', 0.02917],
+      ['AWP | ЛАПКИ', 'FT', 0.03866], ['AWP | Гадюка', 'MW', 0.03805], ['StatTrak™ AWP | Capillary', 'BS', 0.03566],
+      ['AWP | Acheron', 'WW', 0.0349], ['AWP | Acheron', 'FT', 0.03417], ['AWP | Acheron', 'BS', 0.03086],
+      ['AWP | Капилляры', 'MW', 0.03044], ['StatTrak™ AWP | Capillary', 'FT', 0.02971], ['AWP | Гадюка', 'FT', 0.02917],
       ['AWP | Капилляры', 'FT', 0.02694], ['AWP | Капилляры', 'BS', 0.02646], ['AWP | Arsenic Spill', 'FN', 0.02579],
-      ['StatTrak™ AWP | Fever Dream', 'BS', 0.02211], ['StatTrak™ AWP | Mortis', 'FN', 0.02037], ['AWP | Safari Mesh', 'MW', 0.0199],
+      ['StatTrak™ AWP | Fever Dream', 'FT', 0.02211], ['StatTrak™ AWP | Mortis', 'FN', 0.02037], ['AWP | Safari Mesh', 'MW', 0.0199],
       ['StatTrak™ AWP | Fever Dream', 'MW', 0.0176], ['StatTrak™ AWP | Ice Coaled', 'BS', 0.01756], ['AWP | Elite Build', 'BS', 0.01739],
-      ['AWP | Chrome Cannon', 'FT', 0.01688], ['StatTrak™ AWP | Chromatic Aberration', 'WW', 0.01654], ['AWP | Safari Mesh', 'FT', 0.01593],
-      ['AWP | Chrome Cannon', 'MW', 0.01534], ['AWP | Поп-AWP', 'FT', 0.01442], ['AWP | Азимов', 'WW', 0.00229],
-      ['AWP | Queen\'s Gambit', 'FN', 0.00005391], ['AWP | Oni Taiji', 'WW', 0.00004598], ['StatTrak™ AWP | Hyper Beast', 'FN', 0.00004106],
-      ['StatTrak™ AWP | Printstream', 'FN', 0.00003016], ['AWP | Lightning Strike', 'FN', 0.0000258], ['StatTrak™ AWP | Oni Taiji', 'BS', 0.00001939],
-      ['AWP | Oni Taiji', 'FN', 0.00001542], ['Souvenir AWP | Desert Hydra', 'WW', 0.00000912], ['AWP | Desert Hydra', 'MW', 0.000001396],
-      ['AWP | Принц', 'MW', 7.06e-7], ['AWP | Медуза', 'FT', 5.808e-7], ['AWP | История о драконе', 'BS', 2.938e-7],
-      ['AWP | Gungnir', 'BS', 2.554e-7],
+      ['AWP | Chromatic Aberration', 'BS', 0.01688], ['StatTrak™ AWP | Chromatic Aberration', 'MW', 0.01654], ['AWP | Safari Mesh', 'FT', 0.01593],
+      ['StatTrak™ AWP | Chrome Cannon', 'FT', 0.01534], ['StatTrak™ AWP | Worm God', 'WW', 0.01442], ['AWP | Азимов', 'FT', 0.00229],
+      ['AWP | Oni Taiji', 'FT', 0.00005391], ['AWP | Oni Taiji', 'MW', 0.00004598], ['StatTrak™ AWP | Hyper Beast', 'FN', 0.00004106],
+      ['AWP | Containment Breach', 'FN', 0.00003016], ['AWP | Lightning Strike', 'FN', 0.0000258], ['StatTrak™ AWP | Oni Taiji', 'FT', 0.00001939],
+      ['AWP | Oni Taiji', 'FN', 0.00001542], ['Souvenir AWP | Desert Hydra', 'BS', 0.00000912], ['AWP | Desert Hydra', 'FN', 0.000001396],
+      ['AWP | Принц', 'FT', 7.06e-7], ['AWP | Медуза', 'FT', 5.808e-7], ['AWP | История о драконе', 'FT', 2.938e-7],
+      ['AWP | Gungnir', 'FT', 2.554e-7],
     ],
   },
   {
@@ -1325,21 +1328,21 @@ const CASES = [
     th: { a: '#f97316' }, img: 'assets/case-ak47.webp',
     // добавлено 20 AK-47 на 0–200 ₽ дешевле кейса (150–349 ₽) (окупаемость 80% и «дороже кейса» 20.9% — с удачей кейса из админки)
     exact: [
-      ['AK-47 | Olive Polycam', 'WW', 0.4921], ['AK-47 | Ледяной уголь', 'BS', 0.07189], ['StatTrak™ AK-47 | Ice Coaled', 'WW', 0.02646],
-      ['AK-47 | Элитное снаряжение', 'WW', 0.02482], ['AK-47 | Steel Delta', 'FN', 0.0247], ['StatTrak™ AK-47 | Slate', 'BS', 0.02396],
-      ['Souvenir AK-47 | Baroque Purple', 'WW', 0.022], ['AK-47 | Point Disarray', 'BS', 0.0204], ['AK-47 | Breakthrough', 'BS', 0.01988],
+      ['AK-47 | Safari Mesh', 'WW', 0.4921], ['AK-47 | Ледяной уголь', 'WW', 0.07189], ['StatTrak™ AK-47 | Ice Coaled', 'WW', 0.02646],
+      ['AK-47 | Элитное снаряжение', 'WW', 0.02482], ['AK-47 | Aphrodite', 'WW', 0.0247], ['StatTrak™ AK-47 | Slate', 'FT', 0.02396],
+      ['Souvenir AK-47 | Baroque Purple', 'WW', 0.022], ['StatTrak™ AK-47 | Searing Rage', 'MW', 0.0204], ['AK-47 | Breakthrough', 'FT', 0.01988],
       ['AK-47 | Steel Delta', 'FT', 0.01809], ['AK-47 | Crossfade', 'BS', 0.01749], ['StatTrak™ AK-47 | Uncharted', 'FT', 0.01702],
-      ['AK-47 | Steel Delta', 'BS', 0.01649], ['StatTrak™ AK-47 | Uncharted', 'BS', 0.01591], ['AK-47 | Изумрудные завитки', 'FT', 0.01492],
+      ['AK-47 | Crossfade', 'WW', 0.01649], ['StatTrak™ AK-47 | Uncharted', 'BS', 0.01591], ['AK-47 | Изумрудные завитки', 'FT', 0.01492],
       ['AK-47 | Изумрудные завитки', 'BS', 0.01471], ['StatTrak™ AK-47 | Uncharted', 'MW', 0.01367], ['AK-47 | Midnight Laminate', 'FT', 0.01286],
       ['AK-47 | Safety Net', 'BS', 0.01111], ['AK-47 | Изумрудные завитки', 'WW', 0.01106], ['Souvenir AK-47 | Safari Mesh', 'FT', 0.01094],
       ['AK-47 | Baroque Purple', 'WW', 0.0103], ['AK-47 | Baroque Purple', 'BS', 0.00988], ['AK-47 | Wintergreen', 'FN', 0.009557],
-      ['AK-47 | Slate', 'WW', 0.009136], ['AK-47 | Ледяной уголь', 'FT', 0.009136], ['StatTrak™ AK-47 | The Outsiders', 'FT', 0.009077],
-      ['AK-47 | Колымага', 'WW', 0.008663], ['AK-47 | Колымага', 'BS', 0.008293], ['AK-47 | Crossfade', 'FN', 0.007599],
-      ['AK-47 | Searing Rage', 'BS', 0.007379], ['AK-47 | Head Shot', 'BS', 0.005914], ['AK-47 | Inheritance', 'WW', 0.003969],
-      ['StatTrak™ AK-47 | Neon Revolution', 'FT', 0.0003802], ['StatTrak™ AK-47 | Fuel Injector', 'FT', 0.00005177], ['AK-47 | AUTOEXEC', 'MW', 0.00004763],
-      ['AK-47 | Case Hardened', 'FN', 0.00004329], ['AK-47 | Вулкан', 'FN', 0.00002745], ['StatTrak™ AK-47 | Asiimov', 'FN', 0.00002102],
-      ['AK-47 | Огненный змей', 'BS', 0.00001855], ['StatTrak™ AK-47 | Case Hardened', 'MW', 0.0000143], ['AK-47 | Hydroponic', 'FT', 0.00001078],
-      ['AK-47 | Огненный змей', 'WW', 0.00001016], ['AK-47 | Рентген', 'MW', 0.00000145], ['AK-47 | Золотая арабеска', 'MW', 0.000001141],
+      ['AK-47 | Slate', 'WW', 0.009136], ['AK-47 | Ледяной уголь', 'FT', 0.009136], ['StatTrak™ AK-47 | The Outsiders', 'MW', 0.009077],
+      ['AK-47 | Колымага', 'WW', 0.008663], ['AK-47 | Колымага', 'BS', 0.008293], ['StatTrak™ AK-47 | Uncharted', 'FN', 0.007599],
+      ['AK-47 | Searing Rage', 'FT', 0.007379], ['AK-47 | Head Shot', 'FT', 0.005914], ['StatTrak™ AK-47 | Legion of Anubis', 'WW', 0.003969],
+      ['StatTrak™ AK-47 | Neon Revolution', 'FT', 0.0003802], ['AK-47 | Fuel Injector', 'FN', 0.00005177], ['StatTrak™ AK-47 | Jaguar', 'MW', 0.00004763],
+      ['StatTrak™ AK-47 | Case Hardened', 'BS', 0.00004329], ['AK-47 | Вулкан', 'FN', 0.00002745], ['StatTrak™ AK-47 | Asiimov', 'FN', 0.00002102],
+      ['AK-47 | Огненный змей', 'FT', 0.00001855], ['StatTrak™ AK-47 | Case Hardened', 'MW', 0.0000143], ['AK-47 | Hydroponic', 'BS', 0.00001078],
+      ['AK-47 | Огненный змей', 'MW', 0.00001016], ['AK-47 | Золотая арабеска', 'FT', 0.00000145], ['AK-47 | Золотая арабеска', 'MW', 0.000001141],
       ['AK-47 | Золотая арабеска', 'FN', 0.000001054], ['StatTrak™ AK-47 | Fire Serpent', 'BS', 8.653e-7], ['AK-47 | Hydroponic', 'FN', 5.497e-7],
       ['AK-47 | Дикий лотос', 'WW', 2.604e-7],
     ],
@@ -1350,17 +1353,17 @@ const CASES = [
     th: { a: '#ef4444' }, img: 'assets/case-m4a4.webp',
     // добавлено 10 M4A4 около цены кейса (270–450 ₽) (окупаемость 69.9% и «дороже кейса» 17.3% — с удачей кейса из админки)
     exact: [
-      ['M4A4 | Choppa', 'MW', 0.275], ['StatTrak™ M4A4 | Zubastick', 'BS', 0.1529], ['Souvenir M4A4 | Mainframe', 'FT', 0.1268],
-      ['StatTrak™ M4A4 | Zubastick', 'FN', 0.03787], ['StatTrak™ M4A4 | Etch Lord', 'MW', 0.03723], ['M4A4 | Jungle Tiger', 'FT', 0.02957],
+      ['M4A4 | Choppa', 'MW', 0.275], ['M4A4 | Dark Operative', 'FT', 0.1529], ['M4A4 | Магний', 'FT', 0.1268],
+      ['StatTrak™ M4A4 | Zubastick', 'FN', 0.03787], ['StatTrak™ M4A4 | Etch Lord', 'MW', 0.03723], ['Souvenir M4A4 | Urban DDPAT', 'FT', 0.02957],
       ['Souvenir M4A4 | Converter', 'FT', 0.0292], ['M4A4 | Evil Daimyo', 'BS', 0.029], ['M4A4 | Jungle Tiger', 'WW', 0.02864],
-      ['StatTrak™ M4A4 | Turbine', 'FT', 0.02799], ['M4A4 | Evil Daimyo', 'WW', 0.02752], ['M4A4 | Faded Zebra', 'FT', 0.02656],
-      ['M4A4 | Sheet Lightning', 'FN', 0.02632], ['M4A4 | Faded Zebra', 'BS', 0.02562], ['M4A4 | Griffin', 'MW', 0.0253],
-      ['M4A4 | Etch Lord', 'FN', 0.02449], ['M4A4 | Full Throttle', 'BS', 0.02012], ['M4A4 | Dark Blossom', 'FT', 0.016],
-      ['M4A4 | Hellish', 'BS', 0.01454], ['M4A4 | Neo-Noir', 'BS', 0.01446], ['M4A4 | Full Throttle', 'MW', 0.002466],
-      ['StatTrak™ M4A4 | The Emperor', 'FT', 0.002096], ['M4A4 | Bullet Rain', 'FN', 0.00004171], ['M4A4 | Buzz Kill', 'MW', 0.00003988],
-      ['M4A4 | Eye of Horus', 'MW', 0.00003054], ['StatTrak™ M4A4 | Bullet Rain', 'FN', 0.0000285], ['StatTrak™ M4A4 | Royal Paladin', 'FN', 0.00002474],
-      ['StatTrak™ M4A4 | Asiimov', 'WW', 0.00002034], ['M4A4 | Daybreak', 'MW', 0.00001435], ['Souvenir M4A4 | Eye of Horus', 'MW', 0.00001365],
-      ['M4A4 | Eye of Horus', 'FN', 0.00001268], ['M4A4 | The Coalition', 'FN', 0.000006672], ['M4A4 | Poseidon', 'MW', 0.000005608],
+      ['StatTrak™ M4A4 | Turbine', 'FT', 0.02799], ['M4A4 | Evil Daimyo', 'MW', 0.02752], ['M4A4 | Faded Zebra', 'FT', 0.02656],
+      ['M4A4 | Spider Lily', 'BS', 0.02632], ['StatTrak™ M4A4 | Faded Zebra', 'FT', 0.02562], ['M4A4 | Griffin', 'MW', 0.0253],
+      ['M4A4 | Tooth Fairy', 'WW', 0.02449], ['M4A4 | Full Throttle', 'BS', 0.02012], ['M4A4 | Dark Blossom', 'FT', 0.016],
+      ['M4A4 | 龍王 (Dragon King)', 'FT', 0.01454], ['StatTrak™ M4A4 | Neo-Noir', 'WW', 0.01446], ['M4A4 | Full Throttle', 'MW', 0.002466],
+      ['StatTrak™ M4A4 | The Emperor', 'WW', 0.002096], ['M4A4 | Bullet Rain', 'FN', 0.00004171], ['M4A4 | Buzz Kill', 'MW', 0.00003988],
+      ['M4A4 | Hellfire', 'FN', 0.00003054], ['M4A4 | Buzz Kill', 'FT', 0.0000285], ['StatTrak™ M4A4 | Royal Paladin', 'FN', 0.00002474],
+      ['StatTrak™ M4A4 | Asiimov', 'WW', 0.00002034], ['StatTrak™ M4A4 | Asiimov', 'FT', 0.00001435], ['M4A4 | The Coalition', 'MW', 0.00001365],
+      ['M4A4 | Eye of Horus', 'FN', 0.00001268], ['M4A4 | The Coalition', 'FN', 0.000006672], ['M4A4 | Poseidon', 'FN', 0.000005608],
       ['M4A4 | Poseidon', 'FT', 0.000001458], ['M4A4 | Вой', 'FT', 4.035e-7], ['M4A4 | Вой', 'FN', 2.227e-7],
     ],
   },
@@ -1370,95 +1373,88 @@ const CASES = [
     th: { a: '#10b981' }, img: 'assets/case-gloves.webp',
     // все виды перчаток, любая изношенность: 60 пар от 2,2 тыс.; ×5+ цены — джекпоты (окупаемость 80% и «дороже кейса» 15% — с удачей кейса из админки)
     exact: [
-      ['★ Driver Gloves | Racing Green', 'BS', 0.02524], ['★ Driver Gloves | Racing Green', 'WW', 0.02521], ['★ Hydra Gloves | Rattler', 'WW', 0.02512],
+      ['★ Driver Gloves | Racing Green', 'BS', 0.02524], ['★ Hydra Gloves | Rattler', 'MW', 0.02521], ['★ Hydra Gloves | Rattler', 'WW', 0.02512],
       ['★ Driver Gloves | Racing Green', 'FT', 0.02492], ['★ Hydra Gloves | Rattler', 'BS', 0.0249], ['★ Hydra Gloves | Rattler', 'FT', 0.02481],
       ['★ Hydra Gloves | Emerald', 'FT', 0.02476], ['★ Hydra Gloves | Mangrove', 'FT', 0.02475], ['★ Hydra Gloves | Mangrove', 'BS', 0.02471],
-      ['★ Hydra Gloves | Emerald', 'BS', 0.02437], ['★ Hand Wraps | Arboreal', 'BS', 0.02426], ['★ Moto Gloves | Transport', 'FT', 0.02421],
-      ['★ Moto Gloves | Transport', 'WW', 0.02384], ['★ Moto Gloves | 3rd Commando Company', 'BS', 0.02378], ['★ Moto Gloves | Transport', 'BS', 0.02359],
-      ['★ Hand Wraps | Giraffe', 'BS', 0.02348], ['★ Hand Wraps | Desert Shamagh', 'FT', 0.02345], ['★ Hand Wraps | Constrictor', 'BS', 0.02322],
-      ['★ Hand Wraps | Arboreal', 'FT', 0.0232], ['★ Hydra Gloves | Emerald', 'WW', 0.02316], ['★ Driver Gloves | Racing Green', 'MW', 0.02312],
-      ['★ Hand Wraps | Desert Shamagh', 'BS', 0.02303], ['★ Specialist Gloves | Buckshot', 'BS', 0.02302], ['★ Hand Wraps | Constrictor', 'FT', 0.02269],
-      ['★ Hand Wraps | Constrictor', 'WW', 0.02268], ['★ Hand Wraps | Desert Shamagh', 'WW', 0.02215], ['★ Hand Wraps | Giraffe', 'FT', 0.02143],
-      ['★ Broken Fang Gloves | Needle Point', 'FT', 0.01905], ['★ Specialist Gloves | Buckshot', 'WW', 0.01891], ['★ Specialist Gloves | Buckshot', 'FT', 0.01814],
-      ['★ Moto Gloves | POW!', 'BS', 0.01748], ['★ Moto Gloves | POW!', 'WW', 0.01604], ['★ Driver Gloves | Black Tie', 'BS', 0.01539],
-      ['★ Hydra Gloves | Case Hardened', 'BS', 0.01512], ['★ Sport Gloves | Blaze', 'BS', 0.01467], ['★ Specialist Gloves | Buckshot', 'MW', 0.0142],
-      ['★ Hand Wraps | Duct Tape', 'MW', 0.01411], ['★ Moto Gloves | POW!', 'FT', 0.01406], ['★ Driver Gloves | Rezan the Red', 'WW', 0.01378],
-      ['★ Driver Gloves | Brocade Flowers', 'BS', 0.0133], ['★ Driver Gloves | Convoy', 'BS', 0.01273], ['★ Driver Gloves | Imperial Plaid', 'BS', 0.01237],
-      ['★ Moto Gloves | Finish Line', 'WW', 0.01199], ['★ Driver Gloves | Brocade Crane', 'BS', 0.01147], ['★ Sport Gloves | Omega', 'WW', 0.01082],
-      ['★ Moto Gloves | Smoke Out', 'FT', 0.01076], ['★ Specialist Gloves | Field Agent', 'BS', 0.01048], ['★ Sport Gloves | Scarlet Shamagh', 'FT', 0.01001],
-      ['★ Bloodhound Gloves | Snakebite', 'MW', 0.008626], ['★ Driver Gloves | Snow Leopard', 'FT', 0.007458], ['★ Sport Gloves | Slingshot', 'FT', 0.00644],
+      ['★ Hydra Gloves | Emerald', 'BS', 0.02437], ['★ Hand Wraps | Duct Tape', 'FT', 0.02426], ['★ Moto Gloves | 3rd Commando Company', 'WW', 0.02421],
+      ['★ Moto Gloves | 3rd Commando Company', 'FT', 0.02384], ['★ Driver Gloves | Overtake', 'WW', 0.02378], ['★ Hand Wraps | Giraffe', 'WW', 0.02359],
+      ['★ Hand Wraps | Giraffe', 'BS', 0.02348], ['★ Hand Wraps | Desert Shamagh', 'FT', 0.02345], ['★ Hand Wraps | Duct Tape', 'WW', 0.02322],
+      ['★ Hand Wraps | Arboreal', 'FT', 0.0232], ['★ Hydra Gloves | Emerald', 'WW', 0.02316], ['★ Driver Gloves | Queen Jaguar', 'BS', 0.02312],
+      ['★ Hand Wraps | Duct Tape', 'BS', 0.02303], ['★ Broken Fang Gloves | Needle Point', 'WW', 0.02302], ['★ Broken Fang Gloves | Yellow-banded', 'WW', 0.02269],
+      ['★ Broken Fang Gloves | Yellow-banded', 'BS', 0.02268], ['★ Driver Gloves | Overtake', 'FT', 0.02215], ['★ Hand Wraps | Giraffe', 'FT', 0.02143],
+      ['★ Broken Fang Gloves | Needle Point', 'FT', 0.01905], ['★ Broken Fang Gloves | Needle Point', 'BS', 0.01891], ['★ Broken Fang Gloves | Yellow-banded', 'FT', 0.01814],
+      ['★ Moto Gloves | POW!', 'BS', 0.01748], ['★ Moto Gloves | POW!', 'WW', 0.01604], ['★ Driver Gloves | Black Tie', 'FT', 0.01539],
+      ['★ Hydra Gloves | Case Hardened', 'BS', 0.01512], ['★ Sport Gloves | Blaze', 'BS', 0.01467], ['★ Broken Fang Gloves | Yellow-banded', 'MW', 0.0142],
+      ['★ Hand Wraps | Duct Tape', 'MW', 0.01411], ['★ Moto Gloves | Finish Line', 'FT', 0.01406], ['★ Driver Gloves | Seigaiha', 'BS', 0.01378],
+      ['★ Driver Gloves | Brocade Flowers', 'BS', 0.0133], ['★ Driver Gloves | Convoy', 'BS', 0.01273], ['★ Driver Gloves | Imperial Plaid', 'WW', 0.01237],
+      ['★ Moto Gloves | Smoke Out', 'BS', 0.01199], ['★ Driver Gloves | Brocade Crane', 'BS', 0.01147], ['★ Sport Gloves | Omega', 'WW', 0.01082],
+      ['★ Moto Gloves | Smoke Out', 'FT', 0.01076], ['★ Specialist Gloves | Field Agent', 'FT', 0.01048], ['★ Sport Gloves | Scarlet Shamagh', 'FT', 0.01001],
+      ['★ Bloodhound Gloves | Snakebite', 'MW', 0.008626], ['★ Driver Gloves | Snow Leopard', 'WW', 0.007458], ['★ Sport Gloves | Slingshot', 'FT', 0.00644],
       ['★ Moto Gloves | Eclipse', 'FT', 0.006397], ['★ Sport Gloves | Nocts', 'FT', 0.006129], ['★ Sport Gloves | Vice', 'FT', 0.005772],
-      ['★ Sport Gloves | Occult', 'BS', 0.00564], ['★ Driver Gloves | Diamondback', 'MW', 0.004772], ['★ Sport Gloves | Ultra Violent', 'BS', 0.00473],
+      ['★ Sport Gloves | Occult', 'BS', 0.00564], ['★ Sport Gloves | Slingshot', 'MW', 0.004772], ['★ Sport Gloves | Ultra Violent', 'BS', 0.00473],
       ['★ Specialist Gloves | Emerald Web', 'FT', 0.003053], ['★ Moto Gloves | Cool Mint', 'MW', 0.002109], ['★ Sport Gloves | Ultra Violent', 'FN', 0.0008448],
     ],
   },
   {
     id: 'mirage', name: 'MIRAGE', price: 149, tag: 'Карта', tagIc: 'globe', rtp: 0.8,
-    sub: 'Карта Mirage: 30 скиновов коллекций Mirage, Mirage 2021 и восточной Arabesque — от 26 ₽ до 104 тыс., ~20% открытий окупаются. Джекпоты — AWP | Desert Hydra, AK-47 | Consequence of the Jinn, AWP | Sovereign Flame',
+    sub: 'Карта Mirage: 33 скина коллекций Mirage и пустынной арабески — от 73 ₽, каждое ~7-е открытие дороже кейса. Glock-18 Mirror Mosaic, FAMAS Djinn, AK-47 Consequence of the Jinn. Джекпоты — Desert Eagle Fennec Fox, Karambit Safari Mesh, AWP Desert Hydra, AK-47 Золотая арабеска',
     th: { a: '#d97706' }, img: 'assets/case-mirage.webp',
-    // добавлено 12 скинов коллекций Mirage 139–1 185 ₽ (окупаемость 80% и «дороже кейса» 20.3% — с удачей кейса из админки)
+    // 27.11 (владелец): пересобран — 33 скина от ~половины цены кейса, окупаемость 80% (удача кейса ×1)
     exact: [
-      ['P250 | Drought', 'FN', 0.282], ['MAG-7 | Navy Sheen', 'MW', 0.1722], ['SSG 08 | Prey', 'FN', 0.08669],
-      ['PP-Bizon | Death Rattle', 'WW', 0.08193], ['CZ75-Auto | Полуночная пальма', 'FN', 0.05141], ['StatTrak™ Dual Berettas | Shred', 'FN', 0.04821],
-      ['StatTrak™ M249 | Deep Relief', 'FT', 0.02737], ['AUG | Aristocrat', 'MW', 0.02561], ['Glock-18 | Кролик в тени', 'FN', 0.02521],
-      ['FAMAS | Faulty Wiring', 'BS', 0.02374], ['StatTrak™ MP9 | Nexus', 'FN', 0.02372], ['Souvenir P90 | Scorched', 'WW', 0.02028],
-      ['SG 553 | Desert Blossom', 'FT', 0.02005], ['StatTrak™ SG 553 | Heavy Metal', 'FN', 0.01866], ['MP9 | Music Box', 'WW', 0.01752],
-      ['Souvenir M249 | Humidor', 'MW', 0.01402], ['M249 | Humidor', 'WW', 0.0139], ['USP-S | Пиксельный камуфляж «Фиолетовый»', 'FT', 0.01315],
-      ['StatTrak™ SG 553 | Pulse', 'FT', 0.008633], ['USP-S | Blueprint', 'FT', 0.006869], ['AUG | Torque', 'MW', 0.00509],
-      ['StatTrak™ MAG-7 | BI83 Spectrum', 'FN', 0.003115], ['Desert Eagle | Trigger Discipline', 'FN', 0.002349], ['XM1014 | Heaven Guard', 'FN', 0.001728],
-      ['StatTrak™ Desert Eagle | Firebreathing', 'FN', 0.001683], ['Souvenir AUG | Random Access', 'WW', 0.001624], ['StatTrak™ Glock-18 | Weasel', 'FN', 0.001552],
-      ['Souvenir MP5-SD | Oxide Oasis', 'FT', 0.0008155], ['Souvenir Desert Eagle | Fennec Fox', 'BS', 0.0007879], ['Souvenir AWP | Desert Hydra', 'MW', 0.00007192],
+      ['MAG-7 | Copper Coated', 'WW', 1], ['M249 | Midnight Palm', 'FT', 1], ['Desert Eagle | Firebreathing', 'FT', 1], ['CZ75-Auto | Полуночная пальма', 'FN', 1],
+      ['MAC-10 | Lapis Gator', 'MW', 0.5], ['Souvenir Nova | Walnut', 'BS', 0.5], ['AUG | Aristocrat', 'BS', 0.4], ['StatTrak™ MAG-7 | Cobalt Core', 'MW', 0.4],
+      ['StatTrak™ Glock-18 | Weasel', 'FT', 0.4], ['Souvenir P90 | Scorched', 'FT', 0.4], ['StatTrak™ FAMAS | Neural Net', 'BS', 0.2], ['SG 553 | Desert Blossom', 'FT', 0.2],
+      ['Souvenir USP-S | Purple DDPAT', 'FT', 0.2], ['MP9 | Music Box', 'FT', 0.08], ['M249 | Humidor', 'MW', 0.08], ['StatTrak™ USP-S | Black Lotus', 'FT', 0.08],
+      ['P90 | ScaraB Rush', 'WW', 0.08], ['Glock-18 | Mirror Mosaic', 'WW', 0.08], ['StatTrak™ XM1014 | Black Tie', 'MW', 0.04], ['MP9 | Hydra', 'BS', 0.015],
+      ['Glock-18 | Sand Dune', 'FT', 0.015], ['MAG-7 | Bulldozer', 'WW', 0.015], ['FAMAS | Djinn', 'FT', 0.015], ['Souvenir Glock-18 | Pink DDPAT', 'BS', 0.003],
+      ['XM1014 | Elegant Vines', 'MW', 0.003], ['Souvenir AWP | Pink DDPAT', 'FT', 0.003], ['AK-47 | Consequence of the Jinn', 'BS', 0.001], ['Souvenir Desert Eagle | Fennec Fox', 'BS', 0.0003],
+      ['MP5-SD | Oxide Oasis', 'MW', 0.0003], ['★ Talon Knife | Safari Mesh', 'BS', 0.00015], ['★ Karambit | Safari Mesh', 'FT', 0.0001], ['Souvenir AWP | Desert Hydra', 'BS', 0.00005],
+      ['AK-47 | Золотая арабеска', 'FT', 0.0000375],
     ],
   },
   {
     // «CS2 CASE» — заготовка под кейс с 3D-сценой открытия (модель и видео-фон из Blender подключим позже); пока виден только админу (adm)
-    id: 'cs2', name: 'CS2 CASE', price: 219, tag: 'Новый', tagIc: 'star', rtp: 0.8, ui: 'cs2', // BLAST (имя из админки) — открыт для всех игроков 19.11 (было adm: true — только админ); // ui: 'cs2' — открытие как в CS2 (только на ПК)
+    id: 'cs2', name: 'CS2 CASE', price: 219, tag: 'Новый', tagIc: 'star', rtp: 0.8335, ui: 'cs2', // BLAST (имя из админки) — открыт для всех игроков 19.11 (было adm: true — только админ); // ui: 'cs2' — открытие как в CS2 (только на ПК)
     pity: true, // гарант 75/150 (PITY, supabase/cs2_pity.sql); шансы подобраны так, чтобы с гарантом окупаемость осталась rtp
-    sub: 'Тестовый кейс: простое наполнение для примера',
+    sub: 'Кейс с гарантом: 40 скинов от 110 ₽ — AK-47, AWP, M4 и Desert Eagle, каждое ~10-е открытие дороже кейса. 75-е открытие подряд — шанс на «Засекреченное», 150-е — точно «Засекреченное» или нож. Джекпоты — AK-47 Азимов, AWP Скоростной зверь, USP-S Printstream, ножи Marble Fade и Tiger Tooth, Karambit',
     th: { a: '#f3c14f' }, img: 'assets/case-cs2.webp', // рендер 3D-модели (assets/cs2case/case.glb)
     exact: [
-      // обычные (08.11, владелец): кейс 219 ₽, самый дешёвый дроп от 120 ₽ — 3 синих, 3 фиолетовых, 2 розовых
-      ['AK-47 | Wintergreen', 'MW', 0.25], ['Souvenir USP-S | Check Engine', 'FT', 0.2], ['AWP | Гадюка', 'BS', 0.18],
-      ['StatTrak™ Desert Eagle | Corinthian', 'MW', 0.14], ['Glock-18 | Grinder', 'MW', 0.1], ['StatTrak™ M4A4 | Zubastick', 'FN', 0.07],
-      ['AK-47 | Ледяной уголь', 'BS', 0.04], ['M4A1-S | Nightmare', 'WW', 0.015],
-      ['StatTrak™ AK-47 | Head Shot', 'BS', 0.004],
-      ['Desert Eagle | Conspiracy', 'FT', 0.004], ['USP-S | Overgrowth', 'MW', 0.004], // красные за «ЗАСЕКРЕЧЕНО» — каждый ~1 из 250
-      ['★ Navaja Knife | Marble Fade', 'FN', 0.0003],
-      ['★ Gut Knife | Tiger Tooth', 'FN', 0.0003], ['★ Shadow Daggers | Marble Fade', 'FN', 0.0003], // ножи за золотым «?» — каждый ~1 из 3 300
+      ['Glock-18 | Weasel', 'FT', 1], ['M4A1-S | Glitched Paint', 'WW', 1], ['Desert Eagle | Sputnik', 'FT', 1], ['StatTrak™ AWP | Capillary', 'BS', 1],
+      ['AK-47 | Элитное снаряжение', 'BS', 1], ['StatTrak™ Desert Eagle | Bronze Deco', 'FN', 1], ['StatTrak™ USP-S | Torque', 'WW', 0.5], ['AK-47 | Breakthrough', 'FT', 0.5],
+      ['AK-47 | Crossfade', 'FT', 0.5], ['Glock-18 | Grinder', 'MW', 0.4], ['StatTrak™ M4A4 | Zubastick', 'FN', 0.4], ['AWP | Exothermic', 'BS', 0.4],
+      ['AWP | Exothermic', 'FT', 0.4], ['AK-47 | Midnight Laminate', 'FT', 0.4], ['USP-S | Sleeping Potion', 'MW', 0.2], ['AK-47 | Safety Net', 'FT', 0.2],
+      ['AWP | Duality', 'WW', 0.2], ['AK-47 | Slate', 'WW', 0.08], ['AK-47 | Ледяной уголь', 'FT', 0.08], ['AK-47 | Searing Rage', 'FT', 0.08],
+      ['AK-47 | Searing Rage', 'MW', 0.015], ['M4A1-S | Nightmare', 'WW', 0.015], ['StatTrak™ AWP | Atheris', 'FT', 0.015], ['M4A1-S | Decimator', 'BS', 0.004],
+      ['StatTrak™ AK-47 | Searing Rage', 'MW', 0.004], ['AWP | Fever Dream', 'FT', 0.004], ['AK-47 | Frontside Misty', 'FT', 0.002], ['AK-47 | Красная линия', 'FT', 0.002],
+      ['StatTrak™ Desert Eagle | Conspiracy', 'FN', 0.002], ['AK-47 | Aphrodite', 'BS', 0.002], ['StatTrak™ AK-47 | Head Shot', 'BS', 0.00025], ['StatTrak™ M4A4 | Neo-Noir', 'WW', 0.00025],
+      ['USP-S | Printstream', 'BS', 0.0002], ['AWP | Скоростной зверь', 'MW', 0.000133], ['AK-47 | Азимов', 'BS', 0.000133], ['★ Shadow Daggers | Marble Fade', 'FN', 0.0002],
+      ['★ Navaja Knife | Marble Fade', 'FN', 0.0002], ['★ Gut Knife | Tiger Tooth', 'FN', 0.0002], ['★ Bayonet | Night', 'BS', 0.0000333], ['★ Karambit | Safari Mesh', 'FT', 0.000008],
     ],
   },
   {
     // «MAJOR» (13.11.2026, владелец): 3D-кейс из Blender (ветка blender: blender/scenes/case-major.blend → assets/cs2case/case-major.glb,
     // выгрузка blender/scripts/case_export_glb_major.py) — открывается в той же 3D-сцене, что CS2 CASE (ui: 'cs2', только на ПК)
-    id: 'major', name: 'MAJOR', price: 499, tag: 'Новый', tagIc: 'star', rtp: 0.8, ui: 'cs2',
+    id: 'major', name: 'MAJOR', price: 499, tag: 'Новый', tagIc: 'star', rtp: 0.8394, ui: 'cs2',
     pity: true, // ивентовый кейс — гарант 75/150, как у CS2 CASE (владелец 13.11); шансы пересчитаны с гарантом (pityEv) — окупаемость 80%
     c2glb: 'case-major2.glb', // своя 3D-модель в assets/cs2case/ (у CS2 CASE — case.glb); 15.11 — новый вид, новое имя файла, чтобы не взялся старый из кэша
     c2p: { sun: 8.4, env: .58, exposure: 1.01, contrast: 1.12, saturate: 1.6, shadow: 1, fill: 2, dust: 6 }, // свет сцены — подобран владельцем в пробе 13.11
-    sub: 'Ивентовый кейс с гарантом: легенды мейджоров, 42 позиции от 100 ₽. 75-е открытие подряд — шанс на «Засекреченное», 150-е — точно «Засекреченное» или нож/перчатки. Классика — AWP Азимов, AK-47 Красная линия и Вулкан, M4A4 Император. Джекпоты — M4A4 Вой, AWP Медуза и Dragon Lore, ножи и перчатки',
+    sub: 'Ивентовый кейс с гарантом: легенды мейджоров, 54 позиции от 280 ₽, каждое ~8-е открытие — скин дороже кейса, каждое 20-е — билет PIKEM. 75-е открытие подряд — шанс на «Засекреченное», 150-е — точно «Засекреченное» или нож/перчатки. Классика — AK-47 Красная линия, AWP Fever Dream, M4A4 Desolate Space, AK-47 Head Shot, M4A4 Neo-Noir. Джекпоты — AK-47 Вулкан и Огненный змей, AWP Медуза, M4A4 Вой, Dragon Lore, Karambit Doppler, Butterfly Fade',
     th: { a: '#e3b04b' }, img: 'assets/case-major3.webp', // рендер 3D-модели (15.11 вечер — холст, ширина и поля как у CS2 CASE, чтобы в витрине кейсы были одного размера; гладкий синий корпус, плоский золотой знак — кубок с лаврами, MAJOR; зашёлки — полированное золото)
     exact: [
-      [PK_TICKET, '', 0.05], // билет пикема Major — 5% (владелец 23.11), шанс не наклоняется; остальное подстраивается под окупаемость 80%
-      // дешёвые, до цены кейса (от 100 ₽)
-      ['Desert Eagle | Meteorite', 'FN', 0.06], ['Glock-18 | Moonrise', 'WW', 0.06], ['AK-47 | Элитное снаряжение', 'WW', 0.06],
-      ['Souvenir USP-S | Check Engine', 'FT', 0.06], ['AWP | Гадюка', 'BS', 0.06], ['StatTrak™ M4A4 | Zubastick', 'FN', 0.06],
-      ['USP-S | Jawbreaker', 'WW', 0.06], ['AK-47 | Изумрудные завитки', 'MW', 0.06], ['AK-47 | Midnight Laminate', 'WW', 0.06],
-      ['Souvenir Desert Eagle | Mudder', 'FT', 0.06],
-      // около цены кейса
-      ['USP-S | Jawbreaker', 'MW', 0.035], ['M4A1-S | Nightmare', 'WW', 0.035], ['M4A1-S | Stratosphere', 'MW', 0.035],
-      ['StatTrak™ P250 | Asiimov', 'BS', 0.035], ['StatTrak™ AWP | Ice Coaled', 'BS', 0.035], ['StatTrak™ AK-47 | Ice Coaled', 'WW', 0.035],
-      ['M4A4 | Hellish', 'BS', 0.035],
-      // классика мейджоров
-      ['StatTrak™ Glock-18 | Snack Attack', 'BS', 0.008], ['USP-S | Jawbreaker', 'FN', 0.008], ['StatTrak™ AWP | Fever Dream', 'BS', 0.008],
-      ['AK-47 | Красная линия', 'BS', 0.008], ['AWP | Красная линия', 'FT', 0.008], ['AWP | Chrome Cannon', 'FT', 0.008],
-      ['M4A4 | Neo-Noir', 'BS', 0.008], ['StatTrak™ Desert Eagle | Mecha Industries', 'FN', 0.008],
-      // дорогие легенды
-      ['AK-47 | Азимов', 'BS', 0.002], ['StatTrak™ AK-47 | Legion of Anubis', 'BS', 0.002], ['M4A4 | Император', 'FT', 0.002],
-      ['M4A1-S | Golden Coil', 'BS', 0.002], ['StatTrak™ USP-S | Printstream', 'FT', 0.002], ['AWP | Азимов', 'WW', 0.002],
-      ['StatTrak™ AK-47 | Asiimov', 'WW', 0.002], ['AK-47 | Вулкан', 'FT', 0.002], ['M4A4 | Азимов', 'WW', 0.002],
-      // джекпоты — ножи, перчатки, легенды (Огненный змей, Медуза, Вой, Dragon Lore)
-      ['★ Sport Gloves | Vice', 'FT', 0.0002], ['AK-47 | Огненный змей', 'BS', 0.0002], ['★ M9 Bayonet | Doppler', 'FN', 0.0002],
-      ['★ Karambit | Doppler', 'FN', 0.0002], ['★ StatTrak™ Butterfly Knife | Fade', 'FN', 0.0002], ['AWP | Медуза', 'WW', 0.0002],
-      ['M4A4 | Вой', 'FT', 0.0002], ['AWP | История о драконе', 'BS', 0.0002],
+      [PK_TICKET, '', 0.05], ['AWP | Duality', 'WW', 1], ['USP-S | Cyrex', 'WW', 1], ['StatTrak™ USP-S | Cyrex', 'BS', 1],
+      ['Glock-18 | Vogue', 'FT', 1], ['M4A1-S | Black Lotus', 'FT', 1], ['AK-47 | Slate', 'FT', 1], ['AK-47 | Searing Rage', 'FT', 0.5],
+      ['AK-47 | Ледяной уголь', 'WW', 0.5], ['AK-47 | The Outsiders', 'WW', 0.4], ['AK-47 | The Outsiders', 'BS', 0.4], ['AK-47 | Searing Rage', 'MW', 0.4],
+      ['USP-S | Stainless', 'FT', 0.4], ['M4A1-S | Nightmare', 'WW', 0.4], ['M4A1-S | Basilisk', 'BS', 0.2], ['AK-47 | Crane Flight', 'BS', 0.2],
+      ['M4A1-S | Black Lotus', 'FN', 0.2], ['M4A4 | 龍王 (Dragon King)', 'FT', 0.08], ['M4A4 | Desolate Space', 'FT', 0.08], ['M4A1-S | Decimator', 'FT', 0.08],
+      ['StatTrak™ AK-47 | Searing Rage', 'MW', 0.08], ['AWP | Fever Dream', 'FT', 0.08], ['AK-47 | Frontside Misty', 'FT', 0.015], ['USP-S | Monster Mashup', 'FT', 0.015],
+      ['StatTrak™ M4A4 | Cyber Security', 'BS', 0.015], ['AK-47 | Красная линия', 'FT', 0.015], ['AWP | Красная линия', 'FT', 0.004], ['M4A4 | Hellfire', 'WW', 0.002],
+      ['AK-47 | Head Shot', 'FT', 0.002], ['StatTrak™ M4A4 | Neo-Noir', 'WW', 0.002], ['AWP | Chromatic Aberration', 'BS', 0.002], ['USP-S | Printstream', 'BS', 0.002],
+      ['AK-47 | Legion of Anubis', 'FT', 0.001], ['Desert Eagle | Printstream', 'FT', 0.001], ['AK-47 | Азимов', 'BS', 0.000667], ['AWP | Неонуар', 'WW', 0.000667],
+      ['M4A1-S | Golden Coil', 'BS', 0.0005], ['M4A4 | Император', 'FT', 0.0005], ['AWP | Азимов', 'FT', 0.000333], ['AK-47 | Вулкан', 'FT', 0.0002],
+      ['M4A4 | Азимов', 'WW', 0.0002], ['AK-47 | Огненный змей', 'FT', 0.00002], ['AWP | Медуза', 'FT', 0.000004], ['M4A4 | Вой', 'FT', 0.00000133],
+      ['AWP | История о драконе', 'FT', 0.00000133], ['★ Sport Gloves | Bronze Morph', 'BS', 0.0002], ['★ Specialist Gloves | Mogul', 'WW', 0.0002], ['★ Bayonet | Night', 'BS', 0.0002],
+      ['★ Skeleton Knife | Night Stripe', 'BS', 0.0002], ['★ Bayonet | Damascus Steel', 'FT', 0.0001], ['★ Sport Gloves | Vice', 'FT', 0.0000333], ['★ M9 Bayonet | Doppler', 'MW', 0.00001],
+      ['★ Karambit | Doppler', 'FN', 0.00000667], ['★ Нож-бабочка | Градиент', 'FN', 0.00000333],
     ],
   },
   {
@@ -1471,26 +1467,139 @@ const CASES = [
     th: { a: '#4aa3ff' }, img: 'assets/case-elite2.webp', // рендер 3D-модели (холст, ширина и поля как у CS2 CASE; чёрный глянец, золото, синий глобус, лавры)
     exact: [
       // дешёвые, до цены кейса (от 230 ₽)
-      ['AWP | Worm God', 'MW', 0.06], ['AWP | Duality', 'WW', 0.06], ['M4A1-S | Stratosphere', 'BS', 0.06],
-      ['AK-47 | Изумрудные завитки', 'MW', 0.06], ['AWP | Mortis', 'WW', 0.06], ['AK-47 | Ледяной уголь', 'BS', 0.06],
-      ['M4A1-S | Control Panel', 'WW', 0.06], ['AK-47 | The Outsiders', 'FT', 0.06], ['AK-47 | Phantom Disruptor', 'BS', 0.06],
+      ['AWP | Worm God', 'MW', 0.06], ['AWP | Duality', 'WW', 0.06], ['M4A1-S | Stratosphere', 'FT', 0.06],
+      ['AK-47 | Изумрудные завитки', 'MW', 0.06], ['AWP | Mortis', 'WW', 0.06], ['AK-47 | Ледяной уголь', 'WW', 0.06],
+      ['M4A1-S | Black Lotus', 'MW', 0.06], ['AK-47 | The Outsiders', 'FT', 0.06], ['AK-47 | Searing Rage', 'MW', 0.06],
       ['M4A1-S | Nightmare', 'FT', 0.06],
       // около цены и дешёвые «Засекреченные» (их же даёт гарант)
-      ['StatTrak™ AWP | Mortis', 'WW', 0.03], ['M4A1-S | Stratosphere', 'MW', 0.03], ['M4A1-S | Party Animal', 'WW', 0.03],
-      ['StatTrak™ AK-47 | Ice Coaled', 'WW', 0.03], ['StatTrak™ AK-47 | The Outsiders', 'FT', 0.03], ['StatTrak™ AWP | Chromatic Aberration', 'FT', 0.03],
-      ['StatTrak™ USP-S | Stainless', 'BS', 0.03], ['Souvenir Glock-18 | Death Rattle', 'FT', 0.03], ['M4A4 | Full Throttle', 'BS', 0.03],
+      ['StatTrak™ AWP | Mortis', 'WW', 0.03], ['M4A1-S | Black Lotus', 'FN', 0.03], ['M4A1-S | Solitude', 'FN', 0.03],
+      ['StatTrak™ AK-47 | Ice Coaled', 'WW', 0.03], ['StatTrak™ AK-47 | The Outsiders', 'MW', 0.03], ['StatTrak™ AWP | Chromatic Aberration', 'FT', 0.03],
+      ['USP-S | Black Lotus', 'FN', 0.03], ['Souvenir Glock-18 | Ramese\'s Reach', 'MW', 0.03], ['M4A4 | Full Throttle', 'BS', 0.03],
       ['StatTrak™ AK-47 | Head Shot', 'BS', 0.03],
       // скины про-игроков
-      ['StatTrak™ AK-47 | Head Shot', 'WW', 0.008], ['USP-S | Printstream', 'BS', 0.008], ['AWP | Chrome Cannon', 'MW', 0.008],
-      ['AWP | Chromatic Aberration', 'MW', 0.008], ['M4A1-S | Player Two', 'FT', 0.008], ['AWP | Containment Breach', 'FT', 0.008],
+      ['StatTrak™ AK-47 | Head Shot', 'WW', 0.008], ['USP-S | Printstream', 'BS', 0.008], ['StatTrak™ AWP | Chrome Cannon', 'FT', 0.008],
+      ['AWP | Chromatic Aberration', 'MW', 0.008], ['M4A1-S | Player Two', 'WW', 0.008], ['AWP | Containment Breach', 'FT', 0.008],
       ['Desert Eagle | Код красный', 'MW', 0.008], ['AK-47 | Nightwish', 'FT', 0.008],
       // дорогие
-      ['Glock-18 | Gamma Doppler', 'FT', 0.002], ['StatTrak™ USP-S | Printstream', 'WW', 0.002], ['USP-S | The Traitor', 'FN', 0.002],
-      ['StatTrak™ AK-47 | Neon Rider', 'FT', 0.002], ['AWP | Азимов', 'WW', 0.002], ['AK-47 | Leet Museo', 'FT', 0.002],
+      ['Glock-18 | Gamma Doppler', 'FT', 0.002], ['StatTrak™ USP-S | Printstream', 'WW', 0.002], ['USP-S | Kill Confirmed', 'MW', 0.002],
+      ['StatTrak™ AK-47 | Neon Rider', 'FT', 0.002], ['AWP | Азимов', 'FT', 0.002], ['AK-47 | AUTOEXEC', 'FT', 0.002],
       // джекпоты — перчатки, ножи, легенды (Золотая арабеска, Dragon Lore, Gungnir)
-      ['★ Specialist Gloves | Marble Fade', 'WW', 0.0002], ['★ Specialist Gloves | Fade', 'WW', 0.0002], ['★ Karambit | Lore', 'WW', 0.0002],
-      ['AK-47 | Золотая арабеска', 'BS', 0.0002], ['★ Butterfly Knife | Gamma Doppler', 'FN', 0.0002], ['★ Butterfly Knife | Doppler', 'FN', 0.0002],
-      ["★ Sport Gloves | Pandora's Box", "FT", 0.0002], ['AWP | История о драконе', 'BS', 0.0002], ['AWP | Gungnir', 'BS', 0.0002],
+      ['★ Specialist Gloves | Marble Fade', 'WW', 0.0002], ['★ Specialist Gloves | Fade', 'FT', 0.0002], ['★ Karambit | Lore', 'WW', 0.0002],
+      ['AK-47 | Золотая арабеска', 'FT', 0.0002], ['★ Butterfly Knife | Gamma Doppler', 'FN', 0.0002], ['★ Butterfly Knife | Doppler', 'FN', 0.0002],
+      ["★ Sport Gloves | Pandora's Box", "FT", 0.0002], ['AWP | История о драконе', 'FT', 0.0002], ['AWP | Gungnir', 'FT', 0.0002],
+    ],
+  },
+  {
+    // «ПОДАРОК» (27.11.2026, владелец): самый дорогой новогодний 3D-кейс, раздел «НОВЫЙ 2027». Blender (ветка blender):
+    // blender/scenes/case-gift.blend → assets/cs2case/case-gift.glb (выгрузка blender/scripts/case_export_glb_gift.py):
+    // красный низ, белые крышка и ремни, золотые атласные ленты крест-накрест, живой бант (трепещет в падении, подпрыгивает
+    // на ударах, колышется на ветру; хвосты — morph target), еловые ветки с рубинами в 4 углах рамки, без снега.
+    // Картинка витрины — blender/scripts/case_card.py (кадр 75). c2idle: пока кейс стоит, сцена крутит кадры 75→100 по кругу (бант).
+    // Состав (владелец): 759 ₽, окупаемость 90% с гарантом 75/150 и подарком (+2 открытия, 1 из 20; giftP = 2 × 759 × 0,9),
+    // самый дешёвый не меньше 500 ₽ (сейчас 533 ₽), «только самый привлекательный дроп и тот, который крайне редко у нас на сайте»:
+    // 50 позиций — ни одной нет в других кейсах сайта (сверено с cases_srv и custom_cases 27.11) и в «Прянике»/«Снежинке»:
+    // StatTrak™ знаковых скинов, ножи Lore / Tiger Tooth / Doppler / Marble Fade / Slaughter. Красное ~1 из 283, нож/перчатки ~1 из 4 000;
+    // в ленте красные ×7,9 и золотые ×9 (fwR) — красная карточка ~1 из 4, золотая ~1 из 12 (шанс выпадения не меняется).
+    id: 'gift', name: 'ПОДАРОК', price: 759, tag: 'Новый год', tagIc: 'gift', rtp: 0.9, ui: 'cs2',
+    pity: true, // гарант 75/150; шансы считаются вместе с гарантом (pityEv) и подарком — окупаемость 90%
+    giftP: 1366, // подарок «+2 открытия» = 2 × 759 × 0,9
+    fwR: { covert: 7.9, rare: 9 }, // лента прокрутки: красные и ножи/перчатки пролетают чаще (только вид ленты)
+    c2idle: [75, 100], // петля покоя: бант колышется, пока кейс стоит (у кейсов со снегом SN_* так нельзя — сугроб растёт на 72–100)
+    c2glb: 'case-gift.glb', c2p: { sun: 7, env: .18, exposure: .84, contrast: 1.01, saturate: 1.3, shadow: .79, fill: .1, dust: 4 }, // свет как у яблока
+    sub: 'Самый дорогой новогодний кейс с гарантом и подарками: 50 позиций от 533 ₽, которых больше нет ни в одном кейсе сайта, и подарок — ещё 2 открытия бесплатно (1 из 20). StatTrak™ AK-47 Redline, The Empress, Aquamarine Revenge, AWP Redline, Man-o\'-war, Queen\'s Gambit, M4A1-S Golden Coil, Vaporwave. Джекпоты — Bayonet Doppler / Gamma Doppler / Tiger Tooth / Lore, M9 Bayonet Lore, Talon Tiger Tooth, Skeleton Marble Fade, перчатки Moto Spearmint.',
+    th: { a: '#ffcf5c' }, img: 'assets/case-gift.webp', // рендер 3D-модели (холст, ширина и поля как у CS2 CASE)
+    exact: [
+      ['StatTrak™ P250 | Kintsugi', 'WW', 3], ['StatTrak™ AUG | Stymphalian', 'MW', 3], ['StatTrak™ Glock-18 | Grinder', 'MW', 3],
+      ['M4A1-S | Electrum', 'FN', 3], ['StatTrak™ MAC-10 | Malachite', 'MW', 3], ['MAC-10 | Disco Tech', 'BS', 3],
+      ['StatTrak™ UMP-45 | Continuum', 'FN', 3], ['FAMAS | Valence', 'MW', 3], ['StatTrak™ FAMAS | Hexane', 'FN', 3],
+      ['StatTrak™ AWP | Worm God', 'WW', 3], ['SCAR-20 | Bloodsport', 'FN', 1], ['Five-SeveN | Case Hardened', 'MW', 1],
+      ['StatTrak™ AK-47 | Phantom Disruptor', 'FT', 1], ['StatTrak™ MP9 | Rose Iron', 'FN', 1], ['StatTrak™ Desert Eagle | Conspiracy', 'FT', 1],
+      ['StatTrak™ Glock-18 | Water Elemental', 'FT', 1], ['XM1014 | Ancient Lore', 'FT', 1], ['USP-S | Caiman', 'MW', 1],
+      ['M4A4 | Cyber Security', 'MW', 1], ['StatTrak™ M4A4 | Desolate Space', 'FT', 1], ['StatTrak™ AK-47 | Point Disarray', 'BS', 4],
+      ['StatTrak™ Glock-18 | Fully Tuned', 'BS', 4], ['StatTrak™ AK-47 | Redline', 'BS', 4], ['AWP | Queen\'s Gambit', 'BS', 4],
+      ['Glock-18 | Королева пуль', 'FT', 4], ['AWP | Elite Build', 'FN', 4], ['StatTrak™ Desert Eagle | Code Red', 'BS', 4],
+      ['StatTrak™ AK-47 | Aquamarine Revenge', 'WW', 4], ['StatTrak™ M4A1-S | Vaporwave', 'FT', 3], ['StatTrak™ AK-47 | The Empress', 'BS', 3],
+      ['StatTrak™ AWP | Redline', 'WW', 3], ['StatTrak™ M4A1-S | Golden Coil', 'FT', 3], ['StatTrak™ USP-S | Orion', 'MW', 3],
+      ['StatTrak™ AWP | Man-o\'-war', 'MW', 3], ['StatTrak™ Glock-18 | Fully Tuned', 'MW', 3], ['M4A1-S | Chantico\'s Fire', 'BS', 3],
+      ['★ StatTrak™ Bowie Knife | Lore', 'FT', 2], ['★ Survival Knife | Tiger Tooth', 'FN', 2], ['★ Navaja Knife | Doppler', 'FN', 2],
+      ['★ StatTrak™ Gut Knife | Marble Fade', 'FN', 2], ['★ Kukri Knife | Slaughter', 'MW', 2], ['★ Hand Wraps | Cobalt Skulls', 'WW', 2],
+      ['★ Bayonet | Lore', 'BS', 2], ['★ StatTrak™ Bayonet | Tiger Tooth', 'FN', 2], ['★ StatTrak™ Skeleton Knife | Marble Fade', 'FN', 2],
+      ['★ Moto Gloves | Spearmint', 'BS', 2], ['★ Bayonet | Doppler', 'FN', 2], ['★ M9 Bayonet | Lore', 'WW', 2],
+      ['★ Talon Knife | Tiger Tooth', 'FN', 2], ['★ Bayonet | Gamma Doppler', 'FN', 2],
+      // подарок: +2 бесплатных открытия — 1 из 20, как у остальных новогодних
+      [GIFT_N, '', 0.05],
+    ],
+  },
+  {
+    // «СНЕЖИНКА» (27.11.2026, владелец; сначала был «СНЕГОВИК», id snowman — переименован до заливки на сервер): новогодний 3D-кейс, раздел «НОВЫЙ 2027». Blender (ветка blender):
+    // blender/scenes/case-snowman.blend → assets/cs2case/case-snowman.glb (выгрузка blender/scripts/case_export_glb_snowman.py):
+    // белый корпус почти весь в снегу и ледяной корке, сосульки, обледенелые ремни, золотая снежинка со снегом; снегопад и сугроб (SN_*).
+    // Картинка витрины — blender/scripts/case_card.py (кадр 75). Состав (владелец): 310 ₽, окупаемость 90% вместе с гарантом 75/150
+    // и подарком (+2 открытия, 1 из 20; ценность giftP = 2 × 310 × 0,9), самый дешёвый скин не меньше 200 ₽ (сейчас 209 ₽),
+    // «чтобы много редкого и тайного пролетало». 27.11 пересобран (владелец: «дроп 1в1 что в Имбирном — сделай вообще другой»): 61 позиция,
+    // ни одного скина из «Имбирного пряника»; дешёвые (209–308 ₽) с весом 4; красное выпадает ~1 из 288, нож/перчатки ~1 из 8 000;
+    // в ленте прокрутки красные ×6,7 и золотые ×13,4 (fwR) — красная карточка ~1 из 5, золотая ~1 из 15 (шанс выпадения не меняется).
+    id: 'snowflake', name: 'СНЕЖИНКА', price: 310, tag: 'Новый год', tagIc: 'gift', rtp: 0.9, ui: 'cs2',
+    pity: true, // гарант 75/150; шансы считаются вместе с гарантом (pityEv) и подарком — окупаемость 90%
+    giftP: 558, // подарок «+2 открытия» = 2 × 310 × 0,9
+    fwR: { covert: 6.7, rare: 13.4 }, // лента прокрутки: красные и ножи/перчатки пролетают чаще (только вид ленты)
+    c2glb: 'case-snowman.glb', c2p: { sun: 7, env: .18, exposure: .84, contrast: 1.01, saturate: 1.2, shadow: .79, fill: .1, dust: 4 }, // свет как у яблока
+    sub: 'Новогодний кейс с гарантом и подарками: 61 позиция от 209 ₽ и подарок — ещё 2 открытия бесплатно (1 из 20); красные и ножи пролетают часто. Arctic Wolf, Whiteout, Stone Cold, Black Lotus, Ледяной уголь, Fade; за «Засекречено» — Азимов, Printstream, Neo-Noir, Ocean Drive, Neon Revolution, Mecha Industries. Джекпоты — ножи Bowie, Huntsman, Stiletto | Boreal Forest, Flip, Gut, Paracord, Shadow Daggers и перчатки Sport | Frosty.',
+    th: { a: '#8fd3ff' }, img: 'assets/case-snowman.webp', // рендер 3D-модели (холст, ширина и поля как у CS2 CASE)
+    exact: [
+      ['Tec-9 | Whiteout', 'FT', 4], ['AUG | Arctic Wolf', 'WW', 4], ['StatTrak™ AWP | Capillary', 'MW', 4], ['Glock-18 | Royal Legion', 'FT', 4],
+      ['AWP | Worm God', 'WW', 4], ['M4A1-S | Electrum', 'MW', 4], ['Five-SeveN | Triumvirate', 'MW', 4], ['StatTrak™ USP-S | Silent Shot', 'MW', 4],
+      ['MAC-10 | Saibā Oni', 'MW', 4], ['USP-S | Bleeding Edge', 'MW', 4], ['AWP | Exothermic', 'FT', 4], ['AK-47 | Breakthrough', 'WW', 4],
+      ['AK-47 | Midnight Laminate', 'FT', 4], ['Galil AR | Stone Cold', 'FT', 4], ['USP-S | Cyrex', 'WW', 4], ['PP-Bizon | Blue Streak', 'BS', 4],
+      ['M4A1-S | Black Lotus', 'FT', 1], ['P250 | Epicenter', 'WW', 1], ['AWP | Ледяной уголь', 'BS', 1], ['SG 553 | Cyrex', 'FT', 1],
+      ['AWP | Exoskeleton', 'FT', 1], ['Desert Eagle | Firebreathing', 'FN', 1], ['MP9 | Ruby Poison Dart', 'FN', 1],
+      ['MP7 | Abyssal Apparition', 'MW', 1], ['MP7 | Fade', 'MW', 1], ['Zeus x27 | Dragon Snore', 'BS', 1], ['MP7 | Impire', 'FN', 1],
+      ['P250 | Asiimov', 'FT', 1], ['P2000 | Imperial Dragon', 'WW', 1], ['M4A4 | Hellish', 'FT', 1],
+      ['Desert Eagle | Conspiracy', 'FT', 1], ['StatTrak™ AWP | Elite Build', 'BS', 1], ['SCAR-20 | Cyrex', 'FT', 1], ['FAMAS | Mecha Industries', 'FT', 1],
+      ['M4A4 | Full Throttle', 'BS', 10], ['AWP | Chrome Cannon', 'BS', 10], ['AK-47 | The Oligarch', 'BS', 10], ['M4A4 | The Battlestar', 'BS', 10],
+      ['StatTrak™ M4A4 | Neo-Noir', 'WW', 10], ['Glock-18 | Золотой зубок', 'FT', 10], ['FAMAS | Commemoration', 'BS', 10], ['AWP | Printstream', 'BS', 10],
+      ['AK-47 | Азимов', 'BS', 10], ['AWP | Containment Breach', 'BS', 10], ['Five-SeveN | Angry Mob', 'BS', 10],
+      ['Desert Eagle | Ocean Drive', 'MW', 10], ['R8 Revolver | Fade', 'FT', 10], ['AWP | Азимов', 'BS', 10], ['M4A4 | Bullet Rain', 'FT', 10],
+      ['M4A1-S | Mecha Industries', 'MW', 10], ['AK-47 | Neon Revolution', 'MW', 10], ['★ Bowie Knife | Boreal Forest', 'MW', 4],
+      ['★ StatTrak™ Huntsman Knife | Bright Water', 'MW', 4], ['★ StatTrak™ Shadow Daggers | Damascus Steel', 'FT', 4], ['★ Paracord Knife | Urban Masked', 'MW', 4],
+      ['★ Gut Knife | Freehand', 'FN', 4], ['★ StatTrak™ Classic Knife | Forest DDPAT', 'FT', 4], ['★ Flip Knife | Safari Mesh', 'FT', 4],
+      ['★ Specialist Gloves | Forest DDPAT', 'BS', 4], ['★ Stiletto Knife | Boreal Forest', 'FT', 4], ['★ Sport Gloves | Frosty', 'WW', 4],
+      // подарок: +2 бесплатных открытия — 1 из 20, как у «Карамельного яблока» и «Имбирного пряника»
+      [GIFT_N, '', 0.05],
+    ],
+  },
+  {
+    // «ИМБИРНЫЙ ПРЯНИК» (27.11.2026, владелец): новогодний 3D-кейс, раздел «НОВЫЙ 2027». Blender (ветка blender):
+    // blender/scenes/case-ginger.blend → assets/cs2case/case-ginger.glb (выгрузка blender/scripts/case_export_glb_ginger.py):
+    // корпус — бутылочный изумруд, золото, пряник с тростью-леденцом, еловые ветки с ягодами и снегом, внутри красный бархат;
+    // снегопад и сугроб на крышке (SN_*), как у «Карамельного яблока». Картинка витрины — blender/scripts/case_card.py (кадр 75).
+    // Состав (владелец): 299 ₽, окупаемость 90% вместе с гарантом, самый дешёвый скин не меньше 120 ₽ (сейчас 141 ₽), «часто пролетает красное»:
+    // 53 позиции + подарок (+2 бесплатных открытия, 1 из 20); 14 красных с весом ×4 — выпадают ~1 из 63; в ленте красные ×4,5 (fwR) — ~1 карточка из 4.
+    id: 'ginger', name: 'ИМБИРНЫЙ ПРЯНИК', price: 299, tag: 'Новый год', tagIc: 'gift', rtp: 0.9, ui: 'cs2',
+    pity: true, // гарант 75/150; шансы считаются вместе с гарантом (pityEv) — окупаемость 90%
+    giftP: 538, // подарок «+2 открытия» = 2 × 299 × 0,9 (у яблока своя цена в SK[GIFT_N])
+    fwR: { covert: 4.5 }, // лента прокрутки: красные пролетают в 4,5 раза чаще (только вид ленты, шанс выпадения не меняется)
+    c2glb: 'case-ginger.glb', c2p: { sun: 7, env: .18, exposure: .84, contrast: 1.01, saturate: 1.3, shadow: .79, fill: .1, dust: 4 }, // свет как у яблока, насыщенность ниже (изумруд)
+    sub: 'Новогодний кейс с гарантом и подарками: 53 позиции от 141 ₽ и подарок — ещё 2 открытия бесплатно (1 из 20), красные пролетают часто. Ледяной уголь, Candy Apple, Spider Lily, Nightmare; за «Засекречено» — Aphrodite, Head Shot, Temukau, Printstream, Wildfire, Nightwish, Kill Confirmed. Джекпоты — M4A1-S и Five-SeveN | Hyper Beast, ножи Kukri | Crimson Web и Navaja | Tiger Tooth, перчатки Moto | Finish Line.',
+    th: { a: '#2fb37a' }, img: 'assets/case-ginger.webp', // рендер 3D-модели (холст, ширина и поля как у CS2 CASE)
+    exact: [
+      ['M4A1-S | Solitude', 'WW', 1], ['P250 | Franklin', 'MW', 1], ['CZ75-Auto | Red Astor', 'MW', 1], ['Glock-18 | Candy Apple', 'FN', 1],
+      ['Desert Eagle | Trigger Discipline', 'MW', 1], ['USP-S | Ticket to Hell', 'FN', 1], ['M4A1-S | Emphorosaur-S', 'FN', 1],
+      ['Tec-9 | Remote Control', 'WW', 1], ['Dual Berettas | Twin Turbo', 'BS', 1], ['Desert Eagle | Heat Treated', 'MW', 1],
+      ['StatTrak™ USP-S | Black Lotus', 'BS', 1], ['Zeus x27 | Olympus', 'WW', 1], ['AWP | Duality', 'WW', 1], ['M4A4 | Evil Daimyo', 'FT', 1],
+      ['USP-S | Jawbreaker', 'FT', 1], ['P250 | Visions', 'FT', 1], ['MP9 | Food Chain', 'FT', 1], ['StatTrak™ Sawed-Off | Kiss♥Love', 'BS', 1],
+      ['Galil AR | Chromatic Aberration', 'FT', 1], ['Souvenir USP-S | Purple DDPAT', 'MW', 1], ['M4A4 | Tooth Fairy', 'WW', 1], ['Glock-18 | Vogue', 'FT', 1],
+      ['SG 553 | Candy Apple', 'MW', 1], ['AK-47 | Slate', 'FT', 1], ['AK-47 | Ледяной уголь', 'FT', 1], ['Dual Berettas | Melondrama', 'MW', 1],
+      ['M4A4 | Spider Lily', 'WW', 1], ['FAMAS | Rapid Eye Movement', 'MW', 1], ['StatTrak™ MAG-7 | Justice', 'BS', 1], ['M4A1-S | Nightmare', 'BS', 1],
+      ['AK-47 | Ледяной уголь', 'MW', 1], ['Nova | Hyper Beast', 'WW', 1], ['AWP | Mortis', 'FN', 1], ['StatTrak™ M4A1-S | Black Lotus', 'BS', 1],
+      ['AWP | Fever Dream', 'FT', 1], ['StatTrak™ Glock-18 | Snack Attack', 'FT', 1], ['AK-47 | Aphrodite', 'BS', 4], ['AK-47 | Aphrodite', 'FT', 4],
+      ['AK-47 | Head Shot', 'FT', 4], ['StatTrak™ M4A4 | Temukau', 'FT', 4], ['MP7 | Bloodsport', 'MW', 4], ['USP-S | Printstream', 'BS', 4],
+      ['Desert Eagle | Printstream', 'FT', 4], ['MAC-10 | Stalker', 'FT', 4], ['AWP | Wildfire', 'FT', 4], ['AK-47 | Nightwish', 'FT', 4],
+      ['MP9 | Starlight Protector', 'MW', 4], ['USP-S | Kill Confirmed', 'BS', 4], ['M4A1-S | Hyper Beast', 'MW', 4],
+      ['Five-SeveN | Hyper Beast', 'FT', 4], ['★ Kukri Knife | Crimson Web', 'BS', 0.3], ['★ Navaja Knife | Tiger Tooth', 'FN', 0.3],
+      ['★ Moto Gloves | Finish Line', 'WW', 0.3],
+      // подарок: +2 бесплатных открытия — 1 из 20, как у «Карамельного яблока» (владелец 27.11); ценность для окупаемости — giftP
+      [GIFT_N, '', 0.05],
     ],
   },
   {
@@ -1507,27 +1616,27 @@ const CASES = [
     th: { a: '#e23a3a' }, img: 'assets/case-apple.webp', // рендер 3D-модели (холст, ширина и поля как у CS2 CASE)
     exact: [
       // дешевле кейса (от 103 ₽)
-      ['Glock-18 | Candy Apple', 'FN', 0.06], ['MP9 | Ruby Poison Dart', 'FT', 0.06], ['CZ75-Auto | Red Astor', 'BS', 0.06],
-      ['StatTrak™ Tec-9 | Ice Cap', 'MW', 0.06], ['AUG | Arctic Wolf', 'FT', 0.06], ['Galil AR | Crimson Tsunami', 'FT', 0.06],
-      ['XM1014 | Red Python', 'FT', 0.06], ['UMP-45 | Crimson Foil', 'MW', 0.06], ['MP9 | Arctic Tri-Tone', 'FT', 0.06],
-      ['SCAR-20 | Crimson Web', 'FT', 0.06], ['SG 553 | Candy Apple', 'FT', 0.06], ['UMP-45 | Gold Bismuth', 'WW', 0.06],
-      ['P250 | Epicenter', 'FT', 0.06], ['AWP | Ледяной уголь', 'BS', 0.06], ['AK-47 | Ледяной уголь', 'BS', 0.06],
+      ['Glock-18 | Candy Apple', 'FN', 0.06], ['MP9 | Ruby Poison Dart', 'FT', 0.06], ['StatTrak™ CZ75-Auto | Red Astor', 'FT', 0.06],
+      ['StatTrak™ Tec-9 | Ice Cap', 'MW', 0.06], ['StatTrak™ AUG | Aristocrat', 'BS', 0.06], ['Galil AR | Firefight', 'MW', 0.06],
+      ['XM1014 | Red Python', 'FT', 0.06], ['UMP-45 | Gold Bismuth', 'FT', 0.06], ['MP9 | Arctic Tri-Tone', 'MW', 0.06],
+      ['SCAR-20 | Crimson Web', 'FT', 0.06], ['SG 553 | Candy Apple', 'MW', 0.06], ['StatTrak™ UMP-45 | Gold Bismuth', 'FT', 0.06],
+      ['P250 | Epicenter', 'WW', 0.06], ['AWP | Ледяной уголь', 'BS', 0.06], ['AK-47 | Ледяной уголь', 'WW', 0.06],
       // чуть дороже кейса (460–750 ₽) — вместе ~30% открытий
-      ['Souvenir MAC-10 | Candy Apple', 'FN', 0.072], ['MP9 | Arctic Tri-Tone', 'FN', 0.072], ['AWP | Ледяной уголь', 'WW', 0.072],
-      ['M4A1-S | Blood Tiger', 'FT', 0.072], ['Nova | Red Quartz', 'FT', 0.072], ['MAG-7 | Justice', 'FT', 0.072],
+      ['Souvenir MAC-10 | Candy Apple', 'FN', 0.072], ['MP9 | Ruby Poison Dart', 'FN', 0.072], ['AWP | Ледяной уголь', 'WW', 0.072],
+      ['M4A1-S | Briefing', 'MW', 0.072], ['Nova | Red Quartz', 'MW', 0.072], ['StatTrak™ MAG-7 | Justice', 'BS', 0.072],
       ['UMP-45 | Gold Bismuth', 'MW', 0.072], ['Souvenir Nova | Candy Apple', 'FN', 0.072], ['Galil AR | Crimson Tsunami', 'FN', 0.072],
       ['AWP | Ледяной уголь', 'FT', 0.072], ['SG 553 | Candy Apple', 'FN', 0.072], ['AK-47 | Ледяной уголь', 'MW', 0.072],
       ['Glock-18 | Sacrifice', 'FN', 0.072],
       // дорогие (0,8–3,8 тыс.)
-      ['StatTrak™ AK-47 | Ice Coaled', 'BS', 0.008], ['AWP | Ледяной уголь', 'MW', 0.008], ['StatTrak™ AWP | Ice Coaled', 'FT', 0.008],
+      ['StatTrak™ AK-47 | Ice Coaled', 'FT', 0.008], ['AWP | Ледяной уголь', 'MW', 0.008], ['AWP | Elite Build', 'MW', 0.008],
       ['AK-47 | Красная линия', 'FT', 0.008], ['AWP | Красная линия', 'FT', 0.008], ['P90 | Cold Blooded', 'FN', 0.008],
       // «Засекречено» (красные)
-      ['MP7 | Bloodsport', 'FT', 0.002], ['Glock-18 | Золотой зубок', 'FT', 0.002], ['AWP | Wildfire', 'FT', 0.002],
+      ['MP7 | Bloodsport', 'MW', 0.002], ['Glock-18 | Золотой зубок', 'FT', 0.002], ['AWP | Wildfire', 'FT', 0.002],
       ['Desert Eagle | Код красный', 'FT', 0.002], ['M4A1-S | Golden Coil', 'BS', 0.002],
       // джекпоты — ножи и перчатки (Crimson Web, Lore, Marble Fade, Slaughter, Doppler)
-      ['★ Kukri Knife | Crimson Web', 'BS', 0.0002], ['★ Gut Knife | Crimson Web', 'WW', 0.0002], ['★ Moto Gloves | Blood Pressure', 'WW', 0.0002],
-      ['★ Navaja Knife | Marble Fade', 'MW', 0.0002], ['★ Ursus Knife | Crimson Web', 'MW', 0.0002], ['★ Flip Knife | Lore', 'BS', 0.0002],
-      ['★ Hand Wraps | Slaughter', 'FT', 0.0002], ['★ Karambit | Lore', 'WW', 0.0002], ['★ Butterfly Knife | Lore', 'FT', 0.0002],
+      ['★ Kukri Knife | Crimson Web', 'BS', 0.0002], ['★ Gut Knife | Crimson Web', 'BS', 0.0002], ['★ Мотоциклетные перчатки | Затмение', 'WW', 0.0002],
+      ['★ StatTrak™ Navaja Knife | Marble Fade', 'FN', 0.0002], ['★ Ursus Knife | Crimson Web', 'MW', 0.0002], ['★ Flip Knife | Lore', 'MW', 0.0002],
+      ['★ Driver Gloves | King Snake', 'MW', 0.0002], ['★ Karambit | Lore', 'WW', 0.0002], ['★ StatTrak™ Butterfly Knife | Lore', 'FT', 0.0002],
       ['★ Karambit | Doppler', 'FN', 0.0002],
       // подарок: +2 бесплатных открытия — 1 из 20 (владелец 20.11), в бесплатных открытиях тоже может выпасть
       [GIFT_N, '', 0.05],
@@ -1539,21 +1648,21 @@ const CASES = [
     th: { a: '#ea580c' }, img: 'assets/case-rushb.webp',
     // граффити и стрит-стиль, красный/оранжевый/чёрный: до 3 500 ₽ — обычный дроп (дороже 1 000 ₽ — реже); 8–16 тыс. — вместе 1 из 2 500; три керамбита — 1 из 110–210 тыс.
     exact: [
-      ['StatTrak™ SG 553 | Aloha', 'FT', 0.0726], ['M4A1-S | Смешанный камуфляж', 'WW', 0.0663], ['M4A1-S | Mud-Spec', 'WW', 0.0629],
+      ['StatTrak™ SG 553 | Aloha', 'MW', 0.0726], ['Nova | Yorkshire', 'MW', 0.0663], ['M4A1-S | Mud-Spec', 'WW', 0.0629],
       ['MAC-10 | Саккаку', 'WW', 0.06139], ['P250 | X-Ray', 'MW', 0.05997], ['USP-S | Royal Guard', 'WW', 0.0541],
       ['Desert Eagle | Trigger Discipline', 'BS', 0.05046], ['Desert Eagle | Trigger Discipline', 'FT', 0.04816], ['MP9 | Urban Sovereign', 'FT', 0.04066],
-      ['Glock-18 | Catacombs', 'WW', 0.04023], ['M249 | Magma', 'BS', 0.03864], ['Galil AR | Signal', 'MW', 0.03828],
+      ['Glock-18 | Catacombs', 'WW', 0.04023], ['M249 | Magma', 'FT', 0.03864], ['Galil AR | Signal', 'MW', 0.03828],
       ['CZ75-Auto | Tacticat', 'BS', 0.03809], ['StatTrak™ MAC-10 | Pipe Down', 'MW', 0.02586], ['AWP | Worm God', 'MW', 0.02383],
-      ['UMP-45 | Дикое дитя', 'BS', 0.02274], ['Tec-9 | Isaac', 'WW', 0.02266], ['USP-S | Jawbreaker', 'WW', 0.02196],
+      ['UMP-45 | Дикое дитя', 'BS', 0.02274], ['StatTrak™ Tec-9 | Isaac', 'BS', 0.02266], ['USP-S | Jawbreaker', 'WW', 0.02196],
       ['StatTrak™ MP9 | Ruby Poison Dart', 'BS', 0.02182], ['StatTrak™ Sawed-Off | Limelight', 'MW', 0.02142], ['StatTrak™ Glock-18 | Moonrise', 'MW', 0.02107],
-      ['AWP | Black Box', 'WW', 0.0203], ['SG 553 | Integrale', 'BS', 0.01864], ['MAC-10 | Pipe Down', 'FN', 0.01749],
-      ['M4A4 | Polysoup', 'BS', 0.01526], ['StatTrak™ Tec-9 | Fuel Injector', 'BS', 0.01192], ['StatTrak™ P250 | Epicenter', 'FT', 0.01186],
-      ['Nova | Green Apple', 'FN', 0.01173], ['StatTrak™ Desert Eagle | Firebreathing', 'FN', 0.007532], ['Souvenir MAC-10 | Tornado', 'FT', 0.006774],
-      ['StatTrak™ Glock-18 | Mirror Mosaic', 'FT', 0.00671], ['M4A4 | Hellish', 'FT', 0.006428], ['StatTrak™ Glock-18 | Snack Attack', 'BS', 0.004901],
-      ['StatTrak™ AK-47 | The Outsiders', 'FT', 0.00232], ['StatTrak™ AK-47 | Head Shot', 'WW', 0.001963], ['AWP | Chrome Cannon', 'FT', 0.001639],
-      ['Desert Eagle | Printstream', 'BS', 0.000952], ['StatTrak™ AK-47 | Asiimov', 'WW', 0.0001287], ['M4A4 | Hellfire', 'FT', 0.0001086],
-      ['P90 | Fallout Warning', 'FN', 0.00006021], ['AK-47 | Leet Museo', 'FT', 0.00005686], ['StatTrak™ SSG 08 | Dragonfire', 'FN', 0.00004564],
-      ['★ Karambit | Crimson Web', 'BS', 0.000008867], ['★ Karambit | Autotronic', 'BS', 0.000006441], ['★ Karambit | Slaughter', 'MW', 0.000004734],
+      ['AWP | Black Box', 'WW', 0.0203], ['SG 553 | Cyrex', 'FT', 0.01864], ['MAC-10 | Pipe Down', 'FN', 0.01749],
+      ['M4A4 | Polysoup', 'BS', 0.01526], ['StatTrak™ Tec-9 | Fuel Injector', 'BS', 0.01192], ['P250 | Cartel', 'FT', 0.01186],
+      ['Nova | Green Apple', 'FN', 0.01173], ['StatTrak™ Desert Eagle | Firebreathing', 'FN', 0.007532], ['MAC-10 | Surfwood', 'FN', 0.006774],
+      ['Glock-18 | Snack Attack', 'BS', 0.00671], ['M4A4 | Hellish', 'FT', 0.006428], ['StatTrak™ Glock-18 | Snack Attack', 'BS', 0.004901],
+      ['StatTrak™ AK-47 | The Outsiders', 'MW', 0.00232], ['StatTrak™ AK-47 | Head Shot', 'WW', 0.001963], ['AWP | Chromatic Aberration', 'BS', 0.001639],
+      ['Desert Eagle | Printstream', 'WW', 0.000952], ['StatTrak™ AK-47 | Head Shot', 'FN', 0.0001287], ['StatTrak™ M4A4 | Hellfire', 'FT', 0.0001086],
+      ['StatTrak™ P90 | Asiimov', 'WW', 0.00006021], ['AK-47 | AUTOEXEC', 'FT', 0.00005686], ['StatTrak™ SSG 08 | Dragonfire', 'FN', 0.00004564],
+      ['★ Karambit | Crimson Web', 'BS', 0.000008867], ['★ Karambit | Autotronic', 'FT', 0.000006441], ['★ Karambit | Slaughter', 'FT', 0.000004734],
     ],
   },
   {
@@ -1562,18 +1671,18 @@ const CASES = [
     th: { a: '#84a33a' }, img: 'assets/case-reallife.webp',
     // дешевле 30 ₽ — убраны; добавлено 10 военных скинов 120–230 ₽ (окупаемость 80% и «дороже кейса» 20.6% — с удачей кейса из админки)
     exact: [
-      ['M249 | Predator', 'BS', 0.1695], ['M4A4 | Магний', 'FT', 0.1576], ['AWP | Капилляры', 'FT', 0.1143],
+      ['Souvenir M249 | Contrast Spray', 'MW', 0.1695], ['M4A4 | Магний', 'FT', 0.1576], ['AWP | Капилляры', 'WW', 0.1143],
       ['MP7 | Amberline', 'FT', 0.09965], ['StatTrak™ UMP-45 | Briefing', 'FN', 0.06636], ['StatTrak™ G3SG1 | Keeping Tabs', 'BS', 0.06438],
-      ['AWP | Гадюка', 'BS', 0.06109], ['CZ75-Auto | Tuxedo', 'FN', 0.06109], ['StatTrak™ PP-Bizon | Cobalt Halftone', 'WW', 0.01821],
-      ['Nova | Forest Leaves', 'FT', 0.01738], ['FAMAS | Faulty Wiring', 'BS', 0.01645], ['P250 | Bone Mask', 'FT', 0.01554],
+      ['StatTrak™ AWP | Capillary', 'BS', 0.06109], ['StatTrak™ CZ75-Auto | Twist', 'MW', 0.06109], ['PP-Bizon | Brass', 'FN', 0.01821],
+      ['Nova | Walnut', 'WW', 0.01738], ['FAMAS | Faulty Wiring', 'BS', 0.01645], ['StatTrak™ P250 | Bullfrog', 'FN', 0.01554],
       ['FAMAS | Sergeant', 'BS', 0.01534], ['AK-47 | Изумрудные завитки', 'FT', 0.01488], ['P90 | Glacier Mesh', 'FT', 0.01488],
-      ['P90 | Cocoa Rampage', 'FN', 0.0147], ['M249 | Jungle', 'BS', 0.01376], ['Nova | Ghost Camo', 'FN', 0.01333],
-      ['MP7 | Olive Plaid', 'FT', 0.01251], ['StatTrak™ M4A1-S | Flashback', 'FT', 0.01028], ['M4A4 | Jungle Tiger', 'FT', 0.009121],
-      ['StatTrak™ M4A1-S | Emphorosaur-S', 'FN', 0.007055], ['AWP | The End', 'BS', 0.003132], ['M4A4 | Dark Blossom', 'FT', 0.002806],
-      ['AK-47 | Steel Delta', 'FN', 0.001914], ['SG 553 | Traveler', 'MW', 0.001795], ['StatTrak™ Galil AR | Crimson Tsunami', 'FN', 0.001215],
-      ['Nova | Bloomstick', 'WW', 0.0008225], ['M4A4 | Full Throttle', 'BS', 0.0002654], ['StatTrak™ M4A4 | Griffin', 'FN', 0.0001977],
-      ['★ Moto Gloves | Finish Line', 'WW', 0.0001139], ['Glock-18 | Gamma Doppler', 'BS', 0.00007966], ['★ StatTrak™ Nomad Knife | Forest DDPAT', 'BS', 0.0000782],
-      ['★ Huntsman Knife | Ultraviolet', 'MW', 0.00007293], ['★ StatTrak™ Gut Knife | Fade', 'FN', 0.00003479], ['★ Specialist Gloves | Forest DDPAT', 'FT', 0.00002497],
+      ['StatTrak™ P90 | Cocoa Rampage', 'FN', 0.0147], ['M249 | Jungle', 'BS', 0.01376], ['StatTrak™ Nova | Ranger', 'FN', 0.01333],
+      ['MP7 | Olive Plaid', 'FT', 0.01251], ['M4A1-S | Flashback', 'FT', 0.01028], ['M4A4 | Jungle Tiger', 'WW', 0.009121],
+      ['StatTrak™ M4A1-S | Emphorosaur-S', 'FN', 0.007055], ['AWP | The End', 'FT', 0.003132], ['M4A4 | Dark Blossom', 'FT', 0.002806],
+      ['StatTrak™ AK-47 | Ice Coaled', 'WW', 0.001914], ['SG 553 | Tornado', 'MW', 0.001795], ['Galil AR | Firefight', 'FN', 0.001215],
+      ['StatTrak™ Nova | Antique', 'FT', 0.0008225], ['M4A4 | Full Throttle', 'BS', 0.0002654], ['StatTrak™ M4A4 | Griffin', 'FN', 0.0001977],
+      ['★ Moto Gloves | Smoke Out', 'BS', 0.0001139], ['Glock-18 | Gamma Doppler', 'WW', 0.00007966], ['★ StatTrak™ Nomad Knife | Forest DDPAT', 'FT', 0.0000782],
+      ['★ Huntsman Knife | Ultraviolet', 'MW', 0.00007293], ['★ StatTrak™ Gut Knife | Fade', 'FN', 0.00003479], ['★ Specialist Gloves | Foundation', 'WW', 0.00002497],
       ['★ Karambit | Boreal Forest', 'FT', 0.00001085], ['★ Butterfly Knife | Forest DDPAT', 'FT', 0.000009596], ['★ Sport Gloves | Arid', 'FT', 0.00000394],
     ],
   },
@@ -1583,19 +1692,19 @@ const CASES = [
     th: { a: '#ec4899' }, img: 'assets/case-crybabies.webp',
     // дешевле 60 ₽ — убраны; добавлено 8 скинов 250–400 ₽ (окупаемость 80% и «дороже кейса» 17.3% — с удачей кейса из админки)
     exact: [
-      ['SSG 08 | Blush Pour', 'FN', 0.2252], ['StatTrak™ M4A1-S | Night Terror', 'FT', 0.1271], ['XM1014 | Seasons', 'WW', 0.08447],
-      ['FAMAS | Rapid Eye Movement', 'BS', 0.05365], ['Dual Berettas | Melondrama', 'WW', 0.05351], ['StatTrak™ SG 553 | Triarch', 'MW', 0.04438],
-      ['AWP | Worm God', 'MW', 0.03078], ['UMP-45 | Дикое дитя', 'BS', 0.02996], ['StatTrak™ USP-S | Black Lotus', 'BS', 0.02689],
-      ['Souvenir Sawed-Off | Snake Camo', 'BS', 0.0257], ['StatTrak™ Sawed-Off | Limelight', 'MW', 0.0257], ['StatTrak™ Sawed-Off | Highwayman', 'FT', 0.02431],
+      ['SSG 08 | Zeno', 'FN', 0.2252], ['StatTrak™ M4A1-S | Night Terror', 'FT', 0.1271], ['XM1014 | Seasons', 'WW', 0.08447],
+      ['FAMAS | Rapid Eye Movement', 'MW', 0.05365], ['Dual Berettas | Melondrama', 'MW', 0.05351], ['StatTrak™ SG 553 | Triarch', 'MW', 0.04438],
+      ['AWP | Worm God', 'MW', 0.03078], ['UMP-45 | Дикое дитя', 'BS', 0.02996], ['StatTrak™ USP-S | Black Lotus', 'FT', 0.02689],
+      ['Sawed-Off | Kiss♥Love', 'WW', 0.0257], ['StatTrak™ Sawed-Off | Limelight', 'MW', 0.0257], ['Sawed-Off | Kiss♥Love', 'FT', 0.02431],
       ['USP-S | Jawbreaker', 'WW', 0.02353], ['AK-47 | Safety Net', 'WW', 0.02217], ['AK-47 | Изумрудные завитки', 'MW', 0.02063],
       ['Souvenir UMP-45 | Gunsmoke', 'FT', 0.01995], ['StatTrak™ SG 553 | Phantom', 'FN', 0.01979], ['MP9 | Goo', 'FN', 0.01769],
-      ['StatTrak™ AWP | Ice Coaled', 'BS', 0.01653], ['StatTrak™ MP9 | Ruby Poison Dart', 'MW', 0.01565], ['StatTrak™ Glock-18 | Catacombs', 'FN', 0.01553],
+      ['StatTrak™ AWP | Ice Coaled', 'BS', 0.01653], ['MP9 | Mount Fuji', 'FT', 0.01565], ['StatTrak™ Glock-18 | Catacombs', 'FN', 0.01553],
       ['StatTrak™ FAMAS | Sergeant', 'WW', 0.0144], ['StatTrak™ SG 553 | Pulse', 'WW', 0.01313], ['StatTrak™ M4A4 | Temukau', 'BS', 0.01006],
-      ['Souvenir MAC-10 | Tornado', 'FT', 0.009956], ['StatTrak™ Glock-18 | Snack Attack', 'BS', 0.007784], ['StatTrak™ AWP | Chromatic Aberration', 'WW', 0.00711],
-      ['Souvenir Glock-18 | Pink DDPAT', 'WW', 0.005505], ['StatTrak™ AK-47 | Legion of Anubis', 'BS', 0.00301], ['M4A1-S | Вейпорвейв', 'FT', 0.002297],
-      ['StatTrak™ MP9 | Starlight Protector', 'FT', 0.001716], ['Desert Eagle | Код красный', 'MW', 0.001529], ['StatTrak™ AK-47 | Neon Revolution', 'FT', 0.00008446],
-      ['★ Gut Knife | Fade', 'FN', 0.00008441], ['★ Shadow Daggers | Fade', 'FN', 0.00006592], ['★ Specialist Gloves | Fade', 'WW', 0.00004941],
-      ['AK-47 | Leet Museo', 'FT', 0.00003986], ['★ Skeleton Knife | Fade', 'FN', 0.00000699], ['★ Talon Knife | Fade', 'FN', 0.000004374],
+      ['MAC-10 | Surfwood', 'FN', 0.009956], ['StatTrak™ Glock-18 | Snack Attack', 'BS', 0.007784], ['StatTrak™ AWP | Chromatic Aberration', 'MW', 0.00711],
+      ['Souvenir Glock-18 | Pink DDPAT', 'WW', 0.005505], ['StatTrak™ AK-47 | Legion of Anubis', 'MW', 0.00301], ['M4A1-S | Вейпорвейв', 'WW', 0.002297],
+      ['StatTrak™ MP9 | Starlight Protector', 'WW', 0.001716], ['Desert Eagle | Код красный', 'MW', 0.001529], ['StatTrak™ AK-47 | Neon Revolution', 'FT', 0.00008446],
+      ['★ Gut Knife | Fade', 'FN', 0.00008441], ['★ Shadow Daggers | Fade', 'FN', 0.00006592], ['★ Specialist Gloves | Fade', 'FT', 0.00004941],
+      ['AK-47 | AUTOEXEC', 'FT', 0.00003986], ['★ StatTrak™ Skeleton Knife | Fade', 'FN', 0.00000699], ['★ Talon Knife | Fade', 'MW', 0.000004374],
       ['★ Karambit | Fade', 'FN', 0.000001857],
     ],
   },
@@ -1605,23 +1714,23 @@ const CASES = [
     th: { a: '#8b5cf6' }, img: 'assets/case-1vs5.webp',
     // 02.11.2026: самый рискованный в CLUTCH — окупаемость 78%, дороже кейса 6,2% (каждое 16-е); крупный дроп 2–15 тыс. — 20% окупаемости (1 из 90), джекпоты 46–370 тыс. — 30% (1 из 1 500)
     exact: [
-      ['Five-SeveN | Dark Polymer', 'MW', 0.06348], ['M249 | Hypnosis', 'WW', 0.05911], ['StatTrak™ M4A4 | Choppa', 'BS', 0.05713],
-      ['R8 Revolver | Monarch', 'BS', 0.05531], ['StatTrak™ Five-SeveN | Dark Polymer', 'FT', 0.05531], ['Negev | Bulkhead', 'FN', 0.05359],
-      ['P90 | Off World', 'BS', 0.05048], ['PP-Bizon | Night Riot', 'FN', 0.04772], ['Glock-18 | Clear Polymer', 'WW', 0.04772],
-      ['P2000 | Ivory', 'BS', 0.04644], ['Souvenir USP-S | Desert Tactical', 'FT', 0.04304], ['SG 553 | Dragon Tech', 'BS', 0.03605],
-      ['UMP-45 | Plastique', 'BS', 0.0316], ['M4A1-S | Emphorosaur-S', 'WW', 0.03054], ['UMP-45 | Late Night Transit', 'MW', 0.02578],
-      ['Glock-18 | Glockingbird', 'FT', 0.02441], ['P2000 | Pulse', 'FT', 0.02061], ['M249 | Aztec', 'MW', 0.01974],
-      ['StatTrak™ SG 553 | Heavy Metal', 'MW', 0.01954], ['StatTrak™ M4A1-S | Emphorosaur-S', 'BS', 0.0177], ['SSG 08 | Fever Dream', 'FT', 0.01676],
-      ['Souvenir Glock-18 | Night', 'WW', 0.01374], ['UMP-45 | Дикое дитя', 'WW', 0.01215], ['Glock-18 | Moonrise', 'MW', 0.0116],
-      ['MP7 | Amberline', 'MW', 0.01032], ['AWP | Duality', 'FT', 0.01023], ['SSG 08 | Spring Twilly', 'FT', 0.009856],
-      ['AK-47 | Breakthrough', 'BS', 0.009617], ['StatTrak™ SG 553 | Tiger Moth', 'WW', 0.008729], ['Five-SeveN | Capillary', 'FN', 0.008691],
-      ['Nova | Ghost Camo', 'FN', 0.008061], ['StatTrak™ P2000 | Handgun', 'MW', 0.007996], ['MAC-10 | Ультрафиолет', 'WW', 0.007611],
+      ['Five-SeveN | Dark Polymer', 'MW', 0.06348], ['M249 | Hypnosis', 'WW', 0.05911], ['M4A4 | Zubastick', 'MW', 0.05713],
+      ['R8 Revolver | Monarch', 'BS', 0.05531], ['Five-SeveN | Scumbria', 'BS', 0.05531], ['Negev | Bulkhead', 'FN', 0.05359],
+      ['P90 | Off World', 'BS', 0.05048], ['StatTrak™ PP-Bizon | Harvester', 'WW', 0.04772], ['Glock-18 | Clear Polymer', 'WW', 0.04772],
+      ['StatTrak™ P2000 | Ivory', 'BS', 0.04644], ['Souvenir USP-S | Desert Tactical', 'WW', 0.04304], ['SG 553 | Dragon Tech', 'BS', 0.03605],
+      ['UMP-45 | Plastique', 'FT', 0.0316], ['M4A1-S | Emphorosaur-S', 'WW', 0.03054], ['UMP-45 | Late Night Transit', 'MW', 0.02578],
+      ['Glock-18 | Glockingbird', 'FT', 0.02441], ['P2000 | Pulse', 'FT', 0.02061], ['StatTrak™ M249 | Aztec', 'BS', 0.01974],
+      ['StatTrak™ SG 553 | Heavy Metal', 'MW', 0.01954], ['StatTrak™ M4A1-S | Emphorosaur-S', 'BS', 0.0177], ['SSG 08 | Ghost Crusader', 'BS', 0.01676],
+      ['Souvenir Glock-18 | Night', 'WW', 0.01374], ['UMP-45 | Дикое дитя', 'FT', 0.01215], ['Glock-18 | Moonrise', 'MW', 0.0116],
+      ['MP7 | Amberline', 'MW', 0.01032], ['AWP | Duality', 'WW', 0.01023], ['SSG 08 | Spring Twilly', 'MW', 0.009856],
+      ['AK-47 | Breakthrough', 'FT', 0.009617], ['StatTrak™ SG 553 | Tiger Moth', 'FT', 0.008729], ['Five-SeveN | Fraise Crane', 'FN', 0.008691],
+      ['StatTrak™ Nova | Ranger', 'FN', 0.008061], ['StatTrak™ P2000 | Obsidian', 'FT', 0.007996], ['StatTrak™ MAC-10 | Ultraviolet', 'WW', 0.007611],
       ['AWP | Worm God', 'FT', 0.007603], ['Dual Berettas | Hydro Strike', 'MW', 0.007435], ['Souvenir USP-S | Purple DDPAT', 'WW', 0.007249],
-      ['StatTrak™ USP-S | Silent Shot', 'MW', 0.006743], ['StatTrak™ MAC-10 | Ultraviolet', 'BS', 0.006305], ['FAMAS | Pulse', 'FT', 0.004932],
-      ['Glock-18 | Пиксельный камуфляж «Розовый»', 'FT', 0.004083], ['Desert Eagle | Heirloom', 'WW', 0.003938], ['StatTrak™ M4A4 | Tooth Fairy', 'MW', 0.003486],
-      ['AWP | Chromatic Aberration', 'MW', 0.002852], ['Glock-18 | Fully Tuned', 'BS', 0.001696], ['StatTrak™ AK-47 | Asiimov', 'WW', 0.0006119],
-      ['★ Bayonet | Ultraviolet', 'FT', 0.0004333], ['★ Skeleton Knife | Boreal Forest', 'BS', 0.0004158], ['StatTrak™ Glock-18 | Fully Tuned', 'MW', 0.0003665],
-      ['★ StatTrak™ Karambit | Ultraviolet', 'BS', 0.0003251], ['M4A1-S | Master Piece', 'MW', 0.0002583], ['AK-47 | Неоновый гонщик', 'FN', 0.0002559],
+      ['StatTrak™ USP-S | Silent Shot', 'MW', 0.006743], ['StatTrak™ MAC-10 | Ultraviolet', 'BS', 0.006305], ['StatTrak™ FAMAS | Pulse', 'FT', 0.004932],
+      ['Glock-18 | Пиксельный камуфляж «Розовый»', 'MW', 0.004083], ['Desert Eagle | Heirloom', 'BS', 0.003938], ['StatTrak™ M4A4 | Tooth Fairy', 'MW', 0.003486],
+      ['AWP | Chromatic Aberration', 'MW', 0.002852], ['Glock-18 | Fully Tuned', 'FT', 0.001696], ['StatTrak™ AK-47 | Head Shot', 'FN', 0.0006119],
+      ['★ Bayonet | Ultraviolet', 'WW', 0.0004333], ['★ Skeleton Knife | Boreal Forest', 'MW', 0.0004158], ['StatTrak™ Glock-18 | Fully Tuned', 'MW', 0.0003665],
+      ['★ Karambit | Ultraviolet', 'MW', 0.0003251], ['StatTrak™ M4A1-S | Atomic Alloy', 'FN', 0.0002583], ['AK-47 | Неоновый гонщик', 'FN', 0.0002559],
       ['★ Butterfly Knife | Night', 'FN', 0.0001114], ['★ Sport Gloves | Pandora\'s Box', 'BS', 0.0001031], ['★ Butterfly Knife | Ultraviolet', 'FN', 0.00009577],
       ['★ Sport Gloves | Pandora\'s Box', 'MW', 0.00004043],
     ],
@@ -1661,21 +1770,21 @@ const CASES = [
     th: { a: '#e11d48' }, img: 'assets/case-karambit.webp', overlay: 'shine',
     // добавлено 16 керамбитов разной изношенности (32–60 тыс.) (окупаемость 85.8% и «дороже кейса» 18.4% — с удачей кейса из админки)
     exact: [
-      ['★ Karambit | Safari Mesh', 'WW', 0.2281], ['★ Karambit | Safari Mesh', 'FT', 0.2154], ['★ Karambit | Boreal Forest', 'BS', 0.1458],
-      ['★ Karambit | Ultraviolet', 'FT', 0.09634], ['★ Karambit | Boreal Forest', 'FT', 0.05224], ['★ Karambit | Bright Water', 'BS', 0.04947],
-      ['★ Karambit | Forest DDPAT', 'BS', 0.04315], ['★ Karambit | Boreal Forest', 'WW', 0.03267], ['★ Karambit | Scorched', 'BS', 0.02306],
-      ['★ Karambit | Urban Masked', 'BS', 0.02212], ['★ StatTrak™ Karambit | Safari Mesh', 'BS', 0.01794], ['★ StatTrak™ Karambit | Urban Masked', 'FT', 0.0153],
-      ['★ StatTrak™ Karambit | Boreal Forest', 'BS', 0.01195], ['★ StatTrak™ Karambit | Safari Mesh', 'FT', 0.009176], ['★ Karambit | Night', 'BS', 0.007894],
-      ['★ Karambit | Forest DDPAT', 'MW', 0.005803], ['★ Karambit | Urban Masked', 'FT', 0.005712], ['★ StatTrak™ Karambit | Boreal Forest', 'FT', 0.003043],
-      ['★ StatTrak™ Karambit | Freehand', 'FT', 0.002812], ['★ Karambit | Ultraviolet', 'WW', 0.002668], ['★ Karambit | Urban Masked', 'WW', 0.00213],
-      ['★ StatTrak™ Karambit | Ultraviolet', 'BS', 0.001911], ['★ Karambit | Black Laminate', 'WW', 0.001337], ['★ Karambit | Freehand', 'WW', 0.000806],
-      ['★ Karambit | Lore', 'BS', 0.0007671], ['★ Karambit | Stained', 'BS', 0.00067], ['★ Karambit | Bright Water', 'FT', 0.000504],
-      ['★ Karambit | Bright Water', 'MW', 0.000504], ['★ StatTrak™ Karambit | Stained', 'WW', 0.0002615], ['★ Karambit | Freehand', 'FN', 0.0002104],
-      ['★ Karambit | Lore', 'FT', 0.0001044], ['★ Karambit | Fade', 'FN', 0.0000327], ['★ Karambit | Boreal Forest', 'FN', 0.00002557],
-      ['★ Karambit | Case Hardened', 'BS', 0.00002193], ['★ Karambit | Black Laminate', 'BS', 0.0000201], ['★ Karambit | Autotronic', 'MW', 0.0000164],
-      ['★ StatTrak™ Karambit | Lore', 'MW', 0.00001439], ['★ Karambit | Marble Fade', 'FN', 0.0000125], ['★ Karambit | Lore', 'MW', 0.00001053],
-      ['★ StatTrak™ Karambit | Crimson Web', 'WW', 0.00001053], ['★ StatTrak™ Karambit | Case Hardened', 'BS', 0.00001009], ['★ Karambit | Autotronic', 'FT', 0.000009538],
-      ['★ StatTrak™ Karambit | Crimson Web', 'BS', 0.000008937], ['★ StatTrak™ Karambit | Damascus Steel', 'FT', 0.000008461], ['★ Karambit | Night', 'MW', 0.000008031],
+      ['★ Karambit | Safari Mesh', 'BS', 0.2281], ['★ Karambit | Safari Mesh', 'FT', 0.2154], ['★ Karambit | Boreal Forest', 'BS', 0.1458],
+      ['★ Karambit | Ultraviolet', 'FT', 0.09634], ['★ Karambit | Boreal Forest', 'FT', 0.05224], ['★ Karambit | Stained', 'FT', 0.04947],
+      ['★ Karambit | Forest DDPAT', 'BS', 0.04315], ['★ Karambit | Ultraviolet', 'BS', 0.03267], ['★ Karambit | Stained', 'WW', 0.02306],
+      ['★ Karambit | Urban Masked', 'BS', 0.02212], ['★ StatTrak™ Karambit | Rust Coat', 'BS', 0.01794], ['★ Karambit | Urban Masked', 'MW', 0.0153],
+      ['★ Karambit | Scorched', 'MW', 0.01195], ['★ Karambit | Night', 'FT', 0.009176], ['★ Karambit | Lore', 'WW', 0.007894],
+      ['★ Karambit | Freehand', 'MW', 0.005803], ['★ Karambit | Freehand', 'FT', 0.005712], ['★ Karambit | Rust Coat', 'BS', 0.003043],
+      ['★ Karambit | Ultraviolet', 'MW', 0.002812], ['★ Karambit | Damascus Steel', 'FT', 0.002668], ['★ Karambit | Urban Masked', 'WW', 0.00213],
+      ['★ Karambit | Stained', 'MW', 0.001911], ['★ Karambit | Black Laminate', 'FT', 0.001337], ['★ StatTrak™ Karambit | Lore', 'FT', 0.000806],
+      ['★ Karambit | Damascus Steel', 'MW', 0.0007671], ['★ StatTrak™ Karambit | Bright Water', 'FN', 0.00067], ['★ Karambit | Bright Water', 'FT', 0.000504],
+      ['★ Karambit | Bright Water', 'MW', 0.000504], ['★ Karambit | Black Laminate', 'MW', 0.0002615], ['★ Karambit | Freehand', 'FN', 0.0002104],
+      ['★ Karambit | Autotronic', 'BS', 0.0001044], ['★ Karambit | Fade', 'FN', 0.0000327], ['★ StatTrak™ Karambit | Marble Fade', 'FN', 0.00002557],
+      ['★ Karambit | Case Hardened', 'BS', 0.00002193], ['★ Karambit | Damascus Steel', 'FN', 0.0000201], ['★ Karambit | Autotronic', 'MW', 0.0000164],
+      ['★ Karambit | Case Hardened', 'MW', 0.00001439], ['★ Karambit | Marble Fade', 'FN', 0.0000125], ['★ Karambit | Slaughter', 'MW', 0.00001053],
+      ['★ StatTrak™ Karambit | Crimson Web', 'WW', 0.00001053], ['★ StatTrak™ Karambit | Tiger Tooth', 'FN', 0.00001009], ['★ Karambit | Slaughter', 'FT', 0.000009538],
+      ['★ StatTrak™ Karambit | Crimson Web', 'BS', 0.000008937], ['★ Karambit | Blue Steel', 'FT', 0.000008461], ['★ Karambit | Case Hardened', 'FT', 0.000008031],
       ['★ Karambit | Crimson Web', 'FN', 0.000005],
     ],
   },
@@ -1717,6 +1826,11 @@ function pityEv(ch, ps, rs) {
   }
   return ev / len;
 }
+/* 27.11 (владелец): дроп «В гостях у бабушки» и «Кейсы карт» пересобран — интересные скины, разное число позиций,
+   самый дешёвый скин ≈ половина цены кейса, окупаемость та же, что была (rtp у каждого набора; удача этих кейсов
+   в case_settings = 1 — supabase/drop_1127.sql). Формат exact — codeSetApply ниже; кейсы карт — pity: false (без гаранта).
+   В «Попрошайке» нет ножей (владелец 27.11): при цене 44 ₽ гарант с ножом съел бы всю окупаемость — гарант даёт красный AK.
+   Ниже — старый формат (lose/win/cov/rare), остался у rolling и game. */
 /* кейсы из админки с гарантом, как у BLAST (владелец 11.11: гарант — у раздела CS2 CASE, особых и ивентовых кейсов).
    Со старым составом гарант 75/150 разорил бы сайт (нож в сотни раз дороже кейса — окупаемость 117–420%), поэтому состав
    пересобран по образцу BLAST, и кейс «окупает часто, но немного» (владелец 11.11): примерно каждое 3-е открытие (PS_WIN) —
@@ -1728,33 +1842,150 @@ function pityEv(ch, ps, rs) {
    Цены скинов меняются: если «win» станет дешевле кейса (или цену кейса поменяют), его надо заменить. */
 const PS_WIN = 1 / 3, PS_C = .002, PS_K = .0002; // доля открытий «чуть дороже кейса»; базовые шансы особых (почти всё — по гаранту)
 const PITY_SETS = {
-  poproshayka: { lose: ['MP5-SD | Gold Leaf (Battle-Scarred)', 'StatTrak™ P2000 | Lifted Spirits (Field-Tested)', 'Souvenir Sawed-Off | Sage Spray (Battle-Scarred)', 'StatTrak™ Tec-9 | Fubar (Well-Worn)', 'StatTrak™ R8 Revolver | Crimson Web (Battle-Scarred)'],
-    win: ['P250 | Inferno (Well-Worn)', 'Desert Eagle | Trigger Discipline (Battle-Scarred)', 'UMP-45 | Labyrinth (Well-Worn)'],
-    cov: ['AK-47 | Aphrodite (Well-Worn)'], rare: ['★ Hydra Gloves | Mangrove (Battle-Scarred)', '★ Shadow Daggers | Rust Coat (Battle-Scarred)'] },
-  zhaba: { lose: ['StatTrak™ P250 | Cassette (Field-Tested)', 'XM1014 | Hieroglyph (Minimal Wear)', 'MAC-10 | Palm (Minimal Wear)', 'SCAR-20 | Sirocco Script (Minimal Wear)', 'MP9 | Capillary (Battle-Scarred)'],
-    win: ['Galil AR | Galigator (Well-Worn)', 'AWP | Капилляры (После полевых испытаний)', 'MAC-10 | Lapis Gator (Well-Worn)'],
-    cov: ['AK-47 | Aphrodite (Well-Worn)', 'StatTrak™ AK-47 | Head Shot (Battle-Scarred)'], rare: ['★ Hydra Gloves | Mangrove (Battle-Scarred)', '★ Driver Gloves | Racing Green (Well-Worn)'] },
-  1133444: { lose: ['MP5-SD | Neon Squeezer (Field-Tested)', 'MP9 | Featherweight (Minimal Wear)', 'Glock-18 | Teal Graf (Battle-Scarred)', 'R8 Revolver | Monarch (Battle-Scarred)', 'USP-S | Silent Shot (Minimal Wear)'],
-    win: ['SG 553 | Heavy Metal (Factory New)', 'AUG | Spalted Wood (Well-Worn)', 'StatTrak™ Nova | Wood Fired (Factory New)'],
-    cov: ['AK-47 | Nouveau Rouge (Field-Tested)', 'StatTrak™ AK-47 | Head Shot (Battle-Scarred)'], rare: ['★ Hand Wraps | Arboreal (Battle-Scarred)', '★ Driver Gloves | Racing Green (Well-Worn)'] },
-  bababorya: { lose: ['MAG-7 | Metallic DDPAT (Factory New)', 'StatTrak™ Tec-9 | Fubar (Well-Worn)', 'Dual Berettas | Cobalt Quartz (Field-Tested)', 'MAC-10 | Саккаку (Поношенное)', 'MP9 | Urban Sovereign (Field-Tested)'],
-    win: ['StatTrak™ SG 553 | Phantom (Battle-Scarred)', 'CZ75-Auto | Red Astor (Battle-Scarred)', 'StatTrak™ SCAR-20 | Torn (Field-Tested)'],
-    cov: ['AK-47 | Nouveau Rouge (Field-Tested)', 'StatTrak™ M4A4 | In Living Color (Battle-Scarred)'], rare: ['★ Hydra Gloves | Mangrove (Battle-Scarred)', '★ Driver Gloves | Racing Green (Well-Worn)'] },
-  tnir: { lose: ['P90 | Teardown (Field-Tested)', 'StatTrak™ MAG-7 | MAGnitude (Well-Worn)', 'StatTrak™ P250 | Iron Clad (Field-Tested)', 'StatTrak™ Galil AR | Akoben (Well-Worn)', 'StatTrak™ M4A1-S | Night Terror (Field-Tested)'],
-    win: ['M4A1-S | Glitched Paint (Well-Worn)', 'Galil AR | Sandstorm (Field-Tested)', 'MP7 | Amberline (Minimal Wear)'],
-    cov: ['M4A4 | Global Offensive (Minimal Wear)', 'Glock-18 | Неонуар (Закалённое в боях)', 'USP-S | Printstream (Battle-Scarred)'],
-    rare: ['★ Shadow Daggers | Bright Water (Minimal Wear)', '★ Тычковые ножи | Пиксельный камуфляж «Лес» (После полевых испытаний)'] },
-  dedaded: { lose: ['Souvenir MAG-7 | Rust Coat (Well-Worn)', 'Sawed-Off | Spirit Board (Minimal Wear)', 'MP7 | Amberline (Battle-Scarred)', 'MAG-7 | Copper Coated (Battle-Scarred)', 'StatTrak™ AUG | Plague (Field-Tested)'],
-    win: ['PP-Bizon | Fuel Rod (Field-Tested)', 'Desert Eagle | Sputnik (Field-Tested)', 'StatTrak™ Desert Eagle | Corinthian (Minimal Wear)'],
-    cov: ['AK-47 | Азимов (Закалённое в боях)', 'M4A4 | Desolate Space (Minimal Wear)'], rare: ['★ Navaja Knife | Rust Coat (Battle-Scarred)', '★ Shadow Daggers | Rust Coat (Battle-Scarred)'] },
-  rolling: { lose: ['Charm | Pocket AWP', 'M249 | Spectrogram (Field-Tested)', 'StatTrak™ SG 553 | Ol\' Rusty (Well-Worn)', 'Tec-9 | Sandstorm (Battle-Scarred)', 'G3SG1 | Digital Mesh (Well-Worn)'],
+  poproshayka: { rtp: 0.8493, exact: [ // Попрошайка, 44 ₽
+    ['StatTrak™ USP-S | PC-GRN', 'BS', 1], ['USP-S | 27', 'WW', 1], ['USP-S | Silent Shot', 'BS', 1], ['StatTrak™ M4A4 | Poly Mag', 'MW', 1],
+    ['StatTrak™ Glock-18 | Oxide Blaze', 'BS', 1], ['M4A4 | Dark Operative', 'WW', 1], ['Desert Eagle | Синяя фанера', 'BS', 1], ['M4A4 | Etch Lord', 'WW', 1],
+    ['Glock-18 | Кролик в тени', 'BS', 0.4], ['Glock-18 | Block-18', 'FT', 0.4], ['M4A1-S | Nitro', 'FT', 0.4], ['USP-S | Royal Guard', 'BS', 0.4],
+    ['StatTrak™ Glock-18 | Umbral Rabbit', 'FT', 0.08], ['StatTrak™ USP-S | Ticket to Hell', 'BS', 0.08], ['AK-47 | Uncharted', 'MW', 0.08], ['AWP | Капилляры', 'WW', 0.08],
+    ['Desert Eagle | Heat Treated', 'FT', 0.04], ['AK-47 | Элитное снаряжение', 'WW', 0.04], ['AWP | Worm God', 'FT', 0.015], ['AK-47 | Slate', 'WW', 0.015],
+    ['AK-47 | Ледяной уголь', 'WW', 0.0075], ['AK-47 | Aphrodite', 'BS', 0.002], ['AK-47 | Aphrodite', 'WW', 0.001], ['AK-47 | Head Shot', 'FT', 0.0000667],
+  ] },
+  zhaba: { rtp: 0.8505, exact: [ // ЖАБ ЖАБЫЧ, 57 ₽
+    ['StatTrak™ USP-S | PC-GRN', 'FT', 1], ['PP-Bizon | Brass', 'MW', 1], ['SCAR-20 | Green Marine', 'WW', 1], ['SCAR-20 | Jungle Slipstream', 'BS', 1],
+    ['PP-Bizon | Jungle Slipstream', 'MW', 1], ['Desert Eagle | Mint Fan', 'MW', 0.5], ['Souvenir FAMAS | 2A2F', 'BS', 0.5], ['M4A1-S | Emphorosaur-S', 'BS', 0.5],
+    ['AK-47 | Wintergreen', 'FT', 0.5], ['StatTrak™ P250 | Bullfrog', 'MW', 0.5], ['P2000 | Acid Etched', 'WW', 0.4], ['Galil AR | Galigator', 'BS', 0.4],
+    ['StatTrak™ P250 | Ripple', 'FN', 0.4], ['StatTrak™ Desert Eagle | Serpent Strike', 'FT', 0.4], ['MAC-10 | Lapis Gator', 'BS', 0.4], ['Glock-18 | Bunsen Burner', 'FT', 0.4],
+    ['AWP | Гадюка', 'WW', 0.08], ['StatTrak™ M4A1-S | Emphorosaur-S', 'FT', 0.08], ['StatTrak™ Galil AR | Galigator', 'WW', 0.08], ['AK-47 | Изумрудные завитки', 'FT', 0.015],
+    ['Glock-18 | Royal Legion', 'FT', 0.015], ['AWP | Green Energy', 'BS', 0.015], ['AWP | Древесная гадюка', 'FT', 0.015], ['StatTrak™ AWP | Atheris', 'FT', 0.004],
+    ['M4A1-S | Basilisk', 'BS', 0.004], ['M4A1-S | Moss Quartz', 'FT', 0.002], ['AK-47 | Aphrodite', 'BS', 0.002], ['AK-47 | Аквамариновая месть', 'BS', 0.0000333],
+    ['AWP | Скоростной зверь', 'MW', 0.0000167], ['★ Driver Gloves | Racing Green', 'FT', 0.0002], ['★ Hydra Gloves | Emerald', 'FT', 0.0002], ['★ Bloodhound Gloves | Snakebite', 'BS', 0.00000667],
+  ] },
+  1133444: { rtp: 0.8496, exact: [ // ГРЯДКА, 75 ₽
+    ['Glock-18 | Coral Bloom', 'MW', 1], ['Dual Berettas | Flora Carnivora', 'FT', 1], ['StatTrak™ PP-Bizon | Harvester', 'MW', 1], ['Nova | Wood Fired', 'FN', 1],
+    ['Souvenir M4A1-S | Wash me plz', 'MW', 1], ['PP-Bizon | Traitor', 'FN', 1], ['StatTrak™ Tec-9 | Brother', 'WW', 0.4], ['SCAR-20 | Wild Berry', 'BS', 0.4],
+    ['USP-S | Black Lotus', 'BS', 0.4], ['Desert Eagle | Mulberry', 'BS', 0.4], ['AUG | Spalted Wood', 'FT', 0.4], ['Five-SeveN | Withered Vine', 'BS', 0.4],
+    ['Glock-18 | Candy Apple', 'FT', 0.4], ['MP7 | Tall Grass', 'FT', 0.08], ['Souvenir SG 553 | Desert Blossom', 'MW', 0.08], ['Glock-18 | Ядерный сад', 'WW', 0.08],
+    ['StatTrak™ P250 | X-Ray', 'FN', 0.08], ['M4A1-S | Black Lotus', 'FT', 0.015], ['Dual Berettas | Melondrama', 'MW', 0.015], ['M4A4 | Spider Lily', 'BS', 0.015],
+    ['StatTrak™ M4A4 | Spider Lily', 'WW', 0.004], ['Nova | Hyper Beast', 'WW', 0.004], ['Souvenir MAC-10 | Nuclear Garden', 'FT', 0.004], ['XM1014 | Elegant Vines', 'MW', 0.002],
+    ['AWP | Пиксельный камуфляж «Розовый»', 'WW', 0.002], ['AK-47 | Aphrodite', 'BS', 0.002], ['M4A4 | В живом цвете', 'MW', 0.0001], ['★ Hand Wraps | Arboreal', 'FT', 0.0002],
+    ['★ Hydra Gloves | Mangrove', 'FT', 0.0002], ['★ Navaja Knife | Boreal Forest', 'FT', 0.0002], ['★ Skeleton Knife | Forest DDPAT', 'FT', 0.00002],
+  ] },
+  bababorya: { rtp: 0.8118, exact: [ // Баба Боря, 89 ₽
+    ['MAC-10 | Cat Fight', 'WW', 1], ['USP-S | Ticket to Hell', 'WW', 1], ['StatTrak™ Glock-18 | Umbral Rabbit', 'BS', 1], ['Glock-18 | Glockingbird', 'WW', 1],
+    ['Nova | Toy Soldier', 'WW', 1], ['Glock-18 | Кролик в тени', 'MW', 1], ['StatTrak™ UMP-45 | Roadblock', 'FN', 0.4], ['AUG | Tom Cat', 'FN', 0.4],
+    ['Desert Eagle | Mulberry', 'FT', 0.2], ['USP-S | Sleeping Potion', 'WW', 0.4], ['SSG 08 | Fever Dream', 'WW', 0.4], ['CZ75-Auto | Tacticat', 'BS', 0.4],
+    ['Glock-18 | Candy Apple', 'MW', 0.4], ['M4A1-S | Solitude', 'WW', 0.08], ['Dual Berettas | Sweet Little Angels', 'BS', 0.08], ['AWP | ЛАПКИ', 'FT', 0.08],
+    ['AK-47 | Baroque Purple', 'WW', 0.015], ['StatTrak™ FAMAS | Macabre', 'FT', 0.015], ['StatTrak™ AWP | PAW', 'FT', 0.015], ['AWP | Fever Dream', 'FT', 0.004],
+    ['Souvenir MAC-10 | Nuclear Garden', 'MW', 0.004], ['Five-SeveN | Fowl Play', 'BS', 0.004], ['Glock-18 | Пиксельный камуфляж «Розовый»', 'MW', 0.002], ['AK-47 | Aphrodite', 'WW', 0.002],
+    ['Glock-18 | Королева пуль', 'FT', 0.00008], ['★ Hydra Gloves | Mangrove', 'BS', 0.0002], ['★ Moto Gloves | 3rd Commando Company', 'WW', 0.0002], ['★ Driver Gloves | Queen Jaguar', 'BS', 0.0000667],
+    ['★ Specialist Gloves | Chocolate Chesterfield', 'BS', 0.00002],
+  ] },
+  tnir: { rtp: 0.8495, exact: [ // ВНУКА ВНУК, 118 ₽
+    ['M4A1-S | Night Terror', 'MW', 1], ['USP-S | Ticket to Hell', 'MW', 1], ['StatTrak™ USP-S | Ticket to Hell', 'FT', 1], ['Glock-18 | Moonrise', 'FT', 0.5],
+    ['StatTrak™ M4A1-S | Emphorosaur-S', 'BS', 0.5], ['StatTrak™ Glock-18 | Block-18', 'FT', 0.333], ['Desert Eagle | Light Rail', 'WW', 0.2], ['M4A1-S | Glitched Paint', 'FT', 0.2],
+    ['StatTrak™ M4A1-S | Night Terror', 'FT', 0.2], ['StatTrak™ Desert Eagle | Calligraffiti', 'MW', 0.2], ['M4A1-S | Glitched Paint', 'WW', 0.2], ['StatTrak™ Glock-18 | Moonrise', 'FT', 0.4],
+    ['Souvenir USP-S | Check Engine', 'FT', 0.4], ['StatTrak™ M4A1-S | Night Terror', 'MW', 0.2], ['StatTrak™ USP-S | Ticket to Hell', 'MW', 0.2], ['StatTrak™ Glock-18 | Block-18', 'MW', 0.133],
+    ['M4A1-S | Glitched Paint', 'MW', 0.133], ['AWP | Duality', 'WW', 0.08], ['USP-S | Cyrex', 'WW', 0.08], ['USP-S | Cortex', 'FT', 0.08],
+    ['Glock-18 | Vogue', 'BS', 0.08], ['StatTrak™ AWP | Duality', 'FT', 0.015], ['StatTrak™ Glock-18 | Vogue', 'FT', 0.015], ['StatTrak™ USP-S | Cortex', 'FT', 0.015],
+    ['M4A1-S | Decimator', 'BS', 0.004], ['StatTrak™ Desert Eagle | Mecha Industries', 'FT', 0.004], ['USP-S | Monster Mashup', 'WW', 0.004], ['StatTrak™ M4A4 | Cyber Security', 'BS', 0.002],
+    ['StatTrak™ M4A1-S | Decimator', 'BS', 0.002], ['AWP | Электрический улей', 'FT', 0.002], ['AK-47 | Aphrodite', 'BS', 0.002], ['Glock-18 | Неонуар', 'BS', 0.0002],
+    ['USP-S | Printstream', 'BS', 0.0002], ['AWP | Неонуар', 'WW', 0.0001], ['AK-47 | Неоновый гонщик', 'WW', 0.0001], ['M4A1-S | Player Two', 'MW', 0.0000667],
+    ['★ Gut Knife | Ultraviolet', 'FT', 0.0002], ['★ Navaja Knife | Ultraviolet', 'FT', 0.0002], ['★ Shadow Daggers | Autotronic', 'BS', 0.0002], ['★ Moto Gloves | POW!', 'BS', 0.0002],
+    ['★ Skeleton Knife | Ultraviolet', 'BS', 0.00002],
+  ] },
+  dedaded: { rtp: 0.8499, exact: [ // Деда Дед, 122 ₽
+    ['Desert Eagle | Trigger Discipline', 'FT', 1], ['AK-47 | Uncharted', 'MW', 1], ['Souvenir FAMAS | CaliCamo', 'MW', 1], ['Desert Eagle | Bronze Deco', 'FN', 1],
+    ['Desert Eagle | Firebreathing', 'BS', 0.5], ['StatTrak™ Desert Eagle | Bronze Deco', 'MW', 0.5], ['Desert Eagle | Meteorite', 'FT', 0.333], ['Desert Eagle | Heat Treated', 'FT', 0.4],
+    ['Desert Eagle | Directive', 'BS', 0.4], ['FAMAS | Yeti Camo', 'FN', 0.4], ['StatTrak™ Glock-18 | Ironwork', 'BS', 0.4], ['Desert Eagle | Urban DDPAT', 'BS', 0.4],
+    ['AK-47 | Элитное снаряжение', 'BS', 0.4], ['Souvenir Galil AR | Hunting Blind', 'FT', 0.2], ['AK-47 | Steel Delta', 'FT', 0.2], ['FAMAS | Sergeant', 'BS', 0.2],
+    ['USP-S | Guardian', 'FT', 0.08], ['AK-47 | Safety Net', 'FT', 0.08], ['AK-47 | Slate', 'FT', 0.08], ['StatTrak™ USP-S | Torque', 'FN', 0.08],
+    ['M4A4 | Jungle Tiger', 'WW', 0.08], ['StatTrak™ AK-47 | Elite Build', 'FT', 0.015], ['Desert Eagle | Механо-пушка', 'BS', 0.015], ['Desert Eagle | Mulberry', 'MW', 0.015],
+    ['USP-S | Stainless', 'FT', 0.015], ['AK-47 | Crane Flight', 'BS', 0.004], ['AWP | Elite Build', 'WW', 0.004], ['M4A4 | Desert Storm', 'FT', 0.004],
+    ['Desert Eagle | Crimson Web', 'FT', 0.004], ['AK-47 | Хищник', 'FT', 0.002], ['Desert Eagle | Eastern Enigma', 'FT', 0.002], ['AK-47 | Aphrodite', 'BS', 0.002],
+    ['M4A4 | Desert-Strike', 'FT', 0.0004], ['AK-47 | Inheritance', 'BS', 0.0004], ['FAMAS | Commemoration', 'MW', 0.0004], ['★ Navaja Knife | Rust Coat', 'BS', 0.0002],
+    ['★ Shadow Daggers | Rust Coat', 'BS', 0.0002], ['★ Moto Gloves | 3rd Commando Company', 'WW', 0.0002], ['★ StatTrak™ Bayonet | Rust Coat', 'BS', 0.00002],
+  ] },
+  111111: { rtp: 0.78, pity: false, exact: [ // NUKE, 149 ₽
+    ['Galil AR | Vandal', 'FT', 1], ['StatTrak™ Galil AR | Vandal', 'FT', 1], ['StatTrak™ MAG-7 | Petroglyph', 'FT', 1], ['StatTrak™ P2000 | Urban Hazard', 'FN', 1],
+    ['StatTrak™ MP7 | Urban Hazard', 'FN', 0.5], ['AUG | Random Access', 'FT', 0.5], ['SG 553 | Fallout Warning', 'FT', 0.4], ['P250 | Exchanger', 'FN', 0.4],
+    ['AUG | Radiation Hazard', 'FT', 0.4], ['Tec-9 | Remote Control', 'WW', 0.2], ['MAG-7 | Irradiated Alert', 'FT', 0.2], ['Souvenir Sawed-Off | Irradiated Alert', 'WW', 0.08],
+    ['PP-Bizon | Irradiated Alert', 'BS', 0.08], ['Glock-18 | Ядерный сад', 'WW', 0.08], ['M4A1-S | Control Panel', 'BS', 0.08], ['Souvenir UMP-45 | Fallout Warning', 'FT', 0.015],
+    ['XM1014 | Banana Leaf', 'FT', 0.015], ['Souvenir P90 | Fallout Warning', 'FT', 0.015], ['M4A1-S | Decimator', 'BS', 0.015], ['Tec-9 | Decimator', 'FT', 0.0075],
+    ['M4A1-S | Guardian', 'MW', 0.003], ['M4A4 | Radiation Hazard', 'FT', 0.003], ['P250 | Ядерная угроза', 'FT', 0.003], ['AWP | Containment Breach', 'BS', 0.003],
+    ['Tec-9 | Ядерная угроза', 'BS', 0.0015], ['M4A4 | X-Ray', 'FT', 0.0003], ['Glock-18 | Wasteland Rebel', 'FT', 0.0003], ['StatTrak™ AK-47 | Wasteland Rebel', 'BS', 0.00015],
+    ['★ Skeleton Knife | Ultraviolet', 'BS', 0.00015], ['★ Butterfly Knife | Urban Masked', 'BS', 0.00005],
+  ] },
+  113322: { rtp: 0.78, pity: false, exact: [ // TRAIN, 149 ₽
+    ['StatTrak™ MAC-10 | Pipe Down', 'FT', 1], ['StatTrak™ Glock-18 | Ironwork', 'FT', 1], ['Souvenir SSG 08 | Hand Brake', 'WW', 1], ['M4A4 | Turbine', 'FT', 1],
+    ['FAMAS | Colony', 'FN', 0.5], ['USP-S | Check Engine', 'FN', 0.5], ['Souvenir Tec-9 | Whiteout', 'BS', 0.4], ['Nova | Wurst Hölle', 'FN', 0.4],
+    ['MAC-10 | Derailment', 'FT', 0.4], ['Desert Eagle | The Bronze', 'MW', 0.2], ['AK-47 | Steel Delta', 'WW', 0.2], ['CZ75-Auto | Hexane', 'MW', 0.2],
+    ['M4A4 | Griffin', 'BS', 0.08], ['P250 | Ржавая сталь', 'FT', 0.08], ['StatTrak™ Desert Eagle | Light Rail', 'FT', 0.08], ['Nova | Rust Coat', 'BS', 0.08],
+    ['CZ75-Auto | Slalom', 'BS', 0.04], ['MAC-10 | Disco Tech', 'FT', 0.04], ['Nova | Red Quartz', 'MW', 0.04], ['MP9 | Latte Rush', 'BS', 0.015],
+    ['StatTrak™ CZ75-Auto | Tread Plate', 'FN', 0.015], ['SSG 08 | Big Iron', 'FT', 0.015], ['StatTrak™ Glock-18 | Steel Disruption', 'MW', 0.015], ['Five-SeveN | Retrobution', 'FN', 0.0075],
+    ['AWP | Chrome Cannon', 'BS', 0.003], ['USP-S | Whiteout', 'WW', 0.003], ['AWP | LongDog', 'WW', 0.003], ['Glock-18 | Gamma Doppler', 'FT', 0.0015],
+    ['M4A4 | Hellfire', 'WW', 0.001], ['M4A4 | The Coalition', 'BS', 0.0003], ['★ Classic Knife | Slaughter', 'FN', 0.00015], ['★ Butterfly Knife | Blue Steel', 'WW', 0.0000375],
+  ] },
+  antient: { rtp: 0.78, pity: false, exact: [ // ANCIENT, 149 ₽
+    ['StatTrak™ M249 | Aztec', 'FT', 1], ['FAMAS | Neural Net', 'BS', 1], ['StatTrak™ Galil AR | Rocket Pop', 'BS', 1], ['Tec-9 | Mummy\'s Rot', 'FT', 1],
+    ['R8 Revolver | Survivalist', 'FN', 1], ['SG 553 | Tiger Moth', 'WW', 0.5], ['MP9 | Army Sheen', 'FT', 0.5], ['Galil AR | Rocket Pop', 'FT', 0.4],
+    ['MP7 | Gunsmoke', 'FT', 0.4], ['P2000 | Acid Etched', 'MW', 0.4], ['StatTrak™ R8 Revolver | Memento', 'FT', 0.2], ['StatTrak™ MP7 | Just Smile', 'MW', 0.2],
+    ['SSG 08 | Lichen Dashed', 'FT', 0.2], ['G3SG1 | Ancient Ritual', 'WW', 0.2], ['MP7 | Just Smile', 'FN', 0.08], ['USP-S | Blood Tiger', 'MW', 0.08],
+    ['Tec-9 | Blast From the Past', 'FT', 0.08], ['Souvenir AUG | Carved Jade', 'MW', 0.08], ['M4A4 | Jungle Tiger', 'WW', 0.04], ['M4A1-S | Blood Tiger', 'MW', 0.04],
+    ['AUG | Bengal Tiger', 'BS', 0.015], ['MAC-10 | Curse', 'FN', 0.015], ['P90 | Tiger Pit', 'FT', 0.015], ['Souvenir XM1014 | Ancient Lore', 'FT', 0.0075],
+    ['Souvenir USP-S | Ancient Visions', 'MW', 0.0075], ['USP-S | Ancient Visions', 'FT', 0.003], ['AK-47 | Ягуар', 'BS', 0.0015], ['Souvenir AK-47 | Panthera onca', 'BS', 0.001],
+    ['★ Flip Knife | Lore', 'FT', 0.0003], ['M4A1-S | Добро пожаловать в джунгли', 'BS', 0.000075], ['★ Нож-бабочка | Зуб тигра', 'FN', 0.0000375],
+  ] },
+  cache: { rtp: 0.78, pity: false, exact: [ // CACHE, 299 ₽
+    ['AUG | Amber Fade', 'FT', 1], ['PP-Bizon | Chemical Green', 'FT', 1], ['StatTrak™ PP-Bizon | Fuel Rod', 'FT', 1], ['Five-SeveN | Hot Shot', 'WW', 1],
+    ['PP-Bizon | Breaker Box', 'MW', 0.5], ['R8 Revolver | Banana Cannon', 'FN', 0.4], ['StatTrak™ Negev | Power Loader', 'BS', 0.4], ['StatTrak™ Five-SeveN | Urban Hazard', 'FT', 0.4],
+    ['Negev | Nuclear Waste', 'MW', 0.4], ['StatTrak™ P250 | Visions', 'FT', 0.2], ['Negev | Nuclear Waste', 'FN', 0.2], ['Souvenir Negev | Nuclear Waste', 'FN', 0.2],
+    ['StatTrak™ Five-SeveN | Urban Hazard', 'FN', 0.133], ['StatTrak™ XM1014 | Incinegator', 'FT', 0.133], ['Glock-18 | Sacrifice', 'FN', 0.08], ['Souvenir Tec-9 | Toxic', 'BS', 0.08],
+    ['StatTrak™ Sawed-Off | Wasteland Princess', 'FT', 0.08], ['Souvenir MAC-10 | Amber Fade', 'FT', 0.08], ['FAMAS | Styx', 'WW', 0.08], ['Glock-18 | Реактор', 'BS', 0.04],
+    ['Souvenir MAC-10 | Nuclear Garden', 'FT', 0.015], ['FAMAS | Styx', 'MW', 0.015], ['Sawed-Off | Wasteland Princess', 'BS', 0.015], ['Galil AR | Cerberus', 'BS', 0.0075],
+    ['Souvenir Galil AR | Cerberus', 'WW', 0.003], ['AK-47 | Fuel Injector', 'WW', 0.0015], ['FAMAS | Styx', 'FN', 0.00075], ['★ M9 Bayonet | Bright Water', 'WW', 0.0003],
+    ['★ Karambit | Autotronic', 'FT', 0.0001], ['AK-47 | Hydroponic', 'BS', 0.000075],
+  ] },
+  cobblestone: { rtp: 0.78, pity: false, exact: [ // Cobblestone, 369 ₽
+    ['Galil AR | Stone Cold', 'FT', 1], ['SSG 08 | Ghost Crusader', 'MW', 1], ['Desert Eagle | Light Rail', 'MW', 1], ['CZ75-Auto | Indigo', 'FT', 1],
+    ['Glock-18 | Royal Legion', 'FT', 1], ['USP-S | Bleeding Edge', 'MW', 0.5], ['CZ75-Auto | Silver', 'FN', 0.5], ['MP9 | Storm', 'MW', 0.4],
+    ['StatTrak™ Galil AR | Crimson Tsunami', 'BS', 0.4], ['P250 | Contamination', 'FN', 0.4], ['StatTrak™ Desert Eagle | Naga', 'BS', 0.2], ['Desert Eagle | Механо-пушка', 'WW', 0.2],
+    ['StatTrak™ Desert Eagle | Light Rail', 'MW', 0.08], ['StatTrak™ Glock-18 | Royal Legion', 'WW', 0.08], ['Nova | Green Apple', 'MW', 0.08], ['USP-S | Royal Blue', 'FT', 0.08],
+    ['StatTrak™ P2000 | Imperial Dragon', 'FT', 0.04], ['M4A4 | Hellish', 'FT', 0.04], ['Desert Eagle | Kumicho Dragon', 'BS', 0.015], ['M4A1-S | Guardian', 'FT', 0.015],
+    ['AWP | Chromatic Aberration', 'MW', 0.0075], ['StatTrak™ MP9 | Airlock', 'FN', 0.0075], ['P2000 | Chainmail', 'FN', 0.003], ['M4A4 | Royal Paladin', 'FT', 0.003],
+    ['CZ75-Auto | Chalice', 'FN', 0.00075], ['★ M9 Bayonet | Black Laminate', 'FT', 0.0003], ['★ Butterfly Knife | Lore', 'WW', 0.0001], ['M4A1-S | Knight', 'FN', 0.00001],
+    ['AWP | История о драконе', 'FT', 0.000006],
+  ] },
+  rolling: { lose: ['Charm | Lil\' Tusk', 'M249 | Spectrogram (Field-Tested)', 'SG 553 | Ol\' Rusty (Well-Worn)', 'Tec-9 | Sandstorm (Field-Tested)', 'G3SG1 | Digital Mesh (Well-Worn)'],
     win: ['Galil AR | Sandstorm (Battle-Scarred)', 'StatTrak™ G3SG1 | Keeping Tabs (Battle-Scarred)', 'Negev | Power Loader (Field-Tested)'],
-    cov: ['AK-47 | Aphrodite (Well-Worn)'], rare: ['★ Navaja Knife | Safari Mesh (Field-Tested)', ['★ Karambit | Safari Mesh (Field-Tested)', .03]] },
-  game: { lose: ['MP9 | Апельсиновая корка (Немного поношенное)', 'P250 | Drought (Minimal Wear)', 'M4A4 | Steel Work (Factory New)', 'Tec-9 | Sultan (Battle-Scarred)', 'G3SG1 | Digital Mesh (Well-Worn)'],
-    win: ['Desert Eagle | Urban DDPAT (Well-Worn)', 'Desert Eagle | Directive (Field-Tested)', 'Galil AR | Sandstorm (Battle-Scarred)'],
+    cov: ['AK-47 | Aphrodite (Well-Worn)'], rare: ['★ Navaja Knife | Safari Mesh (Minimal Wear)', ['★ Karambit | Safari Mesh (Field-Tested)', .03]] },
+  game: { lose: ['MP9 | Featherweight (Minimal Wear)', 'P250 | Drought (Field-Tested)', 'M4A4 | Choppa (Minimal Wear)', 'Tec-9 | Sultan (Battle-Scarred)', 'G3SG1 | Digital Mesh (Well-Worn)'],
+    win: ['Desert Eagle | Urban DDPAT (Well-Worn)', 'StatTrak™ Desert Eagle | Trigger Discipline (Battle-Scarred)', 'Galil AR | Sandstorm (Battle-Scarred)'],
     cov: ['AK-47 | Aphrodite (Battle-Scarred)'], rare: ['★ Kukri Knife | Safari Mesh (Field-Tested)', ['★ Karambit | Safari Mesh (Field-Tested)', .03]] },
 };
+/* новый формат (27.11, пересборка дропа «В гостях у бабушки» и «Кейсы карт»): exact — [скин, износ, вес], как у встроенных кейсов;
+   веса наклоняются (вес × цена^t) так, чтобы окупаемость была S.rtp (у кейса с гарантом — вместе с гарантом);
+   pity: false — без гаранта (кейсы карт). Нет скина в каталоге — позиция пропускается (предупреждение в консоли), сайт не падает. */
+function codeSetApply(c, S) {
+  const w0 = {}, miss = [];
+  S.exact.forEach(([b, q, w]) => {
+    const v = (VARIANTS[b] || []).map(n => SK[n]), it = v.find(x => x.q === q) || v.sort((x, y) => x.p - y.p)[0] || SK[b];
+    if (!it) { miss.push(b); return; }
+    w0[it.name] = (w0[it.name] || 0) + w;
+  });
+  if (miss.length) console.warn('PITY_SETS ' + c.id + ': нет в каталоге —', miss.join('; '));
+  const names = Object.keys(w0); if (names.length < 2) return;
+  c.rtp = S.rtp; c.pity = S.pity !== false; c.srvSync = true; // srvSync — admSync отправит кейс в cases_srv
+  const ps = names.map(n => SK[n].p), base = names.map(n => w0[n]), rs = names.map(n => SK[n].r);
+  const tilt = t => { const w = base.map((b, i) => b * ps[i] ** t), s = w.reduce((a, b) => a + b, 0); return w.map(x => x / s); };
+  const ev = c.pity ? t => pityEv(tilt(t), ps, rs) : t => tilt(t).reduce((a, w, i) => a + w * ps[i], 0);
+  let a = -3, b = 3; for (let i = 0; i < 60; i++) { const m = (a + b) / 2; if (ev(m) < c.price * c.rtp) a = m; else b = m; }
+  const ch = tilt((a + b) / 2), fwRaw = ch.map(x => Math.sqrt(x)), fs = fwRaw.reduce((x, y) => x + y, 0);
+  c.items = names.map((n, i) => ({ ...SK[n], ch: ch[i], fw: fwRaw[i] / fs })).sort((x, y) => y.p - x.p);
+  c.rareChance = c.items.filter(s => s.r === 'rare').reduce((x, s) => x + s.ch, 0);
+  c.show = c.items.slice(0, 3).map(s => s.name);
+}
 function pitySetApply(c, S) {
+  if (S.exact) return codeSetApply(c, S);
   const nm = x => Array.isArray(x) ? x[0] : x, kk = x => Array.isArray(x) ? x[1] : 1, ok = x => !!SK[nm(x)];
   const miss = [...S.lose, ...S.win, ...S.cov, ...S.rare].filter(x => !ok(x)).map(nm);
   if (miss.length) console.warn('PITY_SETS ' + c.id + ': нет в каталоге —', miss.join('; '));
@@ -1799,6 +2030,7 @@ function pitySetApply(c, S) {
   const BIG_MASS = .01; // крупный дроп ≈ 1 из 100 открытий
   const baseOf = s => s.base || s.name, dist = (s, t) => Math.abs(Math.log(s.p / t));
   function buildSet(c, pool, xs, used = new Set(), min = 0) {
+    pool = pool.filter(s => !LOWLOT.has(s.name)); // меньше 10 лотов на маркете — не берём
     const out = [];
     const near = (arr, t) => arr.reduce((b, s) => used.has(baseOf(s)) ? b : !b || dist(s, t) < dist(b, t) ? s : b, null);
     for (const x of xs) {
@@ -1850,7 +2082,7 @@ function pitySetApply(c, S) {
       });
       c.items = [...new Set(c.items)];
       // цены меняются (синхронизация с Lis-Skins) — таблицу наклоняем (шанс × p^t), чтобы окупаемость осталась c.rtp
-      const ps = c.items.map(n => SK[n].p), base = c.items.map(n => c.exactCh[n]);
+      const ps = c.items.map(n => SK[n].c === 'gift' && c.giftP ? c.giftP : SK[n].p), base = c.items.map(n => c.exactCh[n]); // giftP — ценность подарка у своего кейса (2 × цена × rtp)
       const fx = c.items.map(n => SK[n].c === 'gift' || !!SK[n].fx), fm = base.reduce((a, b, i) => a + (fx[i] ? b : 0), 0); // подарок — шанс как задан
       const tilt = t => { const w = base.map((b, i) => fx[i] ? 0 : b * ps[i] ** t), s = w.reduce((a, b) => a + b, 0); return w.map((x, i) => fx[i] ? base[i] : x / s * (1 - fm)); };
       // у кейса с гарантом считаем окупаемость вместе с гарантом — иначе он поднял бы её с 80% до ~97%
@@ -1900,12 +2132,21 @@ function pitySetApply(c, S) {
     (c.ultra || []).filter(n => SK[n]).forEach(n => { c.items.push(n); c.fix[n] = c.ultraCh || Math.min(.00001, c.price * .01 / SK[n].p); });
   });
 }
+// лента прокрутки (владелец 27.11, «ИМБИРНЫЙ ПРЯНИК»): у кейса fwR = { редкость: множитель } — такие карточки пролетают в ленте чаще.
+// Считается отдельный вес ленты sw; шанс выпадения ch и fw (живая лента и прочее) не меняются.
+function fwBoost(c) {
+  if (!c.fwR) return;
+  c.items.forEach(s => { s.sw = s.fw * (c.fwR[s.r] || 1); });
+  const t = c.items.reduce((a, s) => a + s.sw, 0); c.items.forEach(s => { s.sw /= t; });
+}
+const stripKey = c => c && c.fwR ? 'sw' : 'fw';
 CASES.sort((a, b) => a.price - b.price); // витрина: от самого дешёвого к самому дорогому
 CASES.forEach(c => {
   const items = c.items.map(n => { if (!SK[n]) throw new Error('Нет скина: ' + n); return SK[n]; });
   const ch = c.exact ? items.map(s => c.exactCh[s.name]) : c.bonusSet ? solveBonus(items, c.price * c.rtp, c.fix) : c.kh ? solveWinKh(items, c.price * c.rtp, c.price, c.win, c.kh, c.fix) : c.win ? solveWin(items, c.price * c.rtp, c.price, c.win, c.fix) : solveChances(items, c.price * c.rtp);
   const fwRaw = ch.map(x => Math.sqrt(x)), fs = fwRaw.reduce((a, b) => a + b, 0);
   c.items = items.map((s, i) => ({ ...s, ...(c.exactR && c.exactR[s.name] ? { r: c.exactR[s.name] } : {}), ch: ch[i], fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p);
+  fwBoost(c);
   c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
   c.show = c.items.slice(0, 3).map(s => s.name);
 });
@@ -1953,6 +2194,7 @@ try {
   st = Object.assign(DEF(), raw || {});
   st.stats = Object.assign(freshProfile().stats, st.stats || {});
 } catch (e) { st = DEF(); }
+if (st.user) st.user.admin = false; // право админа — только из ответа сервера (sbLoadProfile), отметке из браузера не верим
 /* ---------- база Supabase: аккаунты, профиль, общие ставки ---------- */
 const SB_URL = 'https://gkeexoyrxnsarosymdyp.supabase.co', SB_KEY = 'sb_publishable_oczOEZFsdpzmwq8FB4Of_Q_A_JSZ3zt'; // публичный ключ — ему место в коде
 const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
@@ -2469,7 +2711,7 @@ const trophyFx = f => `<span class="tfx" style="left:${f.x}%;top:${f.y}%;width:$
   [[18, 22, 0], [78, 14, .7], [88, 52, 1.4], [10, 60, 2.1], [50, 4, 1.05], [64, 84, 1.75], [30, 42, .35]].map(([x, y, d]) => `<i class="tfx-star" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('')}</span>`;
 /* витрина кейса: главный скин парит над постаментом, по бокам ещё два (заменится на 3D-кейс, когда будут фото) */
 /* пропорции картинок кейсов — для блока, в который вкладываются наложения и метка «НОВОЕ» */
-const CASE_AR = {'assets/case-apple.webp':1.3018,'assets/case-elite2.webp':1.3018,'assets/case-major3.webp':1.3018,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
+const CASE_AR = {'assets/case-gift.webp':1.3018,'assets/case-snowman.webp':1.3018,'assets/case-ginger.webp':1.3018,'assets/case-apple.webp':1.3018,'assets/case-elite2.webp':1.3018,'assets/case-major3.webp':1.3018,'assets/case-alt.webp':1.0778,'assets/case-bonus.webp':1.372,'assets/case-cotton.webp':1.0804,'assets/case-frog.webp':1.0676,'assets/case-gold.webp':1.1057,'assets/case-orange.webp':1.1421,'assets/case-premium.webp':1.0962,'assets/case-s1mple.webp':1.0856,'assets/case-sifon.webp':0.9956,'assets/case-zont.webp':1.2329,'assets/case-donk.webp':1.0135,'assets/case-karambit.webp':1.1208,'assets/case-chick.webp':1.1003,'assets/case-drip.webp':1.0611,'assets/case-rush.webp':1.0888,'assets/case-medkit.webp':1.053,'assets/case-m4a1s.webp':1.064,'assets/case-deagle.webp':1.0598,'assets/case-usps.webp':1.0571,'assets/case-awp.webp':1.0645,'assets/case-ak47.webp':1.0578,'assets/case-m4a4.webp':1.0568,'assets/case-gloves.webp':1.0497,'assets/case-mirage.webp':1.049,'assets/case-rushb.webp':0.9949,'assets/case-reallife.webp':0.9654,'assets/case-crybabies.webp':1.0163,'assets/case-1vs5.webp':1.0428,'assets/case-agents.webp':0.9155,'assets/case-build.webp':1,'assets/case-cs2.webp':1.3018};
 // лёгкая копия картинки для витрины; у кейсов из админки (картинка из хранилища) — та же картинка
 // картинки из админки (хранилище Supabase) весят 2–3 МБ: для уже загруженных — лёгкие копии в assets/cc (900 px и 440 px для витрины);
 // новые загрузки админка сама сжимает в *.opt.webp + *.opt-s.webp (admImgPack). Неизвестная картинка — как есть.
@@ -2489,8 +2731,8 @@ const caseThumb = c => {
 function caseArt(c, cls = '', badge = '') {
   // в витрине (без cls) — лёгкая копия картинки 440 px, на странице кейса — полная
   const src = c.img && !cls ? caseThumb(c) : caseFull(c);
-  if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${src}" alt="Кейс «${c.name}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay](c, src) : ''}</div></div>`;
-  if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${src}" alt="Кейс «${c.name}»" decoding="async" draggable="false"></div>`;
+  if (c.img && (c.fx || c.overlay || badge)) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><div class="ca-img ca-imgbox" style="aspect-ratio:${c.ar || (c.fx && c.fx.ar) || CASE_AR[c.img] || 1.1}"><img src="${src}" alt="Кейс «${esc(c.name)}»" decoding="async" draggable="false">${badge}${c.fx ? trophyFx(c.fx) : ''}${c.overlay ? OVERLAYS[c.overlay](c, src) : ''}</div></div>`;
+  if (c.img) return `<div class="case-art has-img ${cls}" style="--ca:${c.th.a}"><i class="ca-glow"></i><img class="ca-img" src="${src}" alt="Кейс «${esc(c.name)}»" decoding="async" draggable="false"></div>`;
   const [m, a, b] = c.show.map(n => SK[n]);
   const sparks = [[14, 20, 0], [84, 16, .9], [90, 60, 1.7], [8, 64, 2.4], [52, 6, 1.2]]
     .map(([x, y, d]) => `<i class="ca-spark" style="left:${x}%;top:${y}%;animation-delay:${d}s"></i>`).join('');
@@ -2508,7 +2750,7 @@ const ava = (u, cls = '') => {
   // медаль пикема (раздел ПИКЕМ в начале app.js): значок сверху справа, выходит за рамку; data-u — чтобы дорисовать, когда загрузится список
   const id = u.id || u.uid || '', pid = u.pid || '', md = typeof pkHasMedal === 'function' && pkHasMedal(u);
   const du = id || pid ? ` data-u="${esc(id)}|${esc(pid)}"` : '', mc = md ? ' has-md' : '', mi = md ? pkMedalHtml() : '';
-  if (u.ava) return `<span class="ava ${cls}${mc}"${du}><img src="${u.ava}" alt="">${mi}</span>`;
+  if (u.ava) return `<span class="ava ${cls}${mc}"${du}><img src="${esc(u.ava)}" alt="">${mi}</span>`;
   const h = [...u.name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 120 + 60;
   return `<span class="ava ${cls}${mc}" style="--h:${h}"${du}>${esc(u.name[0].toUpperCase())}${mi}</span>`;
 };
@@ -2689,7 +2931,7 @@ function renderUser() {
   // плашка баланса, на её уголке — бейдж бонусов (подарок и число), кнопка «+»
   const wal = `<div class="wal wal-g">
       <div class="wal-chip">
-        <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><img class="bal-i" src="assets/icon-balance.svg" alt="" aria-hidden="true"><b id="balance">${moneyN(st.balance)}</b></div>
+        <div class="bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><img class="bal-i" src="assets/icon-balance.svg" alt="" aria-hidden="true"><b id="balance">${moneyN(st.balance)}</b><i class="dub dub-bal">${DUB}</i></div>
         <a class="rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><span class="rc-gift"><img src="assets/icon-bonus.svg" alt="" aria-hidden="true"></span><b id="rcoin">${rc(st.rcoin || 0)}</b></a>
       </div>
       <button class="wal-dep" data-act="deposit" title="Пополнить баланс" aria-label="Пополнить баланс">${ic.plus}</button>`;
@@ -2697,7 +2939,7 @@ function renderUser() {
         <div class="um-h">${ava(st.user, 'xs')}<b>${esc(st.user.name)}${st.user.pid ? `<small>ID <span class="priv">${st.user.pid}</span></small>` : ''}</b></div>
         <a href="#/profile">${ic.user}Профиль и инвентарь</a>
         <a href="#/bonus">${ic.gift}Бонусы</a>
-        ${st.user.admin ? `<a href="#/admin" class="um-admin">${ic.shield}Админ-панель</a><a href="#/admin" class="um-sup" data-act="admsup">${ic.chat}Поддержка<i class="sup-pulse" id="umSupN"></i></a>` : ''}
+        ${admIn() ? `<a href="#/admin" class="um-admin">${ic.shield}Админ-панель</a><a href="#/admin" class="um-sup" data-act="admsup">${ic.chat}Поддержка<i class="sup-pulse" id="umSupN"></i></a>` : ''}
         <button data-act="streamer" class="um-stream${st.streamer ? ' on' : ''}">${st.streamer ? ic.eyeOff : ic.eye}Режим стримера: ${st.streamer ? 'вкл' : 'выкл'}</button>
         <button id="umSound">${st.sound ? ic.sound : ic.mute}Звук: ${st.sound ? 'вкл' : 'выкл'}</button>
         <button data-act="logout">${ic.logout}Выйти</button>
@@ -2711,7 +2953,7 @@ function renderUser() {
         <div class="ubox"><button class="ubtn" id="ubtn" aria-haspopup="true" aria-label="Меню профиля">${ic.chev}</button>${menu}</div>
       </div>
       <div class="lu-wal">
-        <div class="lu-c bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><span class="lu-v"><img class="bal-i" src="assets/icon-balance.svg" alt="" aria-hidden="true"><b id="balance">${moneyN(st.balance)}</b></span></div>
+        <div class="lu-c bal" data-act="deposit" title="Баланс — нажмите, чтобы пополнить"><span class="lu-v"><img class="bal-i" src="assets/icon-balance.svg" alt="" aria-hidden="true"><b id="balance">${moneyN(st.balance)}</b><i class="dub dub-bal">${DUB}</i></span></div>
         <a class="lu-c rc" href="#/profile" title="Бонусы R-COIN за открытия кейсов. 1 R = 1 ₽"><span class="lu-v"><span class="rc-gift"><img src="assets/icon-bonus.svg" alt="" aria-hidden="true"></span><b id="rcoin">${rc(st.rcoin || 0)}</b></span></a>
       </div>
       <div class="lu-acts">${wkHeadBtn()}<button class="lu-dep" data-act="deposit">${ic.plus}<span>Пополнить</span></button>${snd}</div>
@@ -2743,18 +2985,26 @@ function spendRcoin(v, note) {
   (st.rlog = st.rlog || []).unshift({ v: -v, note, ts: Date.now() }); if (st.rlog.length > 60) st.rlog.length = 60;
   save(); const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin);
 }
-/* режим стримера (настройка в браузере): вместо «₽» — золотая монета, ID и трейд-ссылка скрыты. Работает на всех страницах:
-   каждый знак «₽» в тексте страницы меняется на монету сразу, как появляется (в том числе в анимациях чисел) */
+/* режим стримера (настройка в браузере): вместо «₽» и значка баланса «$» — слово «ДУБЛЕЙ» (владелец 26.11, всегда без склонения), ID и трейд-ссылка скрыты.
+   Работает на всех страницах: каждый знак «₽» в тексте, подсказках (title) и полях (placeholder) меняется на «ДУБЛЕЙ» сразу, как появляется
+   (в том числе в анимациях чисел); значки у цен (.prc-i) и у баланса в шапке меняет css (body.streamer, раздел «режим стримера: ДУБЛЕЙ») */
+const DUB = 'ДУБЛЕЙ', NBSP = String.fromCharCode(160);
 function curSwap(root) {
   if (!st.streamer || !root || root.nodeType === 3 && !(root = root.parentNode)) return;
   if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
   const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.nodeValue.includes('₽') && !(n.parentElement && n.parentElement.closest('script,style,textarea,.cn')) ? 1 : 2 });
   const list = []; while (w.nextNode()) list.push(w.currentNode);
   list.forEach(n => {
-    const fr = document.createDocumentFragment();
-    n.nodeValue.split('₽').forEach((p, i) => { if (i) { const c = document.createElement('i'); c.className = 'cn'; c.setAttribute('aria-label', 'монет'); fr.appendChild(c); } if (p) fr.appendChild(document.createTextNode(p.replace(/\u00a0$|\s$/, '\u2009'))); });
+    const fr = document.createDocumentFragment(), parts = n.nodeValue.split('₽'), last = parts.length - 1;
+    parts.forEach((p, i) => {
+      if (i) { const c = document.createElement('i'); c.className = 'dub'; c.textContent = DUB; fr.appendChild(c); }
+      if (i < last && p) p = p.replace(/\s$/, '') + NBSP; // «450 ₽» и «450₽» → «450 ДУБЛЕЙ» (неразрывный пробел)
+      if (p) fr.appendChild(document.createTextNode(p));
+    });
     n.replaceWith(fr);
   });
+  const sw = el => ['title', 'placeholder'].forEach(a => { const v = el.getAttribute && el.getAttribute(a); if (v && v.includes('₽')) el.setAttribute(a, v.replace(/\s?₽/g, ' ' + DUB)); });
+  sw(root); if (root.querySelectorAll) root.querySelectorAll('[title*="₽"],[placeholder*="₽"]').forEach(sw);
 }
 let curObs = null;
 function streamerApply() {
@@ -2764,13 +3014,13 @@ function streamerApply() {
     curObs.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
   if (!st.streamer && curObs) { curObs.disconnect(); curObs = null; }
-  if (st.streamer) { curSwap(document.body); document.title = document.title.replace(/₽/g, ''); }
+  if (st.streamer) { curSwap(document.body); document.title = document.title.replace(/\s?₽/g, ' ' + DUB); }
 }
 function streamerToggle() {
   st.streamer = !st.streamer; save();
   if (!st.streamer) { location.reload(); return; } // вернуть «₽» на все страницы — проще перезагрузить
   streamerApply(); renderUser(); route();
-  toast('Режим стримера включён: вместо рублей — монеты, ID и трейд-ссылка скрыты');
+  toast(`Режим стримера включён: вместо рублей — ${DUB}, ID и трейд-ссылка скрыты`);
 }
 function setBalance(v) {
   const from = shownBal == null ? st.balance : shownBal;
@@ -2808,7 +3058,7 @@ const liveHtml = d => {
   const href = d.uid ? `#/u/${d.uid}` : d.t === 'crash' ? '#/crash' : d.t === 'tower' ? '#/tower' : d.t === 'upg' ? '#/upgrade' : d.t === 'con' ? '#/contracts' : `#/case/${d.c}`;
   const src = d.t === 'crash' ? `Краш x${(+d.x).toFixed(2)}` : d.t === 'tower' ? `Башня ×${(+d.x).toFixed(2)}` : d.t === 'upg' ? `Апгрейд ×${d.x.toFixed(d.x < 10 ? 1 : 0)}` : d.t === 'con' ? `Контракт ×${d.x.toFixed(1)}` : c ? 'Кейс «' + c.name + '»' : d.c;
   const tag = d.t === 'crash' ? `<span class="ld-t crash">${ic.bomb}</span>` : d.t === 'tower' ? `<span class="ld-t tower">${ic.tower}</span>` : d.t === 'upg' ? `<span class="ld-t upg">${ic.up}</span>` : d.t === 'con' ? `<span class="ld-t con">${LD_DOC}</span>` : '';
-  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${href}" title="${esc(s.name)}"${d.uid && !d.mine ? ` data-uid="${esc(d.uid)}"` : ''}>${tag}<img src="${imgUrl(s, 'xs')}" alt="" loading="lazy" decoding="async"><span class="ld-f"><span class="ld-fs">${esc(s.f)}</span><span class="ld-fl">${esc(fFull)}</span></span><span class="ld-w">${esc(s.w)}</span><span class="ld-u">${ava({ name: d.u || '?', ava: d.mine && st.user ? st.user.ava : null }, 'xs')}<small>${esc(src)}</small><b>${esc(d.u)}</b></span></a>`;
+  return `<a class="ld r-${s.r}${d.mine ? ' mine' : ''}${c && c.liveGold ? ' ld-gold' : ''}${d.t ? ' ld-' + d.t : ''}" href="${esc(href)}" title="${esc(s.name)}"${d.uid && !d.mine ? ` data-uid="${esc(d.uid)}"` : ''}>${tag}<img src="${imgUrl(s, 'xs')}" alt="" loading="lazy" decoding="async"><span class="ld-f"><span class="ld-fs">${esc(s.f)}</span><span class="ld-fl">${esc(fFull)}</span></span><span class="ld-w">${esc(s.w)}</span><span class="ld-u">${ava({ name: d.u || '?', ava: d.mine && st.user ? st.user.ava : null }, 'xs')}<small>${esc(src)}</small><b>${esc(d.u)}</b></span></a>`;
 };
 const liveOk = d => liveFilter === 'all' || SK[d.n].p >= 1000;
 const LIVE_HOVER = matchMedia('(hover: hover)').matches;
@@ -2940,7 +3190,7 @@ const casePrice = (c, v) => c.rc ? `<span class="prc prc-rc">${rc(v)}<i class="p
 /* популярные кейсы — в этом порядке; остальные — блоком ниже (по цене) */
 /* блоки витрины: порядок кейсов внутри — как в списке; новый кейс без блока попадает в «Популярные» */
 const CASE_BLOCKS = [
-  { id: 'ny2027', wm: '2027', t: 'НОВЫЙ 2027', sub: 'Новогодние кейсы', ic: 'gift', a: '#e23a3a', ids: ['apple'], fresh: true }, // новогодний раздел (владелец 20.11); fresh — встаёт первым, даже если в админке сохранён старый список разделов
+  { id: 'ny2027', wm: '2027', t: 'НОВЫЙ 2027', sub: 'Новогодние кейсы', ic: 'gift', a: '#e23a3a', ids: ['apple', 'ginger', 'snowflake', 'gift'], fresh: true }, // новогодний раздел (владелец 20.11); fresh — встаёт первым, даже если в админке сохранён старый список разделов
   { id: 'bmw5dfjvu', wm: 'NEW', t: 'CS2 CASE', sub: '', ic: 'star', a: '#f3c14f', ids: ['cs2', 'major', 'elite'] },
   { id: 'pop', wm: 'HOT', t: 'Популярные кейсы', sub: 'Открывают чаще всего', ic: 'fire', a: '#f3c14f', ids: ['sifon', 'alt', 'cotton', 'orange'] },
   { id: 'pro', wm: 'PRO', t: 'Про игроки', sub: 'Кейсы легенд CS2 — их скины и их стиль', ic: 'trophy', a: '#5cc8ff', ids: ['donk', 's1mple', 'zont', 'frog'] },
@@ -2956,7 +3206,7 @@ const CASE_BLOCKS = [
 /* главная: популярные + новые (с меткой «НОВОЕ») */
 const casesRc = () => CASES.filter(c => c.rc);
 const HOME_POP = ['sifon', 'alt', 'cotton', 'orange', 'premium'];
-const NEW_CASES = ['apple', 'elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
+const NEW_CASES = ['gift', 'snowflake', 'ginger', 'apple', 'elite', 'major', 'rush', 'drip', 'medkit', 'coco', 'awp', 'ak47', 'm4a4', 'm4a1s', 'deagle', 'usps', 'gloves', 'agents', 'rushb', 'reallife', 'crybabies', '1vs5', 'mirage'];
 /* раздел, порядок и метки кейса: по умолчанию — из кода (CASE_BLOCKS, NEW_CASES, HOME_POP); админ-панель может поменять (site_cfg) */
 const DEF_BLOCK = {}, DEF_ORD = {};
 CASE_BLOCKS.forEach(b => b.ids.forEach((id, i) => { DEF_BLOCK[id] = b.id; DEF_ORD[id] = i; }));
@@ -2971,9 +3221,12 @@ const isHitCase = c => c.hit != null ? !!c.hit : HOME_POP.includes(c.id);
 // кейс с adm: true (заготовка) видит только админ
 const caseSeen = c => !c.adm || !!(st.user && st.user.admin);
 const blockCases = b => CASES.filter(c => caseSeen(c) && caseBlockId(c) === b.id).sort((x, y) => caseOrd(x) - caseOrd(y));
+// витрина (главная, «Кейсы»): закрытые админом кейсы («Закончился») не показываем никому, даже владельцу (владелец 26.11: «убери, чё позориться»).
+// По прямой ссылке кейс открывается со словами «временно закрыт»; в админке (blockCases) закрытые остаются
+const shopCases = b => blockCases(b).filter(c => !c.disabled);
 const listIdx = (L, c) => { const i = L.indexOf(c.id); return i < 0 ? -1 : i; };
-const homeHits = () => CASES.filter(c => caseSeen(c) && isHitCase(c) && !c.rc).sort((x, y) => (listIdx(HOME_POP, x) - listIdx(HOME_POP, y)) || caseOrd(x) - caseOrd(y));
-const homeNew = () => CASES.filter(c => caseSeen(c) && isNewCase(c) && !c.rc).sort((x, y) => (listIdx(NEW_CASES, x) - listIdx(NEW_CASES, y)) || x.price - y.price);
+const homeHits = () => CASES.filter(c => caseSeen(c) && !c.disabled && isHitCase(c) && !c.rc).sort((x, y) => (listIdx(HOME_POP, x) - listIdx(HOME_POP, y)) || caseOrd(x) - caseOrd(y));
+const homeNew = () => CASES.filter(c => caseSeen(c) && !c.disabled && isNewCase(c) && !c.rc).sort((x, y) => (listIdx(NEW_CASES, x) - listIdx(NEW_CASES, y)) || x.price - y.price);
 /* правки кейсов из админ-панели: таблица site_cfg — 'case:<id>' (поля кейса) и 'blocks' (список разделов) */
 let caseCfg = {};
 const CASE_DEF = {}; // исходный кейс из кода — для сброса и сравнения
@@ -2982,6 +3235,7 @@ function caseSetItems(c, list) { // [{ n, ch }] → предметы кейса,
   if (its.length < 2) return false;
   const tot = its.reduce((a, x) => a + x.ch, 0), fwRaw = its.map(x => Math.sqrt(x.ch / tot)), fs = fwRaw.reduce((a, b) => a + b, 0);
   c.items = its.map((x, i) => ({ ...x.s, ...(c.exactR && c.exactR[x.s.name] ? { r: c.exactR[x.s.name] } : {}), ch: x.ch / tot, fw: fwRaw[i] / fs })).sort((a, b) => b.p - a.p);
+  fwBoost(c);
   c.rareChance = c.items.filter(s => s.r === 'rare').reduce((a, s) => a + s.ch, 0);
   c.show = c.items.slice(0, 3).map(s => s.name);
   return true;
@@ -3043,16 +3297,16 @@ const secHead = (t, sub, icon, a, n) => `<div class="sh" style="--bc:${a}">
 // фон за разделом (по id раздела): картинка во всю ширину, края растушёваны
 const BLOCK_BG = { babushka: 'assets/bg-babushka.webp', maps: 'assets/bg-maps.webp' };
 const caseBlock = (b, grp) => {
-  const list = blockCases(b); if (!list.length) return '';
+  const list = shopCases(b); if (!list.length) return '';
   return `<section class="cs-block cs-b-${b.id}${BLOCK_BG[b.id] ? ' cs-has-bg' : ''}" style="--bc:${b.a}"${grp ? ` data-grp="${b.id}"` : ''}>${BLOCK_BG[b.id] ? `<i class="cs-bg" style="background-image:url(${BLOCK_BG[b.id]})" aria-hidden="true"></i>` : ''}
     ${secHead(b.t, b.sub, b.rc ? RC_IMG : ic[b.ic], b.a, list.length)}
-    <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${b === CASE_BLOCKS.find(x => blockCases(x).length) ? buildCard() : ''}${list.map(caseCard).join('')}</div>
+    <div class="cases-grid${grp ? ' cases-grp' : ''}"${grp ? ` data-grp="${b.id}"` : ''}>${b === CASE_BLOCKS.find(x => shopCases(x).length) ? buildCard() : ''}${list.map(caseCard).join('')}</div>
   </section>`;
 };
 const caseCard = c => `<a class="case-card${c.disabled ? ' cc-closed' : ''}" href="#/case/${c.id}" style="--ca:${c.th.a}" data-price="${c.price}" data-q="${esc((c.name + ' ' + c.items.map(s => s.name).join(' ')).toLowerCase())}">
   <div class="cc-art">${caseArt(c, '', (isNewCase(c) && !c.disabled ? '<span class="cc-new">Новое</span>' : '') + (isHitCase(c) && !c.disabled ? '<span class="cc-hit">Хит</span>' : '') + (c.disabled ? '<span class="cc-lock">Закончился</span>' : ''))}</div>
   <div class="cc-body">
-    <div class="cc-name">${c.name}</div>
+    <div class="cc-name">${esc(c.name)}</div>
     <div class="cc-foot"><span class="cc-price${c.goldPrice ? ' cc-price-gold' : ''}${c.rc ? ' cc-price-rc' : ''}">${casePrice(c, c.price)}</span></div>
   </div>
 </a>`;
@@ -4016,6 +4270,20 @@ document.addEventListener('click', e => {
   krotLoad().then(() => { window.KROT.mmInit(krotDeps()); window.KROT.mmPlay(); })
     .catch(() => toast('Не удалось загрузить режим «КРОТ». Обновите страницу.', 'err'));
 });
+// ссылка «сразу в поиск» rush-case.online/#/play (владелец 27.11): главная и поиск игры в рулетку — как кнопка «Играть».
+// Ждём ответа сервера о входе; гость — окно входа, после входа (и через Steam, с возвратом на сайт) поиск стартует сам (метка rc.play, 10 мин).
+let playWant = false;
+const playMark = on => { try { if (on) sessionStorage.setItem('rc.play', String(Date.now())); else sessionStorage.removeItem('rc.play'); } catch (e) { /* приватный режим */ } };
+const playMarked = () => { try { return Date.now() - (+sessionStorage.getItem('rc.play') || 0) < 600000; } catch (e) { return false; } };
+function playGo() {
+  if (!playWant && st.user && st.user.sb && playMarked()) playWant = true;   // вошёл после перехода по ссылке
+  if (!playWant || authWait || !krotOpen()) return;
+  playWant = false;
+  if (!st.user || !st.user.sb) { playMark(true); openAuth('login'); return; }
+  playMark(false);
+  krotLoad().then(() => { window.KROT.mmInit(krotDeps()); window.KROT.mmPlay(); })
+    .catch(() => toast('Не удалось загрузить режим. Обновите страницу.', 'err'));
+}
 function mountKrot(arg) {
   const el = $('#kr'); if (!el || !krotOpen()) return;
   krotLoad().then(() => { if (el.isConnected && window.KROT) { window.KROT.mmInit(krotDeps()); window.KROT.mount(el, arg, krotDeps()); } })
@@ -4107,14 +4375,14 @@ const ixSec = (id, t, body, o = {}) => `<section class="ix-sec${o.cls ? ' ' + o.
     <header class="ix-sh"><h2>${t}</h2>${o.side || ''}</header>${body}</section>`;
 // что в каком блоке
 function ixPlan() {
-  const seen = c => c && caseSeen(c), byId = id => CASES.find(c => c.id === id);
+  const seen = c => c && caseSeen(c) && !c.disabled, byId = id => CASES.find(c => c.id === id);
   const specOwn = IX_SPEC_CASES.map(byId).filter(seen);
   const blk = id => CASE_BLOCKS.find(b => b.id === id);
   const fresh = [...specOwn, ...homeNew().filter(c => !specOwn.includes(c))].slice(0, IX_NEW_MAX);
-  const auth = blk(IX_AUTH_BLOCK) ? blockCases(blk(IX_AUTH_BLOCK)) : [];
-  const spec = [...specOwn.slice(0, 1), 'build', ...specOwn.slice(1), ...(blk(IX_SPEC_BLOCK) ? blockCases(blk(IX_SPEC_BLOCK)) : [])];
+  const auth = blk(IX_AUTH_BLOCK) ? shopCases(blk(IX_AUTH_BLOCK)) : [];
+  const spec = [...specOwn.slice(0, 1), 'build', ...specOwn.slice(1), ...(blk(IX_SPEC_BLOCK) ? shopCases(blk(IX_SPEC_BLOCK)) : [])];
   const rest = CASE_BLOCKS.filter(b => b.id !== IX_AUTH_BLOCK && b.id !== IX_SPEC_BLOCK)
-    .map(b => [b, blockCases(b).filter(c => !IX_SPEC_CASES.includes(c.id))]).filter(([, L]) => L.length);
+    .map(b => [b, shopCases(b).filter(c => !IX_SPEC_CASES.includes(c.id))]).filter(([, L]) => L.length);
   return { fresh, auth, spec, rest };
 }
 function pageCases() {
@@ -4228,25 +4496,7 @@ function mountCases() {
     const d = $('#ixPrice'); if (!d || e.target.closest('#ixPrice')) return;
     d.classList.remove('open'); const m = $('.ix-ddm', d); if (m) m.hidden = true; const b = $('.ix-ddb', d); if (b) b.setAttribute('aria-expanded', 'false');
   });
-  // плитка наклоняется за мышью, блик там, где курсор (только мышь, без «меньше движения»)
-  if (!calm && matchMedia('(hover:hover) and (pointer:fine)').matches) {
-    let raf = 0, tgt = null, ev = null;
-    const clear = t => ['--rx', '--ry', '--px', '--py'].forEach(p => t.style.removeProperty(p));
-    const paint = () => {
-      raf = 0; if (!tgt || !ev) return;
-      const r = tgt.getBoundingClientRect(), x = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), y = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
-      const s = tgt.style;
-      s.setProperty('--mx', (x * 100).toFixed(1) + '%'); s.setProperty('--my', (y * 100).toFixed(1) + '%');
-      s.setProperty('--ry', ((x - .5) * 12).toFixed(2) + 'deg'); s.setProperty('--rx', ((.5 - y) * 8).toFixed(2) + 'deg');
-      s.setProperty('--px', ((x - .5) * 8).toFixed(1) + 'px'); s.setProperty('--py', ((y - .5) * 6).toFixed(1) + 'px');
-    };
-    root.addEventListener('pointermove', e => {
-      const t = e.target.closest('.ix-c');
-      if (t !== tgt) { if (tgt) clear(tgt); tgt = t; }
-      ev = e; if (tgt && !raf) raf = requestAnimationFrame(paint);
-    });
-    root.addEventListener('pointerleave', () => { if (tgt) clear(tgt); tgt = null; });
-  }
+  // наклон плитки за мышью и сдвиг кейса убраны (28.11, владелец: «убери вообще 3д эффект кейсов»)
   // видео-фон особых кейсов играет, только когда блок на экране; при «меньше движения» — неподвижный первый кадр
   const spv = $('.ix-spv', root);
   if (spv && !calm && 'IntersectionObserver' in window) {
@@ -4457,13 +4707,13 @@ function pageCase(id) {
   if (/^b-/.test(id || '') && !caseById(id)) { setTimeout(() => { location.hash = st.user ? '#/profile' : '#/build'; }); return ''; }
   const c = caseById(id); if (!c || !caseSeen(c)) return page404();
   if (c2Like(c) && window.innerWidth >= 900) return pageCaseCs2(c); // вид как в CS2 (BLAST) — у всех кейсов, кроме «старых»; только на компьютере
-  const ghost = Array.from({ length: 12 }, () => { const s = roll(c.items, 'fw'); return `<div class="gcard r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><div class="gc-w">${esc(s.w)}</div><div class="gc-f">${esc(s.f)}</div></div>`; }).join('');
+  const ghost = Array.from({ length: 12 }, () => { const s = roll(c.items, stripKey(c)); return `<div class="gcard r-${s.r}"><img src="${imgUrl(s, 'm')}" alt=""><div class="gc-w">${esc(s.w)}</div><div class="gc-f">${esc(s.f)}</div></div>`; }).join('');
   const embers = Array.from({ length: 44 }, () => `<i style="left:${rand(4, 96)}%;--d:${rand(3, 7)}s;--dl:${rand(0, 7)}s;--x:${rand(-60, 60)}px;--s:${rand(.5, 1.3)}"></i>`).join('');
   // своя рамка рулетки: у кейса (c.frame) или у всего раздела «В гостях у бабушки»
   const fr = c.frame || (caseBlockId(c) === 'babushka' ? { src: 'assets/frame-babushka.webp', cls: 'f-babushka', nofx: true } : null);
   return `<section class="container case-page" style="--ca:${c.th.a}">
     <div class="cp-head"><a href="${c.build ? '#/build' : '#/cases'}" class="back">${ic.left}${c.build ? 'Собрать новый' : 'Все кейсы'}</a>
-      <div class="cp-title"><i class="cp-line l"></i><h1>${c.name}</h1><i class="cp-line r"></i></div>
+      <div class="cp-title"><i class="cp-line l"></i><h1>${esc(c.name)}</h1><i class="cp-line r"></i></div>
       <i></i></div>
     <div class="rl-framed ${fr ? fr.cls : ''}"><i class="rl-floor"></i><div class="rl-wrap"><div class="rl-halo"><i></i></div><div class="rl" id="rl" style="--ca:${c.th.a}">
       <svg class="rl-frame" id="rlFrame" aria-hidden="true"><polygon class="f-glow"/><polygon class="f-line"/></svg>
@@ -4649,7 +4899,7 @@ async function openCase(c, demo, ok, gift, free) { // ok — подтвержд�
   rl.dataset.n = n;
   rl.classList.toggle('vert', n > 5);
   const vert = n > 5; // много кейсов — вертикальные барабаны в ряд
-  box.innerHTML = wins.map(w => `<div class="strip${vert ? ' v' : ''}"><div class="track">${Array.from({ length: STRIP_LEN }, (_, i) => rcard(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT)).join('')}</div></div>`).join('');
+  box.innerHTML = wins.map(w => `<div class="strip${vert ? ' v' : ''}"><div class="track">${Array.from({ length: STRIP_LEN }, (_, i) => rcard(i === WIN_AT ? w : roll(c.items, stripKey(c)), i === WIN_AT)).join('')}</div></div>`).join('');
   $('#cc').innerHTML = `<div class="cc-spin"><span class="spinner"></span>Открываем кейс…<button class="link" id="skipBtn">Пропустить</button></div>`;
   // 1) отщёлкивание замка — картинка кейса трясётся, лента ещё не крутится
   rl.classList.add('unlocking'); if (c.snd) Snd.play(c.snd.go, .2); else Snd.lock(); // звуки «БАБА ЧАЙ» — потише
@@ -4785,7 +5035,9 @@ function itemTilt(root) {
 /* страница кейса в стиле BLAST — у всех кейсов (владелец 11.11), кроме «старых»: им механика BLAST не подходит — бонусные за R-COIN,
    фарм (по 20–100 штук), купленные «Собери сам», только ножи или перчатки (всё ушло бы в одну золотую плитку), БАБА ЧАЙ (своя рамка,
    звуки, живая цена золота). У «старых» — прежняя страница; на странице «Кейсы» админ видит у них метку «старый» */
-const c2Old = c => !!(c.rc || c.farm || c.bcid || c.build || c.liveGold || c.frame || c.snd) || (c.items || []).filter(s => s.r !== 'covert' && s.r !== 'rare').length < 2;
+// бонусные (c.rc) с 26.11 тоже на сцене CS2 (владелец): цена и кнопка — в R-COIN (cs2Idle, cs2Confirm, правила)
+// кейсы из одних редких (только перчатки, только ножи) с 26.11 тоже на сцене CS2 (владелец): в панели одна золотая плашка «★ Редкий предмет» с числом предметов
+const c2Old = c => !!(c.farm || c.bcid || c.build || c.liveGold || c.frame || c.snd);
 const c2Like = c => c.ui === 'cs2' || !c2Old(c);
 const c2OldTag = () => st.user && st.user.admin ? '<i class="ix-old" title="Страница кейса ещё старая (не в стиле BLAST)">старый</i>' : '';
 const c2On = c => c2Like(c) && !!$('.c2p');
@@ -4802,6 +5054,9 @@ const c2Sorted = c => c.items.slice().sort((a, b) => RAR[a.r].o - RAR[b.r].o || 
 const C2BADGE = { rare: 'assets/cs2case/rare.webp?v=2', covert: 'assets/cs2case/secret.webp?v=2', gift: 'assets/cs2case/gift.webp?v=1' };
 const c2Badge = (r, cls = '') => `<div class="c2t c2t-badge ${r === 'rare' ? 'c2t-gold' : r === 'gift' ? 'c2t-gift' : 'c2t-red'} ${cls}"><img src="${C2BADGE[r]}" alt="" draggable="false"></div>`;
 const c2Secret = n => n ? `<div class="c2-it c2-secret">${c2Badge('covert')}<em>${n} ${plural(n, 'предмет', 'предмета', 'предметов')}</em><b>ЗАСЕКРЕЧЕНО</b><span>Тайное</span></div>` : '';
+// подпись под плашкой «★ Редкий предмет»: что за ней — перчатки (вкл. обмотки), ножи или и то и другое
+const c2Glove = s => s.c === 'gloves' || /Gloves|Wraps|Перчатки|Обмотки/i.test(s.name);
+const c2RareKind = L => L.every(c2Glove) ? 'перчатки' : L.some(c2Glove) ? 'ножи и перчатки' : 'ножи';
 const c2Tile = (s, cls = '') => C2BADGE[s.r] ? c2Badge(s.r, cls)
   : `<div class="c2t r-${s.r} ${cls}"><img src="${imgUrl(s, 'm')}" alt="" draggable="false" loading="lazy"></div>`;
 /* ---------- CS2 CASE: 3D-сцена — видео-фон Mirage + 3D-кейс из Blender (файлы в assets/cs2case/) ----------
@@ -5030,7 +5285,16 @@ function c2Mount(c) {
     const camNode = gl.scene.getObjectByName('CAM_MAIN');
     const mixer = new THREE.AnimationMixer(gl.scene), action = mixer.clipAction(gl.animations[0]);
     action.play(); action.paused = true;
-    const setFrame = f => { action.time = f / C2D.FPS; mixer.update(0); dustFrame(f); if (S.nyF) S.nyF(f); dirty = true; };
+    // крышка (владелец 27.11: «как будто два раза открывается»): в анимации из Blender она распахивается до 108°, откидывается
+    // назад до 94° и снова поднимается — выглядело как второе открытие. Начиная с кадра 134 крышку ведём сами: одно плавное
+    // движение от закрытой (кадр 134) до открытой (кадр 168) за ~8 кадров, без отскока. Общая для всех 3D-кейсов (узел PV_LID).
+    const lidN = gl.scene.getObjectByName('PV_LID'), LID0 = 134; let lidA = null, lidB = null;
+    const setFrame = f => {
+      action.time = f / C2D.FPS; mixer.update(0);
+      if (lidA && f > LID0) { const t = Math.min(1, (f - LID0) / 8); lidN.quaternion.slerpQuaternions(lidA, lidB, 1 - (1 - t) ** 3); }
+      dustFrame(f); if (S.nyF) S.nyF(f); dirty = true; // S.nyF — новогодний сугроб (NY_ON)
+    };
+    if (lidN) { setFrame(LID0); const a = lidN.quaternion.clone(); setFrame(C2D.OPEN[1]); lidB = lidN.quaternion.clone(); lidA = a; }
     setFrame(1);
     // где низ кейса в полном кадре 16:9 (0 — верх, 1 — низ): кейс в покое (кадр 75) через камеру CAM_MAIN
     const caseBot = (() => {
@@ -5057,8 +5321,10 @@ function c2Mount(c) {
     };
     const ro = new ResizeObserver(resize); ro.observe(host); resize();
     let seg = null;
-    S.play = ([a, b], speed = 1) => new Promise(res => { if (seg) seg.res(); seg = { a, b, t0: performance.now(), speed, res }; });
-    S.rest = () => { if (seg) { seg.res(); seg = null; } setFrame(C2D.REST); };
+    const C2I = c && c.c2idle; // [75, 100] — петля покоя («ПОДАРОК» 27.11: бант колышется, пока кейс стоит); у кейсов со снегом её нет
+    S.idle = 0;
+    S.play = ([a, b], speed = 1) => new Promise(res => { S.idle = 0; if (seg) seg.res(); seg = { a, b, t0: performance.now(), speed, res }; });
+    S.rest = () => { S.idle = 0; if (seg) { seg.res(); seg = null; } setFrame(C2D.REST); };
     const draw = () => {
       camNode.updateWorldMatrix(true, false); camNode.getWorldPosition(cam.position); camNode.getWorldQuaternion(cam.quaternion); cam.updateMatrixWorld();
       // 1) кейс с тенями от стен и от себя; 2) пол-ловец — только тень кейса
@@ -5074,10 +5340,10 @@ function c2Mount(c) {
       if (!S.alive || !host.isConnected) return S.kill();
       if (seg) {
         const f = Math.min(seg.b, seg.a + (now - seg.t0) / 1000 * C2D.FPS * seg.speed);
-        setFrame(f); if (f >= seg.b) { const r = seg.res; seg = null; r(); }
-      }
+        setFrame(f); if (f >= seg.b) { const r = seg.res, drop = seg.b === C2D.DROP[1]; seg = null; r(); if (drop && C2I) S.idle = now; }
+      } else if (C2I && S.idle) setFrame(C2I[0] + ((now - S.idle) / 1000 * C2D.FPS * 0.5) % (C2I[1] - C2I[0])); // кейс стоит — кадры петли покоя по кругу (вдвое медленнее)
       if (S.nyT && S.nyT(now)) dirty = true; // новогодний сугроб: комья летят
-      if (dirty && now - lastD >= (GFX.low ? 31 : 14)) { dirty = false; lastD = now; draw(); } // два прохода на кадр — не чаще ~60 (экономная 30) раз в секунду
+      if (dirty && now - lastD >= (GFX.low || (!seg && S.idle) ? 31 : 14)) { dirty = false; lastD = now; draw(); } // кейс просто стоит (петля покоя) — хватает ~30 к/с; два прохода на кадр — не чаще ~60 (экономная 30) раз в секунду
       requestAnimationFrame(tick);
     };
     let lastD = 0;
@@ -5118,7 +5384,7 @@ function pageCaseCs2(c) {
     <div class="c2-panel">
       <div class="c2-items"><div>
       <div class="c2-ptitle">Откройте и получите один из следующих предметов</div>
-      <div class="c2-grid${many ? ' c2-many' : ''}">${reg.filter(s => s.r !== 'covert').map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${c2Secret(reg.filter(s => s.r === 'covert').length)}${rare.length ? `<div class="c2-it c2-rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет</b><span>ножи и перчатки</span></div>` : ''}</div></div></div>
+      <div class="c2-grid${many ? ' c2-many' : ''}">${reg.filter(s => s.r !== 'covert').map(s => `<div class="c2-it" title="${esc(s.name)}">${c2Tile(s)}<b>${esc(s.w)}</b><span>${esc(s.f)}</span></div>`).join('')}${c2Secret(reg.filter(s => s.r === 'covert').length)}${rare.length ? `<div class="c2-it c2-rare">${c2Tile(rare[0])}<em>${rare.length} ${plural(rare.length, 'предмет', 'предмета', 'предметов')}</em><b>★ Редкий предмет</b><span>${c2RareKind(rare)}</span></div>` : ''}</div></div></div>
       <div class="c2-cc" id="cc"></div>
     </div>
   </section>`;
@@ -5136,6 +5402,8 @@ function cs2Idle(c) {
   else if (!st.user) main = `<button class="c2-btn" data-act="login">Войти и открыть</button>`;
   else if (refGiftCase === c.id) main = `<button class="c2-btn rf-c2g" id="giftBtn">Открыть бесплатно<small>подарок</small></button>`;
   else if (freeN(c)) main = `<button class="c2-btn rf-c2g" id="freeBtn">Открыть бесплатно (${freeN(c)})<small>подарок из кейса</small></button>`;
+  else if (c.rc) main = (st.rcoin || 0) >= c.price ? `<button class="c2-btn" id="openBtn">Открыть кейс<small>${casePrice(c, c.price)}</small></button>`
+    : `<a class="c2-btn" href="#/profile">Не хватает ${casePrice(c, c.price - (st.rcoin || 0))}<small>R-COIN копятся с открытий кейсов</small></a>`;
   else if (st.balance >= c.price) main = `<button class="c2-btn" id="openBtn">Открыть кейс<small>${prc(c.price)}</small></button>`;
   else main = `<button class="c2-btn" data-act="deposit" data-need="${c.price - st.balance}">Пополнить на ${money(c.price - st.balance)}</button>`;
   // вместо «Демо» — «Правила» (просьба владельца, 08.11); слева — шкала гаранта; «Быстрого открытия» здесь нет (владелец, 08.11)
@@ -5173,7 +5441,7 @@ function cs2Rules(c, at, back) {
       `Сайт может обновлять правила. Новая редакция действует с момента публикации в этом окне; дата редакции указана вверху. Открытия, сделанные раньше, проводятся по редакции, действовавшей на момент открытия.`,
     ] },
     { id: 'open', t: 'Открытие кейса', p: [
-      'Стоимость открытия указана на кнопке «Открыть кейс» и списывается с баланса после подтверждения в окне «Открыть».',
+      `Стоимость открытия указана на кнопке «Открыть кейс» и списывается ${c.rc ? 'с бонусного счёта R-COIN' : 'с баланса'} после подтверждения в окне «Открыть».`,
       'Одно открытие приносит ровно один предмет. Он сразу зачисляется в ваш инвентарь.',
       'Выпавший предмет определяется на сервере сайта в момент открытия — ещё до начала анимации. Анимация кейса, лента, звуки и кнопка «Пропустить» на результат не влияют.',
       'Подтверждённое открытие отменить нельзя.',
@@ -5275,7 +5543,7 @@ function cs2Confirm(c, go) {
   const m = modal(`${C2OK_FX}<div class="c2ok"><div class="c2ok-art">${caseArt(c)}</div><div class="c2ok-tx">
       <h3>Открыть ${esc(c.name)}</h3>
       <p>Вы получите один предмет из кейса ${esc(c.name)} — он сразу попадёт в ваш инвентарь.</p>
-      <p class="c2ok-sum">Спишется <b>${prc(c.price)}</b> · на балансе ${prc(st.balance)}</p>
+      <p class="c2ok-sum">Спишется <b>${casePrice(c, c.price)}</b> · ${c.rc ? `у вас ${casePrice(c, st.rcoin || 0)}` : `на балансе ${prc(st.balance)}`}</p>
       <p class="c2ok-rules">Открывая кейс, вы принимаете <button type="button" id="c2okRules">правила кейса</button></p>
       <div class="c2ok-btns"><button class="c2-btn c2-green" id="c2Go">Открыть</button><button class="c2-btn c2-ghost" id="c2No">Отмена</button></div>
     </div></div>`, 'm-c2ok');
@@ -5702,7 +5970,7 @@ async function cs2Spin(c, wins, given, demo) {
   $('.c2p').classList.add('c2-go'); // ряд предметов плавно убирается, лупа — по центру экрана
   // 22.11 (оптимизация): картинки ленты грузятся сразу, а не «лениво» на лету (въезжали в кадр недокачанными — рывки);
   // c2-near — карточки рядом с выигрышем: только их затемняет конец прокрутки (в лупе видно 2–3, раньше фильтр включался у всех 154)
-  const cards = Array.from({ length: STRIP_LEN }, (_, i) => c2Tile(i === WIN_AT ? w : roll(c.items, 'fw'), i === WIN_AT ? 'is-win' : Math.abs(i - WIN_AT) <= 4 ? 'c2-near' : '')).join('').replace(/ loading="lazy"/g, ' decoding="async"');
+  const cards = Array.from({ length: STRIP_LEN }, (_, i) => c2Tile(i === WIN_AT ? w : roll(c.items, stripKey(c)), i === WIN_AT ? 'is-win' : Math.abs(i - WIN_AT) <= 4 ? 'c2-near' : '')).join('').replace(/ loading="lazy"/g, ' decoding="async"');
   // туман вокруг лупы → лента снаружи (размыта) → лупа (крупно) → край лупы (ещё крупнее — преломление) → стекло и черта
   box.innerHTML = `<i class="c2-fog" aria-hidden="true"></i><div class="c2-band c2-out"><div class="track">${cards}</div></div>
     <div class="c2-lens"><div class="c2-lens-in"><div class="c2-band"><div class="track">${cards}</div></div></div></div>
@@ -7073,7 +7341,7 @@ function pfInv(body) {
   const card = x => {
     const s = SK[x.n], pend = x.st === 'pend' || x.st === 'ga';
     return `<div class="pf2-it r-${s.r}${pend ? ' pend' : ''}">
-      <div class="pf2-it-pic"><img src="${imgUrl(s, 'm')}" alt="" loading="lazy">${pend ? `<span class="pf2-it-st">${x.st === 'ga' ? 'В розыгрыше' : 'Выводится'}</span>` : `<span class="pf2-it-acts">${x.n === PK_TICKET ? `<button type="button" class="pf2-it-sell pk-act" data-pkact="${x.id}">Активировать</button>` : ''}<button type="button" class="pf2-it-sell" data-sell="${x.id}">Продать</button>${s.c === 'pass' ? '' : `<button type="button" class="pf2-it-wd" data-wd="${x.id}" title="Вывести в Steam" aria-label="Вывести в Steam">${ic.send}</button>`}</span>`}</div>
+      <div class="pf2-it-pic"><img src="${imgUrl(s, 'm')}" alt="" loading="lazy">${pend ? `<span class="pf2-it-st">${x.st === 'ga' ? 'В розыгрыше' : 'Выводится'}</span>` : `<span class="pf2-it-acts">${x.n === PK_TICKET ? `<button type="button" class="pf2-it-sell pk-act" data-pkact="${x.id}">Активировать</button>` : ''}<button type="button" class="pf2-it-sell" data-sell="${x.id}">Продать</button>${s.c === 'pass' ? '' : `<button type="button" class="pf2-it-wd" data-wd="${x.id}" title="Вывести в Steam" aria-label="Вывести в Steam">${STEAM_LOGO}</button>`}</span>`}</div>
       <div class="pf2-it-tx"><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>
     </div>`;
   };
@@ -7094,7 +7362,7 @@ function pfInv(body) {
     $('#cfYes', m).onclick = async () => { closeModal(); const t = await sellItems(own().map(x => x.id), true); if (t) { Snd.coin(); toast(`Продано на <b>+${money(t)}</b>`); pfEvList = null; } drawPf(); };
   };
   $$('[data-sell]', body).forEach(b => b.onclick = async () => { b.disabled = true; await sellItem(b.dataset.sell); pfEvList = null; drawPf(); });
-  $$('[data-wd]', body).forEach(b => b.onclick = () => withdraw(b.dataset.wd));
+  $$('[data-wd]', body).forEach(b => b.onclick = () => withdraw(b.dataset.wd, b));
   drawWd();
 }
 // пустые ячейки: дорисовываем до полных рядов (минимум 2 ряда) — по фактическому числу колонок сетки
@@ -7109,7 +7377,7 @@ window.addEventListener('resize', () => { if ($('#invGrid')) invFill(); });
 document.addEventListener('click', e => { const dd = $('#pfDd'); if (dd && !dd.contains(e.target)) { const l = $('.pf2-dd-l', dd); if (l) l.hidden = true; dd.classList.remove('open'); } });
 const dstr = ts => new Date(ts).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const pfEmpty = (t, sub) => `<div class="pf2-card pf2-empty">${PF_IC.case}<b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
-const pfRow = o => `<div class="pf2-row${o.r ? ' r-' + o.r : ''}${o.cls2 ? ' ' + o.cls2 : ''}"><span class="pf2-row-pic">${o.img ? `<img src="${o.img}" alt="" loading="lazy">` : o.ic || ''}</span><span class="pf2-row-n"><b>${o.n}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</span>${o.extra || ''}<span class="pf2-row-d">${o.d}</span><span class="pf2-st ${o.cls || ''}">${o.st}</span><span class="pf2-row-p">${o.p}</span></div>`;
+const pfRow = o => `<div class="pf2-row${o.r ? ' r-' + o.r : ''}${o.cls2 ? ' ' + o.cls2 : ''}"><span class="pf2-row-pic">${o.img ? `<img src="${esc(o.img)}" alt="" loading="lazy">` : o.ic || ''}</span><span class="pf2-row-n"><b>${o.n}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</span>${o.extra || ''}<span class="pf2-row-d">${o.d}</span><span class="pf2-st ${o.cls || ''}">${o.st}</span><span class="pf2-row-p">${o.p}</span></div>`;
 /* ---------- «История» и «Апгрейды» — по 10 записей, внизу страницы (владелец 12.11: «прикинь сколько листать») ---------- */
 const PF_PER = 10;
 let pfPage = { hist: 0, upg: 0 };
@@ -7185,7 +7453,7 @@ function pfSettings(focus) {
       <form class="pfw-row" id="sTradeF"><input class="pf2-inp priv" id="sTrade" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=…&token=…" value="${esc(st.trade || '')}" spellcheck="false" autocomplete="off"><button class="pf2-btn" type="submit">Сохранить</button></form></div>
     <div class="pfw-fl"><span>Почта для предложений</span>
       ${mail ? `<div class="pfw-ro priv">${esc(st.user.email || '')}</div>` : `<form class="pfw-row" id="sMailF"><input class="pf2-inp priv" id="sMail" type="email" placeholder="name@mail.ru" value="${esc(st.cmail || '')}" spellcheck="false" autocomplete="email"><button class="pf2-btn" type="submit">Сохранить</button></form>`}</div>
-    <div class="pfw-tg"><span>Режим стримера<small>Вместо рублей — монеты, ID и трейд-ссылка скрыты</small></span><button class="pfw-sw${st.streamer ? ' on' : ''}" type="button" id="sStream" role="switch" aria-checked="${!!st.streamer}" aria-label="Режим стримера"><i></i></button></div>
+    <div class="pfw-tg"><span>Режим стримера<small>Вместо рублей — ДУБЛЕЙ, ID и трейд-ссылка скрыты</small></span><button class="pfw-sw${st.streamer ? ' on' : ''}" type="button" id="sStream" role="switch" aria-checked="${!!st.streamer}" aria-label="Режим стримера"><i></i></button></div>
     <div class="pfw-tg"><span>Звук<small>Звуки открытия кейсов и интерфейса</small></span><button class="pfw-sw${st.sound ? ' on' : ''}" type="button" id="sSnd" role="switch" aria-checked="${!!st.sound}" aria-label="Звук"><i></i></button></div>` });
   $('#sTradeF', m).onsubmit = async e => { e.preventDefault(); const b = $('#sTradeF button', m); b.disabled = true; await pfSaveTrade($('#sTrade', m)); b.disabled = false; };
   const mf = $('#sMailF', m); if (mf) mf.onsubmit = async e => { e.preventDefault(); const b = $('button', mf); b.disabled = true; await pfSaveMail($('#sMail', m)); b.disabled = false; };
@@ -7243,7 +7511,7 @@ async function pfEvOpen(f) {
   const draw = k => {
     p.dataset.f = k; $$('nav button', p).forEach(b => b.classList.toggle('on', b.dataset.f === k));
     const l = list.filter(e => k === 'all' || e.k === k);
-    $('.pf2-ev-l', p).innerHTML = l.length ? l.map(e => `<div class="pf2-evi ${e.c || ''}"><span class="pf2-evi-pic">${e.img ? `<img src="${e.img}" alt="" loading="lazy">` : PF_IC.bell}</span><span class="pf2-evi-t"><b>${e.t}</b><small>${e.s}</small></span><span class="pf2-evi-v"><em>${e.v}</em><small>${dstr(e.ts)}</small></span></div>`).join('')
+    $('.pf2-ev-l', p).innerHTML = l.length ? l.map(e => `<div class="pf2-evi ${e.c || ''}"><span class="pf2-evi-pic">${e.img ? `<img src="${esc(e.img)}" alt="" loading="lazy">` : PF_IC.bell}</span><span class="pf2-evi-t"><b>${e.t}</b><small>${e.s}</small></span><span class="pf2-evi-v"><em>${e.v}</em><small>${dstr(e.ts)}</small></span></div>`).join('')
       : '<div class="pf2-ev-0">Пока пусто — здесь появятся пополнения, выводы, продажи и крупные дропы</div>';
   };
   $$('nav button', p).forEach(b => b.onclick = e => { e.stopPropagation(); draw(b.dataset.f); });
@@ -7253,8 +7521,8 @@ document.addEventListener('mousedown', e => { const p = $('#pfEv'), t = e.target
 window.addEventListener('scroll', pfEvClose, { passive: true });
 window.addEventListener('hashchange', pfEvClose);
 /* ---------- вывод в Steam через market.csgo: заявка → покупка на маркете → обмен игроку (supabase/market.sql, functions/market) ---------- */
-const WD_ST = { wait: ['Проверяется', 'st-warn', 'заявку проверяет администратор'], new: ['В очереди', 'st-warn', 'покупаем предмет на маркете'], buying: ['Покупаем', 'st-warn', 'покупаем предмет на маркете'],
-  sent: ['Примите обмен', 'st-warn', 'продавец отправляет обмен — примите его в Steam'], prot: ['Получен', 'st-ok', 'обмен принят, идёт защита обмена Steam'], done: ['Выведен', 'st-ok', 'предмет в вашем инвентаре Steam'], fail: ['Отменён', 'st-bad', ''] };
+const WD_ST = { wait: ['Проверяется', 'st-warn', 'заявку проверяет администратор'], new: ['В очереди', 'st-warn', 'готовим обмен'], buying: ['Готовим обмен', 'st-warn', 'готовим обмен'],
+  sent: ['Примите обмен', 'st-warn', 'обмен отправлен — примите его в Steam'], prot: ['Получен', 'st-ok', 'обмен принят, идёт защита обмена Steam'], done: ['Выведен', 'st-ok', 'предмет в вашем инвентаре Steam'], fail: ['Отменён', 'st-bad', ''] };
 const wdKick = () => { try { fetch(`${SB_URL}/functions/v1/market?action=tick`, { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: '{}' }).catch(() => {}); } catch (e) { /* без сети */ } };
 let wdTimer = 0, wdSeen = '';
 // статусы выводов: пока что-то выводится — проверяем раз в 15 с; статус поменялся — обновляем инвентарь; окно «Выводы» (карточка «Выведено») — полный список
@@ -7279,7 +7547,7 @@ async function drawWd() {
   if (act.length) wdTimer = setTimeout(() => { wdKick(); drawWd(); }, 15000);
 }
 function pfWdWin() {
-  pfWin({ k: 'Steam', t: 'Выводы', cls: 'm-pf-wide', body: `<div class="pfw-note">${ic.steam}<span>Мы покупаем предмет на маркете, и продавец отправляет его обменом на вашу трейд-ссылку — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.${st.trade ? '' : ' <b>Сначала укажите трейд-ссылку в настройках профиля.</b>'}</span></div>
+  pfWin({ k: 'Steam', t: 'Выводы', cls: 'm-pf-wide', body: `<div class="pfw-note">${ic.steam}<span>Предмет приходит обменом на вашу трейд-ссылку — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.${st.trade ? '' : ' <b>Сначала укажите трейд-ссылку в настройках профиля.</b>'}</span></div>
     <div id="wdList"><div class="pf2-load"><span class="spinner"></span>Загружаем выводы…</div></div>` });
   drawWd();
 }
@@ -7317,22 +7585,19 @@ function wdLockWin(it, g) {
 }
 // показ окна на локальной копии без входа: WDDBG('AK-47 | …', 150) — как PKDBG у пикема
 if (/^(localhost|127\.)/.test(location.hostname)) window.WDDBG = (n, dep = 0) => wdLockWin({ n: n || Object.keys(SK).find(k => SK[k].r === 'covert' && SK[k].p > 500) }, { min: 100, dep, ok: false });
-async function withdraw(id) {
+// владелец 26.11: без окна подтверждения и без надписей — нажал «Вывести», и предмет сразу уходит на вывод (статус — в карточке «Выведено»).
+// Остаются только нужные остановки: замок «после пополнения» (wdLockWin), нет трейд-ссылки, ошибка сервера (её показывает srv)
+async function withdraw(id, btn) {
   const it = st.inv.find(x => x.id === id); if (!it || it.st !== 'own' || wdBusy) return;
-  wdBusy = true; const g = await wdGate(); wdBusy = false;
-  if (!g.ok) return wdLockWin(it, g);
-  if (!st.trade) { toast('Сначала укажите трейд-ссылку Steam', 'err'); return pfSettings('trade'); }
-  const s = SK[it.n];
-  const m = pfWin({ k: 'Steam', t: 'Вывод предмета', body: `<div class="pfw-item r-${s.r}"><img src="${imgUrl(s, 'l')}" alt=""><span>${esc(s.w)}</span><b>${esc(s.f)}</b>${prc(s.p)}</div>
-      <p class="pfw-p">Мы купим этот предмет на маркете, и продавец отправит его обменом на вашу трейд-ссылку. Обычно это занимает несколько минут — примите обмен в Steam. Если обмен не состоится, предмет вернётся в инвентарь.</p>`,
-    foot: `<button class="pf2-btn" type="button" id="wdNo">Отмена</button><button class="pf2-go" type="button" id="wdGo">${ic.send}Вывести</button>` });
-  $('#wdNo', m).onclick = closeModal;
-  $('#wdGo', m).onclick = async () => {
-    const b = $('#wdGo', m); b.disabled = true; b.innerHTML = '<span class="spinner"></span>Создаём заявку…';
-    const r = await srv('withdraw', { p_id: id }); closeModal();
-    if (r) { wdKick(); wdSeen = ''; pfEvList = null; toast(r.status === 'wait' ? `Заявка на вывод <b>${esc(s.name)}</b> принята — её проверит администратор` : `Выводим <b>${esc(s.name)}</b> — примите обмен в Steam. Статус — в карточке «Выведено»`); }
+  wdBusy = true; if (btn) btn.disabled = true;
+  try {
+    const g = await wdGate();
+    if (!g.ok) return wdLockWin(it, g);
+    if (!st.trade) { toast('Сначала укажите трейд-ссылку Steam', 'err'); return pfSettings('trade'); }
+    const r = await srv('withdraw', { p_id: id });
+    if (r) { wdKick(); wdSeen = ''; pfEvList = null; }
     if ($('#pfBody')) drawPf();
-  };
+  } finally { wdBusy = false; if (btn) btn.disabled = false; }
 }
 
 /* =========================================================
@@ -7340,7 +7605,7 @@ async function withdraw(id) {
    ========================================================= */
 const FAQ = [
   ['Как пополнить баланс?', 'Нажмите на баланс в шапке сайта или «Пополнить» в профиле. Доступны СБП, банковские карты, криптовалюта и скины. Промокод RUSH35 даёт +35% к сумме.'],
-  ['Как вывести скин в Steam?', 'Укажите трейд-ссылку в профиле, затем нажмите «Вывести» на нужном предмете. Мы купим предмет на маркете, и продавец отправит обмен на вашу трейд-ссылку — примите его в Steam. Статус вывода виден в профиле; если обмен не состоится, предмет вернётся в инвентарь.'],
+  ['Как вывести скин в Steam?', 'Укажите трейд-ссылку в профиле, затем нажмите «Вывести» на нужном предмете — на вашу трейд-ссылку придёт обмен, примите его в Steam. Статус вывода виден в профиле; если обмен не состоится, предмет вернётся в инвентарь.'],
   ['Почему не приходит обмен?', 'Проверьте, что ваш инвентарь Steam открыт, на аккаунте нет торговой блокировки и трейд-ссылка актуальна. Если проблема осталась — напишите в поддержку.'],
   ['Насколько честно выпадает дроп?', 'Результат определяется на сервере в момент нажатия «Открыть» — рулетка лишь показывает уже выпавший предмет. Подкрутить его во время анимации невозможно.'],
   ['Что такое апгрейд?', 'Вы ставите предмет или часть баланса и выбираете скин дороже. Шанс зависит от соотношения цен (максимум 80%). Если стрелка остановится в зелёной зоне — получаете скин, иначе ставка сгорает.'],
@@ -7511,7 +7776,9 @@ async function ckShow(force) {
 const ageOk = () => { try { return localStorage.getItem('rc.age18') === '1'; } catch (e) { return false; } };
 const ageSave = () => { try { localStorage.setItem('rc.age18', '1'); } catch (e) { /* */ } };
 
-const page404 = () => `<section class="container"><div class="empty-big">${ic.alert}<h2>Страница не найдена</h2><p>Такой страницы нет — но кейсы всё ещё ждут.</p><a class="btn btn-primary btn-lg" href="#/">На главную</a></div></section>`;
+/* 404 — одна на все случаи (нет страницы, чужая дверь #/admin и #/staff): по виду не отличить, есть ли за дверью что-то. Новый стиль CS2 (.dr4 в css) */
+const page404 = () => `<section class="container dr4"><div class="dr4-card"><b class="dr4-code" aria-hidden="true">404</b><h1>Похоже, вы хотите зайти не в ту дверь</h1><p>Такой страницы нет. Кейсы ждут на главной.</p><a class="bw-go dr4-go" href="#/">На главную</a></div></section>`;
+const pageDoorWait = () => '<section class="container dr4"><span class="spinner"></span></section>';
 
 /* =========================================================
    AUTH
@@ -7555,6 +7822,34 @@ function openAuth(tab = 'login') {
    Ссылок на страницу в меню и подвале нет. Пускает только аккаунты с доступом в админку (profiles.is_admin = владелец или сотрудник),
    из остальных сразу выходим. Права всё равно проверяет сервер (is_admin(), staff — supabase/roles.sql); новый стиль CS2 (.stf в css) ---------- */
 let stfBusy = false; // идёт вход на #/staff — общий обработчик SIGNED_IN не должен сам загружать профиль до проверки доступа
+/* двери команды (владелец 25.11): #/admin — только админу, и только когда право подтвердил сервер при загрузке профиля;
+   #/staff — по тайному адресу #/staff/<слово> или на устройстве, где слово уже вводили. Остальным — обычная 404 (page404).
+   В коде — только отпечаток SHA-256 строки 'rc-door:<слово>'; само слово записано у владельца (локальный файл, не в git) */
+const DOOR_H = '7e9d4bb226fdf14471d1e297002c40dcec003515fc6e1f4e27fca58d540413e2';
+let authWait = !!sb, doorOk = false, doorTried = null; // authWait — ещё ждём ответа сервера о входе (на дверях — крутилка, не 404)
+const doorHash = async w => { try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('rc-door:' + w)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); } catch (e) { return ''; } };
+async function doorCheck(w) {
+  if (w && await doorHash(w) === DOOR_H) { doorOk = true; try { localStorage.setItem('rc.door', w); } catch (e) { /* */ } }
+  if (!doorOk) { let s = null; try { s = localStorage.getItem('rc.door'); } catch (e) { /* */ } doorOk = !!s && await doorHash(s) === DOOR_H; }
+  return doorOk;
+}
+const admIn = () => !!(st.user && st.user.sb && st.user.admin);
+// 'open' — пускаем, 'wait' — ещё проверяем, 'no' — 404
+function doorGate(key, arg) {
+  if (key === 'admin') return admIn() ? 'open' : authWait ? 'wait' : 'no';
+  if (admIn() || doorOk) return 'open';
+  let w = arg || ''; try { w = decodeURIComponent(w); } catch (e) { /* */ }
+  if (doorTried === w) return authWait ? 'wait' : 'no';
+  doorTried = w;
+  doorCheck(w).then(ok => {
+    if (!/^#\/staff(\/|$)/.test(location.hash)) return;
+    if (ok && w) history.replaceState(null, '', location.pathname + location.search + '#/staff'); // слово не остаётся в адресной строке
+    route();
+  });
+  return 'wait';
+}
+function authDone() { if (!authWait) return; authWait = false; if (/^#\/(admin|staff)(\/|$)/.test(location.hash)) route(); playGo(); }
+setTimeout(authDone, 8000); // сервер молчит — двери не крутятся вечно
 const STF_NO = 'Вход по почте — только для команды сайта. Игроки входят через Steam';
 const stfField = (id, label, type, ac) => `<label class="stf-fl"><span>${label}</span><div class="stf-in"><input id="${id}" type="${type}" autocomplete="${ac}" spellcheck="false">${type === 'password' ? `<button type="button" class="stf-eye" tabindex="-1" aria-label="Показать пароль">${ic.eye}</button>` : ''}</div></label>`;
 const stfEyes = root => $$('.stf-eye', root).forEach(b => b.onclick = () => { const i = b.previousElementSibling, show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? AU_IC.eyeOff : ic.eye; b.classList.toggle('on', show); i.focus(); });
@@ -7621,7 +7916,7 @@ async function sbLoadProfile(session) {
   st.user.tut = p.tut || []; // пройденные обучения (supabase/tutorial.sql)
   if (p.is_admin) try { localStorage.setItem('rc.adm', '1'); } catch (e) { /* */ }
   try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* приватный режим */ }
-  renderUser(); route();
+  authWait = false; renderUser(); route();
   tutSync(); jpClaim(false); jpResolveMine(); claimGrants(); ntcCheck(); gaWinCheck(); refHello(); supInit(); supAdmInit();
   return true;
 }
@@ -7802,8 +8097,8 @@ function sbInit() {
   if (stTok) { sb.auth.verifyOtp({ token_hash: stTok, type: 'magiclink' }).then(({ data, error }) => { if (error || !data.session) return toast('Не удалось войти через Steam: ' + (error ? error.message : 'нет сессии'), 'err'); sbLoadProfile(data.session).then(ok => ok && afterLogin(false)); }); }
   loadCaseCfg().then(loadCustomCases).then(loadCaseSettings);
   sb.auth.getSession().then(({ data }) => {
-    if (data.session) sbLoadProfile(data.session);
-    else { if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); } if (!stTok) refWelcome(); } // гость по реферальной ссылке — «Вас пригласил…»
+    if (data.session) sbLoadProfile(data.session).then(ok => { if (!ok) authDone(); });
+    else { if (st.user) { Object.assign(st, freshProfile(), { user: null }); save(); renderUser(); route(); } if (!stTok) refWelcome(); authDone(); } // гость по реферальной ссылке — «Вас пригласил…»
   });
   sb.auth.onAuthStateChange((ev, session) => {
     // ссылка «новый пароль» из письма — только для команды (#/staff); игрока по почте не впускаем
@@ -7851,7 +8146,8 @@ async function payStatus() {
   try {
     const r = await fetch(SB_URL + '/functions/v1/payment?action=status', { method: 'POST', headers: { apikey: SB_KEY, 'content-type': 'application/json' }, body: '{}' });
     const j = await r.json().catch(() => ({}));
-    payStat = { live: !!(r.ok && j.live), methods: Array.isArray(j.methods) && j.methods.length ? j.methods : PAY_METHODS.map(x => x.k), skins: !!(r.ok && j.skins), skinslink: !!(r.ok && j.skinslink), skinsRate: +j.skinsRate || 0, min: +j.min || 500, max: +j.max || 1000000 };
+    payStat = { live: !!(r.ok && j.live), methods: Array.isArray(j.methods) && j.methods.length ? j.methods : PAY_METHODS.map(x => x.k), skins: !!(r.ok && j.skins), skinslink: !!(r.ok && j.skinslink), skinsRate: +j.skinsRate || 0, min: +j.min || 500, max: +j.max || 1000000,
+      crypto: r.ok && j.crypto && Array.isArray(j.crypto.coins) && j.crypto.coins.length ? j.crypto : null }; // крипта через Coinso — свои лимиты и монеты
   } catch (e) { payStat = { live: false, methods: PAY_METHODS.map(x => x.k), skins: false, skinslink: false, skinsRate: 0, min: 500, max: 1000000 }; }
   payStatT = Date.now(); return payStat;
 }
@@ -7928,7 +8224,8 @@ async function openDeposit(need = 0, promo = null) {
   const draw = (note = '') => {
     if (isSk(method) && skOn(method)) return drawSkins(note);
     $('.dpn-form', m).classList.remove('sk');
-    const lo = S.min || 500, hi = S.max || 1000000, ok = amount >= lo && amount <= hi, b = bonusPct(); // лимиты кассы — из ?action=status
+    const L = method === 'crypto' && S.crypto ? S.crypto : S; // у крипты (Coinso) свои лимиты
+    const lo = L.min || 500, hi = L.max || 1000000, ok = amount >= lo && amount <= hi, b = bonusPct(); // лимиты кассы — из ?action=status
     $('#depMin', m).textContent = `Мин. ${fmt(lo)} ₽`;
     $$('.dpn-chips button', m).forEach(e => e.classList.toggle('on', +e.dataset.a === amount));
     $('#depTotal', m).innerHTML = ok ? prc(Math.round(amount * (1 + b / 100))) : '—';
@@ -7973,6 +8270,7 @@ async function openDeposit(need = 0, promo = null) {
       if (trade !== st.trade) { const r = await srv('save_trade', { p_trade: trade }); if (!r) return; st.trade = trade; save(); }
       return paySkins(code, btn, method, trade);
     }
+    if (method === 'crypto' && S.crypto) return openCrypto(amount, code); // крипта — своё окно: монета → адрес и точная сумма
     if (!S.live || (xm && soon(xm))) { const x = xm; return draw(`<b>${esc(x ? x.t : 'Онлайн-оплата')}</b> — подключаем, совсем скоро. Узнать о запуске первым — в нашем <a href="${TG_NEWS}" target="_blank" rel="noopener">Telegram</a>.`); }
     payStart(amount, method, code, e.currentTarget);
   };
@@ -7982,6 +8280,132 @@ async function openDeposit(need = 0, promo = null) {
   S = await payStatus(); if (!$('#dpnM', m)) return;
   if (need > 0 && amount < S.min) { amount = Math.min(S.max, Math.ceil(S.min / 50) * 50); $('#depAmt', m).value = amount; } // меньше минимума кассы — поднимаем
   drawMethods(); draw();
+}
+
+/* пополнение криптой через Coinso (сервер — раздел «Coinso» в supabase/functions/payment/index.ts). Своё окно (владелец 27.11):
+   шаг 1 — монета, шаг 2 — адрес, точная сумма в монете (копейки в ней — метка платежа), QR и таймер. Окно каждые 6 с спрашивает
+   ?action=coinso_check — сервер сам перепроверяет у Coinso и зачисляет. Закрыть окно можно: оплата зачислится и по уведомлению Coinso.
+   Тестовый режим Coinso баланс не пополняет — окно пишет «тестовая оплата дошла». QR — библиотека qrcode-generator с jsdelivr (с проверкой SRI). */
+const QR_LIB = { src: 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js', sri: 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k' };
+let qrLoad = null;
+const qrLib = () => qrLoad || (qrLoad = new Promise((ok, no) => {
+  const s = document.createElement('script'); s.src = QR_LIB.src; s.integrity = QR_LIB.sri; s.crossOrigin = 'anonymous';
+  s.onload = () => window.qrcode ? ok(window.qrcode) : no(new Error('qr')); s.onerror = () => { qrLoad = null; no(new Error('qr')); };
+  document.head.appendChild(s);
+}));
+async function qrSvg(text, ec = 'M') {
+  const qr = (await qrLib())(0, ec); qr.addData(text); qr.make();
+  const n = qr.getModuleCount(); let d = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+  return `<svg viewBox="-2 -2 ${n + 4} ${n + 4}" shape-rendering="crispEdges" role="img" aria-label="QR-код адреса"><rect x="-2" y="-2" width="${n + 4}" height="${n + 4}" fill="#fff"/><path d="${d}" fill="#0d0f13"/></svg>`;
+}
+async function cpApi(action, body) {
+  const { data } = await sb.auth.getSession(); if (!data.session) { openAuth('login'); throw new Error('auth'); }
+  const r = await fetch(SB_URL + '/functions/v1/payment?action=' + action, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + data.session.access_token, apikey: SB_KEY }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'ошибка'); return j;
+}
+// свечение окна — в цвет выбранной монеты (владелец 27.11); до выбора — голубой сайта
+const CPY_COL = { usdt: '#26c19a', usdc: '#3b8ff0', btc: '#f7931a', eth: '#8a93ff', ton: '#1ea0f1', trx: '#ff4d5a', ltc: '#b4c3da', bnb: '#f3ba2f', sol: '#a46bff' };
+const cpyCol = c => CPY_COL[String(c.group || c.symbol || '').toLowerCase()] || CPY_COL[String(c.code || '').split('_')[0]] || '#84d9fd';
+const cpyAddr = a => a.length > 14 ? `<em>${esc(a.slice(0, 5))}</em>${esc(a.slice(5, -5))}<em>${esc(a.slice(-5))}</em>` : esc(a);
+const cpyTitle = (m, t) => { const h = $('#cpyH', m); if (!h) return; h.textContent = t; h.classList.remove('sw'); void h.offsetWidth; h.classList.add('sw'); };
+async function cpySwap(m, html) { const b = $('.cpy-b', m); b.classList.add('out'); await new Promise(r => setTimeout(r, 240)); b.innerHTML = html; b.classList.remove('out'); }
+async function cpyCopy(btn, text) {
+  try { await navigator.clipboard.writeText(text); } catch (e) { return copyText(text); }
+  btn.classList.remove('ok'); void btn.offsetWidth; btn.classList.add('ok');
+  clearTimeout(btn._t); btn._t = setTimeout(() => btn.classList.remove('ok'), 1700);
+}
+async function openCrypto(amount, promo) {
+  const C = (await payStatus()).crypto;
+  if (!C) return toast('Оплата криптой сейчас недоступна — попробуйте позже', 'err');
+  const m = modal(`<div class="cpy" data-step="1">
+    <div class="cpy-aur" aria-hidden="true"><i></i><i></i><i></i></div>
+    <header class="cpy-h"><div><small>Пополнение криптой</small><h3 id="cpyH">Выберите монету</h3></div>
+      <div class="cpy-amt"><span>К оплате</span><b>${money(amount)}</b></div></header>
+    <ol class="cpy-steps"><li><i>1</i>Монета</li><li><i>2</i>Перевод</li><li><i>3</i>Зачисление</li></ol>
+    <div class="cpy-b">
+      <div class="cpy-coins">${C.coins.map((c, k) => `<button class="cpy-c" type="button" data-c="${esc(c.code)}" style="--i:${k};--c:${cpyCol(c)}">
+        <span class="cpy-ci">${c.icon ? `<img src="${esc(c.icon)}" alt="" loading="lazy">` : ic.coin}</span>
+        <span class="cpy-cn"><b>${esc(c.symbol || c.name)}</b><small>${esc(c.network || c.name)}</small></span>
+        <span class="cpy-ca">${ic.right}</span></button>`).join('')}</div>
+      <p class="cpy-note">${ic.shield}<span>Адрес кошелька и точную сумму в монете покажем на следующем шаге — по курсу на момент создания счёта.</span></p>
+    </div>
+    <footer class="cpy-f"><button class="cpy-back" type="button">${ic.left}Назад</button></footer></div>`, 'm-ga m-cpy');
+  const root = $('.cpy', m);
+  $('.cpy-back', m).onclick = () => openDeposit(0, promo);
+  $$('.cpy-c', m).forEach(b => {
+    // свет под курсором внутри карточки
+    b.onpointermove = e => { const r = b.getBoundingClientRect(); b.style.setProperty('--mx', `${e.clientX - r.left}px`); b.style.setProperty('--my', `${e.clientY - r.top}px`); };
+    b.onclick = async () => {
+      if (root.dataset.busy) return; root.dataset.busy = '1'; b.classList.add('wait');
+      m.style.setProperty('--cpc', b.style.getPropertyValue('--c')); // окно перекрашивается в цвет монеты
+      try { await cryptoInvoice(m, await cpApi('coinso_create', { amount, currency: b.dataset.c, promo }), amount, promo); }
+      catch (e) {
+        delete root.dataset.busy; b.classList.remove('wait'); m.style.removeProperty('--cpc');
+        if (e.message !== 'auth') toast(e.message === 'limits' ? 'Эту сумму сейчас нельзя оплатить криптой — попробуйте другую' : 'Не удалось создать счёт — попробуйте позже или другую монету', 'err');
+      }
+    };
+  });
+}
+async function cryptoInvoice(m, inv, amount, promo) {
+  const c = inv.coin || {}, sym = c.symbol || String(inv.currency || '').toUpperCase(), net = c.network || '', root = $('.cpy', m);
+  const total = inv.expires_in, end = Date.now() + total * 1000, R = 2 * Math.PI * 21;
+  root.dataset.step = '2'; delete root.dataset.busy; cpyTitle(m, 'Переведите ровно');
+  await cpySwap(m, `<div class="cpy-inv">
+      <div class="cpy-qrw"><div class="cpy-qr" id="cpyQr"><span class="spinner"></span></div>${c.icon ? `<span class="cpy-qrc"><img src="${esc(c.icon)}" alt=""></span>` : ''}<i class="cpy-scan"></i></div>
+      <div class="cpy-d">
+        <div class="cpy-fl"><label>Сумма к переводу</label>
+          <button class="cpy-v cpy-sum" type="button" data-cp="${esc(inv.amount)}" title="Скопировать сумму"><b>${esc(inv.amount)}</b><em>${esc(sym)}</em><span class="cpy-okt">Скопировано</span><span class="cpy-cp">${ic.copy}${ic.check}</span></button>
+          <p class="cpy-rub">Счёт на ${money(amount)}${net ? ` · сеть <b>${esc(net)}</b>` : ''}</p></div>
+        <div class="cpy-fl"><label>Адрес кошелька</label>
+          <button class="cpy-v cpy-addr" type="button" data-cp="${esc(inv.wallet)}" title="Скопировать адрес"><code>${cpyAddr(inv.wallet)}</code><span class="cpy-okt">Скопировано</span><span class="cpy-cp">${ic.copy}${ic.check}</span></button></div>
+      </div></div>
+    <p class="cpy-warn">${ic.alert}<span>Отправьте <b>ровно ${esc(inv.amount)} ${esc(sym)}</b> одним переводом${net ? ` в сети <b>${esc(net)}</b>` : ''}. По этой сумме мы находим ваш платёж: другая сумма или другая сеть автоматически не зачислится. Комиссию сети платите сверху.</span></p>
+    ${inv.test ? `<p class="cpy-test">Тестовый режим Coinso — настоящий перевод не нужен: ${inv.test_url ? `откройте <a href="${esc(inv.test_url)}" target="_blank" rel="noopener">страницу симуляции</a> и нажмите «Simulate success»` : 'нажмите «Simulate success» в кабинете Coinso'}. Баланс в тесте не пополняется.</p>` : ''}
+    <div class="cpy-st" id="cpySt">
+      <span class="cpy-ring"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21"/><circle class="fg" cx="24" cy="24" r="21" stroke-dasharray="${R.toFixed(2)}" stroke-dashoffset="0"/></svg><b id="cpyT"></b></span>
+      <span class="cpy-stt"><b>Ждём перевод</b><small>Сеть проверяем сами — ничего нажимать не нужно</small></span>
+      <span class="cpy-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>`);
+  $('.cpy-f', m).innerHTML = `<span class="cpy-fn">Окно можно закрыть — баланс пополнится сам, как только сеть подтвердит перевод.</span><button class="bw-go cpy-ok" type="button">Закрыть</button>`;
+  $('.cpy-ok', m).onclick = closeModal;
+  $$('[data-cp]', m).forEach(b => b.onclick = () => cpyCopy(b, b.dataset.cp));
+  qrSvg(inv.wallet, c.icon ? 'H' : 'M').then(s => { const q = $('#cpyQr', m); if (q) q.innerHTML = s; }, () => { const q = $('.cpy-qrw', m); if (q) q.remove(); });
+  let done = false;
+  const tick = () => {
+    if (!m.isConnected || done) return clearInterval(tt);
+    const left = Math.max(0, Math.round((end - Date.now()) / 1000)), t = $('#cpyT', m), fg = $('.cpy-ring .fg', m);
+    if (t) t.textContent = left ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '0:00';
+    if (fg) { fg.style.strokeDashoffset = (R * (1 - left / total)).toFixed(2); fg.parentNode.parentNode.classList.toggle('low', left < 120); }
+  };
+  const tt = setInterval(tick, 1000); tick();
+  const finish = (kind, title, sub, extra = '') => {
+    done = true; clearInterval(tt);
+    if (kind !== 'bad') root.dataset.step = '3';
+    root.dataset.st = kind;
+    if (kind === 'ok') m.style.setProperty('--cpc', '#1bbd67');
+    const s = $('#cpySt', m); if (!s) return;
+    const mark = kind === 'bad' ? '<path d="M18 18l16 16M34 18L18 34"/>' : '<path d="M15 27l7.5 7.5L38 19"/>';
+    s.className = 'cpy-st ' + kind;
+    s.innerHTML = `<span class="cpy-mark"><svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/>${mark}</svg>${kind !== 'bad' ? `<i class="cpy-burst">${Array.from({ length: 12 }, (_, k) => `<i style="--r:${k * 30}deg"></i>`).join('')}</i>` : ''}</span>
+      <span class="cpy-stt"><b>${title}</b><small>${sub}</small></span>${extra}`;
+  };
+  const poll = async () => {
+    if (done || !m.isConnected) return;
+    let s = 'pending'; try { s = (await cpApi('coinso_check', { id: inv.id })).status; } catch (e) { /* сеть — спросим ещё раз */ }
+    if (done || !m.isConnected) return;
+    if (s === 'paid') {
+      finish('ok', 'Баланс пополнен', `Счёт на ${money(amount)} оплачен — деньги уже на балансе`); toast('Баланс пополнен');
+      return sb.auth.getSession().then(({ data }) => { if (data.session) sbLoadProfile(data.session); });
+    }
+    if (s === 'test') return finish('test', 'Тестовая оплата дошла', 'Сервер её проверил. Баланс не пополняется — это тестовый режим Coinso.');
+    if (s === 'expired' || s === 'failed' || Date.now() > end + 900000) {
+      finish('bad', s === 'failed' ? 'Платёж не прошёл' : 'Время на оплату вышло', 'Если перевод уже отправлен — напишите в поддержку.', '<button class="cpy-new" type="button">Новый счёт</button>');
+      const n = $('.cpy-new', m); if (n) n.onclick = () => openCrypto(amount, promo);
+      return;
+    }
+    setTimeout(poll, 6000);
+  };
+  setTimeout(poll, 6000);
 }
 
 /* ---------- «Ставки» (джекпот) — страница удалена (владелец 21.11). Осталось только при входе: забрать выигрыши,
@@ -8295,7 +8719,7 @@ async function supAdmOpen(id) {
 let admTab = (() => { try { return localStorage.getItem('rc.admTab') || 'dash'; } catch (e) { return 'dash'; } })();
 const pctS = v => (v * 100).toFixed(v < .1 ? 2 : 1).replace('.', ',') + '%';
 function pageAdmin() {
-  if (!st.user || !st.user.admin) return `<section class="container"><div class="page-head"><h1>Нет <em>доступа</em></h1><p>Раздел только для администраторов. Войдите под админ-аккаунтом.</p></div></section>`;
+  if (!admIn()) return page404(); // запасной замок (основной — doorGate в route)
   // слева — все вкладки по разделам, в центре — открытая вкладка, справа — лента «Сейчас на сайте» (только владельцу)
   return `<section class="container cases-wide ax" id="adm"><div class="ax-lay">
     <nav class="ax-nav" id="admTabs"></nav>
@@ -8323,15 +8747,39 @@ const admOwner = () => !admMe || admMe.role === 'owner';
 const admCan = k => admOwner() || admMe.perms.includes(k); // галочка сотрудника (supabase/staff_perms.sql)
 const admTabs = () => admOwner() ? ADM_TABS : ADM_TABS.filter(([k]) => admMe.perms.includes(k));
 /* каталог цен и составы встроенных кейсов → на сервер (выпадение считает сервер по этим данным); грузим, если на сайте что-то поменялось */
-async function admSync(force) {
-  // локальная копия (localhost) работает с боевой базой: состав кейсов отсюда на сервер не уходит — только с боевого сайта после выкладки
-  if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
+// что уходит на сервер: каталог [имя, цена, категория], кейсы с шансами и версия (хэш); тем же считает ночной робот цен (tools/market-bot.js)
+function admSyncData() {
   const cat = Object.keys(SK).map(k => [k, Math.round(SK[k].p * 100) / 100, SK[k].c || 'skin']).filter(x => x[1] > 0);
   // srvSync — кейс из админки с составом из кода (PITY_SETS): уходит в cases_srv, сервер берёт его раньше custom_cases
   const cases = CASES.filter(c => !c.custom || c.srvSync).map(c => ({ id: c.id, price: c.price, rc: !!c.rc, rate: c.rc ? 0 : RCOIN_RATE(c), maxn: c.farm ? c.farm.maxN : 7, sell_below: c.farm ? c.farm.sellBelow : null, items: c.items.map(x => ({ n: x.name, ch: x.ch0 != null ? x.ch0 : x.ch, ...(c.pity && (x.r === 'covert' || x.r === 'rare') ? { g: x.r } : {}) })) })); // g — группа для гаранта (supabase/cs2_pity.sql)
   const str = JSON.stringify(cases) + cat.length + cat.reduce((a, x) => a + x[1], 0).toFixed(2);
   let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
   const ver = (h >>> 0).toString(36);
+  return { cat, cases, ver };
+}
+// ночной робот цен (tools/market-bot.js) открывает локальную копию сайта с ?bot=1 и берёт отсюда то же, что ушло бы на сервер;
+// db — новые составы кейсов из админки, которых на сервере ещё нет (custom_cases и правки site_cfg 'case:<id>'), rtp — окупаемость всех кейсов для отчёта
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]bot=1/.test(location.search)) window.rcBot = {
+  // встроенные кейсы, что набирают состав сами (buildSet): предметы и джекпоты (их робот не трогает — решение владельца 28.11)
+  gen: () => CASES.filter(c => !c.exact && !c.custom && !c.itemsOv).map(c => ({ id: c.id, items: c.items.map(s => s.name || s), keep: [...(c.rare || []), ...(c.ultra || []), ...(c.bonusSet ? Object.keys(c.fix || {}) : [])] })),
+  ready: () => customCaseRows.length > 0 && CASES.length > 20 && CASES.every(c => c.luck != null),
+  data: db => {
+    for (const x of db.cfg) { const id = x.k.slice(5), c = CASES.find(c => c.id === id && !c.custom); if (!c) continue; caseCfg[id] = { ...(caseCfg[id] || {}), items: x.items }; const L = c.luck; applyCaseCfg(c); applyLuck(c, L || 1); }
+    for (const x of db.custom) { const r = customCaseRows.find(r => r.id === x.id), o = CASES.find(c => c.id === x.id); if (!r) continue; r.items = x.items; const L = o && o.luck, c = addCustomCase(r); if (c) applyLuck(c, L || 1); }
+    const d = admSyncData();
+    // окупаемость: шанс × цена (у кейса с гарантом — вместе с гарантом); rtp — с удачей из админки, rtp0 — без неё
+    const E = (c, k) => { const ch = c.items.map(s => k && s.ch0 != null ? s.ch0 : s.ch || 0), ps = c.items.map(s => s.p || 0); return (c.pity ? pityEv(ch, ps, c.items.map(s => s.r)) : ch.reduce((a, x, i) => a + x * ps[i], 0)) / c.price; };
+    d.rtp = Object.fromEntries(CASES.filter(c => c.price > 0 && c.items && c.items.length).map(c => [c.id, { name: String(c.name || c.id), price: c.price, luck: c.luck || 1, exact: !!c.exact, pity: !!c.pity, rtp: E(c, 0), rtp0: E(c, 1) }]));
+    return JSON.stringify(d);
+  },
+};
+async function admSync(force) {
+  // локальная копия (localhost) работает с боевой базой: состав кейсов отсюда на сервер не уходит — только с боевого сайта после выкладки
+  if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
+  const { cat, cases, ver } = admSyncData();
+  // названия кейсов — для ночного отчёта в Telegram (supabase/fin_tg.sql): встроенные кейсы есть только здесь, в коде
+  const cn = Object.fromEntries(CASES.filter(c => c.id && c.name).map(c => [c.id, String(c.name).slice(0, 60)])), cnS = JSON.stringify(cn);
+  if (localStorage.getItem('rc_case_names') !== cnS) sb.rpc('admin_case_names', { p: cn }).then(({ error }) => { if (!error) localStorage.setItem('rc_case_names', cnS); }, () => {});
   const { data: m } = await sb.from('srv_meta').select('v').eq('k', 'version').maybeSingle();
   if (!force && m && m.v === ver) return;
   const t = toast('Загружаем на сервер каталог цен и кейсы…', 'info');
@@ -8952,19 +9400,55 @@ const SF_LINK = {
   sup: { rpc: 'admin_sup_chat', on: 'сюда приходит каждое новое обращение', off: 'Группа не привязана — новые обращения видны только во вкладке «Поддержка».',
     who: 'Создайте группу в Telegram и добавьте туда сотрудников поддержки.', ok: 'Группа поддержки привязана ✅' },
   own: { rpc: 'admin_owner_chat', on: 'сюда приходят отчёты смен сотрудников', off: 'Чат не привязан — отчёты смен не приходят в Telegram.',
-    who: 'Создайте группу только для владельцев — сотрудников не добавляйте.', ok: 'Чат владельцев привязан ✅' }
+    who: 'Создайте группу только для владельцев — сотрудников не добавляйте.', ok: 'Чат владельцев привязан ✅' },
+  wd: { rpc: 'admin_wd_chat', file: 'wd_tg', on: 'сюда приходят все выводы скинов, а заявки, которые ждут решения, — с кнопками «Подтвердить» и «Вернуть игроку»', off: 'Тема не привязана — выводы видны только во вкладке «Выводы Steam».',
+    who: 'Откройте группу с темами и тему для выводов (бот должен быть в группе).', ok: 'Тема выводов привязана ✅' },
+  fin: { rpc: 'admin_fin_chat', file: 'fin_tg', on: 'сюда приходят пополнения, отчёт за день в 00:00 по Москве и сигнал, когда на маркете меньше 700 ₽', off: 'Тема не привязана — пополнения и отчёт в Telegram не приходят.',
+    who: 'Откройте группу с темами и создайте тему для финансов (бот должен быть в группе). Её увидят все участники группы.', ok: 'Тема финансов привязана ✅' }
 };
+// тема финансов: проверка — отчёт за сегодня на текущий момент (supabase/fin_tg.sql, support-bot ?action=fin_test)
+function sfFinTest(el) {
+  if (!el) return;
+  el.innerHTML = '<button class="ax-btn" data-fin-test>Прислать отчёт за сегодня</button><small class="ax-mute">Сам отчёт приходит каждый день в 00:00 по Москве — за прошедший день.</small>';
+  const b = $('[data-fin-test]', el);
+  b.onclick = async () => {
+    b.disabled = true;
+    const { data: ses } = await sb.auth.getSession();
+    const r = await fetch(`${SB_URL}/functions/v1/support-bot?action=fin_test`, { method: 'POST', headers: { apikey: SB_KEY, authorization: 'Bearer ' + (ses.session ? ses.session.access_token : ''), 'content-type': 'application/json' }, body: '{}' }).then(x => x.json()).catch(() => ({ error: 'нет связи' }));
+    b.disabled = false;
+    toast(r.ok ? 'Отчёт за сегодня отправлен в тему финансов' : 'Не отправлено: ' + esc(r.error || 'ошибка'), r.ok ? '' : 'err');
+  };
+}
 async function sfLink(el, kind, code) {
   if (!el) return;
   const K = SF_LINK[kind];
   const [{ data, error }] = await Promise.all([sb.rpc(K.rpc, { p_new_code: !!code }), supBotLoad()]);
   if (!el.isConnected) return;
-  if (error) return (el.innerHTML = `<p class="ax-foot">Выполните supabase/${kind === 'own' ? 'shift_report' : 'staff_perms'}.sql в Supabase.</p>`);
+  if (error) return (el.innerHTML = `<p class="ax-foot">Выполните supabase/${K.file || (kind === 'own' ? 'shift_report' : 'staff_perms')}.sql в Supabase.</p>`);
   const bot = esc(supBot || 'бот'), cmd = `/link@${bot} ${data.code}`;
   el.innerHTML = `${data.chat ? `<p>Привязан чат <b>${esc(data.title || data.chat)}</b>${data.linked_at ? ` <small class="ax-mute">с ${new Date(data.linked_at).toLocaleDateString('ru-RU')}</small>` : ''} — ${K.on}.</p>` : `<p class="neg">${K.off}</p>`}
     ${data.code ? `<ol class="sf-tg-steps"><li>${K.who}</li><li>Добавьте в неё @${bot}.</li><li>Отправьте в группе (в нужной теме, если они есть) сообщение — код действует 30 минут:<br><button class="ax-btn ax-sm" data-act="copy" data-copy="${cmd}"><b>${cmd}</b> — копировать</button></li><li>Бот ответит «${K.ok}». Потом обновите эту страницу.</li></ol>`
       : `<button class="ax-btn" data-link>${data.chat ? 'Привязать другой чат' : 'Привязать чат'}</button>`}`;
   const btn = $('[data-link]', el); if (btn) btn.onclick = () => sfLink(el, kind, true);
+}
+// Telegram владельца для кнопок выводов: каждый владелец привязывает себя сам кодом (supabase/wd_tg.sql); тут же — проверка темы
+async function sfMe(el, code) {
+  if (!el) return;
+  const [{ data, error }] = await Promise.all([sb.rpc('admin_my_tg', { p_new_code: !!code }), supBotLoad()]);
+  if (!el.isConnected || error) return (el.innerHTML = '');
+  const bot = esc(supBot || 'бот'), cmd = `/owner ${data.code}`;
+  el.innerHTML = `<b class="sf-me-h">Мой Telegram для кнопок</b>
+    ${data.linked ? `<p>Привязан <b>${esc(data.tg_name || 'Telegram')}</b>${data.linked_at ? ` <small class="ax-mute">с ${new Date(data.linked_at).toLocaleDateString('ru-RU')}</small>` : ''} — у вас кнопки «Подтвердить» и «Вернуть игроку» работают.</p>` : '<p class="neg">Ваш Telegram не привязан — кнопки у выводов для вас не сработают.</p>'}
+    ${data.code ? `<ol class="sf-tg-steps"><li>Откройте в Telegram личные сообщения с @${bot} — со своего аккаунта.</li><li>Отправьте боту (код действует 30 минут):<br><button class="ax-btn ax-sm" data-act="copy" data-copy="${cmd}"><b>${cmd}</b> — копировать</button></li><li>Бот ответит «Готово ✅». Второй владелец делает то же самое под своим аккаунтом. Потом обновите эту страницу.</li></ol>`
+      : `<span class="sf-me-acts"><button class="ax-btn" data-me>${data.linked ? 'Привязать другой Telegram' : 'Привязать мой Telegram'}</button><button class="ax-btn" data-test>Прислать проверку в тему</button></span>`}`;
+  const b = $('[data-me]', el); if (b) b.onclick = () => sfMe(el, true);
+  const tb = $('[data-test]', el); if (tb) tb.onclick = async () => {
+    tb.disabled = true;
+    const { data: ses } = await sb.auth.getSession();
+    const r = await fetch(`${SB_URL}/functions/v1/support-bot?action=wd_test`, { method: 'POST', headers: { apikey: SB_KEY, authorization: 'Bearer ' + (ses.session ? ses.session.access_token : ''), 'content-type': 'application/json' }, body: '{}' }).then(x => x.json()).catch(() => ({ error: 'нет связи' }));
+    tb.disabled = false;
+    toast(r.ok ? 'Проверка отправлена в тему выводов — нажмите там кнопку' : 'Не отправлено: ' + esc(r.error || 'ошибка'), r.ok ? '' : 'err');
+  };
 }
 async function admStaff(box) {
   box.innerHTML = '<div class="ax-load"><span class="spinner"></span>Загружаем сотрудников…</div>';
@@ -8986,8 +9470,10 @@ async function admStaff(box) {
     ${axCard('Владельцы', `<div class="sf-own">${owners.map(who).join('')}</div>
       <p class="ax-foot">Каждая галочка открывает окно целиком — как у владельца: смотреть и менять. Начисления баланса и удачу игрокам и кейсам даёт только галочка «Начисления и удача». Окно «Сотрудники» — только владельцам. График смен нужен для отчётов.</p>`)}
     ${axCard('Telegram — группа поддержки', '<div id="sfSup"><span class="ax-mute">Загружаем…</span></div>')}
-    ${axCard('Telegram — чат владельцев (отчёты смен)', '<div id="sfOwn"><span class="ax-mute">Загружаем…</span></div>')}`;
-  sfLink($('#sfSup', box), 'sup'); sfLink($('#sfOwn', box), 'own'); // чат владельцев — для отчётов смен (supabase/shift_report.sql)
+    ${axCard('Telegram — чат владельцев (отчёты смен)', '<div id="sfOwn"><span class="ax-mute">Загружаем…</span></div>')}
+    ${axCard('Telegram — выводы скинов', '<div id="sfWd"><span class="ax-mute">Загружаем…</span></div><div id="sfMe" class="sf-me"></div>')}
+    ${axCard('Telegram — финансы (пополнения, отчёт за день, маркет)', '<div id="sfFin"><span class="ax-mute">Загружаем…</span></div><div id="sfFinT" class="sf-me"></div>')}`;
+  sfLink($('#sfSup', box), 'sup'); sfLink($('#sfOwn', box), 'own'); sfLink($('#sfWd', box), 'wd'); sfMe($('#sfMe', box)); sfLink($('#sfFin', box), 'fin'); sfFinTest($('#sfFinT', box)); // чат владельцев — для отчётов смен (supabase/shift_report.sql)
   const err = e => STAFF_ERR[e.message] || 'Ошибка: ' + e.message;
   $('#sfAdd', box).onclick = async () => {
     const pid = +$('#sfPid', box).value;
@@ -9776,7 +10262,7 @@ function admCaseEditor(row, done, base) {
   let itemsDirty = false;
   const blocks = CASE_BLOCKS.filter(b => !!b.rc === !!(base && base.rc));
   const m = modal(`<div class="ced">
-    <h2>${edit ? `Изменить кейс «${esc(E.name)}»` : 'Новый кейс'}</h2>${row && PITY_SETS[row.id] ? '<p class="ced-note">Состав этого кейса задан в коде сайта (гарант 75/150, как у BLAST, — PITY_SETS в js/app.js): предметы и шансы ниже на открытие не влияют. Название, цена, картинка и раздел работают как обычно.</p>' : ''}
+    <h2>${edit ? `Изменить кейс «${esc(E.name)}»` : 'Новый кейс'}</h2>${row && PITY_SETS[row.id] ? `<p class="ced-note">Состав этого кейса задан в коде сайта (PITY_SETS в js/app.js${PITY_SETS[row.id].pity === false ? '' : ', гарант 75/150, как у BLAST'}): предметы и шансы ниже на открытие не влияют, шансы сами подстраиваются под цену кейса. Название, цена, картинка и раздел работают как обычно.</p>` : ''}
     <div class="ced-grid">
       <div class="ced-left">
         <label class="ced-img" id="cedImgBox">${E.img ? `<img src="${esc(E.img)}" alt="">` : `<span>${ic.plus}Загрузить картинку<small>PNG/WebP с прозрачным фоном</small></span>`}<input type="file" id="cedFile" accept="image/png,image/webp,image/jpeg" hidden></label>
@@ -11297,7 +11783,7 @@ function mountCrash() {
   crStop();
   const gen = ++cr.gen;
   Snd.warm(['c4Beep', 'c4Tick', 'c4Plant', 'c4Boom']);
-  cr.busy = false; cr.boomed = 0; cr.lcdKey = ''; cr.sel = [];
+  cr.busy = false; cr.betBusy = false; cr.boomed = 0; cr.lcdKey = ''; cr.sel = [];
   const ai = $('#crAutoIn'); ai.value = cr.auto; ai.oninput = () => { cr.auto = ai.value; };
   $('#crRules').onclick = crRulesModal;
   $('#crClr').onclick = () => { cr.sel = []; crDrawInv(); };
@@ -11444,8 +11930,15 @@ function crSum() {
   const its = crSelItems(), s = its.reduce((a, x) => a + SK[x.n].p, 0), e = $('#crSel'); if (!e) return;
   e.innerHTML = prc(s);
   $('#crSelN').textContent = its.length ? `${its.length} из ${CR_MAXN} предм.${s < CR_MIN ? ` · нужно от ${CR_MIN} ₽` : ''}` : 'выберите скины ниже';
-  const b = $('#crBet'); if (b) b.disabled = !its.length || s < CR_MIN;
+  const b = $('#crBet'); if (b) { const off = !its.length || s < CR_MIN; b.classList.toggle('cr-off', off); b.setAttribute('aria-disabled', off); }
 }
+/* кнопки краша срабатывают в момент нажатия (pointerdown), а не при отпускании: нажатие не теряется, если кнопка
+   перерисовалась или палец/мышь чуть сдвинулись (владелец 26.11: «иногда жмёшь, а она не нажимается»). Enter/пробел — обычный click */
+const crTap = (b, fn) => {
+  if (!b) return;
+  b.addEventListener('pointerdown', e => { if (e.button) return; e.preventDefault(); fn(); });
+  b.addEventListener('click', e => { if (!e.detail) fn(); });
+};
 function crRender() {
   const act = $('#crAct'); if (!act) return;
   const ph = crPhase(), me = crMe();
@@ -11455,7 +11948,7 @@ function crRender() {
   if (hb.dataset.k !== hk) hb.dataset.k = hk, hb.innerHTML = cr.hist.map((h, i) => `<span class="cr-tk ${crCls(h.x)}" style="--rt:${[-2, 1.5, -1, 2, -1.5, 1, -2.5, 1.5, -1, 2][i % 10]}deg"><small>№${h.id}</small><b>${crTxt(h.x)}</b></span>`).join('') || '<span class="cr-h-empty">Раундов ещё не было</span>';
   // главная кнопка (вверху меню ставки, на уровне бомбы)
   const key = [cr.err, ph, !!st.user, me ? `${me.cash}|${me.stake}|${me.auto}` : '-'].join('/');
-  if (act.dataset.k !== key) {
+  if (act.dataset.k !== key && !cr.busy && !cr.betBusy) {
     act.dataset.k = key;
     if (cr.err || !sb) act.innerHTML = `<div class="cr-note">Нет связи с сервером — переподключаемся…</div>`;
     else if (ph === 'load') act.innerHTML = `<div class="cr-note"><span class="spinner"></span></div>`;
@@ -11463,9 +11956,9 @@ function crRender() {
     else if (me) {
       if (me.cash) act.innerHTML = `<div class="cr-done win">Забрали на <b>${crTxt(me.cash)}</b>${me.prize && SK[me.prize] ? `<small>${esc(me.prize)} · ${money(SK[me.prize].p)}</small>` : ''}</div>`;
       else if (ph === 'bet') act.innerHTML = `<div class="cr-done">Ставка <b>${prc(me.stake)}</b> принята${me.auto ? `<small>автовывод ${crTxt(me.auto)}</small>` : '<small>ждём старта</small>'}</div>`;
-      else if (ph === 'fly') { act.innerHTML = `<button class="c2-btn c2-green cr-go cr-cash" id="crCash">Забрать <b id="crCashV">${money(me.stake * crCurX())}</b></button>`; $('#crCash').onclick = crCashout; }
+      else if (ph === 'fly') { act.innerHTML = `<button class="c2-btn c2-green cr-go cr-cash" id="crCash">Забрать <b id="crCashV">${money(me.stake * crCurX())}</b></button>`; crTap($('#crCash'), crCashout); }
       else act.innerHTML = `<div class="cr-done lose">Взрыв на <b>${crTxt(cr.r.crash_x)}</b><small>ставка ${money(me.stake)} сгорела</small></div>`;
-    } else if (ph === 'bet') { act.innerHTML = `<button class="c2-btn c2-green cr-go" id="crBet">Сделать ставку</button>`; $('#crBet').onclick = crPlaceBet; crSum(); }
+    } else if (ph === 'bet') { act.innerHTML = `<button class="c2-btn c2-green cr-go" id="crBet">Сделать ставку</button>`; crTap($('#crBet'), crPlaceBet); crSum(); }
     else act.innerHTML = `<div class="cr-note">${ph === 'fly' ? 'Раунд идёт — ставки откроются после взрыва' : 'Новый раунд через несколько секунд'}</div>`;
   }
   // игроки: ставка и итог
@@ -11492,21 +11985,23 @@ async function crPlaceBet() {
   if (s < CR_MIN) return toast(`Ставка — от ${CR_MIN} ₽`, 'err');
   const raw = String(cr.auto || '').replace(',', '.').trim(), auto = raw ? Math.round(parseFloat(raw) * 100) / 100 : null;
   if (raw && !(auto >= 1.01 && auto <= 100)) return toast('Автовывод — от x1.01 до x100', 'err');
-  const b = $('#crBet'); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+  if (cr.betBusy) return;
+  const b = $('#crBet'); cr.betBusy = true; if (b) { b.disabled = true; b.classList.add('is-busy'); b.innerHTML = '<span class="spinner"></span>'; }
   const r = await srv('crash_bet', { p_ids: its.map(x => x.id), p_auto: auto });
+  cr.betBusy = false;
   if (!$('#crash')) return;
   if (!r) { $('#crAct').dataset.k = ''; crRender(); return; }
   cr.sel = []; crDrawInv();
   Snd.coin(); toast(`Ставка ${money(r.stake)} принята`);
-  crPoll(cr.gen);
+  crRender(); crPoll(cr.gen);
 }
 async function crCashout() {
   if (cr.busy || !cr.r) return;
   cr.busy = true;
-  const b = $('#crCash'); if (b) b.disabled = true;
+  const b = $('#crCash'); if (b) { b.disabled = true; b.classList.add('is-busy'); }
   const r = await srv('crash_cashout', { p_round: cr.r.id });
   cr.busy = false;
-  if (!r) { if (b) b.disabled = false; return; }
+  if (!r) { if (b) { b.disabled = false; b.classList.remove('is-busy'); } crRender(); return; }
   const me = crMe();
   if (r.win) { if (me) { me.cash = r.x; me.prize = r.prize; } crWon(r.x, r.prize); }
   else { toast('Не успели — бомба взорвалась', 'err'); crPoll(); }
@@ -12115,14 +12610,20 @@ function route() {
   $$('.cr-shock').forEach(x => x.classList.remove('cr-shock')); // тряска от взрыва не должна оставаться на шапке
   // рулетка: адрес #/roulette (владелец 22.11). Старые ссылки #/krot/… (приглашения, новости) — тот же экран, адрес в строке меняется сам
   if (/^#\/krot(\/|$)/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search + location.hash.replace(/^#\/krot/, '#/roulette'));
+  if (/^#\/play\/?$/.test(location.hash)) { playWant = true; history.replaceState(null, '', location.pathname + location.search + '#/'); }   // #/play — главная + поиск игры (playGo)
   const parts = location.hash.replace(/^#\/?/, '').split('/');
-  const key = parts[0] === 'roulette' ? 'krot' : (parts[0] || '');   // внутри режим по-прежнему «krot» (страница, стили, js/krot.js)
-  const [page, mount] = Object.prototype.hasOwnProperty.call(ROUTES, key) ? ROUTES[key] : [page404, null];
+  const key0 = parts[0] === 'roulette' ? 'krot' : (parts[0] || '');   // внутри режим по-прежнему «krot» (страница, стили, js/krot.js)
+  // двери команды (#/admin, #/staff): чужим — та же 404, что у несуществующей страницы (и тот же фон, и тот же заголовок вкладки)
+  const gate = key0 === 'admin' || key0 === 'staff' ? doorGate(key0, parts[1]) : 'open';
+  const lost = gate !== 'open' || !Object.prototype.hasOwnProperty.call(ROUTES, key0);
+  const key = lost ? '404' : key0;
+  const [page, mount] = !lost ? ROUTES[key] : gate === 'wait' ? [pageDoorWait, null] : [page404, null];
   const app = $('#app');
   app.innerHTML = page(parts[1]);
   app.classList.remove('page-in'); void app.offsetWidth; app.classList.add('page-in');
   if (mount) mount(parts[1]);
   ioScan();
+  playGo(); // ссылка #/play — поиск игры в рулетку
   wkAuto(key); // еженедельный набор: раз в неделю сам появляется на главной
   tutAuto(key); // обучение новичков (кнопка «?» и первый заход)
   document.body.classList.toggle('pg-crash', key === 'crash');
@@ -12151,7 +12652,7 @@ function route() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.nav === navKey));
   closeMenu();
   const c = key === 'case' && caseById(parts[1]);
-  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ pickem: 'Пикем PGL Major Singapore 2026', krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
+  document.title = c ? `Кейс «${c.name}» — RUSH CASE` : ({ pickem: 'Пикем PGL Major Singapore 2026', krot: 'Русская рулетка', rrtop: 'Рейтинг «Русской рулетки»', invite: 'Пригласить друзей', cases: 'Все кейсы', top: 'Топ игроков', upgrade: 'Апгрейд', build: 'Собери сам', crash: 'Краш C4', contracts: 'Контракты', bonus: 'Бонусы', profile: 'Профиль', faq: 'FAQ', terms: 'Соглашение', privacy: 'Конфиденциальность', payment: 'Оплата и возврат', cookies: 'Политика cookie', '404': 'Страница не найдена', admin: 'Админ-панель', tournaments: 'Турниры', tournament: 'Турнир', join: 'Приглашение в команду', u: 'Игрок' }[key] || 'Открытие кейсов CS2') + ' — RUSH CASE';
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0, behavior: 'instant' }); });
 

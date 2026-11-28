@@ -1,7 +1,8 @@
 // RUSH CASE — вывод скинов через market.csgo (Supabase Edge Function «market»). Проверку JWT для функции ВЫКЛЮЧИТЬ:
 // её раз в минуту зовёт pg_cron (supabase/market.sql) без токена; админа проверяем сами по его токену.
 //
-//   POST /functions/v1/market?action=tick     (кто угодно, не чаще раза в 8 с) — купить новые заявки, проверить статусы
+//   POST /functions/v1/market?action=tick     (кто угодно, не чаще раза в 8 с) — купить новые заявки, проверить статусы,
+//                                             раз в 5 минут обновить баланс маркета (для сигнала «меньше 700 ₽», supabase/fin_tg.sql)
 //   POST /functions/v1/market?action=balance  (админ) — баланс маркета
 //
 // Секрет (Edge Functions → Secrets): MARKET_API_KEY — ключ API market.csgo. Валюта аккаунта маркета — RUB.
@@ -81,7 +82,14 @@ Deno.serve(async req => {
       const { data: claimed } = await db.rpc('market_claim', { p_limit: 3 });
       for (const w of claimed || []) { await buy(w, +cfg.over_pct || 0, +cfg.over_rub || 0); await sleep(300); }
       const checked = await poll();
-      return json({ bought: (claimed || []).length, checked });
+      // баланс маркета раз в 5 минут: меньше 700 ₽ — сигнал в тему финансов, отчёт за день берёт его отсюда (supabase/fin_tg.sql)
+      let money: number | null = null;
+      if (!cfg.balance_at || Date.now() - Date.parse(cfg.balance_at) > 5 * 60e3) {
+        await sleep(300);
+        const m = await market('get-money', {});
+        if (m.money != null) { money = +m.money; await db.rpc('market_balance', { p_v: money }); }
+      }
+      return json({ bought: (claimed || []).length, checked, ...(money != null ? { money: true } : {}) });
     }
     if (action === 'balance') {
       const token = (req.headers.get('authorization') || '').replace(/^Bearer /, '');

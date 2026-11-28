@@ -11,6 +11,9 @@
 //   POST /functions/v1/payment?action=skins     (SkinsMoney) уведомление о депозите → подпись → pay_skins (supabase/skins_pay.sql)
 //   POST /functions/v1/payment?action=skinslink_create (игрок) {promo?} → {url} — пополнение скинами через Skinslink
 //   POST /functions/v1/payment?action=skinslink (Skinslink) уведомление → подпись → перепроверка статуса → pay_skins (только completed)
+//   POST /functions/v1/payment?action=coinso_create (игрок) {amount, currency, promo?} → адрес кошелька и точная сумма в монете — крипта через Coinso, окно на сайте
+//   POST /functions/v1/payment?action=coinso_check  (игрок) {id} → pending | paid | expired | failed | test; сам спрашивает Coinso и зачисляет
+//   POST /functions/v1/payment?action=coinso_hook   (Coinso) уведомление → подпись X-Signature → перепроверка статуса → pay_credit (подробно — раздел Coinso ниже)
 //   POST /functions/v1/payment?action=release   (pg_cron раз в 10 мин, supabase/skins_guard.sql) — скины, у которых прошли 7 дней ожидания:
 //        ещё раз спрашиваем провайдера, что обмен не откатили, и только тогда зачисляем (pay_credit); откатили — pay_fail
 //
@@ -443,6 +446,134 @@ async function slWebhook(req: Request, admin: ReturnType<typeof createClient>) {
   return ok();
 }
 
+// ---------- Coinso (coinso.io, бывший CryptoProc; документация: https://coinso.io/docs) — только крипта, оплата в своём окне на сайте (h2h) ----------
+// Секреты (Edge Functions → Secrets): COINSO_PROJECT — ID проекта (Merchant ID из настроек проекта), COINSO_SECRET — Secret Key проекта
+//   (им же Coinso подписывает уведомления). Не задано — крипта выключена, остальное работает как раньше.
+// В кабинете Coinso, настройки проекта: Webhook URL = https://<проект>.supabase.co/functions/v1/payment?action=coinso_hook;
+//   вкладка «Интеграция» → «Повторять при ошибке» — включить (если оплату ещё не видно в статусе, отвечаем 503 — пусть пришлёт снова).
+// Как идёт оплата: окно на сайте → ?action=coinso_create {amount, currency, promo?} → Coinso выдаёт адрес кошелька и точную сумму в монете
+//   (копейки в сумме — метка именно этого платежа). Окно каждые 6 с спрашивает ?action=coinso_check {id}: мы сами спрашиваем статус счёта
+//   у Coinso и зачисляем, не дожидаясь уведомления. Уведомление ?action=coinso_hook — подпись X-Signature (HMAC-SHA256 тела, ключ COINSO_SECRET).
+// Зачисляем ТОЛЬКО после перепроверки GET /payment/status: paid, наш номер заказа (custom), сумма не меньше заказа; зачисляется сумма заказа.
+// Тестовый режим Coinso (test_mode: true) НЕ зачисляется (владелец 27.11): платёж помечается failed с пометкой test: true —
+//   так проверяется вся цепочка без денег, а окно на сайте пишет «тестовая оплата дошла».
+const CO_API = () => env('COINSO_API') || 'https://coinso.io/api';
+const coOn = () => !!(env('COINSO_PROJECT') && env('COINSO_SECRET'));
+const coId = /^[A-Za-z0-9]{4,32}$/, uuidRe = /^[0-9a-f-]{36}$/i;
+type CoInfo = { min: number; max: number; coins: { code: string; name: string; symbol: string; network: string; icon: string; group: string | null }[] };
+const coMin = (c: CoInfo) => Math.max(PAY_MIN(), Math.ceil(c.min || 0));
+const coMax = (c: CoInfo) => (c.max > 0 ? Math.min(1000000, Math.floor(c.max)) : 1000000);
+// сумма в монете — строкой и без «1e-7» (у BTC бывают очень маленькие суммы)
+const coNum = (v: unknown) => typeof v === 'string' ? v.trim() : typeof v === 'number' && v > 0 ? (v < 1e-6 ? v.toFixed(12).replace(/0+$/, '') : String(v)) : '';
+async function coApi(path: string, body?: unknown) {
+  const r = await fetch(CO_API() + path, {
+    method: body ? 'POST' : 'GET', signal: AbortSignal.timeout(25000),
+    headers: { accept: 'application/json', authorization: 'Bearer ' + env('COINSO_SECRET'), ...(body ? { 'content-type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return { code: r.status, j: await r.json().catch(() => ({})) as Record<string, any> };
+}
+// какие монеты включены в проекте и лимиты крипты (GET /payment/methods) — держим 10 минут, при ошибке спросим снова через минуту
+let coCache: { t: number; v: CoInfo | null } | null = null;
+async function coinsoInfo(): Promise<CoInfo | null> {
+  if (coCache && Date.now() - coCache.t < 600000) return coCache.v;
+  let v: CoInfo | null = null;
+  try {
+    const { code, j } = await coApi('/payment/methods?project_id=' + encodeURIComponent(env('COINSO_PROJECT').trim()));
+    const c = Array.isArray(j?.methods) ? j.methods.find((x: any) => x?.method === 'crypto' && x?.available !== false) : null;
+    const coins = (Array.isArray(c?.currencies) ? c.currencies : []).filter((x: any) => /^[a-z0-9_]{2,24}$/.test(String(x?.code))).map((x: any) => ({
+      code: String(x.code), name: String(x.name || x.code).slice(0, 40), symbol: String(x.symbol || '').slice(0, 12), network: String(x.network || '').slice(0, 20),
+      icon: /^https:\/\/[\w.-]+\//.test(String(x.icon || '')) ? String(x.icon) : '', group: x.group ? String(x.group).slice(0, 12) : null }));
+    if (coins.length) v = { min: +c.min_amount || 0, max: +c.max_amount || 0, coins };
+    else console.log('coinso methods', code, JSON.stringify(j).slice(0, 300));
+  } catch (e) { console.log('coinso methods', (e as Error).message); }
+  coCache = { t: v ? Date.now() : Date.now() - 540000, v };
+  return v;
+}
+async function coinsoCreate(req: Request, admin: ReturnType<typeof createClient>) {
+  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const { data: u } = await admin.auth.getUser(token);
+  if (!u?.user) return json({ error: 'not authenticated' }, 401);
+  const b = await req.json().catch(() => ({}));
+  const co = await coinsoInfo();
+  if (!co) return json({ error: 'provider unavailable' }, 502);
+  const coin = co.coins.find(x => x.code === b.currency);
+  if (!coin) return json({ error: 'bad currency' }, 400);
+  const amount = Math.round(+b.amount);
+  if (!(amount >= coMin(co) && amount <= coMax(co))) return json({ error: 'limits' }, 400);
+  const promo = typeof b.promo === 'string' && /^[A-Za-z0-9]{2,24}$/.test(b.promo) ? b.promo.toUpperCase() : null;
+  const { data: pay, error } = await admin.from('payments').insert({ uid: u.user.id, amount, method: 'crypto', promo, provider: 'coinso' }).select('id').single();
+  if (error || !pay) return json({ error: 'db error' }, 500);
+  const h = (k: string, n: number) => (req.headers.get(k) || '').slice(0, n) || undefined;
+  const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || req.headers.get('x-real-ip') || req.headers.get('cf-connecting-ip') || undefined;
+  try {
+    const { code, j } = await coApi('/payment/create', {
+      project_id: /^\d+$/.test(env('COINSO_PROJECT').trim()) ? +env('COINSO_PROJECT').trim() : env('COINSO_PROJECT').trim(),
+      amount, method: 'crypto', integration_type: 'h2h', currency: coin.code, description: 'Пополнение баланса RUSH CASE', custom: pay.id,
+      client_user_id: u.user.id, client_ip: ip, client_user_agent: h('user-agent', 400), client_language: h('accept-language', 100),
+      success_url: SITE + '?pay=ok', fail_url: SITE + '?pay=fail',
+    });
+    const inv = String(j?.invoice_id || ''), wallet = String(j?.wallet || '').trim(), sum = coNum(j?.amount);
+    if (!j?.success || !coId.test(inv) || !wallet || !(+sum > 0)) {
+      console.log('coinso create', code, JSON.stringify(j).slice(0, 400));
+      throw new Error(j?.error_code === 'amount_out_of_range' ? 'limits' : 'provider unavailable');
+    }
+    const c = { invoice_id: inv, wallet, amount: sum, currency: coin.code, expires_in: Math.max(60, Math.min(86400, +j.expires_in || 1800)),
+      test: !!j.test_mode, test_url: /^https:\/\//.test(String(j.test_url || '')) ? String(j.test_url) : '' };
+    await admin.from('payments').update({ ext_id: inv, raw: { coinso: c } }).eq('id', pay.id);
+    return json({ id: pay.id, ...c, coin });
+  } catch (e) {
+    await admin.rpc('pay_fail', { p_id: pay.id });
+    return json({ error: (e as Error)?.message === 'limits' ? 'limits' : 'provider unavailable' }, 502);
+  }
+}
+// перепроверка счёта у Coinso и зачисление. Ответ: paid | pending | expired | failed | test | unknown; ошибка — Coinso не ответил
+async function coinsoSettle(admin: ReturnType<typeof createClient>, id: string, hook?: Record<string, unknown>): Promise<string> {
+  const { data: pay } = await admin.from('payments').select('id, amount, status, ext_id, provider, raw').eq('id', id).maybeSingle();
+  if (!pay || pay.provider !== 'coinso' || !coId.test(String(pay.ext_id || ''))) return 'unknown';
+  if (hook && String(hook.invoice_id || '') !== pay.ext_id) { console.log('coinso hook: invoice mismatch', id, hook.invoice_id); return 'unknown'; }
+  if (pay.status === 'paid') return 'paid';
+  if (pay.raw?.test) return 'test';
+  const r = await fetch(`${CO_API()}/payment/status?uuid=${encodeURIComponent(pay.ext_id)}`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+  const s = await r.json().catch(() => ({})) as Record<string, any>;
+  if (!r.ok || !s?.success || String(s.invoice_id) !== pay.ext_id || String(s.custom ?? '') !== pay.id) {
+    console.log('coinso status', r.status, JSON.stringify(s).slice(0, 300)); throw new Error('not confirmed');
+  }
+  const raw = { coinso: pay.raw?.coinso ?? null, status: s, ...(hook ? { webhook: hook } : {}) };
+  if (s.status === 'paid') {
+    if (s.test_mode) { await admin.rpc('pay_fail', { p_id: id, p_raw: { ...raw, test: true } }); return 'test'; } // тест — без денег
+    const got = +s.amount, want = +pay.amount;
+    const { error } = await admin.rpc('pay_credit', { p_id: id, p_ext: pay.ext_id, p_amount: got >= want ? want : got, p_raw: raw }); // меньше заказа — не зачислит (amount mismatch)
+    if (error) { console.log('coinso credit', id, error.message); throw new Error('credit'); }
+    return 'paid';
+  }
+  if (s.status === 'failed' || s.status === 'expired') { await admin.rpc('pay_fail', { p_id: id, p_raw: raw }); return s.status; } // поздняя оплата всё равно зачислится: pay_credit не смотрит на failed
+  return 'pending';
+}
+async function coinsoCheck(req: Request, admin: ReturnType<typeof createClient>) {
+  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const { data: u } = await admin.auth.getUser(token);
+  if (!u?.user) return json({ error: 'not authenticated' }, 401);
+  const b = await req.json().catch(() => ({})), id = String(b.id || '');
+  if (!uuidRe.test(id)) return json({ error: 'bad id' }, 400);
+  const { data: pay } = await admin.from('payments').select('uid').eq('id', id).maybeSingle();
+  if (!pay || pay.uid !== u.user.id) return json({ error: 'not found' }, 404);
+  try { return json({ status: await coinsoSettle(admin, id) }); } catch (_) { return json({ status: 'pending' }); }
+}
+async function coinsoHook(req: Request, admin: ReturnType<typeof createClient>) {
+  const raw = await req.text(), sig = (req.headers.get('x-signature') || '').trim().toLowerCase();
+  if (!sig || !safeEq(sig, await hmac('SHA-256', env('COINSO_SECRET'), raw))) return new Response('bad signature', { status: 403 });
+  let j: Record<string, unknown> = {};
+  try { j = JSON.parse(raw); } catch (_) { return new Response('bad json', { status: 400 }); }
+  const id = String(j.custom || '');
+  if (!uuidRe.test(id)) return json({ ok: true, skip: 'not ours' }); // оплата по ссылке-виджету без нашего заказа — не трогаем
+  try {
+    const st = await coinsoSettle(admin, id, j);
+    if (j.event === 'payment.success' && st === 'pending') return json({ error: 'not confirmed yet' }, 503); // Coinso ещё не показывает оплату — пусть повторит
+    return json({ ok: true, status: st });
+  } catch (_) { return json({ error: 'not confirmed yet' }, 503); }
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
@@ -455,8 +586,16 @@ Deno.serve(async (req) => {
     if (!rate && slOn()) { const { data } = await admin.from('site_cfg').select('v').eq('k', 'skins').maybeSingle(); rate = +(data?.v?.rate ?? 90) || 90; }
     const lim = env('PAY_PROVIDER') === 'brpay' ? await brLimits() : null; // сумма в окне — в пределах лимитов кассы
     const min = Math.max(PAY_MIN(), lim?.min ? Math.ceil(lim.min) : 0), max = lim?.max ? Math.min(1000000, Math.floor(lim.max)) : 1000000;
-    return json({ live: !!P, methods: METHODS, skins: smOn(), skinslink: slOn(), skinsRate: rate, min, max: max >= min ? max : 1000000 });
+    // крипта через Coinso — своя касса со своими лимитами и списком монет; включена — способ «crypto» есть всегда
+    const co = coOn() ? await coinsoInfo() : null, methods = P ? [...METHODS] : [];
+    if (co && !methods.includes('crypto')) methods.push('crypto');
+    const cryptoCfg = co ? { min: coMin(co), max: coMax(co), coins: co.coins } : null;
+    return json({ live: !!P || !!co, methods: methods.length ? methods : METHODS, skins: smOn(), skinslink: slOn(), skinsRate: rate, min, max: max >= min ? max : 1000000, crypto: cryptoCfg });
   }
+  // крипта (Coinso) работает независимо от основной кассы
+  if (action === 'coinso_create') return coOn() ? coinsoCreate(req, admin) : json({ error: 'crypto disabled' }, 503);
+  if (action === 'coinso_check') return coOn() ? coinsoCheck(req, admin) : json({ error: 'crypto disabled' }, 503);
+  if (action === 'coinso_hook') return coOn() ? coinsoHook(req, admin) : new Response('disabled', { status: 503 });
   // пополнение скинами работает независимо от основной кассы
   if (action === 'release') return release(admin);
   if (action === 'skins_create') return smOn() ? skinsCreate(req, admin) : json({ error: 'skins disabled' }, 503);

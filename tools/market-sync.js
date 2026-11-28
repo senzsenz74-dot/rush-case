@@ -2,17 +2,21 @@
    1) качает цены market.csgo (₽: минимальная цена лота и число лотов — prices/RUB.json) и русские названия (class_instance, кэш tools/.cache)
    2) цена на сайте = цена маркета × MUL (1.1: вывод покупается на маркете дешевле, чем стоит на сайте — владелец 18.11.2026).
       Нет на маркете или цена подозрительная (меньше 3 лотов и скачок больше чем в 2,5 раза) — остаётся старая цена (у игроков в инвентаре должна продаваться)
-   3) кейсы: позиция, у которой цена сдвинулась больше чем на SWAP (10%) или которой нет на маркете, меняется на предмет с новой ценой ≈ её старой цене
+   3) кейсы: позиция, у которой цена сдвинулась больше чем на SWAP (10%) или которой нет на маркете, или у которой меньше MIN_LOTS (10) лотов, меняется на предмет с новой ценой ≈ её старой цене
       (по порядку: тот же скин в другом износе → тот же скин StatTrak/обычный/сувенир → то же оружие той же редкости → то же оружие → та же категория и редкость;
       в кейсе одного оружия (AWP, AK-47…) — только то же оружие). Шанс позиции не меняется. Не нашлось замены — позиция остаётся, шансы подправит сайт (наклон в js/app.js)
       — встроенные кейсы (exact) и PITY_SETS — правятся прямо в js/app.js
       — кейсы из админки (таблица custom_cases) → supabase/market_swap.sql: вставить в Supabase SQL Editor и нажать Run
    4) отчёт о заменах — tools/.cache/market-swap.txt
-   После выкладки открыть #/admin на боевом сайте — admSync зальёт на сервер новые цены и кейсы. Lis-Skins (tools/lis-sync.js) больше не запускать — вернёт старые цены. */
+      — встроенные кейсы, у которых состав переписан в админке (site_cfg 'case:<id>'.items) — как кейсы из админки, с наклоном шансов
+   Каждую ночь запускается сам (робот .github/workflows/market-sync.yml, ключи --bot --max-swap): тогда вместо SQL пишется tools/.cache/market-db.json,
+   а на сервер всё отправляет tools/market-bot.js. Ручной запуск: после выкладки открыть #/admin на боевом сайте — admSync зальёт на сервер новые цены и кейсы,
+   SQL supabase/market_swap.sql — вставить и Run. Lis-Skins (tools/lis-sync.js) больше не запускать — вернёт старые цены. */
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..'), JS = path.join(ROOT, 'js'), CACHE = process.env.RC_CACHE || path.join(__dirname, '.cache');
-const DRY = process.argv.includes('--dry');
-const MUL = 1.1, SWAP = 0.10, MIN_LOTS = 3;
+const DRY = process.argv.includes('--dry'), BOT = process.argv.includes('--bot');
+const MAX_SWAP = +(process.argv[process.argv.indexOf('--max-swap') + 1] || 0) || Infinity; // защита робота: замен больше — ничего не меняем (сбой маркета?)
+const MUL = 1.1, SWAP = 0.10, MIN_LOTS = 10; // MIN_LOTS: в кейсах только предметы, которых на маркете от 10 лотов (владелец 28.11: редкие сувениры по 1–6 лотов давали завышенную цену)
 
 const SRC = {
   mkt: 'https://market.csgo.com/api/v2/prices/RUB.json',
@@ -34,6 +38,7 @@ const q1 = s => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`; // стр�
   const [mktT, ruT] = await Promise.all([get('mkt', 1), get('ru', 24 * 60)]); // названия меняются редко — кэш на 60 дней
   const mk = JSON.parse(mktT); if (!mk.success || !mk.items) throw new Error('market.csgo: пустой ответ');
   const MKT = new Map(mk.items.map(x => [x.market_hash_name, { p: +x.price, v: +x.volume || 0 }]));
+  if (MKT.size < 15000) throw new Error(`market.csgo: всего ${MKT.size} позиций (обычно 25 000+) — похоже на сбой, ничего не меняю`);
   const RU = new Map(); // русское название → market_hash_name
   for (const m of ruT.matchAll(/"market_hash_name":("(?:[^"\\]|\\.)*"),"ru_name":("(?:[^"\\]|\\.)*")/g)) {
     const e = JSON.parse(m[1]), r = JSON.parse(m[2]); if (/[а-яё]/i.test(r) && !RU.has(r)) RU.set(r, e);
@@ -100,7 +105,7 @@ const q1 = s => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`; // стр�
     return null;
   }
   const log = [], tot = { pos: 0, need: 0, swap: 0, keep: 0 };
-  const ev = (rows, key) => rows.reduce((a, r) => a + r.ch * CAT.get(r.name)[key], 0);
+  const ev = (rows, key) => { const s = rows.reduce((a, r) => a + r.ch, 0); return s > 0 ? rows.reduce((a, r) => a + r.ch * CAT.get(r.name)[key], 0) / s : 0; }; // шансы в таблице не всегда в сумме 1 — нормируем, как сайт
   // rows: [{name, ch, put(newItem), setCh?(шанс)}]; tilt — у кейса нет своего пересчёта (кейсы из админки): шансы наклоняем (шанс × p^t), чтобы окупаемость осталась прежней
   function swapGroup(label, price, rows, tilt = false, sub = '') {
     const used = new Set(rows.map(r => r.name)), usedEn = new Set(rows.map(r => CAT.get(r.name).en).filter(Boolean)), before = ev(rows, 'p');
@@ -113,10 +118,10 @@ const q1 = s => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`; // стр�
     for (const r of rows) {
       const x = CAT.get(r.name); tot.pos++;
       const k = x.np / x.p - 1;
-      if (x.ok && Math.abs(k) <= SWAP) continue;
+      if (x.ok && Math.abs(k) <= SWAP && x.vol >= MIN_LOTS) continue; // меньше MIN_LOTS лотов — тоже меняем
       tot.need++;
       const fc = face(x), y = pick(x, used, usedEn, lockW && wk(x) === lockW, fc);
-      const was = `${x.name}  ${x.p} → ${x.ok ? x.np : 'нет на маркете'}${x.ok ? ` (${k > 0 ? '+' : ''}${(k * 100).toFixed(0)}%)` : ''}`;
+      const was = `${x.name}  ${x.p} → ${x.ok ? x.np : 'нет на маркете'}${x.ok ? ` (${k > 0 ? '+' : ''}${(k * 100).toFixed(0)}%, лотов ${x.vol})` : ''}`;
       if (!y) { tot.keep++; out.push(`  оставлен${fc ? ' (джекпот/витрина)' : ''}  ${was}`); continue; }
       tot.swap++; used.add(y.name); if (y.en) usedEn.add(y.en); r.put(y); r.name = y.name;
       out.push(`  ${was}\n      ⇒ ${y.name}  ${y.np} ₽`);
@@ -144,11 +149,9 @@ const q1 = s => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`; // стр�
   const cs = app.indexOf('const CASES = ['), ce = app.indexOf('\n];', cs);
   const ENTRY = /\[\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\s*,\s*('[A-Z]{2}'|null)\s*,\s*([-+0-9.eE]+)\s*(,\s*'[a-z]+'\s*)?\]/g;
   const resolve = (b, q) => { const v = (VAR.get(b) || []).map(n => CAT.get(n)); return v.find(x => x.q === q) || v.sort((x, y) => x.p - y.p)[0] || CAT.get(b); };
-  let nExact = 0;
-  for (let at = app.indexOf('exact: [', cs); at > 0 && at < ce; at = app.indexOf('exact: [', at + 1)) {
-    const head = app.lastIndexOf("id: '", at), id = app.slice(head + 5, app.indexOf("'", head + 5));
-    const hl = app.slice(head, app.indexOf('\n', head)), price = +(hl.match(/price: ([\d.]+)/) || [])[1] || 0;
-    let d = 0, j = at + 7; for (; j < ce; j++) { if (app[j] === '[') d++; else if (app[j] === ']') { d--; if (!d) break; } }
+  // список exact: [['Скин', 'FT', шанс, 'редкость'?], ...] с позиции at (не дальше lim) → строки для swapGroup
+  function exactRows(at, lim, id) {
+    let d = 0, j = at + 7; for (; j < lim; j++) { if (app[j] === '[') d++; else if (app[j] === ']') { d--; if (!d) break; } }
     const s0 = at + 7, block = app.slice(s0, j + 1), rows = [];
     for (const m of block.matchAll(ENTRY)) {
       const b = eval(m[1]), q = m[2] === 'null' ? null : m[2].slice(1, 3), it = resolve(b, q);
@@ -156,14 +159,22 @@ const q1 = s => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`; // стр�
       const st0 = s0 + m.index, len = m[0].length;
       rows.push({ name: it.name, ch: +m[3], put: y => edits.push([st0, st0 + len, `[${q1(y.base)}, ${y.q ? `'${y.q}'` : 'null'}, ${m[3]}${m[4] ? m[4].replace(/\s+$/, '') : ''}]`]) });
     }
-    const sm = app.slice(head, at).match(/sub: ('(?:[^'\\]|\\.)*')/);
+    return rows;
+  }
+  let nExact = 0;
+  for (let at = app.indexOf('exact: [', cs); at > 0 && at < ce; at = app.indexOf('exact: [', at + 1)) {
+    const head = app.lastIndexOf("id: '", at), id = app.slice(head + 5, app.indexOf("'", head + 5));
+    const hl = app.slice(head, app.indexOf('\n', head)), price = +(hl.match(/price: ([\d.]+)/) || [])[1] || 0;
+    const rows = exactRows(at, ce, id), sm = app.slice(head, at).match(/sub: ('(?:[^'\\]|\\.)*')/);
     nExact++; swapGroup(`кейс ${id}`, price, rows, false, sm ? eval(sm[1]) : '');
   }
-  // PITY_SETS (кейсы из админки с составом из кода): полные названия
+  // PITY_SETS (кейсы из админки с составом из кода): новый формат exact: [...] — как у встроенных, старый (lose/win/cov/rare) — полные названия
   const ps = app.indexOf('const PITY_SETS = {'), pe = app.indexOf('\n};', ps);
   const pblock = app.slice(ps, pe), sets = [...pblock.matchAll(/\n  ([\w$]+): \{/g)];
   sets.forEach((m, i) => {
-    const a = m.index, b = i + 1 < sets.length ? sets[i + 1].index : pblock.length, rows = [];
+    const a = m.index, b = i + 1 < sets.length ? sets[i + 1].index : pblock.length, ex = pblock.slice(a, b).indexOf('exact: [');
+    if (ex >= 0) return swapGroup(`PITY_SETS ${m[1]}`, +(custom.find(c => c.id === m[1]) || {}).price || 0, exactRows(ps + a + ex, ps + b, m[1]), false, subOf(m[1]));
+    const rows = [];
     for (const s of pblock.slice(a, b).matchAll(/'(?:[^'\\]|\\.)*'/g)) {
       const n = eval(s[0]); if (!CAT.has(n)) continue;
       const st0 = ps + a + s.index, len = s[0].length;
@@ -172,20 +183,37 @@ const q1 = s => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`; // стр�
     swapGroup(`PITY_SETS ${m[1]}`, 0, rows, false, subOf(m[1]));
   });
   // кейсы из админки (custom_cases)
-  const sql = [];
+  const sql = [], customOut = [];
   for (const c of custom) {
     const rows = [];
     (c.items || []).forEach(it => { if (CAT.has(it.n)) rows.push({ name: it.n, ch: +it.ch, put: y => { it.n = y.name; }, setCh: v => { it.ch = v; } }); });
     const was = JSON.stringify(c.items); swapGroup(`админка ${c.id} «${c.name}»`, +c.price, rows, true, c.sub || '');
-    if (JSON.stringify(c.items) !== was) sql.push(`update public.custom_cases set items = $j$${JSON.stringify(c.items)}$j$::jsonb where id = ${q1(c.id)};`);
+    if (JSON.stringify(c.items) !== was) customOut.push({ id: c.id, items: c.items }), sql.push(`update public.custom_cases set items = $j$${JSON.stringify(c.items)}$j$::jsonb where id = ${q1(c.id)};`);
   }
-  console.log(`кейсов: встроенных ${nExact}, PITY_SETS ${sets.length}, из админки ${custom.length}`);
+  // встроенные кейсы с составом из админки (site_cfg 'case:<id>'.items перекрывает exact из кода)
+  const cfr = await fetch(`${SB_URL}/rest/v1/site_cfg?select=k,v&k=like.case:*`, { headers: { apikey: SB_KEY } });
+  if (!cfr.ok) throw new Error('site_cfg → ' + cfr.status);
+  const cfgOut = [];
+  for (const r of await cfr.json()) {
+    const v = r.v || {}; if (!Array.isArray(v.items)) continue;
+    const id = r.k.slice(5), at = app.indexOf(`id: '${id}'`, cs), hl = at > 0 && at < ce ? app.slice(at, app.indexOf('\n', at)) : '';
+    const sm = hl && app.slice(at, app.indexOf("id: '", at + 5)).match(/sub: ('(?:[^'\\]|\\.)*')/);
+    const price = +v.price > 0 ? +v.price : +(hl.match(/price: ([\d.]+)/) || [])[1] || 0, sub = v.sub != null ? v.sub : sm ? eval(sm[1]) : '';
+    const rows = [], was = JSON.stringify(v.items);
+    v.items.forEach(it => { if (CAT.has(it.n)) rows.push({ name: it.n, ch: +it.ch, put: y => { it.n = y.name; }, setCh: c => { it.ch = c; } }); });
+    swapGroup(`состав из админки ${r.k}`, price, rows, true, sub);
+    if (JSON.stringify(v.items) !== was) { cfgOut.push({ k: r.k, items: v.items }); sql.push(`update public.site_cfg set v = jsonb_set(v, '{items}', $j$${JSON.stringify(v.items)}$j$::jsonb) where k = ${q1(r.k)};`); }
+  }
+  console.log(`кейсов: встроенных ${nExact}, PITY_SETS ${sets.length}, из админки ${custom.length}, встроенных с составом из админки ${cfgOut.length}`);
   console.log(`позиций ${tot.pos}: поплыли ${tot.need} → заменено ${tot.swap}, без замены оставлено ${tot.keep}`);
 
   const day = new Date().toISOString().slice(0, 10);
   fs.mkdirSync(CACHE, { recursive: true });
   fs.writeFileSync(path.join(CACHE, 'market-swap.txt'), `Замены ${day} (цены market.csgo × ${MUL}, порог ${SWAP * 100}%)\n\n` + log.join('\n\n') + '\n');
   console.log('отчёт:', path.join(CACHE, 'market-swap.txt'));
+  fs.writeFileSync(path.join(CACHE, 'market-vol.json'), JSON.stringify(Object.fromEntries([...CAT.values()].map(x => [x.name, x.ok ? x.vol : -1])))); // число лотов (-1 — нет на маркете) — для проверок
+  fs.writeFileSync(path.join(CACHE, 'market-stat.json'), JSON.stringify({ day, prices: st, ...tot, custom: customOut.length, cfg: cfgOut.length }));
+  if (tot.swap > MAX_SWAP) { console.error(`замен ${tot.swap} — больше предела ${MAX_SWAP}: ничего не меняю (проверьте отчёт; разово можно поднять предел)`); process.exit(2); }
   if (DRY) return console.log('--dry: файлы не менялись');
 
   // запись: цены
@@ -194,17 +222,22 @@ const q1 = s => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`; // стр�
   const src = `market.csgo × ${MUL}, ₽ на ${day}, tools/market-sync.js`;
   fs.writeFileSync(path.join(JS, 'skins.js'), `/* Каталог скинов: r — редкость, p — цена ₽ (${src}), i — хэш картинки Steam CDN */\nwindow.SKINS = {` +
     Object.entries(SKINS).map(([k, v]) => JSON.stringify(k) + ':' + JSON.stringify(v)).join(',\n') + '};\n');
-  fs.writeFileSync(path.join(JS, 'wears.js'), `/* Цены скинов каталога по износу (${src}): FN — прямо с завода, MW — немного поношенное, FT — после полевых, WW — поношенное, BS — закалённое в боях */\nwindow.WEARS = ${JSON.stringify(WEARS)};\n`);
+  // LOWLOT — меньше 10 лотов: авто-кейсы их не берут (js/app.js buildSet). Здесь остаются только те, у кого лотов всё ещё мало; новых добавит tools/market-bot.js
+  const LOW = (window.LOWLOT || []).filter(n => { const x = CAT.get(n); return !x || !x.ok || x.vol < MIN_LOTS; });
+  fs.writeFileSync(path.join(JS, 'wears.js'), `/* Цены скинов каталога по износу (${src}): FN — прямо с завода, MW — немного поношенное, FT — после полевых, WW — поношенное, BS — закалённое в боях.\n   LOWLOT — меньше 10 лотов на маркете: кейсы, что набирают состав сами, их не берут */\nwindow.WEARS = ${JSON.stringify(WEARS)};\nwindow.LOWLOT = ${JSON.stringify(LOW)};\n`);
   fs.writeFileSync(path.join(JS, 'extra.js'), `/* Доп. предметы (${src}): [название, редкость, цена ₽ или {износ: цена}, хэш картинки Steam, категория] */\nwindow.EXTRA = ${JSON.stringify(EXTRA)};\n`);
   // запись: составы кейсов в js/app.js (с конца, чтобы смещения не съехали)
   edits.sort((a, b) => b[0] - a[0]).forEach(([a, b, t]) => { app = app.slice(0, a) + t + app.slice(b); });
   fs.writeFileSync(path.join(JS, 'app.js'), app);
-  // запись: SQL для кейсов из админки
-  fs.writeFileSync(path.join(ROOT, 'supabase', 'market_swap.sql'),
+  // запись: кейсы из админки — роботу файл для tools/market-bot.js, вручную — SQL
+  if (BOT) fs.writeFileSync(path.join(CACHE, 'market-db.json'), JSON.stringify({ custom: customOut, cfg: cfgOut }));
+  else fs.writeFileSync(path.join(ROOT, 'supabase', 'market_swap.sql'),
     `-- Кейсы из админки: замена скинов, у которых цена сдвинулась больше чем на ${SWAP * 100}% после перехода на цены market.csgo × ${MUL} (tools/market-sync.js, ${day}).\n` +
     `-- Шансы позиций прежние; где окупаемость всё же сдвинулась (замены не нашлось) — шансы чуть наклонены, чтобы она осталась как была.\n` +
     `-- Вставить в Supabase → SQL Editor → Run. Сначала сохраняется копия старых составов (откат: update custom_cases c set items = b.items from <копия> b where b.id = c.id).\n` +
     (sql.length ? `create table if not exists public.custom_cases_bak_${day.replace(/-/g, '')} as select id, items, now() as saved_at from public.custom_cases;\n` +
-      `alter table public.custom_cases_bak_${day.replace(/-/g, '')} enable row level security;\n` + sql.join('\n') : '-- замен нет') + '\n');
-  console.log(`записано: skins.js, wears.js, extra.js, app.js (${edits.length} замен), supabase/market_swap.sql (${sql.length} кейсов)`);
+      `alter table public.custom_cases_bak_${day.replace(/-/g, '')} enable row level security;\n` +
+      `create table if not exists public.site_cfg_bak_${day.replace(/-/g, '')} as select k, v, now() as saved_at from public.site_cfg where k like 'case:%';\n` +
+      `alter table public.site_cfg_bak_${day.replace(/-/g, '')} enable row level security;\n` + sql.join('\n') : '-- замен нет') + '\n');
+  console.log(`записано: skins.js, wears.js, extra.js, app.js (${edits.length} замен), ${BOT ? 'tools/.cache/market-db.json' : 'supabase/market_swap.sql'} (${sql.length} кейсов)`);
 })().catch(e => { console.error(e); process.exit(1); });
