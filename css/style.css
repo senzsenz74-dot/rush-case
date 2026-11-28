@@ -5476,13 +5476,9 @@ body.pg-cases::after{background:radial-gradient(120% 85% at 50% 0%,rgba(6,8,12,.
 /* «Авторские»: метка риска справа внизу картинки и полоска того же цвета */
 .ix-rk .ix-img::after{content:"";position:absolute;left:0;right:0;bottom:0;z-index:4;height:3px;background:var(--rk)}
 .ix-risk{position:absolute;right:0;bottom:0;z-index:5;padding:4px 8px 3px;background:var(--rk);color:#fff;font:500 13px/1 'Oswald',var(--ff);font-style:normal;letter-spacing:.04em;text-transform:uppercase;cursor:help}
-/* наведение: обводка, свечение цвета кейса снизу, блик за курсором и одна пробежка света, кейс чуть ближе */
-.ix:hover .ix-c{transition:transform .14s ease-out,box-shadow .3s;box-shadow:0 0 0 1px rgba(255,255,255,.55),0 2px 4px rgba(0,0,0,.45),0 16px 30px -8px rgba(0,0,0,.6),0 10px 32px -12px color-mix(in srgb,var(--ca,#fff) 70%,transparent)}
-.ix:hover .ix-img::before{opacity:1}
-.ix:hover .ix-fx{opacity:1}
-.ix:hover .ix-fx::before{animation:ixSweep .9s cubic-bezier(.3,.7,.3,1) .05s}
-@keyframes ixSweep{to{left:130%}}
-.ix:hover .case-art.has-img .ca-img{transform:translate(calc(-50% + var(--px,0px)),calc(-52% + var(--py,0px))) scale(1.07);filter:drop-shadow(0 14px 14px rgba(0,0,0,.5)) drop-shadow(0 0 14px color-mix(in srgb,var(--ca,#fff) 40%,transparent))}
+/* наведение (28.11, владелец: «убери подсветку карточки кейсов»): без обводки, свечения и блика — только кейс чуть ближе */
+.ix:hover .ix-c{transition:transform .14s ease-out}
+.ix:hover .case-art.has-img .ca-img{transform:translate(calc(-50% + var(--px,0px)),calc(-52% + var(--py,0px))) scale(1.07);filter:drop-shadow(0 14px 14px rgba(0,0,0,.5))}
 .ix:focus-visible .ix-c{box-shadow:0 0 0 2px #84d9fd,0 8px 18px rgba(0,0,0,.3)}
 .ix:active .ix-c{transform:perspective(1000px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) scale(.98)}
 .ix-closed .case-art{filter:grayscale(.9) brightness(.65)}
