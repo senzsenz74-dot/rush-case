@@ -16,6 +16,7 @@
   2) поднять `?v=` у css/js в index.html: `sed -i -E "s#(\.(css|js))\?v=[0-9]+#\1?v=$(date +%Y%m%d%H%M)#g" index.html`;
   3) запись в `ЖУРНАЛ.md` (новая сверху, раздел по дате); 4) commit + push в `main` = выкладка (GitHub Actions → FTP на Beget, 1–9 мин);
   5) если менялись кейсы — открыть `#/admin` под админом (admSync зальёт кейсы на сервер).
+- **Цены — ночной робот (с 28.11):** `.github/workflows/market-sync.yml` каждую ночь в 4:30 МСК сам меняет цены и составы кейсов (js/skins.js, wears.js, extra.js, app.js, index.html), коммитит в `main` и обновляет сервер Supabase — **перед своим push делать `git pull --rebase`**. Вручную tools/market-sync.js не запускать; итог прогона — GitHub → Actions → «Ночная проверка цен» → Summary. Как устроено — шапки tools/market-sync.js, tools/market-bot.js, supabase/market_bot.sql.
 - Секреты в чат не присылать. Проверка с компьютера владельца: `curl --noproxy '*' ...` (в системе прокси 127.0.0.1:10809).
 - **Защита CSP (с 25.11, index.html):** встроенные <script> и onclick="…" в разметке запрещены — код только в файлах js/, обработчики через .onclick в JS. Новый внешний скрипт/сервис — дописать его адрес в meta Content-Security-Policy; поменяли importmap — node tools/csp-hash.js. #/admin и #/staff чужим показывают 404 (doorGate в js/app.js); тайное слово входа — только в D:КейсыБЕЗОПАСНОСТЬ_ЛОКАЛЬНО.md.
 

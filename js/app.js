@@ -761,6 +761,8 @@ const RAR = {
 const WEAR = { FN: ['Прямо с завода', 'Factory New'], MW: ['Немного поношенное', 'Minimal Wear'], FT: ['После полевых испытаний', 'Field-Tested'], WW: ['Поношенное', 'Well-Worn'], BS: ['Закалённое в боях', 'Battle-Scarred'] };
 const WEAR_MAIN = ['FT', 'MW', 'WW', 'FN', 'BS']; // какой износ стоит за названием без износа (старые предметы в инвентаре, списки кейсов)
 const SK = {}, ITEMS = [], VARIANTS = {};
+// предметы, которых на market.csgo меньше 10 лотов: кейсы, что набирают состав сами (buildSet), их не берут; список ведёт ночной робот цен (js/wears.js, tools/market-bot.js)
+const LOWLOT = new Set(window.LOWLOT || []);
 const addItem = s => { SK[s.name] = s; ITEMS.push(s); };
 function addWears(base, wears, en) {
   const qs = Object.keys(WEAR).filter(q => wears[q]);
@@ -2028,6 +2030,7 @@ function pitySetApply(c, S) {
   const BIG_MASS = .01; // крупный дроп ≈ 1 из 100 открытий
   const baseOf = s => s.base || s.name, dist = (s, t) => Math.abs(Math.log(s.p / t));
   function buildSet(c, pool, xs, used = new Set(), min = 0) {
+    pool = pool.filter(s => !LOWLOT.has(s.name)); // меньше 10 лотов на маркете — не берём
     const out = [];
     const near = (arr, t) => arr.reduce((b, s) => used.has(baseOf(s)) ? b : !b || dist(s, t) < dist(b, t) ? s : b, null);
     for (const x of xs) {
@@ -8537,15 +8540,36 @@ const admOwner = () => !admMe || admMe.role === 'owner';
 const admCan = k => admOwner() || admMe.perms.includes(k); // галочка сотрудника (supabase/staff_perms.sql)
 const admTabs = () => admOwner() ? ADM_TABS : ADM_TABS.filter(([k]) => admMe.perms.includes(k));
 /* каталог цен и составы встроенных кейсов → на сервер (выпадение считает сервер по этим данным); грузим, если на сайте что-то поменялось */
-async function admSync(force) {
-  // локальная копия (localhost) работает с боевой базой: состав кейсов отсюда на сервер не уходит — только с боевого сайта после выкладки
-  if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
+// что уходит на сервер: каталог [имя, цена, категория], кейсы с шансами и версия (хэш); тем же считает ночной робот цен (tools/market-bot.js)
+function admSyncData() {
   const cat = Object.keys(SK).map(k => [k, Math.round(SK[k].p * 100) / 100, SK[k].c || 'skin']).filter(x => x[1] > 0);
   // srvSync — кейс из админки с составом из кода (PITY_SETS): уходит в cases_srv, сервер берёт его раньше custom_cases
   const cases = CASES.filter(c => !c.custom || c.srvSync).map(c => ({ id: c.id, price: c.price, rc: !!c.rc, rate: c.rc ? 0 : RCOIN_RATE(c), maxn: c.farm ? c.farm.maxN : 7, sell_below: c.farm ? c.farm.sellBelow : null, items: c.items.map(x => ({ n: x.name, ch: x.ch0 != null ? x.ch0 : x.ch, ...(c.pity && (x.r === 'covert' || x.r === 'rare') ? { g: x.r } : {}) })) })); // g — группа для гаранта (supabase/cs2_pity.sql)
   const str = JSON.stringify(cases) + cat.length + cat.reduce((a, x) => a + x[1], 0).toFixed(2);
   let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
   const ver = (h >>> 0).toString(36);
+  return { cat, cases, ver };
+}
+// ночной робот цен (tools/market-bot.js) открывает локальную копию сайта с ?bot=1 и берёт отсюда то же, что ушло бы на сервер;
+// db — новые составы кейсов из админки, которых на сервере ещё нет (custom_cases и правки site_cfg 'case:<id>'), rtp — окупаемость всех кейсов для отчёта
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]bot=1/.test(location.search)) window.rcBot = {
+  // встроенные кейсы, что набирают состав сами (buildSet): предметы и джекпоты (их робот не трогает — решение владельца 28.11)
+  gen: () => CASES.filter(c => !c.exact && !c.custom && !c.itemsOv).map(c => ({ id: c.id, items: c.items.map(s => s.name || s), keep: [...(c.rare || []), ...(c.ultra || []), ...(c.bonusSet ? Object.keys(c.fix || {}) : [])] })),
+  ready: () => customCaseRows.length > 0 && CASES.length > 20 && CASES.every(c => c.luck != null),
+  data: db => {
+    for (const x of db.cfg) { const id = x.k.slice(5), c = CASES.find(c => c.id === id && !c.custom); if (!c) continue; caseCfg[id] = { ...(caseCfg[id] || {}), items: x.items }; const L = c.luck; applyCaseCfg(c); applyLuck(c, L || 1); }
+    for (const x of db.custom) { const r = customCaseRows.find(r => r.id === x.id), o = CASES.find(c => c.id === x.id); if (!r) continue; r.items = x.items; const L = o && o.luck, c = addCustomCase(r); if (c) applyLuck(c, L || 1); }
+    const d = admSyncData();
+    // окупаемость: шанс × цена (у кейса с гарантом — вместе с гарантом); rtp — с удачей из админки, rtp0 — без неё
+    const E = (c, k) => { const ch = c.items.map(s => k && s.ch0 != null ? s.ch0 : s.ch || 0), ps = c.items.map(s => s.p || 0); return (c.pity ? pityEv(ch, ps, c.items.map(s => s.r)) : ch.reduce((a, x, i) => a + x * ps[i], 0)) / c.price; };
+    d.rtp = Object.fromEntries(CASES.filter(c => c.price > 0 && c.items && c.items.length).map(c => [c.id, { name: String(c.name || c.id), price: c.price, luck: c.luck || 1, exact: !!c.exact, pity: !!c.pity, rtp: E(c, 0), rtp0: E(c, 1) }]));
+    return JSON.stringify(d);
+  },
+};
+async function admSync(force) {
+  // локальная копия (localhost) работает с боевой базой: состав кейсов отсюда на сервер не уходит — только с боевого сайта после выкладки
+  if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
+  const { cat, cases, ver } = admSyncData();
   // названия кейсов — для ночного отчёта в Telegram (supabase/fin_tg.sql): встроенные кейсы есть только здесь, в коде
   const cn = Object.fromEntries(CASES.filter(c => c.id && c.name).map(c => [c.id, String(c.name).slice(0, 60)])), cnS = JSON.stringify(cn);
   if (localStorage.getItem('rc_case_names') !== cnS) sb.rpc('admin_case_names', { p: cn }).then(({ error }) => { if (!error) localStorage.setItem('rc_case_names', cnS); }, () => {});

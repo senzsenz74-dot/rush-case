@@ -1,0 +1,92 @@
+# Ночная проверка цен (владелец 28.11.2026): каждую ночь в 4:30 МСК
+#   цены market.csgo × 1.1 → каталог сайта; в кейсах только предметы от 10 лотов, поплывшие (больше 10%) и редкие заменяются похожими;
+#   шансы — под прежнюю окупаемость; выкладка сайта (push в main) и обновление сервера Supabase без входа в #/admin.
+# Как устроено — tools/market-sync.js (цены и замены) и tools/market-bot.js (шансы как на сайте, отчёт, отправка на сервер).
+# Секрет RC_BOT_KEY (Settings → Secrets and variables → Actions); его отпечаток — в Supabase (supabase/market_bot.sql).
+# Ручной запуск: Actions → «Ночная проверка цен» → Run workflow. Галочка «Только отчёт» — всё посчитать и показать, ничего не менять.
+# Итог каждого прогона — на странице прогона (Summary) и в файле market-report (список замен).
+name: Ночная проверка цен
+on:
+  schedule:
+    - cron: '30 1 * * *' # 01:30 UTC = 04:30 МСК
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: 'Только отчёт, ничего не менять'
+        type: boolean
+        default: true
+      max_swap:
+        description: 'Предел замен за прогон (больше — ничего не меняем: похоже на сбой маркета)'
+        default: '300'
+permissions:
+  contents: write
+  pages: write
+concurrency: market-sync
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry }}
+      MAX_SWAP: ${{ inputs.max_swap || '300' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Кэш русских названий market.csgo (большой файл, меняется редко)
+        uses: actions/cache@v4
+        with:
+          path: tools/.cache/ru.json
+          key: mkt-ru-${{ github.run_id }}
+          restore-keys: mkt-ru-
+      - name: Как сейчас (шансы и окупаемость до обновления)
+        run: node tools/market-bot.js calc tools/.cache/before.json
+      - name: Цены market.csgo и замены в кейсах
+        run: node tools/market-sync.js --bot --max-swap "$MAX_SWAP"
+      - name: Шансы, как их посчитает сайт (и редкие предметы для авто-кейсов)
+        run: node tools/market-bot.js calc tools/.cache/after.json tools/.cache/market-db.json tools/.cache/market-vol.json
+      - name: Отчёт
+        run: node tools/market-bot.js report tools/.cache/before.json tools/.cache/after.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Список замен (файл market-report)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-report
+          retention-days: 30
+          if-no-files-found: ignore
+          path: |
+            tools/.cache/market-swap.txt
+            tools/.cache/market-stat.json
+            tools/.cache/market-db.json
+      - name: Выкладка сайта (commit + push в main)
+        id: push
+        if: env.DRY != 'true'
+        run: |
+          if git diff --quiet -- js; then echo "Цены и составы не изменились"; echo "changed=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          V=$(TZ=Europe/Moscow date +%Y%m%d%H%M)
+          sed -i -E "s#(\.(css|js))\?v=[0-9]+#\1?v=$V#g" index.html
+          MSG=$(node -e "const s=require('./tools/.cache/market-stat.json');console.log('Ночная проверка цен (робот): цены market.csgo × 1.1, в кейсах заменено '+s.swap+' из '+s.need+', кейсов из админки '+s.custom+', правок составов '+s.cfg+'; версия файлов')")
+          git config user.name "rush-case-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/skins.js js/wears.js js/extra.js js/app.js index.html
+          git commit -q -m "$MSG"
+          git push origin HEAD:main
+          echo "v=$V" >> "$GITHUB_OUTPUT"; echo "changed=1" >> "$GITHUB_OUTPUT"
+      - name: Ждём, пока сайт обновится (GitHub Pages)
+        if: env.DRY != 'true' && steps.push.outputs.changed == '1'
+        continue-on-error: true
+        run: |
+          curl -s -o /dev/null -X POST -H "Authorization: Bearer ${{ github.token }}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/pages/builds" || true
+          for i in $(seq 1 60); do
+            if curl -s "https://rush-case.online/?t=$(date +%s)" | grep -q "v=${{ steps.push.outputs.v }}"; then echo "сайт обновлён"; exit 0; fi
+            sleep 20
+          done
+          echo "сайт не обновился за 20 минут — сервер всё равно обновляем"; exit 1
+      - name: Сервер Supabase (каталог, кейсы, составы из админки) и проверка
+        if: env.DRY != 'true'
+        env:
+          RC_BOT_KEY: ${{ secrets.RC_BOT_KEY }}
+        run: |
+          node tools/market-bot.js send tools/.cache/after.json tools/.cache/market-db.json
+          node tools/market-bot.js check tools/.cache/after.json tools/.cache/market-db.json
