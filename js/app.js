@@ -2223,7 +2223,7 @@ function sbApply(d) {
   const el = $('#rcoin'); if (el) el.textContent = rc(st.rcoin || 0);
 }
 const SRV_ERR = { 'weekly locked': 'Сначала откройте 20 кейсов от 50 ₽ за неделю', 'weekly taken': 'Награда этой недели уже получена', 'weekly item': 'Набор обновился — откройте его заново', 'weekly empty': 'Набор сейчас недоступен', 'bad name': 'Название — от 2 до 24 символов', 'build price changed': 'Цены скинов обновились — обновите страницу', 'too many cases': 'В инвентаре уже 50 неоткрытых кейсов — откройте их', 'case not found': 'Этот кейс уже открыт', 'bad build': 'В кейсе должно быть от 4 до 20 скинов', 'amount mismatch': 'Сумма оплаты не совпала — напишите в поддержку', 'steam required': 'Нужен вход через Steam', 'already in team': 'Вы уже состоите в команде', 'bad name': 'Название — от 2 до 24 символов', 'bad tag': 'Тег — 2–5 букв или цифр', 'name taken': 'Такое название уже занято', 'not captain': 'Это может сделать только капитан', 'no team': 'Вы не состоите в команде', 'bad invite': 'Приглашение недействительно', 'team full': 'В команде уже 10 игроков', 'team busy': 'Команда играет турнир — состав сейчас менять нельзя', 'captain cannot leave': 'Капитан не может выйти — передайте капитанство или расформируйте команду', 'bad player': 'Игрок не найден в команде', 'registration closed': 'Регистрация закрыта', 'bad roster': 'Проверьте состав: только игроки вашей команды, без повторов', 'too many subs': 'Слишком много замен', 'tournament full': 'Все места на турнире заняты', 'not enough balance': 'Недостаточно средств', 'bad mults': 'Множитель — от x1,2 до x20', 'payments disabled': 'Онлайн-оплата пока недоступна — пополнение через поддержку', 'not enough rcoin': 'Не хватает R-COIN', 'case closed': 'Кейс временно закрыт', 'case not found': 'Кейс недоступен', 'bad build': 'В кейсе должно быть от 3 до 20 скинов', 'build price changed': 'Цены обновились — проверьте цену кейса и откройте ещё раз', 'case not synced': 'Кейс ещё не загружен на сервер — администратору нужно открыть админ-панель',
-  'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку', 'withdraw limit': 'Лимит выводов на сегодня исчерпан — попробуйте завтра',
+  'items unavailable': 'Часть предметов уже недоступна — обновите страницу', 'target too cheap': 'Цель должна быть дороже ставки минимум в 1,7 раза', 'bad target': 'Этот предмет нельзя выбрать', 'no trade link': 'Сначала укажите трейд-ссылку', 'withdraw limit': 'Лимит выводов на сегодня исчерпан — попробуйте завтра',
   'too early': 'Ежедневный бонус ещё не доступен', 'promo not found': 'Промокод не найден', 'promo used': 'Этот промокод уже активирован', 'already claimed': 'Бонус уже получен', 'bad trade link': 'Неверная трейд-ссылка', 'bad email': 'Проверьте адрес почты',
   'not authenticated': 'Войдите в аккаунт', 'closed': 'Ставки уже закрыты — ждите следующий раунд', 'full': 'Лобби заполнено', 'item unavailable': 'Предмет недоступен' };
 // вызов серверной функции: при ошибке — понятное сообщение и null
@@ -6130,7 +6130,8 @@ const upgItems = () => upg.sel.map(id => st.inv.find(x => x.id === id && x.st ==
 function upgValue() { return upgItems().reduce((a, x) => a + SK[x.n].p, 0) + upg.bal; }
 // шанс апгрейда: возврат × (ставка / цель) — upgRtp ниже; дальше резко падает (x50 ≈ 0,12%, x100 ≈ 0,007%, x500 ≈ 0,00001%) — x500/x1000 практически не выпадают
 const UPG_SOFT = 20;
-const UPG_MAX = .75; // максимальный шанс апгрейда (как на сервере)
+const UPG_MAX = .70; // максимальный шанс апгрейда (как на сервере; владелец 29.11 — 70% вместо 75%)
+const UPG_MIN_X = 1.7; // минимальный множитель: цель — от ×1,7 ставки (владелец 29.11, было ×1,05; сервер — supabase/upg_min17.sql)
 // окупаемость апгрейда: одно число на всех множителях, по умолчанию 80%; владелец 28.11 — правится в админке (вкладка «Апгрейд», 30–98%).
 // Хранится в site_cfg 'upg'.rtp, читает loadCaseCfg; сервер — то же число (supabase/upg_rtp_admin.sql, _upg_rtp). Выше ×UPG_SOFT шанс дополнительно режется.
 const UPG = { rtp: .8 };
@@ -6146,9 +6147,9 @@ function arcPath(span) {
   return `M${x1.toFixed(2)} ${y1.toFixed(2)}A${ARC_R} ${ARC_R} 0 ${span > 180 ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
 const chanceColor = ch => `hsl(${Math.round(clamp(ch / UPG_MAX, 0, 1) * 120)} 85% 60%)`;
-/* кнопки множителей: стандартные или свои (6 штук, x1.2–x20) — свои хранятся в профиле (save_umults) */
+/* кнопки множителей: стандартные или свои (6 штук, x1.7–x20) — свои хранятся в профиле (save_umults) */
 const UPG_DEF_MULTS = [2, 2.5, 3, 5, 7, 10]; // x1.5 убран (владелец 25.11), вместо него x7 — кнопок по-прежнему 6 (свои наборы на сервере — ровно 6)
-const upgMults = () => Array.isArray(st.umults) && st.umults.length === 6 ? st.umults.map(Number) : UPG_DEF_MULTS;
+const upgMults = () => Array.isArray(st.umults) && st.umults.length === 6 && st.umults.every(m => +m >= UPG_MIN_X) ? st.umults.map(Number) : UPG_DEF_MULTS; // старые свои наборы с x1.2–1.6 — стандартные
 const multTxt = m => 'x' + String(+(+m).toFixed(1)).replace('.', ',');
 const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c; };
 /* апгрейд — новый стиль CS2 (12.11): деления колеса — короткие каждые 5°, длинные каждые 30° */
@@ -6271,8 +6272,8 @@ function drawMults() {
     return;
   }
   box.classList.add('editing');
-  box.innerHTML = `<div class="me-h">Свои множители <small>от x1,2 до x20</small></div>
-    <div class="me-row">${ms.map((m, i) => `<label class="me-in"><i>x</i><input type="number" min="1.2" max="20" step="0.1" value="${+(+m).toFixed(1)}" data-i="${i}" inputmode="decimal" aria-label="Множитель ${i + 1}"></label>`).join('')}</div>
+  box.innerHTML = `<div class="me-h">Свои множители <small>от x1,7 до x20</small></div>
+    <div class="me-row">${ms.map((m, i) => `<label class="me-in"><i>x</i><input type="number" min="1.7" max="20" step="0.1" value="${+(+m).toFixed(1)}" data-i="${i}" inputmode="decimal" aria-label="Множитель ${i + 1}"></label>`).join('')}</div>
     <div class="me-f"><button class="ug-btn ug-btn-q" type="button" id="meDef">Стандартные</button><button class="ug-btn" type="button" id="meCancel">Отмена</button><button class="ug-ok" type="button" id="meSave">Сохранить</button></div>`;
   const inputs = $$('input', box);
   inputs.forEach(i => { i.oninput = () => i.parentElement.classList.remove('err'); i.onkeydown = e => { if (e.key === 'Enter') $('#meSave').click(); }; });
@@ -6290,8 +6291,8 @@ function drawMults() {
   $('#meDef').onclick = () => store([]);
   $('#meSave').onclick = () => {
     let ok = true;
-    const arr = inputs.map(i => { const v = Math.round(parseFloat(String(i.value).replace(',', '.')) * 10) / 10; if (!(v >= 1.2 && v <= 20)) { ok = false; i.parentElement.classList.add('err'); } return v; });
-    if (!ok) return toast('Множитель — от x1,2 до x20', 'err');
+    const arr = inputs.map(i => { const v = Math.round(parseFloat(String(i.value).replace(',', '.')) * 10) / 10; if (!(v >= UPG_MIN_X && v <= 20)) { ok = false; i.parentElement.classList.add('err'); } return v; });
+    if (!ok) return toast('Множитель — от x1,7 до x20', 'err');
     store([...new Set(arr)].length === 6 ? arr.slice().sort((a, b) => a - b) : arr);
   };
 }
@@ -6317,7 +6318,7 @@ function stakeSlot(items, v) {
 }
 // случайный предмет из ВСЕХ категорий с ценой около v × m (±12%); если таких мало — ближайшие по цене
 function upgPickMult(v, m) {
-  const want = v * m, pool = UPG_CAT.filter(s => s.p > v * 1.05);
+  const want = v * m, pool = UPG_CAT.filter(s => s.p >= v * UPG_MIN_X);
   let near = pool.filter(s => s.p >= want * .88 && s.p <= want * 1.12);
   if (near.length < 3) near = pool.slice().sort((a, z) => Math.abs(Math.log(a.p / want)) - Math.abs(Math.log(z.p / want))).slice(0, 12);
   return near[Math.floor(Math.random() * near.length)] || null;
@@ -6330,7 +6331,7 @@ function drawUpg() {
     const x = upg.to ? SK[upg.to].p / v : 0;
     if (!x || Math.abs(Math.log(x / upg.mult)) > Math.log(1.15)) { const b = upgPickMult(v, upg.mult); upg.to = b ? b.name : null; if (b) { upg.cat = b.c; upg.focus = true; } }
   }
-  if (upg.to && SK[upg.to].p <= v * 1.05) upg.to = null;
+  if (upg.to && SK[upg.to].p < v * UPG_MIN_X) upg.to = null;
   $$('#upgSort button').forEach(b => b.classList.toggle('on', b.dataset.s === upg.sort));
   // слот ставки
   let top = null;
@@ -6405,7 +6406,7 @@ function drawTargets() {
   const show = !v && !upg.q;
   let list = show
     ? UPG_CAT.filter(s => upg.cat === 'all' ? s.c === 'knife' || s.c === 'gloves' || (s.c === 'skin' && s.p >= 15000 && /^(StatTrak™ )?(AWP|AK-47|M4A4|M4A1-S|Desert Eagle) \|/.test(s.name)) : s.c === upg.cat).reverse()
-    : UPG_CAT.filter(s => s.p > v * 1.05 && (upg.cat === 'all' || s.c === upg.cat) && (!upg.q || s.name.toLowerCase().includes(upg.q)));
+    : UPG_CAT.filter(s => s.p >= v * UPG_MIN_X && (upg.cat === 'all' || s.c === upg.cat) && (!upg.q || s.name.toLowerCase().includes(upg.q)));
   // фильтр по множителю: только предметы около v × m (±12%); если таких мало — ближайшие по цене
   if (upg.mult && v) {
     const want = v * upg.mult, near = list.filter(s => s.p >= want * .88 && s.p <= want * 1.12);
@@ -9138,7 +9139,7 @@ function axUpg(box, D) {
       ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Попыток', r => fmt(r.uN), num], ['Побед', r => fmt(r.uWins), num], ['Поставлено', r => money(r.uStake), num], ['Прибыль', r => sgn(r.upgP), tn('upgP')]], D.rows.filter(r => r.uN).reverse()))}
     </div>
     ${axCard('Игроки апгрейда — кто сколько поставил и выиграл', '<div id="axUpgPl"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div>')}
-    <p class="ax-foot">Удача игрока (меняется в «Игроки») умножает шанс поверх окупаемости. Максимальный шанс — 75%, выше ×20 шанс дополнительно режется.</p>`;
+    <p class="ax-foot">Удача игрока (меняется в «Игроки») умножает шанс поверх окупаемости. Минимальный множитель ×1,7, максимальный шанс — 70%, выше ×20 шанс дополнительно режется.</p>`;
   axUpgRtp(box);
 }
 /* окупаемость апгрейда (владелец 28.11): site_cfg 'upg' → {rtp}, 30–98%; сервер — supabase/upg_rtp_admin.sql (_upg_rtp), сайт — UPG.rtp */
