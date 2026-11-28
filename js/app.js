@@ -3278,6 +3278,7 @@ async function loadCaseCfg() {
   const tc = data.find(r => r.k === 'tower'); if (tc && tc.v) { if (+tc.v.rtp >= .3 && +tc.v.rtp <= .98) TOWER.rtp = +tc.v.rtp; TOWER.off = !!tc.v.off; if (Array.isArray(tc.v.top) && tc.v.top.length === 3) TOWER.top = tc.v.top.map(Number); if ($('#twTower') && !tw.game) drawTower(); }
   const sk = data.find(r => r.k === 'skins'); if (sk && sk.v && sk.v.hold != null) SK_HOLD = Math.max(0, +sk.v.hold || 0);
   const bc = data.find(r => r.k === 'build'); if (bc && bc.v) { if (+bc.v.rtp >= .3 && +bc.v.rtp <= .98) BUILD.rtp = +bc.v.rtp; BUILD.off = !!bc.v.off; if ($('#bdSet')) drawBuild(); }
+  const ug = data.find(r => r.k === 'upg'); if (ug && ug.v && +ug.v.rtp >= .3 && +ug.v.rtp <= .98 && +ug.v.rtp !== UPG.rtp) { UPG.rtp = +ug.v.rtp; if ($('#upgQ') && !upg.busy) { drawUpg(); drawTargets(); } } // окупаемость апгрейда (админка → «Апгрейд»)
   const bl = data.find(r => r.k === 'blocks');
   if (bl && Array.isArray(bl.v) && bl.v.length) {
     const fresh = CASE_BLOCKS.filter(b => b.fresh && !bl.v.some(x => x.id === b.id)); // новые разделы из кода, которых нет в сохранённом списке
@@ -6130,8 +6131,10 @@ function upgValue() { return upgItems().reduce((a, x) => a + SK[x.n].p, 0) + upg
 // шанс апгрейда: возврат × (ставка / цель) — upgRtp ниже; дальше резко падает (x50 ≈ 0,12%, x100 ≈ 0,007%, x500 ≈ 0,00001%) — x500/x1000 практически не выпадают
 const UPG_SOFT = 20;
 const UPG_MAX = .75; // максимальный шанс апгрейда (как на сервере)
-// возврат апгрейда: 80% на всех множителях (владелец 23.11 — без «92% от ×6»); выше ×UPG_SOFT шанс дополнительно режется. Сервер — supabase/rtp80_modes.sql (_upg_rtp)
-const upgRtp = () => .8;
+// окупаемость апгрейда: одно число на всех множителях, по умолчанию 80%; владелец 28.11 — правится в админке (вкладка «Апгрейд», 30–98%).
+// Хранится в site_cfg 'upg'.rtp, читает loadCaseCfg; сервер — то же число (supabase/upg_rtp_admin.sql, _upg_rtp). Выше ×UPG_SOFT шанс дополнительно режется.
+const UPG = { rtp: .8 };
+const upgRtp = () => UPG.rtp;
 const upgChance = (v, t) => { if (!v || !t) return 0; const x = t.p / v; return Math.min(UPG_MAX, upgRtp(x) / x * (x > UPG_SOFT ? (UPG_SOFT / x) ** 3 : 1) * myLuck()); };
 /* процент шанса: мелкие значения — без округления в ноль (0,0000118%) */
 const pctTxt = ch => { const p = ch * 100; if (p < 1e-6) return '<0,000001%'; const d = p >= 10 ? 1 : p >= 1 ? 2 : Math.min(12, 1 - Math.floor(Math.log10(p))); return p.toFixed(d).replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1').replace('.', ',') + '%'; };
@@ -9128,13 +9131,36 @@ function axUpg(box, D) {
       ${axKpi('Прибыль с апгрейда', sgn(pr), '', tone(pr))}
       ${axKpi('Крупнейший выигрыш', money(+U.maxWin || 0), +U.maxX ? `×${(+U.maxX).toFixed(1).replace('.', ',')}` : '')}
     </div>
+    ${axCard('Окупаемость апгрейда', '<div id="axUpgRtp"></div>')}
     ${axCard(`Прибыль с апгрейда по ${D.hours ? 'часам' : 'дням'}`, axBars(D.rows, r => r.upgP, { day: !D.hours, tip: r => [['Попыток', fmt(r.uN)], ['Побед', fmt(r.uWins)], ['Поставлено', money(r.uStake)], ['Выдано', money(r.uWon)], ['Прибыль', sgn(r.upgP)]] }))}
     <div class="ax-g2">
       ${axCard('По множителям', axTable([['Множитель', r => band(+r.lo)], ['Попыток', r => fmt(r.n), num], ['Побед', r => pctOr(+r.wins, +r.n), num], ['Поставлено', r => money(+r.stake), num], ['Выдано', r => money(+r.won), num], ['Отдаёт', r => pctOr(+r.won, +r.stake), r => 'num ' + (+r.won > +r.stake ? 'neg' : '')], ['Прибыль', r => sgn(+r.stake - +r.won), r => 'num ' + tone(+r.stake - +r.won)]], D.UX) + '<p class="ax-foot">Прибыль = поставлено (скины и деньги, которые игроки закинули) − выдано (скины, которые они выиграли). Если игрок гоняет выигранный скин по кругу, каждая попытка считается заново, поэтому «поставлено» может быть больше пополнений. Админские аккаунты не учитываются.</p>')}
       ${axCard(`По ${D.hours ? 'часам' : 'дням'}`, axTable([dayCol(D), ['Попыток', r => fmt(r.uN), num], ['Побед', r => fmt(r.uWins), num], ['Поставлено', r => money(r.uStake), num], ['Прибыль', r => sgn(r.upgP), tn('upgP')]], D.rows.filter(r => r.uN).reverse()))}
     </div>
     ${axCard('Игроки апгрейда — кто сколько поставил и выиграл', '<div id="axUpgPl"><div class="ax-load"><span class="spinner"></span>Загружаем…</div></div>')}
-    <p class="ax-foot">Удача игрока (меняется в «Игроки») умножает и шанс апгрейда. Шанс: x1,05–5 — в среднем отдаёт 80%, выше x5 — до 92%, максимум 75%.</p>`;
+    <p class="ax-foot">Удача игрока (меняется в «Игроки») умножает шанс поверх окупаемости. Максимальный шанс — 75%, выше ×20 шанс дополнительно режется.</p>`;
+  axUpgRtp(box);
+}
+/* окупаемость апгрейда (владелец 28.11): site_cfg 'upg' → {rtp}, 30–98%; сервер — supabase/upg_rtp_admin.sql (_upg_rtp), сайт — UPG.rtp */
+const upgRtpHint = r => [2, 5, 10].map(x => `×${x} — ${String(+(Math.min(UPG_MAX, r / x) * 100).toFixed(1)).replace('.', ',')}%`).join(' · ');
+function axUpgRtp(box) {
+  const el = $('#axUpgRtp', box); if (!el) return;
+  el.innerHTML = `<div class="ax-bd">
+    <label class="ax-bd-f">Окупаемость, %<input class="inp" id="auRtp" type="number" min="30" max="98" step="1" value="${Math.round(UPG.rtp * 100)}" inputmode="numeric"></label>
+    <button class="ax-ok ax-sm" id="auSave">${ic.check}Сохранить</button>
+    <span class="ax-mute" id="auHint">Шанс: ${upgRtpHint(UPG.rtp)}</span></div>
+    <p class="ax-foot">Сколько в среднем возвращается игрокам от ставок в апгрейде (80% = сайт оставляет себе 20%, 70% — 30%). Шанс = окупаемость ÷ икс. Действует сразу для новых апгрейдов; игрок видит уже новый шанс.</p>`;
+  const inp = $('#auRtp', el);
+  inp.oninput = () => { const v = Math.round(+inp.value); $('#auHint', el).textContent = v >= 30 && v <= 98 ? 'Шанс: ' + upgRtpHint(v / 100) : 'От 30 до 98%'; };
+  $('#auSave', el).onclick = async () => {
+    const v = Math.round(+inp.value);
+    if (!(v >= 30 && v <= 98)) return toast('Окупаемость апгрейда — от 30 до 98%', 'err');
+    const b = $('#auSave', el); b.disabled = true;
+    const { error } = await sb.from('site_cfg').upsert({ k: 'upg', v: { rtp: v / 100 }, updated_at: new Date().toISOString() });
+    b.disabled = false;
+    if (error) return cfgErr(error);
+    UPG.rtp = v / 100; toast('Сохранено: окупаемость апгрейда ' + v + '%');
+  };
 }
 /* ---------- краш (supabase/crash_admin.sql): только реальные игроки — без ботов и админов, только завершённые раунды ---------- */
 const CR_MODES = [[-2, 'Агрессивный', 'почти всегда взрыв сразу'], [-1, 'Жёсткий', 'чаще рано, отдаёт ~65%'], [0, 'Баланс', 'отдаёт 80%, случайно'], [1, 'Щедрый', 'без мгновенных взрывов, отдаёт >100%'], [2, 'Дающий', 'чаще всего держит до 40-й секунды']];
